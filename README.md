@@ -1,2 +1,2 @@
-# sbt-fuzzer-private
+# sbt-fizzer-private
 Experimental implementation of gray-box program fuzzing.
