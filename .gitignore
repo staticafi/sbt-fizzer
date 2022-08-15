@@ -31,5 +31,12 @@
 *.out
 *.app
 
+# LLVM IR 
+*.ll
+*.bc
+
 # Build Folder
 build
+
+# VS Code
+.vscode
