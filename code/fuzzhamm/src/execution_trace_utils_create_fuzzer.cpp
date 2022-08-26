@@ -51,7 +51,7 @@ branching_fuzzer_sequence_ptr  create_branching_fuzzer_sequence(
         sensitive_stdin_bits.insert(sensitive_bits_set->begin(), sensitive_bits_set->end());
         if (old_size < sensitive_stdin_bits.size())
         {
-            std::size_t const  num_bits = std::min(sensitive_stdin_bits.size(), 64ULL);
+            std::size_t const  num_bits = std::min(sensitive_stdin_bits.size(), (size_t) 64);
             vecu64  class_counts;
             sample_counts_per_hamming_class(class_counts, num_bits, num_bits * num_bits);
             for (std::size_t hamming_class = 0UL; hamming_class != class_counts.size(); ++hamming_class)
