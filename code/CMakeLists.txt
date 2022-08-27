@@ -11,6 +11,8 @@ include_directories(
 message("Including the following libraries to the build:")
 add_subdirectory(./utility)
     message("  utility")
+add_subdirectory(./pass)
+    message("  pass")
 add_subdirectory(./instrumentation)
     message("  instrumentation")
 add_subdirectory(./iomodels)
