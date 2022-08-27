@@ -5,6 +5,7 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/code/iomodels/include"
     "${PROJECT_SOURCE_DIR}/code/connection/include"
     "${PROJECT_SOURCE_DIR}/code/benchmarks/include"
+    "${PROJECT_SOURCE_DIR}/code/client/include"
     "${PROJECT_SOURCE_DIR}/code/fuzzing/include"
     "${PROJECT_SOURCE_DIR}/code/fuzzhamm/include"
     )
@@ -21,6 +22,8 @@ add_subdirectory(./connection)
     message("  connection")
 add_subdirectory(./benchmarks)
     message("  benchmarks")
+add_subdirectory(./client)
+    message("  client")
 add_subdirectory(./fuzzing)
     message("  fuzzing")
 add_subdirectory(./fuzzhamm)
