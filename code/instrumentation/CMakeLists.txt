@@ -5,6 +5,9 @@ add_library(${THIS_TARGET_NAME}
     ./src/instrumentation_types.cpp
 
     ./include/instrumentation/instrumentation.hpp
+
+    ./src/instrumentation.cpp
+    ./src/verifier_functions.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
