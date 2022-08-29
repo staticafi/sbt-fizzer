@@ -11,7 +11,7 @@ using namespace llvm;
 
 namespace {
 
-struct FizzerPass : public ModulePass {
+struct FizzerPass : public FunctionPass {
   public:
     static char ID;
 
@@ -27,15 +27,16 @@ struct FizzerPass : public ModulePass {
     Type *FloatTy;
     Type *DoubleTy;
 
+    std::unique_ptr<legacy::FunctionPassManager> DependenciesFPM;
+
     FunctionCallee processBranchFunc;
 
     unsigned int basicBlockCount;
 
-    FizzerPass() : ModulePass(ID) {}
-    bool runOnModule(Module &M) override;
+    FizzerPass() : FunctionPass(ID) {}
+    bool runOnFunction(Function &F);
 
-    void init(Module &M);
-    bool instrumentModule(Module &M);
+    bool doInitialization(Module &M);
 
     Value *instrumentCondBranch(BranchInst *brInst);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
@@ -53,7 +54,7 @@ struct FizzerPass : public ModulePass {
 
 } // namespace
 
-void FizzerPass::init(Module &M) {
+bool FizzerPass::doInitialization(Module &M) {
     LLVMContext &C = M.getContext();
 
     Int1Ty = IntegerType::getInt1Ty(C);
@@ -66,11 +67,16 @@ void FizzerPass::init(Module &M) {
     FloatTy = Type::getFloatTy(C);
     DoubleTy = Type::getDoubleTy(C);
 
+    DependenciesFPM = std::make_unique<legacy::FunctionPassManager>(&M);
+    DependenciesFPM->add(createLowerSwitchPass());
+
     processBranchFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_branch", Type::getVoidTy(C),
                               Int32Ty, Int8Ty, DoubleTy);
 
     basicBlockCount = 0;
+
+    return true;
 }
 
 CallInst *FizzerPass::instrumentIntEq(Value *val1, Value *val2,
@@ -250,51 +256,36 @@ Value *FizzerPass::instrumentCondBranch(BranchInst *brInst) {
     return instrumentFcmp(lhs, rhs, cmpInst, brBuilder);
 }
 
-bool FizzerPass::instrumentModule(Module &M) {
-    bool changed = false;
-
-    if (Function *main = M.getFunction("main")) {
-        main->setName("__sbt_fizzer_method_under_test");
-        changed = true;
+bool FizzerPass::runOnFunction(Function &F) {
+    if (F.isDeclaration()) {
+        return false;
     }
 
-    for (Function &F : M) {
-        for (BasicBlock &BB : F) {
-            ++basicBlockCount;
-            BB.setName("bb" + std::to_string(basicBlockCount));
+    DependenciesFPM->run(F);
 
-            BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
-            if (brInst && brInst->isConditional() &&
-                dyn_cast<CmpInst>(brInst->getCondition())) {
-                changed = true;
+    if (F.getName() == "main") {
+        F.setName("__sbt_fizzer_method_under_test");
+    }
 
-                IRBuilder<> brBuilder(brInst);
+    for (BasicBlock &BB : F) {
+        ++basicBlockCount;
+        BB.setName("bb" + std::to_string(basicBlockCount));
 
-                Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
-                Value *distance = instrumentCondBranch(brInst);
-                Value *coveredBranch =
-                    brBuilder.CreateZExt(brInst->getCondition(), Int8Ty);
-                brBuilder.CreateCall(processBranchFunc,
-                                     {location, coveredBranch, distance});
-            }
+        BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
+        if (brInst && brInst->isConditional() &&
+            dyn_cast<CmpInst>(brInst->getCondition())) {
+
+            IRBuilder<> brBuilder(brInst);
+
+            Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
+            Value *distance = instrumentCondBranch(brInst);
+            Value *coveredBranch =
+                brBuilder.CreateZExt(brInst->getCondition(), Int8Ty);
+            brBuilder.CreateCall(processBranchFunc,
+                                    {location, coveredBranch, distance});
         }
     }
-    return changed;
-}
-
-bool FizzerPass::runOnModule(Module &M) {
-    bool changed = false;
-
-    init(M);
-
-    legacy::FunctionPassManager FPM(&M);
-    FPM.add(createLowerSwitchPass());
-
-    for (Function &F : M) {
-        changed = changed || FPM.run(F);
-    }
-
-    return changed || instrumentModule(M);
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -311,9 +302,5 @@ static RegisterPass<FizzerPass> X("legacy-fizzer-pass",
                                   "Fizzer Instrumentation pass", false, false);
 
 static RegisterStandardPasses
-    RegisterFizzerPass(PassManagerBuilder::EP_ModuleOptimizerEarly,
+    RegisterFizzerPass(PassManagerBuilder::EP_EarlyAsPossible,
                        registerFizzerPass);
-
-static RegisterStandardPasses
-    RegisterFizzerPass0(PassManagerBuilder::EP_EnabledOnOptLevel0,
-                        registerFizzerPass);
