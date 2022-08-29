@@ -7,6 +7,7 @@
 #include <connection/medium.hpp>
 #include <utility/math.hpp>
 #include <instrumentation/instrumentation_types.hpp>
+#include <utility/endian.hpp>
 
 extern "C" {
 void __sbt_fizzer_method_under_test();
@@ -26,10 +27,11 @@ void run(int argc, char *argv[]) {
     iomanager.clear_stdout();
 
     vecu8& bytes = client_options::instance().input_bytes;
-
+    connection::medium::instance() << (natural_16_bit) bytes.size();
     for (natural_8_bit byte: bytes) {
         connection::medium::instance() << byte;
     }
+    connection::medium::instance() << (natural_16_bit) 0;
 
     iomanager.load_stdin(connection::medium::instance());
     iomanager.load_stdout(connection::medium::instance());
@@ -40,6 +42,6 @@ void run(int argc, char *argv[]) {
         std::cout << "location: " << info.branching_id
                   << " branch: " << info.covered_branch
                   << " distance: " << info.distance_to_uncovered_branch
-                  << std::endl;
+                  << "\n";
     }
 }

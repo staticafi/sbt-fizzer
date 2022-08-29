@@ -60,7 +60,7 @@ set(EIGEN_LIST_OF_LIBRARIES_TO_LINK_WITH "Eigen3::Eigen")
 
 # find and add Boost
 message("Searching for Boost library ...")
-find_package(Boost)
+find_package(Boost COMPONENTS program_options REQUIRED)
 set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH
         ${Boost_LIBRARIES}
     )
