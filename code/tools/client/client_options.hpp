@@ -1,5 +1,5 @@
-#ifndef CLIENT_CLIENT_OPTIONS_HPP_INCLUDED
-#define CLIENT_CLIENT_OPTIONS_HPP_INCLUDED
+#ifndef TOOL_CLIENT_CLIENT_OPTIONS_HPP_INCLUDED
+#define TOOL_CLIENT_CLIENT_OPTIONS_HPP_INCLUDED
 
 #include <utility/basic_numeric_types.hpp>
 #include <utility/math.hpp>
