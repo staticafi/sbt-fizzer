@@ -91,8 +91,7 @@ CallInst *FizzerPass::instrumentIntEq(Value *val1, Value *val2,
 CallInst *FizzerPass::instrumentFPEq(Value *val1, Value *val2,
                                      IRBuilder<> &builder) {
     Value *diff = builder.CreateFSub(val1, val2);
-    return builder.CreateBinaryIntrinsic(Intrinsic::fabs, diff,
-                                         ConstantInt::get(Int1Ty, 0));
+    return builder.CreateUnaryIntrinsic(Intrinsic::fabs, diff);
 }
 
 std::tuple<Value *, Value *>
@@ -185,7 +184,7 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
 
 Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-                                    
+
     Value *valTrue = ConstantFP::get(lhs->getType(),
                                      std::numeric_limits<double>::quiet_NaN());
     Value *valFalse = ConstantFP::get(lhs->getType(),
