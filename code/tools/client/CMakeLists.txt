@@ -1,8 +1,8 @@
 set(THIS_TARGET_NAME client)
 
-option(INSTRUMENTED_LL_FILE "Provide the path to the instrumented coded needed to compile the client")
+option(INSTRUMENTED_LLVM_FILE "Provide the path to the instrumented coded needed to compile the client")
 
-if(INSTRUMENTED_LL_FILE)
+if(INSTRUMENTED_LLVM_FILE)
 
     add_executable(${THIS_TARGET_NAME}
         ./client_options.hpp
@@ -20,7 +20,7 @@ if(INSTRUMENTED_LL_FILE)
         connection
         iomodels
         utility
-        ${INSTRUMENTED_LL_FILE}
+        ${INSTRUMENTED_LLVM_FILE}
         ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
         )
 
