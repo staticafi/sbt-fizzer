@@ -38,7 +38,7 @@ struct FizzerPass : public FunctionPass {
 
     bool doInitialization(Module &M);
 
-    Value *instrumentCondBranch(BranchInst *brInst);
+    Value *instrumentCmpBranch(BranchInst *brInst, CmpInst *cmpInst);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
     Value *instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
@@ -242,10 +242,9 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
     return distance;
 }
 
-Value *FizzerPass::instrumentCondBranch(BranchInst *brInst) {
+Value *FizzerPass::instrumentCmpBranch(BranchInst *brInst, CmpInst *cmpInst) {
     IRBuilder<> brBuilder(brInst);
 
-    CmpInst *cmpInst = dyn_cast<CmpInst>(brInst->getCondition());
     Value *lhs = cmpInst->getOperand(0);
     Value *rhs = cmpInst->getOperand(1);
 
@@ -272,18 +271,35 @@ bool FizzerPass::runOnFunction(Function &F) {
         BB.setName("bb" + std::to_string(basicBlockCount));
 
         BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
-        if (brInst && brInst->isConditional() &&
-            dyn_cast<CmpInst>(brInst->getCondition())) {
-
-            IRBuilder<> brBuilder(brInst);
-
-            Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
-            Value *distance = instrumentCondBranch(brInst);
-            Value *coveredBranch =
-                brBuilder.CreateZExt(brInst->getCondition(), Int8Ty);
-            brBuilder.CreateCall(processBranchFunc,
-                                    {location, coveredBranch, distance});
+        if (!brInst || !brInst->isConditional()) {
+            continue;
         }
+        IRBuilder<> brBuilder(brInst);
+
+        Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
+        Value *distance;
+        Value *coveredBranch =
+            brBuilder.CreateZExt(brInst->getCondition(), Int8Ty);
+
+        Value *cond = brInst->getCondition();
+        if (CmpInst *cmpInst = dyn_cast<CmpInst>(cond)) {
+            distance = instrumentCmpBranch(brInst, cmpInst);
+        }
+        // truncating a number to i1, happens for example with bool in C
+        else if (dyn_cast<TruncInst>(cond)) {
+            distance = ConstantFP::get(DoubleTy, 1);
+        } else {
+            errs() << "Instrumentation for branch condition in " << BB.getName()
+                   << " is not supported"
+                   << "\n";
+            errs() << "Condition instruction is: ";
+            cond->print(errs());
+            errs() << "\n";
+            distance = ConstantFP::get(DoubleTy, 0);
+        }
+
+        brBuilder.CreateCall(processBranchFunc,
+                             {location, coveredBranch, distance});
     }
     return true;
 }
