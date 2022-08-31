@@ -7,6 +7,8 @@
 #include "llvm/Transforms/Utils.h"
 #include <llvm/Pass.h>
 
+#include <utility/invariants.hpp>
+
 using namespace llvm;
 
 namespace {
@@ -113,8 +115,9 @@ FizzerPass::instrumentFPIneq(Value *val1, Value *val2, IRBuilder<> &builder) {
 
 Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-    Value *valTrue;
-    Value *valFalse;
+
+    Value *valTrue = ConstantInt::get(lhs->getType(), 0);
+    Value *valFalse = ConstantInt::get(lhs->getType(), 0);
 
     CmpInst::Predicate opcode = cmpInst->getPredicate();
 
@@ -171,6 +174,7 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         std::tie(valFalse, valTrue) = instrumentIntIneq(lhs, rhs, builder);
         break;
     default:
+        UNREACHABLE();
         break;
     }
     Value *distance = builder.CreateUIToFP(
@@ -181,8 +185,11 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
 
 Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-    Value *valTrue;
-    Value *valFalse;
+                                    
+    Value *valTrue = ConstantFP::get(lhs->getType(),
+                                     std::numeric_limits<double>::quiet_NaN());
+    Value *valFalse = ConstantFP::get(lhs->getType(),
+                                      std::numeric_limits<double>::quiet_NaN());
 
     if (lhs->getType()->isFloatTy()) {
         lhs = builder.CreateFPExt(lhs, DoubleTy);
@@ -196,7 +203,6 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
     case CmpInst::FCMP_UNO:   ///< 1 0 0 0    True if unordered: isnan(X) |
                               ///<            isnan(Y)
     case CmpInst::FCMP_TRUE:  ///< 1 1 1 1    Always true (always folded)
-        // TODO: set valTrue and valFalse to some sensible values
         break;
     case CmpInst::FCMP_OEQ: ///< 0 0 0 1    True if ordered and equal
     case CmpInst::FCMP_UEQ: ///< 1 0 0 1    True if unordered or equal
@@ -230,6 +236,7 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         std::tie(valFalse, valTrue) = instrumentFPIneq(lhs, rhs, builder);
         break;
     default:
+        UNREACHABLE();
         break;
     }
 
