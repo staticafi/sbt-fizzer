@@ -1,6 +1,5 @@
-#include <iostream>
+#include <boost/algorithm/hex.hpp>
 
-#include <client/client_options.hpp>
 #include <iomodels/iomanager.hpp>
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
 #include <iomodels/stdout_void.hpp>
@@ -8,13 +7,20 @@
 #include <utility/math.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 #include <utility/endian.hpp>
+#include <client/program_options.hpp>
+
+#include <iostream>
 
 extern "C" {
 void __sbt_fizzer_method_under_test();
 }
 
-void run(int argc, char *argv[]) {
-    if (client_options::instance().parse_client_options(argc, argv)) {
+void run_input_mode(const std::string& input) {
+    vecu8 input_bytes;
+    try {
+        boost::algorithm::unhex(input, std::back_inserter(input_bytes));
+    } catch (boost::algorithm::hex_decode_error &e) {
+        std::cout << "In argument input expected hexadecimal value" << std::endl;
         return;
     }
 
@@ -26,9 +32,8 @@ void run(int argc, char *argv[]) {
     iomanager.clear_stdin();
     iomanager.clear_stdout();
 
-    vecu8& bytes = client_options::instance().input_bytes;
-    connection::medium::instance() << (natural_16_bit) bytes.size();
-    for (natural_8_bit byte: bytes) {
+    connection::medium::instance() << (natural_16_bit) input_bytes.size();
+    for (natural_8_bit byte: input_bytes) {
         connection::medium::instance() << byte;
     }
     connection::medium::instance() << (natural_16_bit) 0;
@@ -39,9 +44,18 @@ void run(int argc, char *argv[]) {
     __sbt_fizzer_method_under_test();
 
     for (const instrumentation::branching_coverage_info& info: iomanager.get_trace()) {
-        std::cout << "location: " << info.branching_id
-                  << " branch: " << info.covered_branch
-                  << " distance: " << info.distance_to_uncovered_branch
+        std::cout << "location: bb" << info.branching_id
+                  << " branch: " << std::boolalpha << info.covered_branch
+                  << " distance to uncovered branch: " << info.distance_to_uncovered_branch
                   << "\n";
     }
+}
+
+void run() {
+    if (get_program_options()->has("input")) {
+        run_input_mode(get_program_options()->value("input"));
+        return;
+    }
+    
+    
 }

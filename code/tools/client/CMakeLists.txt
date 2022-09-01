@@ -5,8 +5,11 @@ option(INSTRUMENTED_LLVM_FILE "Provide the path to the instrumented coded needed
 if(INSTRUMENTED_LLVM_FILE)
 
     add_executable(${THIS_TARGET_NAME}
-        ./client_options.hpp
-        ./client_options.cpp
+        ./program_options.hpp
+        ./program_options.cpp
+
+        ./program_info.hpp
+        ./program_info.cpp
 
         ./run.cpp
         ./main.cpp
