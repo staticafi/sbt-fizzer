@@ -7,8 +7,6 @@
 #include "llvm/Transforms/Utils.h"
 #include <llvm/Pass.h>
 
-#include <utility/invariants.hpp>
-
 using namespace llvm;
 
 namespace {
@@ -173,7 +171,6 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         std::tie(valFalse, valTrue) = instrumentIntIneq(lhs, rhs, builder);
         break;
     default:
-        UNREACHABLE();
         break;
     }
     Value *distance = builder.CreateUIToFP(
@@ -235,7 +232,6 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         std::tie(valFalse, valTrue) = instrumentFPIneq(lhs, rhs, builder);
         break;
     default:
-        UNREACHABLE();
         break;
     }
 
