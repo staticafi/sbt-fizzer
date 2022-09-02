@@ -1,5 +1,5 @@
-#include <fizz/program_info.hpp>
-#include <fizz/program_options.hpp>
+#include <server/program_info.hpp>
+#include <server/program_options.hpp>
 #include <utility/config.hpp>
 #include <utility/timeprof.hpp>
 #include <utility/log.hpp>

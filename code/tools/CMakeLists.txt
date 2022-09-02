@@ -6,5 +6,5 @@ endif()
 
 add_subdirectory(./client)
     message("  client")
-add_subdirectory(./fizz)
-    message("  fizz")
+add_subdirectory(./server)
+    message("  server")

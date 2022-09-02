@@ -1,8 +1,8 @@
-#include <fizz/program_info.hpp>
+#include <server/program_info.hpp>
 
 std::string  get_program_name()
 {
-    return "fizz";
+    return "server";
 }
 
 std::string  get_program_version()

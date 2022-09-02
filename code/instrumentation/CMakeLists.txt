@@ -4,8 +4,6 @@ add_library(${THIS_TARGET_NAME}
     ./include/instrumentation/instrumentation_types.hpp
     ./src/instrumentation_types.cpp
 
-    ./include/instrumentation/instrumentation.hpp
-
     ./src/instrumentation.cpp
     ./src/verifier_functions.cpp
     )

@@ -6,7 +6,7 @@
 namespace  connection {
 
 
-void  client_main(std::string const&  benchmark_name);
+void  client_main();
 
 
 }

@@ -1,15 +1,11 @@
-#include <fizz/program_info.hpp>
-#include <fizz/program_options.hpp>
-#include <benchmarks/benchmarks.hpp>
+#include <server/program_info.hpp>
+#include <server/program_options.hpp>
 #include <connection/server_main.hpp>
 #include <connection/client_main.hpp>
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzers_map.hpp>
 #include <fuzzing/dump.hpp>
 #include <iostream>
-
-
-extern void test();
 
 
 void run(int argc, char* argv[])
@@ -24,23 +20,10 @@ void run(int argc, char* argv[])
         std::cout << get_program_options()->value("version") << std::endl;
         return;
     }
-    if (get_program_options()->has("test"))
-    {
-        if (get_program_options()->num_arguments() > 2UL)
-            std::cout << "WARNING: In the '--test' mode passed options are ignored." << std::endl;
-        test();
-        return;
-    }
     if (get_program_options()->has("list_fuzzers"))
     {
         for (auto const&  name_and_constructor : fuzzing::get_fuzzers_map())
             std::cout << name_and_constructor.first << std::endl;
-        return;
-    }
-    if (get_program_options()->has("list_benchmarks"))
-    {
-        for (auto const&  name_and_driver : benchmarks::get_benchmarks_map())
-            std::cout << name_and_driver.first << std::endl;
         return;
     }
     if (!get_program_options()->has("fuzzer"))
@@ -53,16 +36,6 @@ void run(int argc, char* argv[])
         std::cout << "ERROR: passed unknown fuzzer name '" << get_program_options()->value("fuzzer") << "'. Use --list_fuzzers." << std::endl;
         return;
     }
-    if (!get_program_options()->has("benchmark"))
-    {
-        std::cout << "ERROR: no benchmark is specified. Use --help." << std::endl;
-        return;
-    }
-    if (benchmarks::get_benchmarks_map().count(get_program_options()->value("benchmark")) == 0UL)
-    {
-        std::cout << "ERROR: passed unknown benchmark name '" << get_program_options()->value("benchmark") << "'. Use --list_benchmarks." << std::endl;
-        return;
-    }
 
     fuzzing::termination_info const  terminator(
             std::max(0, std::stoi(get_program_options()->value("max_executions"))),
@@ -72,13 +45,13 @@ void run(int argc, char* argv[])
     fuzzing::print_fuzzing_configuration(
             std::cout,
             get_program_options()->value("fuzzer"),
-            get_program_options()->value("benchmark"),
+            "client",
             terminator
             );
 
     std::cout << "Fuzzing started..." << std::endl << std::flush;
 
-    connection::client_main(get_program_options()->value("benchmark"));
+    connection::client_main();
 
     fuzzing::analysis_outcomes const  results = connection::server_main(get_program_options()->value("fuzzer"), terminator);
 
@@ -101,7 +74,7 @@ void run(int argc, char* argv[])
                     results.traces_forming_coverage,
                     true,
                     true,
-                    "test_for_" + get_program_options()->value("benchmark") + "_by_" + get_program_options()->value("fuzzer")
+                    "test_by_" + get_program_options()->value("fuzzer")
                     );
             std::cout << "Done.\n" << std::flush;
         }

@@ -1,7 +1,6 @@
-#include <fizz/program_options.hpp>
-#include <fizz/program_info.hpp>
+#include <client/program_options.hpp>
+#include <client/program_info.hpp>
 #include <fuzzing/fuzzers_map.hpp>
-#include <benchmarks/benchmarks.hpp>
 #include <utility/assumptions.hpp>
 #include <stdexcept>
 #include <iostream>

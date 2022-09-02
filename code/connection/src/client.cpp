@@ -2,8 +2,6 @@
 #include <connection/medium.hpp>
 #include <iomodels/iomanager.hpp>
 
-#include <instrumentation/instrumentation.hpp>
-namespace  connection { extern DRIVER_TYPE_   benchmark_driver; }
 
 namespace  connection {
 
@@ -22,8 +20,6 @@ void  client::execute_program_and_send_results()
     iomodels::iomanager::instance().load_stdin(medium::instance());
     iomodels::iomanager::instance().clear_stdout();
     iomodels::iomanager::instance().load_stdout(medium::instance());
-
-    benchmark_driver();
 
     medium::instance().clear();
     iomodels::iomanager::instance().save_trace(medium::instance());

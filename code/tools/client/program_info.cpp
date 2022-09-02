@@ -1,4 +1,4 @@
-#include <fizz/program_info.hpp>
+#include <client/program_info.hpp>
 
 std::string  get_program_name()
 {

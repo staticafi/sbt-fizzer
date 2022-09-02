@@ -1,4 +1,4 @@
-set(THIS_TARGET_NAME fizz)
+set(THIS_TARGET_NAME server)
 
 add_executable(${THIS_TARGET_NAME}
     program_info.hpp
@@ -9,17 +9,15 @@ add_executable(${THIS_TARGET_NAME}
 
     main.cpp
     run.cpp
-
-    test.cpp
     )
 
 target_link_libraries(${THIS_TARGET_NAME}
-    benchmarks
     instrumentation
     connection
     iomodels
     fuzzing
     fuzzhamm
+    instrumentation # Duplicating because of Mingw (otherwise linking errors)
     connection  # Duplicating because of Mingw (otherwise linking errors)
     fuzzing     # Duplicating because of Mingw (otherwise linking errors)
     utility
