@@ -1,4 +1,6 @@
 #include <boost/algorithm/hex.hpp>
+#include <boost/asio.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <iomodels/iomanager.hpp>
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
@@ -10,6 +12,12 @@
 #include <client/program_options.hpp>
 
 #include <iostream>
+#include <stdlib.h>
+
+namespace io = boost::asio;
+namespace ip = io::ip;
+using tcp = io::ip::tcp;
+using error_code = boost::system::error_code;
 
 extern "C" {
 void __sbt_fizzer_method_under_test();
@@ -51,11 +59,38 @@ void run_input_mode(const std::string& input) {
     }
 }
 
+void run_connection_mode(const ip::address& address, unsigned short port) {
+    io::io_context io_context;
+    tcp::socket socket(io_context);
+    
+    error_code error;
+    tcp::endpoint endpoint(address, port);
+
+    socket.connect(endpoint, error);
+    if (error) {
+        std::cout << "ERROR: unable to connect." << std::endl;
+        return;
+    }
+    
+}
+
 void run() {
     if (get_program_options()->has("input")) {
         run_input_mode(get_program_options()->value("input"));
         return;
     }
+    if (!get_program_options()->has("address") || !get_program_options()->has("port")) {
+        std::cout << "ERROR: no options specified. Use --help." << std::endl;
+        return;
+    }
+    error_code error;
+    ip::address address = ip::make_address(get_program_options()->value("address"), error);
+    if (error) {
+        std::cout << "ERROR: invalid address." << std::endl;
+        return;
+    }
+    unsigned short port = (unsigned short) atoi(get_program_options()->value("port").c_str());
     
+    run_connection_mode(address, port);
     
 }

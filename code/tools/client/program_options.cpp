@@ -9,8 +9,13 @@
 program_options::program_options(int argc, char* argv[])
     : program_options_default(argc, argv)
 {
-    add_option("input", "Run the instrumented file with the specified hexadecimal input and output the trace", "1");
+    add_option("input", "Run the instrumented file with the specified hexadecimal input and output the trace.", "1");
 
+    add_option("address", "The address of the fizzer server in IPv4 dotted decimal form or IPv6 hexadecimal notation.", "1");
+    add_value("address", "127.0.0.1");
+
+    add_option("port", "The port of the fizzer server.", "1");
+    add_value("port", "42085");
 }
 
 static program_options_ptr  global_program_options;
