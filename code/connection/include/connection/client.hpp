@@ -1,7 +1,9 @@
 #ifndef CONNECTION_CLIENT_HPP_INCLUDED
 #   define CONNECTION_CLIENT_HPP_INCLUDED
 
-#include <boost/asio.hpp>
+#   include <boost/asio.hpp>
+
+#   include <connection/medium.hpp>
 
 namespace  connection {
 
