@@ -33,5 +33,5 @@ void run() {
     }
     
     client.connect(get_program_options()->value("address"), get_program_options()->value("port"));
-    
+    io_context.run();
 }
