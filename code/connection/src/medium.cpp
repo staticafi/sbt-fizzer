@@ -4,14 +4,6 @@
 
 namespace  connection {
 
-
-medium&  medium::instance()
-{
-    static medium  s;
-    return s;
-}
-
-
 medium::medium()
 {
     clear();
@@ -23,7 +15,6 @@ void  medium::clear()
     bytes.clear();
     cursor = 0U;
 }
-
 
 void  medium::save_bytes(natural_8_bit const*  ptr, natural_32_bit const  count)
 {
