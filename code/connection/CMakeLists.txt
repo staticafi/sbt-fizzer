@@ -4,17 +4,14 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/server.hpp
     ./src/server.cpp
 
-    ./include/connection/server_main.hpp
-    ./src/server_main.cpp
-
     ./include/connection/client.hpp
     ./src/client.cpp
 
-    ./include/connection/client_main.hpp
-    ./src/client_main.cpp
-
     ./include/connection/medium.hpp
     ./src/medium.cpp
+
+    ./include/connection/session.hpp
+    ./src/session.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

@@ -10,7 +10,7 @@
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::shared_ptr<fuzzer_base> const  fuzzer)
+analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> const  fuzzer)
 {
     TMPROF_BLOCK();
 
@@ -23,9 +23,10 @@ analysis_outcomes  run(std::shared_ptr<fuzzer_base> const  fuzzer)
         while (true)
         {
             TMPROF_BLOCK();
+            server.wait_for_result();
 
             fuzzer->_on_driver_begin();
-            connection::server::instance().execute_program_on_client();
+            server.load_result_from_client();
             fuzzer->_on_driver_end();
         }
     }

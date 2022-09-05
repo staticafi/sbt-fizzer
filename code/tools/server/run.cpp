@@ -1,7 +1,11 @@
+#include <boost/asio.hpp>
+
 #include <server/program_info.hpp>
 #include <server/program_options.hpp>
-#include <connection/server_main.hpp>
-#include <connection/client_main.hpp>
+#include <connection/server.hpp>
+#include <iomodels/iomanager.hpp>
+#include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
+#include <iomodels/stdout_void.hpp>
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzers_map.hpp>
 #include <fuzzing/dump.hpp>
@@ -48,12 +52,15 @@ void run(int argc, char* argv[])
             "client",
             terminator
             );
+    connection::server server(42085);
+    if (!server.start()) {
+        return;
+    }
 
-    std::cout << "Fuzzing started..." << std::endl << std::flush;
+    iomodels::iomanager::instance().set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>());
+    iomodels::iomanager::instance().set_stdout(std::make_shared<iomodels::stdout_void>());
 
-    connection::client_main();
-
-    fuzzing::analysis_outcomes const  results = connection::server_main(get_program_options()->value("fuzzer"), terminator);
+    fuzzing::analysis_outcomes const  results = server.run_fuzzing(get_program_options()->value("fuzzer"), terminator);
 
     fuzzing::print_analysis_outcomes(std::cout, results, false);
 

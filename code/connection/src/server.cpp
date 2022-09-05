@@ -1,33 +1,68 @@
 #include <connection/server.hpp>
 #include <connection/client.hpp>
-#include <connection/medium.hpp>
 #include <iomodels/iomanager.hpp>
+#include <fuzzing/fuzzing_loop.hpp>
+#include <fuzzing/fuzzers_map.hpp>
+#include <utility/assumptions.hpp>
+
 #include <sstream>
 
 namespace  connection {
 
 
-server&  server::instance()
-{
-    static server  s;
-    return s;
+server::server( uint16_t port):
+    acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+    {}
+
+void server::wait_for_result() {
+    while (in_buffer.empty()) {
+        std::unique_lock<std::mutex> lock(has_work_mux);
+        has_work.wait(lock);
+    }
 }
 
 
-void  server::execute_program_on_client()
+bool server::start() {
+    try {
+        wait_for_connections();
+        thread = std::thread([this]() {io_context.run();});
+    }
+    catch (std::exception& e) {
+        std::cout << "ERROR: " << e.what() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
+fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info)
 {
-    medium::instance().clear();
-    iomodels::iomanager::instance().save_stdin(medium::instance());
-    iomodels::iomanager::instance().save_stdout(medium::instance());
+    ASSUMPTION(fuzzing::get_fuzzers_map().count(fuzzer_name) != 0UL);
+    return fuzzing::run(*this, fuzzing::get_fuzzers_map().at(fuzzer_name)(info));
+}
 
-    client::instance().execute_program_and_send_results();
 
-    iomodels::iomanager::instance().clear_trace();
-    iomodels::iomanager::instance().load_trace(medium::instance());
-    iomodels::iomanager::instance().clear_stdin();
-    iomodels::iomanager::instance().load_stdin(medium::instance());
-    iomodels::iomanager::instance().clear_stdout();
-    iomodels::iomanager::instance().load_stdout(medium::instance());
+void server::wait_for_connections() {
+    acceptor.async_accept(
+        [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
+            if (ec) {
+                std::cout << "ERROR: new connection" << std::endl;
+                return;
+            }
+            
+            std::shared_ptr<session> new_session = std::make_shared<session>(io_context, std::move(socket), in_buffer, out_buffer);
+
+            sessions.push_back(std::move(new_session));
+            sessions.back()->send_input_to_client();
+        }
+    );
+}
+
+void  server::load_result_from_client()
+{
+    iomodels::iomanager::instance().load_trace(in_buffer);
+    iomodels::iomanager::instance().load_stdin(in_buffer);
+    iomodels::iomanager::instance().load_stdout(in_buffer);
 }
 
 
