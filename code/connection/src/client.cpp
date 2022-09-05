@@ -65,7 +65,9 @@ void client::connect(const std::string& address, const std::string& port) {
 }
 
 void client::receive_input() {
-    buffer.receive_bytes(socket, execute_program_and_send_results);
+    using namespace std::placeholders;
+
+    buffer.receive_bytes(socket, std::bind(&client::execute_program_and_send_results, this));
 }
 
 

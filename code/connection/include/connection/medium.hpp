@@ -14,6 +14,8 @@ struct  medium
 {
     void  clear();
 
+    bool  empty();
+
     medium&  operator<<(bool  v) { return operator<<((natural_8_bit)v); }
     medium&  operator>>(bool&  v) { natural_8_bit x; operator>>(x); v = x != 0; return *this; }
 
