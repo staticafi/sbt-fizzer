@@ -18,7 +18,8 @@ namespace connection {
     }
 
     void session::receive_input_from_client() {
-        in_buffer.receive_bytes(socket, [](){});
+        std::cout << "Sent input to client, receiving results..." << std::endl;
+        in_buffer.receive_bytes(socket, [this](){in_buffer.unblock(); std::cout << "Received results from client" << std::endl;});
     }
 }
 

@@ -51,6 +51,7 @@ void client::connect(const std::string& address, const std::string& port) {
     boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port, ec);
     if (ec) {
         std::cout << "ERROR: could not resolve address and port" << std::endl;
+        std::cout << ec.what() << std::endl;
         return;
     }
 
@@ -58,31 +59,35 @@ void client::connect(const std::string& address, const std::string& port) {
         [this](boost::system::error_code ec, boost::asio::ip::tcp::endpoint endpoint) {
             if (ec) {
                 std::cout << "ERROR: could not connect to server" << std::endl;
+                std::cout << ec.what() << std::endl;
                 return;
             }
+            std::cout << "Connected to server" << std::endl;
             receive_input();
         });
 }
 
 void client::receive_input() {
     using namespace std::placeholders;
-
+    std::cout << "Receiving input from server..." << std::endl;
     buffer.receive_bytes(socket, std::bind(&client::execute_program_and_send_results, this));
 }
 
 
 void  client::execute_program_and_send_results()
 {
+    std::cout << "Received input from server, executing benchmark..." << std::endl;
     iomodels::iomanager::instance().load_stdin(buffer);
     iomodels::iomanager::instance().load_stdout(buffer);
 
     __sbt_fizzer_method_under_test();
+    std::cout << "Benchmark finished, sending results..." << std::endl;
 
     buffer.clear();
     iomodels::iomanager::instance().save_trace(buffer);
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    buffer.send_bytes(socket, [](){});
+    buffer.send_bytes(socket, [](){ std::cout << "Sent results to server" << std::endl; });
 }
 
 

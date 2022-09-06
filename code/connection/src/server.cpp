@@ -15,16 +15,18 @@ server::server( uint16_t port):
     {}
 
 void server::wait_for_result() {
-    while (in_buffer.empty()) {
-        std::unique_lock<std::mutex> lock(has_work_mux);
-        has_work.wait(lock);
-    }
+    in_buffer.wait();
+}
+
+
+void server::clear_input_buffer() {
+    in_buffer.clear();
 }
 
 
 bool server::start() {
     try {
-        wait_for_connections();
+        wait_for_connection();
         thread = std::thread([this]() {io_context.run();});
     }
     catch (std::exception& e) {
@@ -42,18 +44,21 @@ fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name,
 }
 
 
-void server::wait_for_connections() {
+void server::wait_for_connection() {
     acceptor.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (ec) {
                 std::cout << "ERROR: new connection" << std::endl;
+                std::cout << ec.what() << std::endl;
                 return;
             }
             
             std::shared_ptr<session> new_session = std::make_shared<session>(io_context, std::move(socket), in_buffer, out_buffer);
-
+            std::cout << "Accepted connection from client, sending input..." << std::endl;
             sessions.push_back(std::move(new_session));
             sessions.back()->send_input_to_client();
+            wait_for_connection();
+            
         }
     );
 }

@@ -24,10 +24,11 @@ analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> 
         {
             TMPROF_BLOCK();
             server.wait_for_result();
-
+            std::cout << "Running fuzzing loop body" << std::endl;
             fuzzer->_on_driver_begin();
             server.load_result_from_client();
             fuzzer->_on_driver_end();
+            std::cout << "Loop body ran" << std::endl;
         }
     }
     catch (fuzzer_interrupt_exception const& e)

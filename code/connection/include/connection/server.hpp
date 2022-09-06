@@ -21,14 +21,13 @@ struct  server
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
 
     void  wait_for_result();
-    void  wait_for_connections();
+    void  wait_for_connection();
     bool  start();
+    void  clear_input_buffer();
 
 private:
     medium in_buffer;
     medium out_buffer;
-    std::condition_variable has_work;
-    std::mutex has_work_mux;
     boost::asio::io_context io_context;
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;

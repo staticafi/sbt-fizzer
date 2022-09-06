@@ -10,8 +10,16 @@ void  medium::clear()
     cursor = 0U;
 }
 
-bool  medium::empty() {
-    return bytes.empty();
+void  medium::unblock() {
+    std::unique_lock<std::mutex> ul(block_mux);
+    block.notify_one();
+}
+
+void  medium::wait() {
+    while (bytes.size() <= cursor) {
+        std::unique_lock<std::mutex> lock(block_mux);
+        block.wait(lock);
+    }
 }
 
 void  medium::save_bytes(natural_8_bit const*  ptr, natural_32_bit const  count)
