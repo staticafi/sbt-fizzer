@@ -24,7 +24,14 @@ void run() {
     connection::client client(io_context);
 
     if (get_program_options()->has("input")) {
-        client.execute_program_input_mode(get_program_options()->value("input"));
+        vecu8 input_bytes;
+        try {
+            boost::algorithm::unhex(get_program_options()->value("input"), std::back_inserter(input_bytes));
+        } catch (boost::algorithm::hex_decode_error &e) {
+            std::cout << "In argument input expected hexadecimal value" << std::endl;
+            return;
+        }
+        client.execute_program_input_mode(std::move(input_bytes));
         return;
     }
     if (!get_program_options()->has("address") || !get_program_options()->has("port")) {

@@ -14,18 +14,11 @@ namespace  connection {
 
 client::client(boost::asio::io_context& io_context):
     io_context(io_context),
-    socket(io_context)
+    socket(io_context),
+    buffer()
     {}
 
-void client::execute_program_input_mode(const std::string& input) {
-    vecu8 input_bytes;
-    try {
-        boost::algorithm::unhex(input, std::back_inserter(input_bytes));
-    } catch (boost::algorithm::hex_decode_error &e) {
-        std::cout << "In argument input expected hexadecimal value" << std::endl;
-        return;
-    }
-
+void client::execute_program_input_mode(vecu8 input_bytes) {
     buffer << (natural_16_bit) input_bytes.size();
     for (natural_8_bit byte: input_bytes) {
         buffer << byte;

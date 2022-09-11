@@ -12,7 +12,7 @@ struct  client
 {
     client(boost::asio::io_context& io_context);
     void  execute_program_and_send_results();
-    void execute_program_input_mode(const std::string& input);
+    void execute_program_input_mode(vecu8 input_bytes);
     void connect(const std::string& address, const std::string& port);
     void receive_input();
 
