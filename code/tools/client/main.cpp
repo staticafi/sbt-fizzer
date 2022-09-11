@@ -25,7 +25,6 @@ int main(int argc, char* argv[]) {
     try
 #endif
     {
-        LOG_INITIALISE(get_program_name(), LSL_INFO);
         initialise_program_options(argc,argv);
         if (get_program_options()->helpMode())
             std::cout << get_program_options();
@@ -34,7 +33,6 @@ int main(int argc, char* argv[]) {
         else
         {
             run();
-            TMPROF_PRINT_TO_FILE(get_program_name(),true);
         }
     }
 #if BUILD_RELEASE() == 1
