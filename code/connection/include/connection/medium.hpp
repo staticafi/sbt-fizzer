@@ -13,6 +13,8 @@ namespace  connection {
 
 struct  medium
 {
+    medium();
+
     void  clear();
 
     medium&  operator<<(bool  v) { return operator<<((natural_8_bit)v); }
@@ -36,6 +38,7 @@ struct  medium
 
     template <typename CompletionToken>
     auto async_send_bytes(boost::asio::ip::tcp::socket& socket, CompletionToken&& token) {
+        typedef enum { header, body, finished } states;
         tmp_body_size = bytes.size();
         return boost::asio::async_compose<CompletionToken, void(boost::system::error_code, std::size_t)>(
             [this, &socket, state = states::header](auto& self, const boost::system::error_code& ec = {}, std::size_t n = 0) mutable {
@@ -67,6 +70,7 @@ struct  medium
 
     template <typename CompletionToken>
     auto async_receive_bytes(boost::asio::ip::tcp::socket& socket, CompletionToken&& token) {
+        typedef enum { header, body, finished } states;
         return boost::asio::async_compose<CompletionToken, void(boost::system::error_code, std::size_t)>(
             [this, &socket, state = states::header](auto& self, const boost::system::error_code& ec = {}, std::size_t n = 0) mutable {
                 switch (state) {
@@ -106,7 +110,6 @@ private:
     vecu8  bytes;
     natural_16_bit  cursor;
 
-    typedef enum { header, body, finished } states;
     natural_32_bit tmp_body_size;
 };
 

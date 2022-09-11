@@ -4,6 +4,13 @@
 
 namespace  connection {
 
+
+medium::medium():
+    bytes(),
+    cursor(0),
+    tmp_body_size(0)
+{}
+
 void  medium::clear()
 {
     bytes.clear();
