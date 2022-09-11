@@ -16,23 +16,23 @@ namespace  connection {
 struct  server
 {
     server(uint16_t port);
-    void  load_result_from_client();
-
+    
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
-
-    void  wait_for_result();
-    void  wait_for_connection();
+    
+    void  send_input_to_client_and_receive_result();
+    void  wait_for_client();
+    void  signal_client_connected();
+    void  accept_connection();
     bool  start();
-    void  clear_input_buffer();
 
 private:
-    medium in_buffer;
-    medium out_buffer;
+    medium buffer;
     boost::asio::io_context io_context;
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
     std::deque<std::shared_ptr<session>> sessions;
-
+    std::condition_variable client_blocking;
+    std::mutex client_blocking_mux;
 };
 
 

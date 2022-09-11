@@ -9,16 +9,22 @@ namespace connection {
 
 
 struct session {
-    session(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket, medium& in_buffer, medium& out_buffer);
+    session(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket, medium& buffer);
 
-    void send_input_to_client();
-    void receive_input_from_client();
+    template <typename CompletionToken>
+    auto send_input_to_client(CompletionToken&& token) {
+        return buffer.async_send_bytes(socket, std::forward<CompletionToken>(token));
+    }
+
+    template <typename CompletionToken>
+    auto receive_input_from_client(CompletionToken&& token) {
+        return buffer.async_receive_bytes(socket, std::forward<CompletionToken>(token));
+    }
 
 private:
     boost::asio::io_context& io_context;
     boost::asio::ip::tcp::socket socket;
-    medium& in_buffer;
-    medium& out_buffer;
+    medium& buffer;
 
 };
 

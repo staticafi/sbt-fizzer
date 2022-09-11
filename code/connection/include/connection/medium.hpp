@@ -2,6 +2,7 @@
 #   define CONNECTION_MEDIUM_HPP_INCLUDED
 
 #   include <boost/asio.hpp>
+#   include <boost/asio/use_future.hpp>
 
 #   include <utility/math.hpp>
 
@@ -13,9 +14,6 @@ namespace  connection {
 struct  medium
 {
     void  clear();
-
-    void  unblock();
-    void  wait();
 
     medium&  operator<<(bool  v) { return operator<<((natural_8_bit)v); }
     medium&  operator>>(bool&  v) { natural_8_bit x; operator>>(x); v = x != 0; return *this; }
@@ -34,56 +32,71 @@ struct  medium
         return *this;
     }
 
-    template <typename TCallback>
-    void send_bytes(boost::asio::ip::tcp::socket& socket, TCallback callback) {
-        size_t length = bytes.size();
-        boost::asio::async_write(socket, boost::asio::buffer(&length, sizeof(natural_32_bit)), 
-            [this, &socket, callback, length](boost::system::error_code ec, std::size_t) {
-                if (ec) {
-                    std::cout << "ERROR: writing data length" << std::endl;
-                    std::cout << ec.what() << std::endl;
-                    return;
-                }
-                std::cout << "Wrote data length: " << length << std::endl;
-                boost::asio::async_write(socket, boost::asio::buffer(bytes.data(), (natural_32_bit) length),
-                    [this, callback](boost::system::error_code ec, std::size_t bytes_transferred) {
-                        if (ec) {
-                            std::cout << "ERROR: writing data" << "\n";
-                            std::cout << ec.what() << std::endl;
-                            return;
+    
+
+    template <typename CompletionToken>
+    auto async_send_bytes(boost::asio::ip::tcp::socket& socket, CompletionToken&& token) {
+        tmp_body_size = bytes.size();
+        return boost::asio::async_compose<CompletionToken, void(boost::system::error_code, std::size_t)>(
+            [this, &socket, state = states::header](auto& self, const boost::system::error_code& ec = {}, std::size_t n = 0) mutable {
+                switch (state) {
+                    case header:
+                        state = states::body;
+                        boost::asio::async_write(socket, boost::asio::buffer(&tmp_body_size, sizeof(natural_32_bit)), std::move(self));
+                        break;
+                    case body:
+                        state = states::finished;
+                        std::cout << "wrote " << n << " bytes, " << "size of body: " << tmp_body_size << "\n";
+                        std::cout << ec.what() << std::endl;
+                        if (!ec) {
+                            boost::asio::async_write(socket, boost::asio::buffer(bytes), std::move(self));
                         }
-                        std::cout << "Wrote data, bytes: " << bytes_transferred << std::endl;
-                        callback();
-                        clear();
-                    });
-            });
+                        else {
+                            self.complete(ec, 0);
+                        }
+                        break;
+                    case finished:
+                        std::cout << "wrote " << n << " bytes\n";
+                        std::cout << ec.what() << std::endl; 
+                        self.complete(ec, n);
+                        break;
+                }
+            }, token, socket
+        );
     }
 
-    template <typename TCallback>
-    void receive_bytes(boost::asio::ip::tcp::socket& socket, TCallback callback) {
-        clear();
-        natural_32_bit length;
-        boost::asio::async_read(socket, boost::asio::buffer(&length, sizeof(natural_32_bit)), 
-            [this, &socket, callback, &length](boost::system::error_code ec, std::size_t) {
-                if (ec) {
-                    std::cout << "ERROR: reading data length" << std::endl;
-                    std::cout << ec.what() << std::endl;
-                    return;
-                }
-                bytes.resize(length);
-                std::cout << "Read data length: " << length << std::endl;
-                boost::asio::async_read(socket, boost::asio::buffer(bytes),
-                    [this, callback](boost::system::error_code ec, std::size_t bytes_transferred) {
-                        if (ec) {
-                            std::cout << "ERROR: reading data" << std::endl;
-                            std::cout << ec.what() << std::endl;
-                            return;
+    template <typename CompletionToken>
+    auto async_receive_bytes(boost::asio::ip::tcp::socket& socket, CompletionToken&& token) {
+        return boost::asio::async_compose<CompletionToken, void(boost::system::error_code, std::size_t)>(
+            [this, &socket, state = states::header](auto& self, const boost::system::error_code& ec = {}, std::size_t n = 0) mutable {
+                switch (state) {
+                    case header:
+                        state = states::body;
+                        boost::asio::async_read(socket, boost::asio::buffer(&tmp_body_size, sizeof(natural_32_bit)), std::move(self));
+                        break;
+                    case body:
+                        state = states::finished;
+                        std::cout << "read " << n << " bytes, " << "size of body: " << tmp_body_size << "\n";
+                        std::cout << ec.what() << std::endl; 
+                        if (!ec) {
+                            bytes.resize(tmp_body_size);
+                            boost::asio::async_read(socket, boost::asio::buffer(bytes), std::move(self));
                         }
-                        std::cout << "Read data, bytes: " << bytes_transferred << std::endl;
-                        callback();
-                    });
-            });
+                        else {
+                            self.complete(ec, 0);
+                        }
+                        break;
+                    case finished:
+                        std::cout << "read " << n << " bytes\n";
+                        std::cout << ec.what() << std::endl; 
+                        self.complete(ec, n);
+                        break;
+                }
+            }, token, socket
+        );  
     }
+
+    bool empty();
 
 private:
 
@@ -92,8 +105,9 @@ private:
 
     vecu8  bytes;
     natural_16_bit  cursor;
-    std::condition_variable block;
-    std::mutex block_mux;
+
+    typedef enum { header, body, finished } states;
+    natural_32_bit tmp_body_size;
 };
 
 

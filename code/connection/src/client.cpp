@@ -68,15 +68,23 @@ void client::connect(const std::string& address, const std::string& port) {
 }
 
 void client::receive_input() {
-    using namespace std::placeholders;
     std::cout << "Receiving input from server..." << std::endl;
-    buffer.receive_bytes(socket, std::bind(&client::execute_program_and_send_results, this));
+    buffer.async_receive_bytes(socket, 
+        [this](boost::system::error_code ec, std::size_t bytes_transferred) {
+            if (!ec) {
+                std::cout << "Received " << bytes_transferred << " bytes from server" << std::endl;
+                execute_program_and_send_results();
+                return;
+            }
+            std::cout << "ERROR: receiving input from server\n";
+            std::cout << ec.what() << std::endl;
+        }
+    );
 }
 
 
 void  client::execute_program_and_send_results()
 {
-    std::cout << "Received input from server, executing benchmark..." << std::endl;
     iomodels::iomanager::instance().load_stdin(buffer);
     iomodels::iomanager::instance().load_stdout(buffer);
 
@@ -87,7 +95,16 @@ void  client::execute_program_and_send_results()
     iomodels::iomanager::instance().save_trace(buffer);
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    buffer.send_bytes(socket, [](){ std::cout << "Sent results to server" << std::endl; });
+    buffer.async_send_bytes(socket, 
+        [this](boost::system::error_code ec, std::size_t bytes_transferred) {
+            if (!ec) {
+                std::cout << "Sent " << bytes_transferred << " bytes to server" << std::endl;
+                return;
+            }
+            std::cout << "ERROR: sending result to server\n";
+            std::cout << ec.what() << std::endl;
+        }
+    );
 }
 
 

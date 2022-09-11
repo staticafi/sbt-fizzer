@@ -10,23 +10,25 @@
 namespace  connection {
 
 
-server::server( uint16_t port):
+server::server(uint16_t port):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
     {}
 
-void server::wait_for_result() {
-    in_buffer.wait();
+void server::wait_for_client() {
+    while (sessions.empty()) {
+        std::unique_lock<std::mutex> ul(client_blocking_mux);
+        client_blocking.wait(ul);
+    }
 }
 
-
-void server::clear_input_buffer() {
-    in_buffer.clear();
+void server::signal_client_connected() {
+    client_blocking.notify_one();
 }
 
 
 bool server::start() {
     try {
-        wait_for_connection();
+        accept_connection();
         thread = std::thread([this]() {io_context.run();});
     }
     catch (std::exception& e) {
@@ -44,7 +46,7 @@ fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name,
 }
 
 
-void server::wait_for_connection() {
+void server::accept_connection() {
     acceptor.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (ec) {
@@ -53,21 +55,37 @@ void server::wait_for_connection() {
                 return;
             }
             
-            std::shared_ptr<session> new_session = std::make_shared<session>(io_context, std::move(socket), in_buffer, out_buffer);
-            std::cout << "Accepted connection from client, sending input..." << std::endl;
+            std::shared_ptr<session> new_session = std::make_shared<session>(io_context, std::move(socket), buffer);
+            std::cout << "Accepted connection from client" << std::endl;
             sessions.push_back(std::move(new_session));
-            sessions.back()->send_input_to_client();
-            wait_for_connection();
+            signal_client_connected();
+            accept_connection();
             
         }
     );
 }
 
-void  server::load_result_from_client()
+void  server::send_input_to_client_and_receive_result()
 {
-    iomodels::iomanager::instance().load_trace(in_buffer);
-    iomodels::iomanager::instance().load_stdin(in_buffer);
-    iomodels::iomanager::instance().load_stdout(in_buffer);
+    buffer.clear();
+    iomodels::iomanager::instance().save_stdin(buffer);
+    iomodels::iomanager::instance().save_stdout(buffer);
+    std::shared_ptr<session> session = sessions.front();
+    std::future<std::size_t> send_input_future = session->send_input_to_client(boost::asio::use_future);
+    size_t sent = send_input_future.get();
+    std::cout << "Sent " << sent << " bytes to client" << std::endl;
+    buffer.clear();
+
+    std::future<std::size_t> receive_result_future = session->receive_input_from_client(boost::asio::use_future);
+    size_t received = receive_result_future.get();
+    std::cout << "Received " << received << " bytes from client" << std::endl;
+    sessions.pop_front();
+    iomodels::iomanager::instance().clear_trace();
+    iomodels::iomanager::instance().load_trace(buffer);
+    iomodels::iomanager::instance().clear_stdin();
+    iomodels::iomanager::instance().load_stdin(buffer);
+    iomodels::iomanager::instance().clear_stdout();
+    iomodels::iomanager::instance().load_stdout(buffer);
 }
 
 
