@@ -7,6 +7,7 @@
 #   include <connection/session.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
 #   include <fuzzing/termination_info.hpp>
+#   include <connection/ts_queue.hpp>
 
 #   include <string>
 
@@ -20,8 +21,6 @@ struct  server
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
     
     void  send_input_to_client_and_receive_result();
-    void  wait_for_client();
-    void  signal_client_connected();
     void  accept_connection();
     bool  start();
 
@@ -30,9 +29,7 @@ private:
     boost::asio::io_context io_context;
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
-    std::deque<std::shared_ptr<session>> sessions;
-    std::condition_variable client_blocking;
-    std::mutex client_blocking_mux;
+    ts_queue<std::shared_ptr<session>> sessions;
 };
 
 

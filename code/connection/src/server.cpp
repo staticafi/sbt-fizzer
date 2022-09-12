@@ -14,17 +14,6 @@ server::server(uint16_t port):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
     {}
 
-void server::wait_for_client() {
-    while (sessions.empty()) {
-        std::unique_lock<std::mutex> ul(client_blocking_mux);
-        client_blocking.wait(ul);
-    }
-}
-
-void server::signal_client_connected() {
-    client_blocking.notify_one();
-}
-
 
 bool server::start() {
     try {
@@ -57,8 +46,7 @@ void server::accept_connection() {
             
             std::shared_ptr<session> new_session = std::make_shared<session>(io_context, std::move(socket), buffer);
             std::cout << "Accepted connection from client" << std::endl;
-            sessions.push_back(std::move(new_session));
-            signal_client_connected();
+            sessions.push(std::move(new_session));
             accept_connection();
             
         }
@@ -70,7 +58,7 @@ void  server::send_input_to_client_and_receive_result()
     buffer.clear();
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    std::shared_ptr<session> session = sessions.front();
+    std::shared_ptr<session> session = sessions.wait_and_pop();
     std::future<std::size_t> send_input_future = session->send_input_to_client(boost::asio::use_future);
     size_t sent = send_input_future.get();
     std::cout << "Sent " << sent << " bytes to client" << std::endl;
@@ -79,7 +67,6 @@ void  server::send_input_to_client_and_receive_result()
     std::future<std::size_t> receive_result_future = session->receive_input_from_client(boost::asio::use_future);
     size_t received = receive_result_future.get();
     std::cout << "Received " << received << " bytes from client" << std::endl;
-    sessions.pop_front();
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(buffer);
     iomodels::iomanager::instance().clear_stdin();
