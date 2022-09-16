@@ -1,5 +1,5 @@
-#ifndef CONNECTION_SESSION_HPP_INCLUDED
-#   define CONNECTION_SESSION_HPP_INCLUDED
+#ifndef CONNECTION_CONNECTION_HPP_INCLUDED
+#   define CONNECTION_CONNECTION_HPP_INCLUDED
 
 #   include <boost/asio.hpp>
 
@@ -8,8 +8,8 @@
 namespace connection {
 
 
-struct session {
-    session(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket, medium& buffer);
+struct connection {
+    connection(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket, medium& buffer);
 
     template <typename CompletionToken>
     auto send_input_to_client(CompletionToken&& token) {

@@ -4,7 +4,7 @@
 #   include <boost/asio.hpp>
 
 #   include <connection/medium.hpp>
-#   include <connection/session.hpp>
+#   include <connection/connection.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
 #   include <fuzzing/termination_info.hpp>
 #   include <connection/ts_queue.hpp>
@@ -36,7 +36,7 @@ private:
 public:
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
-    ts_queue<std::shared_ptr<session>> sessions;
+    ts_queue<std::shared_ptr<connection>> connections;
     client_executor client_executor;
 };
 

@@ -4,10 +4,10 @@
 
 namespace connection {
 
-client_executor::client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared_ptr<session>>& sessions):
+client_executor::client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared_ptr<connection>>& connections):
     keep_alive(keep_alive),
     path_to_client(std::move(path_to_client)),
-    sessions(sessions),
+    connections(connections),
     finished(false),
     clients_threads()
     {}
@@ -20,7 +20,7 @@ void client_executor::start() {
                 return;
             }
             while (!finished) {
-                if (sessions.size() < keep_alive) {
+                if (connections.size() < keep_alive) {
                     if (clients_threads.size() > keep_alive) {
                         clients_threads.front().join();
                         clients_threads.pop_front();
@@ -28,7 +28,7 @@ void client_executor::start() {
                     clients_threads.emplace_back(std::bind(std::system, path_to_client.data()));
                     
                     // wait for the client to connect to the server
-                    sessions.wait_for_add();
+                    connections.wait_for_add();
                 }
             }
         }
@@ -41,7 +41,7 @@ void client_executor::stop() {
     if (thread.joinable()) {
         thread.join();
     }
-    sessions.clear();
+    connections.clear();
     for (auto& t: clients_threads) {
         if (t.joinable()) {
             t.join();

@@ -10,8 +10,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/medium.hpp
     ./src/medium.cpp
 
-    ./include/connection/session.hpp
-    ./src/session.cpp
+    ./include/connection/connection.hpp
+    ./src/connection.cpp
 
     ./include/connection/ts_queue.hpp
 
