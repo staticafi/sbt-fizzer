@@ -27,7 +27,7 @@ struct  server
     
     void  send_input_to_client_and_receive_result();
     void  accept_connection();
-    bool  start();
+    void  start();
     void  stop();
 
 private:

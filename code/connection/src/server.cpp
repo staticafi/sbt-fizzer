@@ -29,16 +29,9 @@ void server::stop() {
 }
 
 
-bool server::start() {
-    try {
-        accept_connection();
-        thread = std::thread([this]() {io_context.run();});
-    }
-    catch (std::exception& e) {
-        std::cout << "ERROR: " << e.what() << std::endl;
-        return false;
-    }
-    return true;
+void server::start() {
+    accept_connection();
+    thread = std::thread([this]() {io_context.run();});
 }
 
 
@@ -55,17 +48,16 @@ fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name,
 void server::accept_connection() {
     acceptor.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
-            if (ec) {
-                std::cout << "ERROR: new connection" << std::endl;
-                std::cout << ec.what() << std::endl;
+            if (!ec) {
+                auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
+                std::cout << "Accepted connection from client" << std::endl;
+                connections.push(std::move(new_connection));
+                accept_connection();
                 return;
             }
-            
-            std::shared_ptr<connection> new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
-            std::cout << "Accepted connection from client" << std::endl;
-            connections.push(std::move(new_connection));
-            accept_connection();
-            
+
+            std::cout << "ERROR: new connection" << std::endl;
+            std::cout << ec.what() << std::endl; 
         }
     );
 }

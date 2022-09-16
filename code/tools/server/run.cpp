@@ -56,8 +56,14 @@ void run(int argc, char* argv[])
             "client",
             terminator
             );
+
     connection::server server(42085, get_program_options()->value("path_to_client"));
-    if (!server.start()) {
+    try {
+        server.start();
+    }
+    catch (std::exception& e) {
+        std::cout << "ERROR: starting server\n";
+        std::cout << e.what() << std::endl;
         return;
     }
 

@@ -69,6 +69,10 @@ void client::receive_input() {
                 execute_program_and_send_results();
                 return;
             }
+            // server was shutdown
+            else if (ec == boost::asio::error::eof) {
+                return;
+            }
             std::cout << "ERROR: receiving input from server\n";
             std::cout << ec.what() << std::endl;
         }
