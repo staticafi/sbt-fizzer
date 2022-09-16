@@ -40,6 +40,10 @@ void run(int argc, char* argv[])
         std::cout << "ERROR: passed unknown fuzzer name '" << get_program_options()->value("fuzzer") << "'. Use --list_fuzzers." << std::endl;
         return;
     }
+    if (get_program_options()->value("path_to_client") == "")
+    {
+        std::cout << "WARNING: empty path to client specified. The server will not automatically run fuzzing clients." << std::endl;
+    }
 
     fuzzing::termination_info const  terminator(
             std::max(0, std::stoi(get_program_options()->value("max_executions"))),
@@ -52,7 +56,7 @@ void run(int argc, char* argv[])
             "client",
             terminator
             );
-    connection::server server(42085);
+    connection::server server(42085, get_program_options()->value("path_to_client"));
     if (!server.start()) {
         return;
     }
@@ -62,7 +66,7 @@ void run(int argc, char* argv[])
 
     fuzzing::analysis_outcomes const  results = server.run_fuzzing(get_program_options()->value("fuzzer"), terminator);
 
-    fuzzing::print_analysis_outcomes(std::cout, results, false);
+    fuzzing::print_analysis_outcomes(std::cout, results, false);    
 
     if (!get_program_options()->value("output_dir").empty())
     {

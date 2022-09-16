@@ -21,6 +21,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("max_seconds", "Max number of seconds for fuzzing the benchmark.", "1");
     add_value("max_seconds", "86400"); // 24h
 
+    add_option("path_to_client", "Path to client binary", "1");
+    add_value("path_to_client", "");
+
     add_option("fuzzer", "A fuzzer to be used.", "1");
     if (fuzzing::get_fuzzers_map().count("fuzzhamm") != 0UL)
         add_value("fuzzer", "fuzzhamm");

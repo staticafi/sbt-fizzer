@@ -8,28 +8,36 @@
 #   include <fuzzing/analysis_outcomes.hpp>
 #   include <fuzzing/termination_info.hpp>
 #   include <connection/ts_queue.hpp>
+#   include <connection/client_executor.hpp>
 
 #   include <string>
+#   include <atomic>
+#   include <mutex>
+#   include <condition_variable>
 
 namespace  connection {
 
 
 struct  server
 {
-    server(uint16_t port);
+    server(uint16_t port, std::string path_to_client);
+    ~server();
     
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
     
     void  send_input_to_client_and_receive_result();
     void  accept_connection();
     bool  start();
+    void  stop();
 
 private:
     medium buffer;
     boost::asio::io_context io_context;
+public:
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
     ts_queue<std::shared_ptr<session>> sessions;
+    client_executor client_executor;
 };
 
 

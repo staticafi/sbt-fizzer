@@ -14,6 +14,9 @@ add_library(${THIS_TARGET_NAME}
     ./src/session.cpp
 
     ./include/connection/ts_queue.hpp
+
+    ./include/connection/client_executor.hpp
+    ./src/client_executor.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
