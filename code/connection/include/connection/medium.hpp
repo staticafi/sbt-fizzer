@@ -49,8 +49,6 @@ struct  medium
                         break;
                     case body:
                         state = states::finished;
-                        std::cout << "wrote " << n << " bytes, " << "size of body: " << tmp_body_size << "\n";
-                        std::cout << ec.what() << std::endl;
                         if (!ec) {
                             boost::asio::async_write(socket, boost::asio::buffer(bytes), std::move(self));
                         }
@@ -59,8 +57,6 @@ struct  medium
                         }
                         break;
                     case finished:
-                        std::cout << "wrote " << n << " bytes\n";
-                        std::cout << ec.what() << std::endl; 
                         self.complete(ec, n);
                         break;
                 }
@@ -80,8 +76,6 @@ struct  medium
                         break;
                     case body:
                         state = states::finished;
-                        std::cout << "read " << n << " bytes, " << "size of body: " << tmp_body_size << "\n";
-                        std::cout << ec.what() << std::endl; 
                         if (!ec) {
                             bytes.resize(tmp_body_size);
                             boost::asio::async_read(socket, boost::asio::buffer(bytes), std::move(self));
@@ -91,8 +85,6 @@ struct  medium
                         }
                         break;
                     case finished:
-                        std::cout << "read " << n << " bytes\n";
-                        std::cout << ec.what() << std::endl; 
                         self.complete(ec, n);
                         break;
                 }
