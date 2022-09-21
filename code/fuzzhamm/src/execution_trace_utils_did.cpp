@@ -6,15 +6,43 @@
 namespace  fuzzhamm {
 
 
-void  compute_colliding_stdin_bits(std::vector<execution_trace_record>&  branching_records)
+void  compute_diverged_and_colliding_stdin_bits(std::vector<execution_trace_record>&  branching_records)
 {
-    std::unordered_set<natural_16_bit>  colliding_stdin_bits;
-    for (execution_trace_record&  rec : branching_records)
+    std::unordered_map<natural_16_bit, std::unordered_set<natural_32_bit> >  from_bit_indices_to_record_indices;
+    std::unordered_map<natural_32_bit, std::unordered_map<natural_16_bit, std::unordered_set<natural_16_bit> > >  from_record_and_byte_indices_to_bit_indices;
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)branching_records.size(); i != n; ++i)
+    {
+        execution_trace_record&  rec = branching_records.at(i);
+
+        std::unordered_set<natural_32_bit>  diverging_record_indices;
         for (natural_16_bit  idx : rec.sensitive_stdin_bits)
-            if (colliding_stdin_bits.count(idx) != 0ULL)
+        {
+            auto const  it = from_bit_indices_to_record_indices.find(idx);
+            if (it != from_bit_indices_to_record_indices.end())
+            {
+                diverging_record_indices.insert(it->second.begin(), it->second.end());
                 rec.colliding_stdin_bits.insert(idx);
-            else
-                colliding_stdin_bits.insert(idx);
+            }
+            from_bit_indices_to_record_indices[idx].insert(i);
+            from_record_and_byte_indices_to_bit_indices[i][idx >> 3].insert(idx);
+        }
+        if (!diverging_record_indices.empty())
+        {
+            auto const&  my_sensitive_bytes = from_record_and_byte_indices_to_bit_indices.at(i);
+            for (natural_32_bit  rec_idx : diverging_record_indices)
+            {
+                auto const&  from_byte_indices_to_bit_indices = from_record_and_byte_indices_to_bit_indices[rec_idx];
+                for (auto const&  byte_and_bit_indices : my_sensitive_bytes)
+                {
+                    auto const  it = from_byte_indices_to_bit_indices.find(byte_and_bit_indices.first);
+                    if (it != from_byte_indices_to_bit_indices.end())
+                        rec.diverged_stdin_bits.insert(it->second.begin(), it->second.end());
+                }
+            }
+        }
+        for (natural_16_bit  idx : rec.sensitive_stdin_bits)
+            rec.diverged_stdin_bits.erase(idx);
+    }
 }
 
 

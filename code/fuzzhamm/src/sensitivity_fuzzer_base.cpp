@@ -34,24 +34,10 @@ bool  sensitivity_fuzzer_base::done()
 }
 
 
-void  sensitivity_fuzzer_base::record_sensitive_bit_index_at_branching(
-        natural_16_bit const sensitive_bit_index,
-        std::size_t const branching_index,
-        bool const  diverged
-        )
-{
-    trace()->sensitive_stdin_bits.insert(sensitive_bit_index);
-    if (diverged)
-        trace()->branching_records.at(branching_index).diverged_stdin_bits.insert(sensitive_bit_index);
-    else
-        trace()->branching_records.at(branching_index).sensitive_stdin_bits.insert(sensitive_bit_index);
-}
-
-
 void  sensitivity_fuzzer_base::update_per_branching(
             execution_trace_const_ptr  sample_trace,
             std::size_t  diverging_branch_index,
-            std::function<void(std::size_t, bool)> const&  sensitive_bit_indices_recorder
+            std::vector<natural_16_bit> const&  bit_indices
             )
 {
     for (std::size_t i = 0, n = std::min(diverging_branch_index, trace()->branching_records.size() - 1UL); i <= n; ++i)
@@ -59,10 +45,12 @@ void  sensitivity_fuzzer_base::update_per_branching(
         execution_trace_record const&  cr = sample_trace->branching_records.at(i);
         execution_trace_record&  pr = trace()->branching_records.at(i);
         if (i == diverging_branch_index || cr.coverage_info.distance_to_uncovered_branch != pr.coverage_info.distance_to_uncovered_branch)
-            sensitive_bit_indices_recorder(i, false);
+            for (natural_16_bit  bit_index : bit_indices)
+            {
+                trace()->sensitive_stdin_bits.insert(bit_index);
+                pr.sensitive_stdin_bits.insert(bit_index);
+            }
     }
-    for (std::size_t i = diverging_branch_index + 1ULL, n = trace()->branching_records.size(); i < n; ++i)
-        sensitive_bit_indices_recorder(i, true);
 }
 
 

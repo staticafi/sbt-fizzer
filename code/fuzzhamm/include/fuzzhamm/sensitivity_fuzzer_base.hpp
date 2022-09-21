@@ -25,8 +25,6 @@ struct  sensitivity_fuzzer_base
 
     virtual bool  done();
 
-    void  record_sensitive_bit_index_at_branching(natural_16_bit  sensitive_bit_index, std::size_t  branching_index, bool  diverged);
-
 protected:
 
     virtual void  update(execution_trace_const_ptr  sample_trace, std::size_t  diverging_branch_index) {}
@@ -35,7 +33,7 @@ protected:
     void  update_per_branching(
             execution_trace_const_ptr  sample_trace,
             std::size_t  diverging_branch_index,
-            std::function<void(std::size_t, bool)> const&  sensitive_bit_indices_recorder
+            std::vector<natural_16_bit> const&  bit_indices
             );
 
 private:

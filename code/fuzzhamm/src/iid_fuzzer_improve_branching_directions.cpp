@@ -61,6 +61,8 @@ void  iid_fuzzer_improve_branching_directions::update(execution_trace_ptr const 
             current_task.sensitivity_fuzzer->on_sample(sample_trace, diverging_branch_index);
             if (current_task.sensitivity_fuzzer->done())
             {
+                compute_diverged_and_colliding_stdin_bits(current_task.task_iter->second.trace->branching_records);
+
                 current_task.task_iter->second.trace->state = EXECUTION_TRACE_STATE::FUZZING_BITS;
                 if (!try_select_current_task_from_value(current_task.task_iter->second))
                     current_task.task_iter = tasks.end();

@@ -126,7 +126,7 @@ struct  branching_and_direction
 };
 
 
-void  compute_colliding_stdin_bits(std::vector<execution_trace_record>&  branching_records);
+void  compute_diverged_and_colliding_stdin_bits(std::vector<execution_trace_record>&  branching_records);
 
 
 struct  did_branching_selection_penalty

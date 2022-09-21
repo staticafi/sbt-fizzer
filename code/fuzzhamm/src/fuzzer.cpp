@@ -187,7 +187,7 @@ void  fuzzer::process_did_trace()
             {
                 processed_trace->state = EXECUTION_TRACE_STATE::FUZZING_BITS;
 
-                compute_colliding_stdin_bits(processed_trace->branching_records);
+                compute_diverged_and_colliding_stdin_bits(processed_trace->branching_records);
 
                 std::vector<std::pair<location_id, natural_32_bit> >  to_remove_uncovered_branchings;
                 for (auto const&  loc_and_indices : processed_trace->uncovered_branchings)

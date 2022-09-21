@@ -21,14 +21,7 @@ sensitivity_fuzzer_hamming::sensitivity_fuzzer_hamming(
 
 void  sensitivity_fuzzer_hamming::update(execution_trace_const_ptr  sample_trace, std::size_t  diverging_branch_index)
 {
-    update_per_branching(
-            sample_trace,
-            diverging_branch_index,
-            [this](std::size_t const  branching_index, bool const  diverged) {
-                    for (natural_16_bit  bit_index : bit_indices)
-                        record_sensitive_bit_index_at_branching(bit_index, branching_index, diverged);
-                    }
-            );
+    update_per_branching(sample_trace, diverging_branch_index, bit_indices);
 }
 
 

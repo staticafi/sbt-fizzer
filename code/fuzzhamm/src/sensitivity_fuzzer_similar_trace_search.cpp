@@ -72,13 +72,13 @@ void  sensitivity_fuzzer_similar_trace_search::mutate(vecb&  input_stdin)
 
     ++counter;
     if (counter > max_counter)
-        counter = 0U;
+        counter = max_counter;
 }
 
 
 bool  sensitivity_fuzzer_similar_trace_search::done()
 {
-    return sensitive_stdin_bits.size() < 2UL || get_similar_trace() != nullptr;
+    return sensitive_stdin_bits.size() < 2UL || get_similar_trace() != nullptr || counter >= max_counter;
 }
 
 
