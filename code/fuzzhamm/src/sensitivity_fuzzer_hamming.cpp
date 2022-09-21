@@ -7,9 +7,9 @@ namespace  fuzzhamm {
 
 
 sensitivity_fuzzer_hamming::sensitivity_fuzzer_hamming(
-        execution_trace_ptr const  the_trace,
+        execution_trace_weak_ptr const  the_trace,
         natural_16_bit const  num_bit_indices,
-        sensitivity_fuzzer_base_ptr  parent_ptr
+        sensitivity_fuzzer_base_weak_ptr  parent_ptr
         )
     : sensitivity_fuzzer_base(the_trace, parent_ptr)
     , bit_indices()

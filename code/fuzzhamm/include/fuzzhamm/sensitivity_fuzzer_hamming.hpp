@@ -11,9 +11,10 @@ namespace  fuzzhamm {
 struct  sensitivity_fuzzer_hamming : public sensitivity_fuzzer_base
 {
     explicit sensitivity_fuzzer_hamming(
-            execution_trace_ptr  the_trace,
+            execution_trace_weak_ptr  the_trace,
             natural_16_bit  num_bit_indices,
-            sensitivity_fuzzer_base_ptr  parent_ptr = nullptr);
+            sensitivity_fuzzer_base_weak_ptr  parent_ptr
+            );
 
 protected:
 

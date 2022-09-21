@@ -7,7 +7,7 @@
 namespace  fuzzhamm {
 
 
-sensitivity_fuzzer_base_ptr  create_sensitivity_fuzzer(execution_trace_ptr const  the_trace, bool const  similarity_only_for_uncovered_branchings)
+sensitivity_fuzzer_base_ptr  create_sensitivity_fuzzer(execution_trace_weak_ptr const  the_trace, bool const  similarity_only_for_uncovered_branchings)
 {
     sensitivity_fuzzer_sequence_ptr const  fuzzer_sequence_ptr = std::make_shared<sensitivity_fuzzer_sequence>(
             the_trace,

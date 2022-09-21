@@ -9,16 +9,16 @@ namespace  fuzzhamm {
 
 
 sensitivity_fuzzer_progress_check::sensitivity_fuzzer_progress_check(
-        execution_trace_ptr const  the_trace,
-        execution_trace_ptr const  original_trace_,
-        sensitivity_fuzzer_base_ptr const  parent,
+        execution_trace_weak_ptr const  the_trace,
+        execution_trace_weak_ptr const  original_trace_,
+        sensitivity_fuzzer_base_weak_ptr const  parent,
         bool const  similarity_only_for_uncovered_branchings_
         )
     : sensitivity_fuzzer_base(the_trace, parent)
     , original_trace(original_trace_)
     , similarity_only_for_uncovered_branchings(similarity_only_for_uncovered_branchings_)
 {
-    ASSUMPTION(original_trace != nullptr && parent != nullptr && std::dynamic_pointer_cast<sensitivity_fuzzer_sequence>(parent) != nullptr);
+    ASSUMPTION(!original_trace.expired() && !parent.expired() && std::dynamic_pointer_cast<sensitivity_fuzzer_sequence>(parent.lock()) != nullptr);
 }
 
 

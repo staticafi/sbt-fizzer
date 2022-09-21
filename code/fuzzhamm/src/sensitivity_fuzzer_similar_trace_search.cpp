@@ -11,8 +11,8 @@ namespace  fuzzhamm {
 
 
 sensitivity_fuzzer_similar_trace_search::sensitivity_fuzzer_similar_trace_search(
-        execution_trace_ptr const  the_trace,
-        sensitivity_fuzzer_base_ptr const  parent,
+        execution_trace_weak_ptr const  the_trace,
+        sensitivity_fuzzer_base_weak_ptr const  parent,
         bool const  consider_only_uncovered_branchings_
         )
     : sensitivity_fuzzer_base(the_trace, parent)
@@ -22,7 +22,7 @@ sensitivity_fuzzer_similar_trace_search::sensitivity_fuzzer_similar_trace_search
     , similar_trace(nullptr)
     , consider_only_uncovered_branchings(consider_only_uncovered_branchings_)
 {
-    ASSUMPTION(parent != nullptr && std::dynamic_pointer_cast<sensitivity_fuzzer_sequence>(parent) != nullptr);
+    ASSUMPTION(!parent.expired() && std::dynamic_pointer_cast<sensitivity_fuzzer_sequence>(parent.lock()) != nullptr);
 
     std::vector<std::unordered_set<natural_16_bit> >  escape_stdin_bits;
     compute_escape_sensitive_bits_for_branchings(trace(), escape_stdin_bits);

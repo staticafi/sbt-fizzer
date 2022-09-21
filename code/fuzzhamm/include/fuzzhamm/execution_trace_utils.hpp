@@ -17,7 +17,7 @@ namespace  fuzzhamm {
 void  to_json(std::ostream&  ostr, execution_trace const&  trace, bool  dump_trace, bool  dump_dbg_info);
 
 
-sensitivity_fuzzer_base_ptr  create_sensitivity_fuzzer(execution_trace_ptr  the_trace, bool  similarity_only_for_uncovered_branchings);
+sensitivity_fuzzer_base_ptr  create_sensitivity_fuzzer(execution_trace_weak_ptr  the_trace, bool  similarity_only_for_uncovered_branchings);
 branching_fuzzer_sequence_ptr  create_branching_fuzzer_sequence(
         execution_trace_record const&  rec,
         vecb const&  input_stdin,

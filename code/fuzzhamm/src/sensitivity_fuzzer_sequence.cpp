@@ -7,9 +7,9 @@ namespace  fuzzhamm {
 
 
 sensitivity_fuzzer_sequence::sensitivity_fuzzer_sequence(
-        execution_trace_ptr const  the_trace,
+        execution_trace_weak_ptr const  the_trace,
         std::size_t const  max_size_,
-        sensitivity_fuzzer_base_ptr const  parent)
+        sensitivity_fuzzer_base_weak_ptr const  parent)
     : sensitivity_fuzzer_base(the_trace, parent)
     , fuzzer_chain()
     , active_fuzzer_index(0UL)

@@ -10,8 +10,8 @@ namespace  fuzzhamm {
 struct  sensitivity_fuzzer_similar_trace_search : public sensitivity_fuzzer_base
 {
     explicit sensitivity_fuzzer_similar_trace_search(
-            execution_trace_ptr  the_trace,
-            sensitivity_fuzzer_base_ptr  parent,
+            execution_trace_weak_ptr  the_trace,
+            sensitivity_fuzzer_base_weak_ptr  parent,
             bool  consider_only_uncovered_branchings_
             );
 

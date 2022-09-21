@@ -7,13 +7,17 @@
 namespace  fuzzhamm {
 
 
+struct  sensitivity_fuzzer_base;
+using  sensitivity_fuzzer_base_weak_ptr = std::weak_ptr<sensitivity_fuzzer_base>;
+
+
 struct  sensitivity_fuzzer_base
 {
-    explicit  sensitivity_fuzzer_base(execution_trace_ptr  the_trace, sensitivity_fuzzer_base_ptr  parent_ptr = nullptr);
+    explicit  sensitivity_fuzzer_base(execution_trace_weak_ptr  the_trace, sensitivity_fuzzer_base_weak_ptr  parent_ptr);
     virtual  ~sensitivity_fuzzer_base() = default;
 
-    [[nodiscard]] execution_trace_ptr  trace() const { return trace_; }
-    [[nodiscard]] sensitivity_fuzzer_base_ptr  parent() const { return parent_; }
+    [[nodiscard]] execution_trace_ptr  trace() const { return trace_.lock(); }
+    [[nodiscard]] sensitivity_fuzzer_base_ptr  parent() const { return parent_.lock(); }
     [[nodiscard]] std::size_t num_bits() const { return trace()->input_stdin.size(); }
     random_generator_for_natural_32_bit&  generator_ref() { return generator; }
     [[nodiscard]] natural_32_bit  num_generated_inputs() const { return num_inputs_generated; }
@@ -38,8 +42,8 @@ protected:
 
 private:
 
-    sensitivity_fuzzer_base_ptr  parent_;
-    execution_trace_ptr  trace_;
+    sensitivity_fuzzer_base_weak_ptr  parent_;
+    execution_trace_weak_ptr  trace_;
     random_generator_for_natural_32_bit   generator;
     natural_32_bit  num_inputs_generated;
 };

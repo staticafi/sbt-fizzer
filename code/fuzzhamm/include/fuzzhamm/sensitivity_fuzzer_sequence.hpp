@@ -11,7 +11,8 @@ namespace  fuzzhamm {
 
 struct  sensitivity_fuzzer_sequence : public sensitivity_fuzzer_base
 {
-    explicit sensitivity_fuzzer_sequence(execution_trace_ptr  the_trace, std::size_t  max_size_, sensitivity_fuzzer_base_ptr  parent = nullptr);
+    explicit sensitivity_fuzzer_sequence(execution_trace_weak_ptr  the_trace, std::size_t  max_size_,
+        sensitivity_fuzzer_base_weak_ptr  parent = sensitivity_fuzzer_base_weak_ptr());
 
     bool  push_back(sensitivity_fuzzer_base_ptr  fuzzer);
 

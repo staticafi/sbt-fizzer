@@ -6,7 +6,7 @@
 namespace  fuzzhamm {
 
 
-sensitivity_fuzzer_base::sensitivity_fuzzer_base(execution_trace_ptr const  the_trace, sensitivity_fuzzer_base_ptr  parent_ptr)
+sensitivity_fuzzer_base::sensitivity_fuzzer_base(execution_trace_weak_ptr const  the_trace, sensitivity_fuzzer_base_weak_ptr  parent_ptr)
     : parent_(parent_ptr)
     , trace_(the_trace)
     , generator(0U)

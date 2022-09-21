@@ -58,6 +58,9 @@ struct  execution_trace
 using  execution_trace_ptr = std::shared_ptr<execution_trace>;
 using  execution_trace_const_ptr = std::shared_ptr<execution_trace const>;
 
+using  execution_trace_weak_ptr = std::weak_ptr<execution_trace>;
+using  execution_trace_weak_const_ptr = std::weak_ptr<execution_trace const>;
+
 
 }
 
