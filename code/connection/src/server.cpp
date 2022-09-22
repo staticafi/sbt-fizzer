@@ -52,12 +52,12 @@ void server::accept_connection() {
                 auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
                 std::cout << "Accepted connection from client" << std::endl;
                 connections.push(std::move(new_connection));
-                accept_connection();
-                return;
             }
-
-            std::cout << "ERROR: new connection" << std::endl;
-            std::cout << ec.what() << std::endl; 
+            else {
+                std::cout << "ERROR: accepting connection" << std::endl;
+                std::cout << ec.what() << std::endl;
+            }
+            accept_connection();
         }
     );
 }
