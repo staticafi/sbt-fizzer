@@ -4,7 +4,6 @@
 #   include <deque>
 #   include <mutex>
 #   include <condition_variable>
-#   include <atomic>
 
 template <typename T>
 struct ts_queue {
@@ -49,19 +48,20 @@ struct ts_queue {
         deque.clear();
     }
 
-    void wait_for_add() {
+    bool wait_for_add_or_timeout(const std::chrono::milliseconds timeout) {
         std::unique_lock lock(deque_mux);
-        while (!added) {
-            blocking.wait(lock);
+        if (blocking.wait_for(lock, timeout, [this]{return added;})) {
+            added = false;
+            return true;
         }
-        added = false;
+        return false;
     }
 
 private:
     std::deque<T> deque;
     std::mutex deque_mux;
     std::condition_variable blocking;
-    std::atomic_bool added{false};
+    bool added = false;
 };
 
 #endif

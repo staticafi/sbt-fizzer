@@ -1,6 +1,8 @@
 #ifndef CONNECTION_CLIENT_EXECUTOR_HPP_INCLUDED
 #   define CONNECTION_CLIENT_EXECUTOR_HPP_INCLUDED
 
+#   include <boost/process/child.hpp>
+
 #   include <connection/ts_queue.hpp>
 #   include <connection/connection.hpp>
 
@@ -28,7 +30,7 @@ private:
     std::string path_to_client;
     ts_queue<std::shared_ptr<connection>>& connections;
     std::thread thread;
-    std::deque<std::thread> clients_threads;
+    std::deque<boost::process::child> clients;
     std::atomic_bool finished; 
 };
 

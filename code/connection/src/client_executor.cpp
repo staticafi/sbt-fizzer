@@ -1,6 +1,7 @@
 #include <connection/client_executor.hpp>
 
 #include <cstdlib>
+#include <chrono>
 
 namespace connection {
 
@@ -9,26 +10,31 @@ client_executor::client_executor(int keep_alive, std::string path_to_client, ts_
     path_to_client(std::move(path_to_client)),
     connections(connections),
     finished(false),
-    clients_threads()
+    clients()
     {}
 
 
 void client_executor::start() {
+    if (path_to_client.empty()) {
+        return;
+    }
     thread = std::thread(
         [this]() {
-            if (path_to_client.empty()) {
-                return;
-            }
             while (!finished) {
                 if (connections.size() < keep_alive) {
-                    if (clients_threads.size() > keep_alive) {
-                        clients_threads.front().join();
-                        clients_threads.pop_front();
+                    if (clients.size() > keep_alive) {
+                        clients.front().wait();
+                        clients.pop_front();
                     }
-                    clients_threads.emplace_back(std::bind(std::system, path_to_client.data()));
-                    
-                    // wait for the client to connect to the server
-                    connections.wait_for_add();
+                    // run the client
+                    clients.emplace_back(path_to_client);
+
+                    // wait until it connects, or kill it if it doesn't connect in time
+                    if (!connections.wait_for_add_or_timeout(std::chrono::milliseconds(2000))) {
+                        clients.back().terminate();
+                        clients.pop_back();
+                        std::cout << "ERROR: client failed to connect in time during client execution" << std::endl;
+                    }
                 }
             }
         }
@@ -42,10 +48,8 @@ void client_executor::stop() {
         thread.join();
     }
     connections.clear();
-    for (auto& t: clients_threads) {
-        if (t.joinable()) {
-            t.join();
-        }
+    for (auto& client: clients) {
+        client.wait();
     }
 }
 
