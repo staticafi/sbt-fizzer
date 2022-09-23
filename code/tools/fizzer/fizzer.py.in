@@ -33,7 +33,6 @@ if __name__ == "__main__":
                             ))
 
     args = parser.parse_args()
-    print(args)
 
     filename = Path(args.file).stem
 
@@ -45,7 +44,6 @@ if __name__ == "__main__":
         " -S -o {2}"
     ).format(pass_path, args.file, instrumented_file)
 
-    print(instrumentation)
     instr_output = subprocess.run([instrumentation], shell=True)
     if instr_output.returncode:
         errprint("instrumentation of file c++ use same pipe or errorfailed")
@@ -58,7 +56,6 @@ if __name__ == "__main__":
         instrumented_file, client_file
     )
 
-    print(client_compilation)
     client_compilation_output = subprocess.run([client_compilation], shell=True)
     if client_compilation_output.returncode:
         errprint("compilation of client failed")
@@ -68,7 +65,6 @@ if __name__ == "__main__":
         server_path, args.server, current_directory / client_file
     )
     
-    print(server_invocation)
     server_invocation_output = subprocess.run([server_invocation], shell=True)
     if server_invocation_output.returncode:
         errprint("running fuzzing failed")
