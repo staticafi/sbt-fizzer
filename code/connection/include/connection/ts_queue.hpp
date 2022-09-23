@@ -4,6 +4,7 @@
 #   include <deque>
 #   include <mutex>
 #   include <condition_variable>
+#   include <optional>
 
 template <typename T>
 struct ts_queue {
@@ -43,12 +44,34 @@ struct ts_queue {
         return result;
     }
 
+    template< class Rep, class Period>
+    std::optional<T> wait_and_pop_or_timeout(const std::chrono::duration<Rep, Period>& timeout) {
+        std::optional<T> result;
+        std::unique_lock lock(deque_mux);
+        if (blocking.wait_for(lock, timeout, [this]{return !deque.empty();})) {
+            result = std::move(deque.front());
+            deque.pop_front();
+        }
+        return result;
+    }
+
+    std::optional<T> try_pop() {
+        std::optional<T> result;
+        std::unique_lock lock(deque_mux);
+        if (!deque.empty()) {
+            result = std::move(deque.front());
+            deque.pop_front();
+        } 
+        return result;
+    }
+
     void clear() {
         std::scoped_lock lock(deque_mux);
         deque.clear();
     }
 
-    bool wait_for_add_or_timeout(const std::chrono::milliseconds timeout) {
+    template< class Rep, class Period>
+    bool wait_for_add_or_timeout(const std::chrono::duration<Rep, Period>& timeout) {
         std::unique_lock lock(deque_mux);
         if (blocking.wait_for(lock, timeout, [this]{return added;})) {
             added = false;

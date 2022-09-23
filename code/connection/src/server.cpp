@@ -1,11 +1,12 @@
 #include <connection/server.hpp>
 #include <connection/client.hpp>
 #include <iomodels/iomanager.hpp>
-#include <fuzzing/fuzzing_loop.hpp>
+#include <fuzzing/fuzzing_run.hpp>
 #include <fuzzing/fuzzers_map.hpp>
-#include <utility/assumptions.hpp>
+#include <utility/timeprof.hpp>
 
 #include <sstream>
+#include <chrono>
 
 namespace  connection {
 
@@ -32,6 +33,26 @@ void server::stop() {
 void server::start() {
     accept_connection();
     thread = std::thread([this]() {io_context.run();});
+}
+
+
+void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
+{
+    using namespace std::chrono_literals;
+    while (true)
+    {
+        TMPROF_BLOCK();
+        if (auto excptr = client_executor.get_exception_ptr()) {
+            std::rethrow_exception(excptr);
+        }
+        if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
+            std::cout << "Running fuzzing loop body" << std::endl;
+            fuzzer->_on_driver_begin();
+            send_input_to_client_and_receive_result(*connection);
+            fuzzer->_on_driver_end();
+            std::cout << "Loop body ran" << std::endl;
+        }
+    }
 }
 
 
@@ -62,12 +83,11 @@ void server::accept_connection() {
     );
 }
 
-void  server::send_input_to_client_and_receive_result()
+void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection> connection)
 {
     buffer.clear();
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    std::shared_ptr<connection> connection = connections.wait_and_pop();
     std::future<std::size_t> send_input_future = connection->send_input_to_client(boost::asio::use_future);
     size_t sent = send_input_future.get();
     std::cout << "Sent " << sent << " bytes to client" << std::endl;

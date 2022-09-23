@@ -1,4 +1,4 @@
-#include <fuzzing/fuzzing_loop.hpp>
+#include <fuzzing/fuzzing_run.hpp>
 #include <connection/server.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
@@ -20,15 +20,7 @@ analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> 
 
     try
     {
-        while (true)
-        {
-            TMPROF_BLOCK();
-            std::cout << "Running fuzzing loop body" << std::endl;
-            fuzzer->_on_driver_begin();
-            server.send_input_to_client_and_receive_result();
-            fuzzer->_on_driver_end();
-            std::cout << "Loop body ran" << std::endl;
-        }
+        server.fuzzing_loop(fuzzer);
     }
     catch (fuzzer_interrupt_exception const& e)
     {

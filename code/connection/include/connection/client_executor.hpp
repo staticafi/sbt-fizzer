@@ -14,7 +14,7 @@
 #   include <condition_variable>
 #   include <mutex>
 #   include <deque>
-
+#   include <exception>
 
 namespace connection {
 
@@ -24,6 +24,7 @@ client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared
 void start();
 void stop();
 ~client_executor();
+const std::exception_ptr& get_exception_ptr() const;
 
 private:
     std::size_t keep_alive;
@@ -31,7 +32,8 @@ private:
     ts_queue<std::shared_ptr<connection>>& connections;
     std::thread thread;
     std::deque<boost::process::child> clients;
-    std::atomic_bool finished; 
+    std::atomic_bool finished;
+    std::exception_ptr excptr;
 };
 
 }

@@ -10,18 +10,26 @@ client_executor::client_executor(int keep_alive, std::string path_to_client, ts_
     path_to_client(std::move(path_to_client)),
     connections(connections),
     finished(false),
-    clients()
+    clients(),
+    excptr(nullptr)
     {}
+
+
+const std::exception_ptr& client_executor::get_exception_ptr() const {
+    return excptr;
+}
 
 
 void client_executor::start() {
     if (path_to_client.empty()) {
         return;
     }
+    using namespace std::chrono_literals;
     thread = std::thread(
         [this]() {
-            while (!finished) {
-                if (connections.size() < keep_alive) {
+            int client_connection_failures = 0;
+            try {
+                while (!finished) {
                     if (clients.size() > keep_alive) {
                         clients.front().wait();
                         clients.pop_front();
@@ -30,12 +38,19 @@ void client_executor::start() {
                     clients.emplace_back(path_to_client);
 
                     // wait until it connects, or kill it if it doesn't connect in time
-                    if (!connections.wait_for_add_or_timeout(std::chrono::milliseconds(2000))) {
+                    if (!connections.wait_for_add_or_timeout(2000ms)) {
                         clients.back().terminate();
                         clients.pop_back();
                         std::cout << "ERROR: client failed to connect in time during client execution" << std::endl;
+                        ++client_connection_failures;
+                    }
+                    if (client_connection_failures >= 5) {
+                        throw std::runtime_error("too many client connection failures");
                     }
                 }
+            }
+            catch (...) {
+                excptr = std::current_exception();
             }
         }
     );

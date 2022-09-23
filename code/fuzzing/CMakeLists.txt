@@ -10,8 +10,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/fuzzer_dummy.hpp
     ./src/fuzzer_dummy.cpp
 
-    ./include/fuzzing/fuzzing_loop.hpp
-    ./src/fuzzing_loop.cpp
+    ./include/fuzzing/fuzzing_run.hpp
+    ./src/fuzzing_run.cpp
 
     ./include/fuzzing/fuzzers_map.hpp
     ./src/fuzzers_map.cpp

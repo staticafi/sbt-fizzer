@@ -6,6 +6,7 @@
 #   include <connection/medium.hpp>
 #   include <connection/connection.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
+#   include <fuzzing/fuzzer_base.hpp>
 #   include <fuzzing/termination_info.hpp>
 #   include <connection/ts_queue.hpp>
 #   include <connection/client_executor.hpp>
@@ -23,9 +24,10 @@ struct  server
     server(uint16_t port, std::string path_to_client);
     ~server();
     
+    void  fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer);
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
     
-    void  send_input_to_client_and_receive_result();
+    void  send_input_to_client_and_receive_result(std::shared_ptr<connection> connection);
     void  accept_connection();
     void  start();
     void  stop();
