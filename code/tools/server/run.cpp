@@ -57,7 +57,7 @@ void run(int argc, char* argv[])
             terminator
             );
 
-    connection::server server(42085, get_program_options()->value("path_to_client"));
+    connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
     try {
         server.start();
     }

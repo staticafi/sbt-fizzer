@@ -24,6 +24,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");
 
+    add_option("port", "Port the server will use", "1");
+    add_value("port", "42085");
+
     add_option("fuzzer", "A fuzzer to be used.", "1");
     if (fuzzing::get_fuzzers_map().count("fuzzhamm") != 0UL)
         add_value("fuzzer", "fuzzhamm");
