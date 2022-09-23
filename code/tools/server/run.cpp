@@ -46,8 +46,8 @@ void run(int argc, char* argv[])
     }
 
     fuzzing::termination_info const  terminator(
-            std::max(0, std::stoi(get_program_options()->value("max_executions"))),
-            std::max(0, std::stoi(get_program_options()->value("max_seconds")))
+            std::max(0, get_program_options()->value_as_int("max_executions")),
+            std::max(0, get_program_options()->value_as_int("max_seconds"))
             );
 
     fuzzing::print_fuzzing_configuration(
