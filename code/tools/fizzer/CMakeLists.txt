@@ -1,4 +1,4 @@
-set(THIS_TARGET_NAME fizzer_${CMAKE_SYSTEM_NAME}_${CMAKE_BUILD_TYPE})
+set(THIS_TARGET_NAME fizzer)
 
 get_target_property(CLIENT_LIBRARIES client_lib LINK_LIBRARIES)
 # Also add the client lib containing main
@@ -29,11 +29,11 @@ set(SERVER_FILE "${CMAKE_INSTALL_PREFIX}/tools/$<TARGET_FILE_NAME:server>")
 
 set(FIZZER_PASS_FILE "${CMAKE_INSTALL_PREFIX}/lib/$<TARGET_FILE_NAME:fizzer_pass>")
 
-configure_file(fizzer.py.in fizzer.py @ONLY)
+configure_file(fizzer.py.in fizzer.py.in @ONLY)
 file(
     GENERATE
     OUTPUT ${THIS_TARGET_NAME}
-    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer.py
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer.py.in
     )
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${THIS_TARGET_NAME} DESTINATION "tools")
