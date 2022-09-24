@@ -27,8 +27,9 @@ void run() {
         vecu8 input_bytes;
         try {
             boost::algorithm::unhex(get_program_options()->value("input"), std::back_inserter(input_bytes));
-        } catch (boost::algorithm::hex_decode_error &e) {
-            std::cout << "In argument input expected hexadecimal value" << std::endl;
+        } 
+        catch (boost::algorithm::hex_decode_error &e) {
+            std::cerr << "ERROR: in argument input expected hexadecimal value\n";
             return;
         }
         client.execute_program_input_mode(std::move(input_bytes));

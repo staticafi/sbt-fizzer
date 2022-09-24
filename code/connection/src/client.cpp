@@ -43,16 +43,14 @@ void client::connect(const std::string& address, const std::string& port) {
     boost::asio::ip::tcp::resolver resolver(io_context);
     boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port, ec);
     if (ec) {
-        std::cout << "ERROR: could not resolve address and port" << std::endl;
-        std::cout << ec.what() << std::endl;
+        std::cerr << "ERROR: could not resolve address and port\n" << ec.message() << "\n";
         return;
     }
 
     boost::asio::async_connect(socket, endpoints, 
         [this](boost::system::error_code ec, boost::asio::ip::tcp::endpoint endpoint) {
             if (ec) {
-                std::cout << "ERROR: could not connect to server" << std::endl;
-                std::cout << ec.what() << std::endl;
+                std::cerr << "ERROR: could not connect to server\n" << ec.message() << "\n";
                 return;
             }
             std::cout << "Connected to server" << std::endl;
@@ -73,8 +71,7 @@ void client::receive_input() {
             else if (ec == boost::asio::error::eof) {
                 return;
             }
-            std::cout << "ERROR: receiving input from server\n";
-            std::cout << ec.what() << std::endl;
+            std::cerr << "ERROR: receiving input from server\n" << ec.message() << "\n";
         }
     );
 }
@@ -98,8 +95,7 @@ void  client::execute_program_and_send_results()
                 std::cout << "Results sent to server" << std::endl;
                 return;
             }
-            std::cout << "ERROR: sending result to server\n";
-            std::cout << ec.what() << std::endl;
+            std::cerr << "ERROR: sending result to server\n" << ec.message() << "\n";
         }
     );
 }
