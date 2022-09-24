@@ -14,16 +14,6 @@
 
 void run(int argc, char* argv[])
 {
-    if (get_program_options()->has("help"))
-    {
-        std::cout << get_program_options() << std::endl;
-        return;
-    }
-    if (get_program_options()->has("version"))
-    {
-        std::cout << get_program_options()->value("version") << std::endl;
-        return;
-    }
     if (get_program_options()->has("list_fuzzers"))
     {
         for (auto const&  name_and_constructor : fuzzing::get_fuzzers_map())
