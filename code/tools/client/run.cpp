@@ -34,10 +34,6 @@ void run() {
         client.execute_program_input_mode(std::move(input_bytes));
         return;
     }
-    if (!get_program_options()->has("address") || !get_program_options()->has("port")) {
-        std::cout << "ERROR: no options specified. Use --help." << std::endl;
-        return;
-    }
     
     client.connect(get_program_options()->value("address"), get_program_options()->value("port"));
     io_context.run();
