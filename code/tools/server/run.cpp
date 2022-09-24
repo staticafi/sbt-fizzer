@@ -22,17 +22,17 @@ void run(int argc, char* argv[])
     }
     if (!get_program_options()->has("fuzzer"))
     {
-        std::cout << "ERROR: no fuzzer is specified. Use --help." << std::endl;
+        std::cerr << "ERROR: no fuzzer is specified. Use --help.\n";
         return;
     }
     if (fuzzing::get_fuzzers_map().count(get_program_options()->value("fuzzer")) == 0UL)
     {
-        std::cout << "ERROR: passed unknown fuzzer name '" << get_program_options()->value("fuzzer") << "'. Use --list_fuzzers." << std::endl;
+        std::cerr << "ERROR: passed unknown fuzzer name '" << get_program_options()->value("fuzzer") << "'. Use --list_fuzzers.\n";
         return;
     }
     if (get_program_options()->value("path_to_client") == "")
     {
-        std::cout << "WARNING: empty path to client specified. The server will not automatically run fuzzing clients." << std::endl;
+        std::cerr << "WARNING: empty path to client specified. The server will not automatically run fuzzing clients.\n";
     }
 
     fuzzing::termination_info const  terminator(
@@ -52,8 +52,7 @@ void run(int argc, char* argv[])
         server.start();
     }
     catch (std::exception& e) {
-        std::cout << "ERROR: starting server\n";
-        std::cout << e.what() << std::endl;
+        std::cerr << "ERROR: starting server\n" << e.what() << "\n";
         return;
     }
 
@@ -69,10 +68,9 @@ void run(int argc, char* argv[])
         std::filesystem::path const  output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
         std::error_code  ec;
         if (!std::filesystem::create_directories(output_dir, ec) && ec)
-            std::cout << "ERROR: Failed to create/access the output directory:\n        " 
-                      << output_dir << std::endl
-                      << "       => No test was written to disk."
-                      << std::flush;
+            std::cerr << "ERROR: Failed to create/access the output directory:\n        " 
+                      << output_dir << "\n"
+                      << "       => No test was written to disk.\n";
         else
         {
             std::cout << "Saving tests under the output directory...";

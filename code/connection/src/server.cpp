@@ -72,8 +72,7 @@ void server::accept_connection() {
                 connections.push(std::move(new_connection));
             }
             else {
-                std::cout << "ERROR: accepting connection" << std::endl;
-                std::cout << ec.what() << std::endl;
+                std::cerr << "ERROR: accepting connection\n" << ec.message() << "\n";
             }
             accept_connection();
         }

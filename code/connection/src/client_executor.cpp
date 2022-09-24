@@ -43,7 +43,7 @@ void client_executor::start() {
                     if (!connections.wait_for_add_or_timeout(2000ms)) {
                         clients.back().terminate();
                         clients.pop_back();
-                        std::cout << "ERROR: client failed to connect in time during client execution" << std::endl;
+                        std::cerr << "ERROR: client failed to connect in time during client execution\n";
                         ++client_connection_failures;
                     }
                     if (client_connection_failures >= 5) {

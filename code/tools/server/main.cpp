@@ -16,7 +16,7 @@ extern void run(int argc, char* argv[]);
 #if BUILD_RELEASE() == 1
 static void save_crash_report(std::string const& crash_message)
 {
-    std::cout << "ERROR: " << crash_message << "\n";
+    std::cerr << "ERROR: " << crash_message << "\n";
     std::ofstream  ofile( get_program_name() + "_CRASH.txt", std::ios_base::app );
     ofile << crash_message << "\n";
 }
