@@ -85,12 +85,20 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     buffer.clear();
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    std::future<std::size_t> send_input_future = connection->send_input_to_client(boost::asio::use_future);
-    size_t sent = send_input_future.get();
+    connection->send_input_to_client(boost::asio::use_future).get();
     buffer.clear();
 
-    std::future<std::size_t> receive_result_future = connection->receive_input_from_client(boost::asio::use_future);
-    size_t received = receive_result_future.get();
+    try {
+        connection->receive_input_from_client(boost::asio::use_future).get();
+    }
+    catch (const boost::system::system_error& e) {
+        if (e.code() == boost::asio::error::eof) {
+            // the connection was closed, assume the client crashed running the target 
+            // this could result in false positives
+            throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
+        }
+        throw;
+    }
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(buffer);
     iomodels::iomanager::instance().clear_stdin();
