@@ -1,3 +1,5 @@
+#include <boost/process/io.hpp>
+
 #include <connection/client_executor.hpp>
 
 #include <cstdlib>
@@ -35,7 +37,7 @@ void client_executor::start() {
                         clients.pop_front();
                     }
                     // run the client
-                    clients.emplace_back(path_to_client);
+                    clients.emplace_back(path_to_client, boost::process::std_out > boost::process::null);
 
                     // wait until it connects, or kill it if it doesn't connect in time
                     if (!connections.wait_for_add_or_timeout(2000ms)) {

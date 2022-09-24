@@ -46,11 +46,9 @@ void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
             std::rethrow_exception(excptr);
         }
         if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
-            std::cout << "Running fuzzing loop body" << std::endl;
             fuzzer->_on_driver_begin();
             send_input_to_client_and_receive_result(*connection);
             fuzzer->_on_driver_end();
-            std::cout << "Loop body ran" << std::endl;
         }
     }
 }
@@ -71,7 +69,6 @@ void server::accept_connection() {
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (!ec) {
                 auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
-                std::cout << "Accepted connection from client" << std::endl;
                 connections.push(std::move(new_connection));
             }
             else {
@@ -90,12 +87,10 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     iomodels::iomanager::instance().save_stdout(buffer);
     std::future<std::size_t> send_input_future = connection->send_input_to_client(boost::asio::use_future);
     size_t sent = send_input_future.get();
-    std::cout << "Sent " << sent << " bytes to client" << std::endl;
     buffer.clear();
 
     std::future<std::size_t> receive_result_future = connection->receive_input_from_client(boost::asio::use_future);
     size_t received = receive_result_future.get();
-    std::cout << "Received " << received << " bytes from client" << std::endl;
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(buffer);
     iomodels::iomanager::instance().clear_stdin();

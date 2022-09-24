@@ -65,7 +65,7 @@ void client::receive_input() {
     buffer.async_receive_bytes(socket, 
         [this](boost::system::error_code ec, std::size_t bytes_transferred) {
             if (!ec) {
-                std::cout << "Received " << bytes_transferred << " bytes from server" << std::endl;
+                std:: cout << "Received input, running benchmark..." << std::endl;
                 execute_program_and_send_results();
                 return;
             }
@@ -95,7 +95,7 @@ void  client::execute_program_and_send_results()
     buffer.async_send_bytes(socket, 
         [this](boost::system::error_code ec, std::size_t bytes_transferred) {
             if (!ec) {
-                std::cout << "Sent " << bytes_transferred << " bytes to server" << std::endl;
+                std::cout << "Results sent to server" << std::endl;
                 return;
             }
             std::cout << "ERROR: sending result to server\n";
