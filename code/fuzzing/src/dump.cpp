@@ -59,11 +59,11 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << "   Seconds spent: " << results.num_elapsed_seconds << '\n'
          ;
 
-    ostr << "   Covered branchings [line]: " << results.covered_branchings.size() << std::endl;
+    ostr << "   Covered branchings [basic block]: " << results.covered_branchings.size() << std::endl;
     for (instrumentation::location_id const  id : results.covered_branchings)
         ostr << "      " << id << "\n";
 
-    ostr << "   Uncovered branchings [line, uncovered branch]: " << results.uncovered_branchings.size() << std::endl;
+    ostr << "   Uncovered branchings [basic block, uncovered branch]: " << results.uncovered_branchings.size() << std::endl;
     for (auto const&  id_and_branching : results.uncovered_branchings)
         ostr << "      " << id_and_branching.first << ":" << (id_and_branching.second ? "true" : "false") << "\n";
 
