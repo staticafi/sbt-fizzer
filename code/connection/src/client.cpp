@@ -28,7 +28,12 @@ void client::execute_program_input_mode(vecu8 input_bytes) {
     iomodels::iomanager::instance().load_stdin(buffer);
     iomodels::iomanager::instance().load_stdout(buffer);
     
-    __sbt_fizzer_method_under_test();
+    try {
+        __sbt_fizzer_method_under_test();
+    }
+    catch (const iomodels::trace_max_size_reached_exception& e) {
+        std::cout << "WARNING: terminated early because maximum allowed trace size was reached\n";
+    }
 
     for (const instrumentation::branching_coverage_info& info: iomodels::iomanager::instance().get_trace()) {
         std::cout << "location: bb" << info.branching_id
@@ -82,7 +87,12 @@ void  client::execute_program_and_send_results()
     iomodels::iomanager::instance().load_stdin(buffer);
     iomodels::iomanager::instance().load_stdout(buffer);
 
-    __sbt_fizzer_method_under_test();
+    try {
+        __sbt_fizzer_method_under_test();
+    }
+    catch (const iomodels::trace_max_size_reached_exception& e) {
+        std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
+    }
     std::cout << "Benchmark finished, sending results..." << std::endl;
 
     buffer.clear();

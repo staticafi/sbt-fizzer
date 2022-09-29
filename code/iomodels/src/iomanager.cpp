@@ -6,6 +6,7 @@ namespace  iomodels {
 
 iomanager::iomanager()
     : trace()
+    , trace_max_size()
     , stdin_ptr(nullptr)
     , stdout_ptr(nullptr)
 {}
@@ -51,8 +52,16 @@ void  iomanager::load_trace(connection::medium&  istr)
 }
 
 
+void  iomanager::set_trace_max_size(std::size_t max_size) {
+    trace_max_size = max_size;
+}
+
+
 void  iomanager::branching(instrumentation::branching_coverage_info const&  info)
 {
+    if (trace.size() >= trace_max_size) {
+        throw trace_max_size_reached_exception("Trace reached maximum allowed size");
+    }
     trace.push_back(info);
 }
 

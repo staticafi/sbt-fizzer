@@ -47,6 +47,10 @@ void run(int argc, char* argv[])
             terminator
             );
 
+    iomodels::iomanager::instance().set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>());
+    iomodels::iomanager::instance().set_stdout(std::make_shared<iomodels::stdout_void>());
+    iomodels::iomanager::instance().set_trace_max_size(std::stoul(get_program_options()->value("max_trace_size")));
+
     connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
     try {
         server.start();
@@ -55,9 +59,6 @@ void run(int argc, char* argv[])
         std::cerr << "ERROR: starting server\n" << e.what() << "\n";
         return;
     }
-
-    iomodels::iomanager::instance().set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>());
-    iomodels::iomanager::instance().set_stdout(std::make_shared<iomodels::stdout_void>());
 
     fuzzing::analysis_outcomes const  results = server.run_fuzzing(get_program_options()->value("fuzzer"), terminator);
 

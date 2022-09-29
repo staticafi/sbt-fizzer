@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     instr_output = subprocess.run([instrumentation], shell=True)
     if instr_output.returncode:
-        errprint("instrumentation of file c++ use same pipe or errorfailed")
+        errprint("instrumentation of file failed")
         sys.exit(1)
 
     client_file = filename + "_client"

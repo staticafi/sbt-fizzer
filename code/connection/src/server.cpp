@@ -13,7 +13,11 @@ namespace  connection {
 
 server::server(uint16_t port, std::string path_to_client):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
-    client_executor(10, path_to_client.empty() ? "" : std::move(path_to_client) + " --port " + std::to_string(port), connections)
+    client_executor(10, 
+                    path_to_client.empty() ? "" : 
+                        std::move(path_to_client) + " --port " + std::to_string(port) + 
+                        " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()), 
+                    connections)
     {}
 
 

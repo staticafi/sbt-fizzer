@@ -14,17 +14,25 @@ namespace  iomodels {
 using namespace instrumentation;
 
 
+struct  trace_max_size_reached_exception: public std::runtime_error
+{
+    explicit trace_max_size_reached_exception(char const* const message): std::runtime_error(message) {}
+};
+
+
 struct  iomanager
 {
     static iomanager&  instance();
 
     std::vector<branching_coverage_info> const&  get_trace() const { return trace; }
+    std::size_t  get_trace_max_size() const { return trace_max_size; }
     stdin_base_ptr  get_stdin() const { return stdin_ptr; }
     stdout_base_ptr  get_stdout() const { return stdout_ptr; }
 
     void  clear_trace();
     void  save_trace(connection::medium&  ostr) const;
     void  load_trace(connection::medium&  istr);
+    void  set_trace_max_size(std::size_t max_size);
     void  branching(branching_coverage_info const&  info);
 
     void  set_stdin(stdin_base_ptr  stdin_ptr_);
@@ -43,6 +51,7 @@ private:
     iomanager();
 
     std::vector<branching_coverage_info>  trace;
+    std::size_t trace_max_size;
     stdin_base_ptr  stdin_ptr;
     stdout_base_ptr  stdout_ptr;
 };

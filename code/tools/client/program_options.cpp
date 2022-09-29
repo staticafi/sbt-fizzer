@@ -10,6 +10,9 @@ program_options::program_options(int argc, char* argv[])
 {
     add_option("input", "Run the instrumented file with the specified hexadecimal input and output the trace.", "1");
 
+    add_option("max_trace_size", "Max allowed size of the trace", "1");
+    add_value("max_trace_size", "-1"); // let the default be the maximum value of size_t
+
     add_option("address", "The address of the fizzer server in IPv4 dotted decimal form or IPv6 hexadecimal notation.", "1");
     add_value("address", "127.0.0.1");
 
