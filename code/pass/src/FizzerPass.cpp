@@ -38,7 +38,8 @@ struct FizzerPass : public FunctionPass {
 
     bool doInitialization(Module &M);
 
-    Value *instrumentCmpBranch(BranchInst *brInst, CmpInst *cmpInst);
+    void instrumentCond(BasicBlock *bb, Value *cond);
+    Value *instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
     Value *instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
@@ -244,17 +245,59 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
     return distance;
 }
 
-Value *FizzerPass::instrumentCmpBranch(BranchInst *brInst, CmpInst *cmpInst) {
-    IRBuilder<> brBuilder(brInst);
-
+Value *FizzerPass::instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder) {
     Value *lhs = cmpInst->getOperand(0);
     Value *rhs = cmpInst->getOperand(1);
 
     if (cmpInst->isIntPredicate()) {
-        return instrumentIcmp(lhs, rhs, cmpInst, brBuilder);
+        return instrumentIcmp(lhs, rhs, cmpInst, builder);
     }
 
-    return instrumentFcmp(lhs, rhs, cmpInst, brBuilder);
+    return instrumentFcmp(lhs, rhs, cmpInst, builder);
+}
+
+void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
+    if (PHINode* phi = dyn_cast<PHINode>(cond)) {
+        errs() << "EXPERIMENTAL: instrumentation for phi node in " 
+                << bb->getName() << "\n";
+        for (unsigned int i = 0; i < phi->getNumIncomingValues(); ++i) {
+            Value *cond = phi->getIncomingValue(i);
+            BasicBlock* pred = phi->getIncomingBlock(i);
+            // the condition is just true or false
+            if (dyn_cast<ConstantInt>(cond)) {
+                continue;
+            }
+            instrumentCond(pred, cond);
+        }
+        return;
+    }
+    IRBuilder<> brBuilder(bb->getTerminator());
+
+    Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
+    Value *distance;
+    Value *coveredBranch =
+        brBuilder.CreateZExt(cond, Int8Ty);
+
+    if (CmpInst *cmpInst = dyn_cast<CmpInst>(cond)) {
+        distance = instrumentCmpBranch(cmpInst, brBuilder);
+    }
+    // truncating a number to i1, happens for example with bool in C
+    else if (dyn_cast<TruncInst>(cond)) {
+        distance = ConstantFP::get(DoubleTy, 1);
+    // i1 as a return from a call to a function
+    } else if (dyn_cast<CallInst>(cond)) {
+        distance = ConstantFP::get(DoubleTy, 1);
+    } else {
+        errs() << "ERROR: instrumentation for branch condition in " 
+                << bb->getName() << " is not supported" << "\n";
+        errs() << "Condition instruction is: ";
+        cond->print(errs());
+        errs() << "\n";
+        distance = ConstantFP::get(DoubleTy, 0);
+    }
+
+    brBuilder.CreateCall(processBranchFunc,
+                            {location, coveredBranch, distance});
 }
 
 bool FizzerPass::runOnFunction(Function &F) {
@@ -276,32 +319,8 @@ bool FizzerPass::runOnFunction(Function &F) {
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-        IRBuilder<> brBuilder(brInst);
 
-        Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
-        Value *distance;
-        Value *coveredBranch =
-            brBuilder.CreateZExt(brInst->getCondition(), Int8Ty);
-
-        Value *cond = brInst->getCondition();
-        if (CmpInst *cmpInst = dyn_cast<CmpInst>(cond)) {
-            distance = instrumentCmpBranch(brInst, cmpInst);
-        }
-        // truncating a number to i1, happens for example with bool in C
-        else if (dyn_cast<TruncInst>(cond)) {
-            distance = ConstantFP::get(DoubleTy, 1);
-        } else {
-            errs() << "Instrumentation for branch condition in " << BB.getName()
-                   << " is not supported"
-                   << "\n";
-            errs() << "Condition instruction is: ";
-            cond->print(errs());
-            errs() << "\n";
-            distance = ConstantFP::get(DoubleTy, 0);
-        }
-
-        brBuilder.CreateCall(processBranchFunc,
-                             {location, coveredBranch, distance});
+        instrumentCond(&BB, brInst->getCondition());
     }
     return true;
 }
