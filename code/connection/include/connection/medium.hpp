@@ -92,6 +92,9 @@ struct  medium
         );  
     }
 
+    std::size_t receive_bytes(boost::asio::ip::tcp::socket& socket, boost::system::error_code& ec);
+    std::size_t send_bytes(boost::asio::ip::tcp::socket& socket, boost::system::error_code& ec);
+
     bool empty();
 
 private:

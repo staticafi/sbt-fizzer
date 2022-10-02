@@ -62,6 +62,8 @@ void run(int argc, char* argv[])
 
     fuzzing::analysis_outcomes const  results = server.run_fuzzing(get_program_options()->value("fuzzer"), terminator);
 
+    server.stop();
+
     fuzzing::print_analysis_outcomes(std::cout, results, false);    
 
     if (!get_program_options()->value("output_dir").empty())

@@ -45,4 +45,23 @@ void  medium::load_bytes(natural_8_bit*  ptr, natural_32_bit const  count)
 }
 
 
+std::size_t medium::receive_bytes(boost::asio::ip::tcp::socket& socket, boost::system::error_code& ec) {
+    boost::asio::read(socket, boost::asio::buffer(&tmp_body_size, sizeof(natural_32_bit)), ec);
+    if (ec) {
+        return 0;
+    }
+    bytes.resize(tmp_body_size);
+    return boost::asio::read(socket, boost::asio::buffer(bytes), ec);
+}
+
+std::size_t medium::send_bytes(boost::asio::ip::tcp::socket& socket, boost::system::error_code& ec) {
+    tmp_body_size = bytes.size();
+    boost::asio::write(socket, boost::asio::buffer(&tmp_body_size, sizeof(natural_32_bit)), ec);
+    if (ec) {
+        return 0;
+    }
+    return boost::asio::write(socket, boost::asio::buffer(bytes), ec);
+}
+
+
 }

@@ -1,3 +1,5 @@
+#include <boost/asio/spawn.hpp>
+
 #include <connection/server.hpp>
 #include <connection/client.hpp>
 #include <iomodels/iomanager.hpp>
@@ -88,20 +90,19 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     buffer.clear();
     iomodels::iomanager::instance().save_stdin(buffer);
     iomodels::iomanager::instance().save_stdout(buffer);
-    connection->send_input_to_client(boost::asio::use_future).get();
-    buffer.clear();
 
-    try {
-        connection->receive_input_from_client(boost::asio::use_future).get();
+    boost::system::error_code ec;
+    connection->send_input_to_client(ec);
+
+    buffer.clear();
+    connection->receive_result_from_client(ec);
+    if (ec == boost::asio::error::eof) {
+        throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
     }
-    catch (const boost::system::system_error& e) {
-        if (e.code() == boost::asio::error::eof) {
-            // the connection was closed, assume the client crashed running the target 
-            // this could result in false positives
-            throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
-        }
-        throw;
+    else if (ec) {
+        throw ec;
     }
+
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(buffer);
     iomodels::iomanager::instance().clear_stdin();
