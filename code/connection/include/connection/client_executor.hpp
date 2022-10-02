@@ -23,7 +23,6 @@ struct client_executor {
 client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared_ptr<connection>>& connections);
 void start();
 void stop();
-~client_executor();
 const std::exception_ptr& get_exception_ptr() const;
 
 private:

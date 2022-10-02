@@ -61,18 +61,18 @@ void client_executor::start() {
 
 void client_executor::stop() {
     finished = true;
+    // drop all connections, so that we don't hang on clients.front().wait()
+    connections.clear();
+    // make sure the thread has stopped completely
     if (thread.joinable()) {
         thread.join();
     }
+    /* it's possible that the thread executed a new client before stopping,
+    make sure to drop that connection as well */
     connections.clear();
     for (auto& client: clients) {
         client.wait();
     }
 }
-
-client_executor::~client_executor() {
-    stop();
-}
-
 
 }
