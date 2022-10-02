@@ -23,8 +23,9 @@ server::server(uint16_t port, std::string path_to_client):
     {}
 
 
-server::~server() {
-    stop();
+void server::start() {
+    accept_connection();
+    thread = std::thread([this]() {io_context.run();});
 }
 
 
@@ -36,9 +37,46 @@ void server::stop() {
 }
 
 
-void server::start() {
-    accept_connection();
-    thread = std::thread([this]() {io_context.run();});
+void server::accept_connection() {
+    acceptor.async_accept(
+        [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
+            if (!ec) {
+                auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
+                connections.push(std::move(new_connection));
+            }
+            else {
+                std::cerr << "ERROR: accepting connection\n" << ec.message() << "\n";
+            }
+            accept_connection();
+        }
+    );
+}
+
+
+void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection> connection)
+{
+    buffer.clear();
+    iomodels::iomanager::instance().save_stdin(buffer);
+    iomodels::iomanager::instance().save_stdout(buffer);
+
+    boost::system::error_code ec;
+    connection->send_input_to_client(ec);
+
+    buffer.clear();
+    connection->receive_result_from_client(ec);
+    if (ec == boost::asio::error::eof) {
+        throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
+    }
+    else if (ec) {
+        throw ec;
+    }
+
+    iomodels::iomanager::instance().clear_trace();
+    iomodels::iomanager::instance().load_trace(buffer);
+    iomodels::iomanager::instance().clear_stdin();
+    iomodels::iomanager::instance().load_stdin(buffer);
+    iomodels::iomanager::instance().clear_stdout();
+    iomodels::iomanager::instance().load_stdout(buffer);
 }
 
 
@@ -68,48 +106,5 @@ fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name,
     client_executor.stop();
     return results;
 }
-
-
-void server::accept_connection() {
-    acceptor.async_accept(
-        [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
-            if (!ec) {
-                auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
-                connections.push(std::move(new_connection));
-            }
-            else {
-                std::cerr << "ERROR: accepting connection\n" << ec.message() << "\n";
-            }
-            accept_connection();
-        }
-    );
-}
-
-void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection> connection)
-{
-    buffer.clear();
-    iomodels::iomanager::instance().save_stdin(buffer);
-    iomodels::iomanager::instance().save_stdout(buffer);
-
-    boost::system::error_code ec;
-    connection->send_input_to_client(ec);
-
-    buffer.clear();
-    connection->receive_result_from_client(ec);
-    if (ec == boost::asio::error::eof) {
-        throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
-    }
-    else if (ec) {
-        throw ec;
-    }
-
-    iomodels::iomanager::instance().clear_trace();
-    iomodels::iomanager::instance().load_trace(buffer);
-    iomodels::iomanager::instance().clear_stdin();
-    iomodels::iomanager::instance().load_stdin(buffer);
-    iomodels::iomanager::instance().clear_stdout();
-    iomodels::iomanager::instance().load_stdout(buffer);
-}
-
 
 }
