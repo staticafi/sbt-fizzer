@@ -41,7 +41,7 @@ void server::accept_connection() {
     acceptor.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (!ec) {
-                auto new_connection = std::make_shared<connection>(io_context, std::move(socket), buffer);
+                auto new_connection = std::make_shared<connection>(io_context, std::move(socket));
                 connections.push(std::move(new_connection));
             }
             else {
@@ -55,28 +55,38 @@ void server::accept_connection() {
 
 void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection> connection)
 {
-    buffer.clear();
-    iomodels::iomanager::instance().save_stdin(buffer);
-    iomodels::iomanager::instance().save_stdout(buffer);
+    message input_to_client;
+    iomodels::iomanager::instance().save_stdin(input_to_client);
+    iomodels::iomanager::instance().save_stdout(input_to_client);
 
     boost::system::error_code ec;
-    connection->send_input_to_client(ec);
+    connection->send_message(input_to_client, ec);
 
-    buffer.clear();
-    connection->receive_result_from_client(ec);
+    message results_from_client;
+    connection->receive_message(results_from_client, ec);
     if (ec == boost::asio::error::eof) {
         throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
     }
     else if (ec) {
         throw ec;
     }
+    switch (results_from_client.type()) {
+        case message_type::results_from_client_normal:
+            break;
+        case message_type::results_from_client_max_trace_reached:
+            iomodels::iomanager::instance().received_message_type = 
+                message_type::results_from_client_max_trace_reached;
+            break;
+        default:
+            break;
+    }
 
     iomodels::iomanager::instance().clear_trace();
-    iomodels::iomanager::instance().load_trace(buffer);
+    iomodels::iomanager::instance().load_trace(results_from_client);
     iomodels::iomanager::instance().clear_stdin();
-    iomodels::iomanager::instance().load_stdin(buffer);
+    iomodels::iomanager::instance().load_stdin(results_from_client);
     iomodels::iomanager::instance().clear_stdout();
-    iomodels::iomanager::instance().load_stdout(buffer);
+    iomodels::iomanager::instance().load_stdout(results_from_client);
 }
 
 

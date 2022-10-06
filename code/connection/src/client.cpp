@@ -1,7 +1,8 @@
 #include <boost/algorithm/hex.hpp>
 
 #include <connection/client.hpp>
-#include <connection/medium.hpp>
+#include <connection/message.hpp>
+#include <connection/connection.hpp>
 #include <iomodels/iomanager.hpp>
 
 #include <iostream>
@@ -13,27 +14,33 @@ void __sbt_fizzer_method_under_test();
 namespace  connection {
 
 client::client(boost::asio::io_context& io_context):
-    io_context(io_context),
-    socket(io_context),
-    buffer()
+    io_context(io_context)
     {}
 
-void client::execute_program_input_mode(vecu8 input_bytes) {
-    buffer << (natural_16_bit) input_bytes.size();
-    for (natural_8_bit byte: input_bytes) {
-        buffer << byte;
-    }
-    buffer << (natural_16_bit) 0;
 
-    iomodels::iomanager::instance().load_stdin(buffer);
-    iomodels::iomanager::instance().load_stdout(buffer);
-    
+message_type client::execute_program() {
     try {
         __sbt_fizzer_method_under_test();
+        return message_type::results_from_client_normal;
     }
     catch (const iomodels::trace_max_size_reached_exception& e) {
-        std::cout << "WARNING: terminated early because maximum allowed trace size was reached\n";
+        std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
+        return message_type::results_from_client_max_trace_reached;
     }
+}
+
+void client::run_input_mode(vecu8 input_bytes) {
+    message input;
+    input << (natural_16_bit) input_bytes.size();
+    for (natural_8_bit byte: input_bytes) {
+        input << byte;
+    }
+    input << (natural_16_bit) 0;
+
+    iomodels::iomanager::instance().load_stdin(input);
+    iomodels::iomanager::instance().load_stdout(input);
+    
+    execute_program();
 
     for (const instrumentation::branching_coverage_info& info: iomodels::iomanager::instance().get_trace()) {
         std::cout << "location: bb" << info.branching_id
@@ -43,71 +50,78 @@ void client::execute_program_input_mode(vecu8 input_bytes) {
     }
 }
 
-void client::connect(const std::string& address, const std::string& port) {
-    boost::system::error_code ec;
-    boost::asio::ip::tcp::resolver resolver(io_context);
-    boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port, ec);
-    if (ec) {
-        std::cerr << "ERROR: could not resolve address and port\n" << ec.message() << "\n";
+void client::run(const std::string& address, const std::string& port) {
+    if (!connect(address, port)) {
         return;
     }
 
-    boost::asio::async_connect(socket, endpoints, 
-        [this](boost::system::error_code ec, boost::asio::ip::tcp::endpoint endpoint) {
-            if (ec) {
-                std::cerr << "ERROR: could not connect to server\n" << ec.message() << "\n";
-                return;
-            }
-            std::cout << "Connected to server" << std::endl;
-            receive_input();
-        });
+    if (!receive_input()) {
+        return;
+    }
+
+    execute_program_and_send_results();
 }
 
-void client::receive_input() {
+bool client::connect(const std::string& address, const std::string& port) {
+    boost::asio::ip::tcp::resolver resolver(io_context);
+    boost::system::error_code ec;
+    boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port, ec);
+    if (ec) {
+        std::cerr << "ERROR: could not resolve address and port\n" << ec.message() << "\n";
+        return false;
+    }
+
+    boost::asio::ip::tcp::socket socket(io_context);
+    boost::asio::connect(socket, endpoints, ec);
+    if (ec) {
+        std::cerr << "ERROR: could not connect to server\n" << ec.message() << "\n";
+        return false;
+    }
+    connection_to_server = std::make_unique<connection>(io_context, std::move(socket));
+
+    std::cout << "Connected to server" << std::endl;
+    return true;
+}
+
+bool client::receive_input() {
     std::cout << "Receiving input from server..." << std::endl;
-    buffer.async_receive_bytes(socket, 
-        [this](boost::system::error_code ec, std::size_t bytes_transferred) {
-            if (!ec) {
-                std:: cout << "Received input, running benchmark..." << std::endl;
-                execute_program_and_send_results();
-                return;
-            }
-            // server was shutdown
-            else if (ec == boost::asio::error::eof) {
-                return;
-            }
-            std::cerr << "ERROR: receiving input from server\n" << ec.message() << "\n";
-        }
-    );
+
+    boost::system::error_code ec;
+    message input;
+    connection_to_server->receive_message(input, ec);
+    if (ec == boost::asio::error::eof) {
+        return false;
+    }
+    else if (ec) {
+        std::cerr << "ERROR: receiving input from server\n" << ec.message() << "\n";
+        return false;
+    }
+    
+    iomodels::iomanager::instance().load_stdin(input);
+    iomodels::iomanager::instance().load_stdout(input);
+    return true;
 }
 
 
-void  client::execute_program_and_send_results()
+bool client::execute_program_and_send_results()
 {
-    iomodels::iomanager::instance().load_stdin(buffer);
-    iomodels::iomanager::instance().load_stdout(buffer);
+    std::cout << "Program finished, sending results..." << std::endl;
+    
+    message results;
+    results.header.type = execute_program();
+    iomodels::iomanager::instance().save_trace(results);
+    iomodels::iomanager::instance().save_stdin(results);
+    iomodels::iomanager::instance().save_stdout(results);
 
-    try {
-        __sbt_fizzer_method_under_test();
+    boost::system::error_code ec;
+    connection_to_server->send_message(results, ec);
+    if (ec) {
+        std::cerr << "ERROR: sending result to server\n" << ec.message() << "\n";
+        return false;
     }
-    catch (const iomodels::trace_max_size_reached_exception& e) {
-        std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
-    }
-    std::cout << "Benchmark finished, sending results..." << std::endl;
 
-    buffer.clear();
-    iomodels::iomanager::instance().save_trace(buffer);
-    iomodels::iomanager::instance().save_stdin(buffer);
-    iomodels::iomanager::instance().save_stdout(buffer);
-    buffer.async_send_bytes(socket, 
-        [this](boost::system::error_code ec, std::size_t bytes_transferred) {
-            if (!ec) {
-                std::cout << "Results sent to server" << std::endl;
-                return;
-            }
-            std::cerr << "ERROR: sending result to server\n" << ec.message() << "\n";
-        }
-    );
+    std::cout << "Results sent to server" << std::endl;
+    return true;
 }
 
 

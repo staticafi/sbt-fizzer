@@ -8,6 +8,7 @@ namespace  fuzzing {
 fuzzer_base::fuzzer_base(termination_info const&  info)
     : termination_props(info)
     , num_driver_executions(0U)
+    , num_max_trace_size_reached(0U)
     , time_point_start(std::chrono::steady_clock::now())
     , time_point_current(time_point_start)
     , generator(0U)
@@ -22,8 +23,12 @@ fuzzer_base::fuzzer_base(termination_info const&  info)
 
 void  fuzzer_base::_on_driver_begin()
 {
-    if (get_performed_driver_executions() > 0U && get_num_uncovered_branchings() == 0U)
+    if (get_performed_driver_executions() > 0U && get_num_uncovered_branchings() == 0U) {
+        if (get_num_max_trace_size_reached() > 0U) {
+            throw fuzzer_interrupt_exception("All reachable branchings were covered given the maximum trace size.");
+        }
         throw fuzzer_interrupt_exception("All reachable branchings were covered.");
+    }
 
     if (num_remaining_seconds() <= 0L)
         throw fuzzer_interrupt_exception("Max number of seconds for fuzzing was reached.");
@@ -100,6 +105,10 @@ void  fuzzer_base::_on_driver_end()
 
     on_execution_end();
 
+    if (iomodels::iomanager::instance().received_message_type == 
+        connection::message_type::results_from_client_max_trace_reached) {
+        ++num_max_trace_size_reached;
+    }
     time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 }

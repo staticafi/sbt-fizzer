@@ -9,13 +9,13 @@ void  stdout_void::clear()
 }
 
 
-void  stdout_void::save(connection::medium&  ostr) const
+void  stdout_void::save(connection::message&  ostr) const
 {
     // Nothing to do.
 }
 
 
-void  stdout_void::load(connection::medium&  istr)
+void  stdout_void::load(connection::message&  istr)
 {
     // Nothing to do.
 }

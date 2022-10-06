@@ -46,6 +46,7 @@ struct  fuzzer_base
     long  num_remaining_driver_executions() const { return (long)termination_props.max_driver_executions - (long)num_driver_executions; }
     long  num_remaining_seconds() const { return (long)termination_props.max_fuzzing_seconds - get_elapsed_seconds(); }
     natural_32_bit  get_performed_driver_executions() const { return num_driver_executions; }
+    natural_32_bit  get_num_max_trace_size_reached() const { return num_max_trace_size_reached; }
     long  get_elapsed_seconds() const { return (long)std::chrono::duration_cast<std::chrono::seconds>(time_point_current - time_point_start).count(); }
     natural_32_bit  get_num_covered_branchings() const { return (natural_32_bit)coverage_info.size() - num_uncovered_branchings; }
     natural_32_bit  get_num_uncovered_branchings() const { return num_uncovered_branchings; }
@@ -71,6 +72,7 @@ protected:
 private:
     termination_info termination_props;
     natural_32_bit  num_driver_executions;
+    natural_32_bit num_max_trace_size_reached;
     std::chrono::steady_clock::time_point  time_point_start;
     std::chrono::steady_clock::time_point  time_point_current;
     random_generator_for_natural_32_bit   generator;

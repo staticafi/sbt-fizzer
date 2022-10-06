@@ -5,7 +5,7 @@
 #include <iomodels/iomanager.hpp>
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
 #include <iomodels/stdout_void.hpp>
-#include <connection/medium.hpp>
+#include <connection/message.hpp>
 #include <utility/math.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 #include <utility/endian.hpp>
@@ -33,10 +33,10 @@ void run() {
             std::cerr << "ERROR: in argument input expected hexadecimal value\n";
             return;
         }
-        client.execute_program_input_mode(std::move(input_bytes));
+        client.run_input_mode(std::move(input_bytes));
         return;
     }
     
-    client.connect(get_program_options()->value("address"), get_program_options()->value("port"));
+    client.run(get_program_options()->value("address"), get_program_options()->value("port"));
     io_context.run();
 }

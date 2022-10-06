@@ -35,6 +35,7 @@ struct analysis_outcomes
     TERMINATION_TYPE  termination_type;
     std::string  termination_message;
     natural_32_bit  num_executions;
+    natural_32_bit  num_max_trace_size_reached;
     long  num_elapsed_seconds;
     std::vector<instrumentation::location_id> covered_branchings;
     std::vector<branching_location_and_direction>  uncovered_branchings;

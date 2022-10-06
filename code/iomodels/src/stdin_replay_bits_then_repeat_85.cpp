@@ -19,7 +19,7 @@ void  stdin_replay_bits_then_repeat_85::clear()
 }
 
 
-void  stdin_replay_bits_then_repeat_85::save(connection::medium&  ostr) const
+void  stdin_replay_bits_then_repeat_85::save(connection::message&  ostr) const
 {
     vecu8  bytes;
     bits_to_bytes(bits, bytes);
@@ -33,7 +33,7 @@ void  stdin_replay_bits_then_repeat_85::save(connection::medium&  ostr) const
 }
 
 
-void  stdin_replay_bits_then_repeat_85::load(connection::medium&  istr)
+void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 {
     natural_16_bit  num_bytes;
     istr >> num_bytes;

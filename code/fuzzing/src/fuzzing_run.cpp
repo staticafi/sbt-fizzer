@@ -51,6 +51,7 @@ analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> 
 #endif
 
     results.num_executions = fuzzer->get_performed_driver_executions();
+    results.num_max_trace_size_reached = fuzzer->get_num_max_trace_size_reached();
     results.num_elapsed_seconds = fuzzer->get_elapsed_seconds();
 
     for (auto const& id_and_info : fuzzer->get_branch_coverage_info())

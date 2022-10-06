@@ -12,8 +12,8 @@ struct stdin_replay_bits_then_repeat_85 : public stdin_base
     stdin_replay_bits_then_repeat_85();
 
     void  clear() override;
-    void  save(connection::medium&  ostr) const override;
-    void  load(connection::medium&  istr) override;
+    void  save(connection::message&  ostr) const override;
+    void  load(connection::message&  istr) override;
     void  read(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count) override;
 
     vecb const&  get_bits() const override { return bits; }

@@ -26,7 +26,7 @@ void  iomanager::clear_trace()
 }
 
 
-void  iomanager::save_trace(connection::medium&  ostr) const
+void  iomanager::save_trace(connection::message&  ostr) const
 {
     ostr << (natural_32_bit)trace.size();
     for (branching_coverage_info const&  info : trace)
@@ -37,7 +37,7 @@ void  iomanager::save_trace(connection::medium&  ostr) const
 }
 
 
-void  iomanager::load_trace(connection::medium&  istr)
+void  iomanager::load_trace(connection::message&  istr)
 {
     natural_32_bit  n;
     istr >> n;
@@ -78,13 +78,13 @@ void  iomanager::clear_stdin()
 }
 
 
-void  iomanager::save_stdin(connection::medium&  ostr) const
+void  iomanager::save_stdin(connection::message&  ostr) const
 {
     stdin_ptr->save(ostr);
 }
 
 
-void  iomanager::load_stdin(connection::medium&  istr)
+void  iomanager::load_stdin(connection::message&  istr)
 {
     stdin_ptr->load(istr);
 }
@@ -107,13 +107,13 @@ void  iomanager::clear_stdout()
 }
 
 
-void  iomanager::save_stdout(connection::medium&  ostr) const
+void  iomanager::save_stdout(connection::message&  ostr) const
 {
     stdout_ptr->save(ostr);
 }
 
 
-void  iomanager::load_stdout(connection::medium&  istr)
+void  iomanager::load_stdout(connection::message&  istr)
 {
     stdout_ptr->load(istr);
 }

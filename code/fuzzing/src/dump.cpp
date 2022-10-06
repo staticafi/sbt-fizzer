@@ -55,9 +55,13 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     }
     ostr << " Details:\n   Termination reason: " << results.termination_message << std::endl;
 
-    ostr << "   Executions performed: " << results.num_executions << '\n'
-         << "   Seconds spent: " << results.num_elapsed_seconds << '\n'
-         ;
+    ostr << "   Executions performed: " << results.num_executions << '\n';
+    
+    if (results.num_max_trace_size_reached > 0) {
+        ostr << "   Times maximum trace size was reached: " << results.num_max_trace_size_reached << '\n';
+    }
+
+    ostr << "   Seconds spent: " << results.num_elapsed_seconds << '\n';
 
     ostr << "   Covered branchings [basic block]: " << results.covered_branchings.size() << std::endl;
     for (instrumentation::location_id const  id : results.covered_branchings)
