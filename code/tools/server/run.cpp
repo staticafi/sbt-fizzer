@@ -40,10 +40,16 @@ void run(int argc, char* argv[])
             std::max(0, get_program_options()->value_as_int("max_seconds"))
             );
 
+    std::string client_name = "client";
+    if (!get_program_options()->value("path_to_client").empty()) {
+        std::filesystem::path client_path(get_program_options()->value("path_to_client"));
+        client_name = client_path.stem().string();
+    }
+
     fuzzing::print_fuzzing_configuration(
             std::cout,
             get_program_options()->value("fuzzer"),
-            "client",
+            client_name,
             terminator
             );
 
@@ -64,7 +70,7 @@ void run(int argc, char* argv[])
 
     server.stop();
 
-    fuzzing::print_analysis_outcomes(std::cout, results, false);    
+    fuzzing::print_analysis_outcomes(std::cout, results, false);
 
     if (!get_program_options()->value("output_dir").empty())
     {
@@ -77,12 +83,19 @@ void run(int argc, char* argv[])
         else
         {
             std::cout << "Saving tests under the output directory...";
+
+            std::string test_name = "test";
+            if (!get_program_options()->value("path_to_client").empty()) {
+                test_name += "_for_" + client_name;
+            }
+            test_name += "_by_" + get_program_options()->value("fuzzer");
+
             fuzzing::save_traces_with_coverage_infos_to_directory(
                     output_dir,
                     results.traces_forming_coverage,
                     true,
                     true,
-                    "test_by_" + get_program_options()->value("fuzzer")
+                    test_name
                     );
             std::cout << "Done.\n" << std::flush;
         }
