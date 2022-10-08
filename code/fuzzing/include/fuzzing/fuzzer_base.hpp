@@ -22,6 +22,7 @@ using namespace instrumentation;
 struct  fuzzer_interrupt_exception : public std::logic_error
 {
     explicit fuzzer_interrupt_exception(char const* const message) : std::logic_error(message) {}
+    explicit fuzzer_interrupt_exception(const std::string& message) : std::logic_error(message) {}
 };
 
 

@@ -9,6 +9,7 @@
 
 #include <sstream>
 #include <chrono>
+#include <iostream>
 
 namespace  connection {
 
@@ -65,13 +66,24 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     message results_from_client;
     connection->receive_message(results_from_client, ec);
     if (ec == boost::asio::error::eof) {
-        throw fuzzing::fuzzer_interrupt_exception("Found crashing input in the target");
+        vecu8  byte_values;
+        bits_to_bytes(iomodels::iomanager::instance().get_stdin()->get_bits(), byte_values);
+        std::string input(byte_values.size() * 2 + 1, '\0');
+        for (std::size_t i = 0; i < byte_values.size(); ++i) {
+            std::sprintf(input.data() + i * 2, "%02x", byte_values[i]);
+        }
+
+        throw fuzzing::fuzzer_interrupt_exception(
+            "Unknown client crash during execution on input " + 
+            input);
     }
     else if (ec) {
         throw ec;
     }
     switch (results_from_client.type()) {
         case message_type::results_from_client_normal:
+        case message_type::results_from_client_abort_reached:
+        case message_type::results_from_client_error_reached:
             break;
         case message_type::results_from_client_max_trace_reached:
             iomodels::iomanager::instance().received_message_type = 

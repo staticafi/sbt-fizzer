@@ -19,6 +19,14 @@ void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_
     INVARIANT(info.distance_to_uncovered_branch > (coverage_distance_type) 0);
     iomodels::on_branching(info);
 }
+
+void __sbt_fizzer_abort() {
+    throw abort_reached_exception("Abort reached");
+}
+
+void __sbt_fizzer_reach_error() {
+    throw error_reached_exception("Error reached");
+}
 }
 
 }

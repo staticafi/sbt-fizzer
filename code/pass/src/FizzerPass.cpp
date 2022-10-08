@@ -5,6 +5,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <llvm/Pass.h>
 
 using namespace llvm;
@@ -30,10 +31,16 @@ struct FizzerPass : public FunctionPass {
     std::unique_ptr<legacy::FunctionPassManager> DependenciesFPM;
 
     FunctionCallee processBranchFunc;
+    FunctionCallee fizzerAbort;
+    FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCount;
 
     FizzerPass() : FunctionPass(ID) {}
+    void replaceCalls(
+        Function &F, 
+        std::unordered_map<std::string, FunctionCallee> replacements
+    );
     bool runOnFunction(Function &F);
 
     bool doInitialization(Module &M);
@@ -74,6 +81,12 @@ bool FizzerPass::doInitialization(Module &M) {
     processBranchFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_branch", Type::getVoidTy(C),
                               Int32Ty, Int8Ty, DoubleTy);
+
+    fizzerAbort = M.getOrInsertFunction("__sbt_fizzer_abort", 
+                                        Type::getVoidTy(C));
+
+    fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
+                                             Type::getVoidTy(C));
 
     basicBlockCount = 0;
 
@@ -300,12 +313,40 @@ void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
                             {location, coveredBranch, distance});
 }
 
+void FizzerPass::replaceCalls(
+    Function &F,
+    std::unordered_map<std::string, FunctionCallee> replacements
+    ) {
+    std::vector<std::pair<CallInst*, FunctionCallee>> replaceCalls;
+
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+        if (auto *callInst = dyn_cast<CallInst>(&*I)) {
+            Function* callee = callInst->getCalledFunction();
+            if (!callee) {
+                continue;
+            }
+            auto it = replacements.find(callee->getName().str());
+            if (it != replacements.end()) {
+                replaceCalls.emplace_back(callInst, it->second);
+            }
+            
+        }
+    }
+    
+    for (auto [callInst, replacement]: replaceCalls) {
+        ReplaceInstWithInst(callInst, CallInst::Create(replacement));
+    }
+}
+
 bool FizzerPass::runOnFunction(Function &F) {
     if (F.isDeclaration()) {
         return false;
     }
 
     DependenciesFPM->run(F);
+    replaceCalls(F, {{"abort", fizzerAbort}, 
+                     {"reach_error", fizzerReachError}
+                    });
 
     if (F.getName() == "main") {
         F.setName("__sbt_fizzer_method_under_test");

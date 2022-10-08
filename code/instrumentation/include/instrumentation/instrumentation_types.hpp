@@ -3,8 +3,19 @@
 
 #   include <utility/basic_numeric_types.hpp>
 
+#   include <stdexcept>
+
 namespace  instrumentation {
 
+struct  abort_reached_exception: public std::runtime_error
+{
+    explicit abort_reached_exception(char const* const message): std::runtime_error(message) {}
+};
+
+struct  error_reached_exception: public std::runtime_error
+{
+    explicit error_reached_exception(char const* const message): std::runtime_error(message) {}
+};
 
 using  location_id = natural_32_bit;
 constexpr inline location_id  invalid_location_id() { return 0U; }
