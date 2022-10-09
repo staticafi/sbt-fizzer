@@ -1,5 +1,3 @@
-set(THIS_TARGET_NAME fizzer)
-
 get_target_property(CLIENT_LIBRARIES client_lib LINK_LIBRARIES)
 # Also add the client lib containing main
 list(APPEND CLIENT_LIBRARIES client_lib)
@@ -29,11 +27,34 @@ set(SERVER_FILE "${CMAKE_INSTALL_PREFIX}/tools/$<TARGET_FILE_NAME:server>")
 
 set(FIZZER_PASS_FILE "${CMAKE_INSTALL_PREFIX}/lib/$<TARGET_FILE_NAME:fizzer_pass>")
 
+
+set(FIZZER_TARGET_NAME fizzer)
+set(FIZZER_BUILD_CLIENT_TARGET_NAME fizzer_build_client)
+set(FIZZER_INSTRUMENT_TARGET_NAME fizzer_instrument)
+
 configure_file(fizzer.py fizzer.py @ONLY)
 file(
     GENERATE
-    OUTPUT ${THIS_TARGET_NAME}
+    OUTPUT ${FIZZER_TARGET_NAME}
     INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer.py
     )
 
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${THIS_TARGET_NAME} DESTINATION "tools")
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${FIZZER_TARGET_NAME} DESTINATION "tools")
+
+configure_file(fizzer_build_client.py fizzer_build_client.py @ONLY)
+file(
+    GENERATE
+    OUTPUT ${FIZZER_BUILD_CLIENT_TARGET_NAME}
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer_build_client.py
+    )
+
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${FIZZER_BUILD_CLIENT_TARGET_NAME} DESTINATION "tools")
+
+configure_file(fizzer_instrument.py fizzer_instrument.py @ONLY)
+file(
+    GENERATE
+    OUTPUT ${FIZZER_INSTRUMENT_TARGET_NAME}
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer_instrument.py
+    )
+
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${FIZZER_INSTRUMENT_TARGET_NAME} DESTINATION "tools")

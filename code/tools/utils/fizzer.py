@@ -7,7 +7,7 @@ from pathlib import Path
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
-def fizzer_add_base_args(parser):
+def add_base_args(parser):
     parser.add_argument('target_file', 
                         help='Path to target .c, .ll or .bc file.',
                         type=Path)
@@ -16,7 +16,7 @@ def fizzer_add_base_args(parser):
                         default=Path(), 
                         help="Output directory.")
 
-def fizzer_add_instr_args(parser):
+def add_instr_args(parser):
     instr_group = parser.add_mutually_exclusive_group()
     instr_group.add_argument('--no_instrument',
                              action="store_true", 
@@ -119,8 +119,8 @@ if __name__ == "__main__":
                     "and running fuzzing in one command.",
         epilog="Any additional arguments are passed to the server.")
 
-    fizzer_add_base_args(parser)
-    fizzer_add_instr_args(parser)
+    add_base_args(parser)
+    add_instr_args(parser)
     
     parser.add_argument('--clang', 
                         default="-O3",
