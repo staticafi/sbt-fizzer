@@ -139,6 +139,6 @@ if __name__ == "__main__":
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
     else:
-        utils.instrument()
+        utils.instrument(args.instrument)
     utils.build_client(args.clang)
     utils.run_fuzzing(pass_to_server_args_str)
