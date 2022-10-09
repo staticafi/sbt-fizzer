@@ -29,11 +29,11 @@ set(SERVER_FILE "${CMAKE_INSTALL_PREFIX}/tools/$<TARGET_FILE_NAME:server>")
 
 set(FIZZER_PASS_FILE "${CMAKE_INSTALL_PREFIX}/lib/$<TARGET_FILE_NAME:fizzer_pass>")
 
-configure_file(fizzer.py.in fizzer.py.in @ONLY)
+configure_file(fizzer.py fizzer.py @ONLY)
 file(
     GENERATE
     OUTPUT ${THIS_TARGET_NAME}
-    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer.py.in
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/fizzer.py
     )
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${THIS_TARGET_NAME} DESTINATION "tools")
