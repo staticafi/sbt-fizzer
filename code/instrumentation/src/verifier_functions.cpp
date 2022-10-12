@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 extern "C" {
-int __VERIFIER_nondet_char() {
+char __VERIFIER_nondet_char() {
     char n;
     iomodels::on_read_stdin(1, (natural_8_bit*) &n, sizeof(n));
     return n;
@@ -16,9 +16,12 @@ unsigned char __VERIFIER_nondet_uchar() {
 }
 
 _Bool __VERIFIER_nondet_bool() {
-    _Bool n;
+    char n;
     iomodels::on_read_stdin(1, (natural_8_bit*) &n, sizeof(n));
-    return n;
+    if (n > 0) {
+        return true;
+    }
+    return false;
 }
 
 short __VERIFIER_nondet_short() {
