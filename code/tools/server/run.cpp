@@ -9,6 +9,7 @@
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzers_map.hpp>
 #include <fuzzing/dump.hpp>
+#include <fuzzing/dump_testcomp.hpp>
 #include <iostream>
 
 
@@ -28,6 +29,11 @@ void run(int argc, char* argv[])
     if (fuzzing::get_fuzzers_map().count(get_program_options()->value("fuzzer")) == 0UL)
     {
         std::cerr << "ERROR: passed unknown fuzzer name '" << get_program_options()->value("fuzzer") << "'. Use --list_fuzzers.\n";
+        return;
+    }
+    const std::string& test_type = get_program_options()->value("test_type");
+    if (test_type != "debug" && test_type != "sbt-eft" && test_type != "testcomp") {
+        std::cerr << "ERROR: unknown output type specified. Use debug, sbt-eft or testcomp\n";
         return;
     }
     if (get_program_options()->value("path_to_client") == "")
@@ -74,7 +80,12 @@ void run(int argc, char* argv[])
 
     if (!get_program_options()->value("output_dir").empty())
     {
-        std::filesystem::path const  output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
+        std::filesystem::path output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
+
+        if (test_type == "testcomp") {
+            output_dir /= "test-suite";
+        }
+        
         std::error_code  ec;
         if (!std::filesystem::create_directories(output_dir, ec) && ec)
             std::cerr << "ERROR: Failed to create/access the output directory:\n        " 
@@ -90,13 +101,25 @@ void run(int argc, char* argv[])
             }
             test_name += "_by_" + get_program_options()->value("fuzzer");
 
-            fuzzing::save_traces_with_coverage_infos_to_directory(
+            if (test_type == "debug") {
+                fuzzing::save_traces_with_coverage_infos_to_directory(
                     output_dir,
                     results.traces_forming_coverage,
                     true,
                     true,
                     test_name
                     );
+            }
+            else if (test_type == "testcomp") {
+                fuzzing::save_testcomp_output(
+                    output_dir, 
+                    results.traces_forming_coverage,
+                    test_name,
+                    get_program_version(),
+                    get_program_options()->value("path_to_client")
+                    );
+            }
+            
             std::cout << "Done.\n" << std::flush;
         }
     }

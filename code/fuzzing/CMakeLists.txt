@@ -18,6 +18,9 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/fuzzing/dump.hpp
     ./src/dump.cpp
+
+    ./include/fuzzing/dump_testcomp.hpp
+    ./src/dump_testcomp.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
