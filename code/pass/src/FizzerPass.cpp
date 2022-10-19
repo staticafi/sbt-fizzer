@@ -132,10 +132,9 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
 
     CmpInst::Predicate opcode = cmpInst->getPredicate();
 
-    // cast pointers to i64 for now
+    // pointer comparison -> consider the distance to be 1
     if (lhs->getType()->isPointerTy()) {
-        lhs = builder.CreatePtrToInt(lhs, Int64Ty);
-        rhs = builder.CreatePtrToInt(rhs, Int64Ty);
+        return ConstantFP::get(DoubleTy, 1);
     } else {
         // if the value was extended we can't overflow meaning we don't need to
         // cast to a higher type
