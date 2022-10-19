@@ -57,9 +57,9 @@ endmacro()
 #append_linker_flags("-fno-omit-frame-pointer -fsanitize=address")
 
 # find and add Eigen math library
-message("Searching for Eigen ...")
-find_package(Eigen3 CONFIG REQUIRED)
-set(EIGEN_LIST_OF_LIBRARIES_TO_LINK_WITH "Eigen3::Eigen")
+#message("Searching for Eigen ...")
+#find_package(Eigen3 CONFIG REQUIRED)
+#set(EIGEN_LIST_OF_LIBRARIES_TO_LINK_WITH "Eigen3::Eigen")
 
 # find and add Boost
 message("Searching for Boost library ...")
