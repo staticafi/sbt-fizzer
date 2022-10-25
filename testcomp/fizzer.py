@@ -31,7 +31,7 @@ class Tool(benchexec.tools.template.BaseTool2):
         @param tool_locator: an instance of class ToolLocator
         @return a string pointing to an executable file
         """
-        return tool_locator.find_executable("fizzer")
+        return tool_locator.find_executable("fizzer", subdir="tools")
 
     def version(self, executable):
         """
