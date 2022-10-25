@@ -76,7 +76,7 @@ class Tool(benchexec.tools.template.BaseTool2):
         @return a list of strings that represent the command line to execute
         """
         if "--max_seconds" not in options and rlimits.cputime:
-            max_seconds = rlimits.cputime - 5
+            max_seconds = rlimits.cputime - 15
             options = options + ["--max_seconds", str(max_seconds)]
         return [executable, *task.input_files_or_identifier, *options]
 
