@@ -1,6 +1,6 @@
 get_target_property(CLIENT_LIBRARIES client_lib LINK_LIBRARIES)
 # Also add the client lib containing main
-list(APPEND CLIENT_LIBRARIES client_lib)
+list(INSERT CLIENT_LIBRARIES 0 client_lib)
 
 foreach(CLIENT_LIBRARY ${CLIENT_LIBRARIES})
     list(APPEND CLIENT_LIBRARIES_GENEXPRS_FILES "${CMAKE_INSTALL_PREFIX}/lib/$<TARGET_FILE_NAME:${CLIENT_LIBRARY}>")

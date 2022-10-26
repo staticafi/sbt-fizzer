@@ -12,8 +12,9 @@ set(CLIENT_SOURCES
     )
 
 set(CLIENT_LIBS
-    instrumentation
     connection
+    iomodels
+    instrumentation
     iomodels
     utility
     )
@@ -47,8 +48,8 @@ if(INSTRUMENTED_LLVM_FILE)
     target_link_options(${THIS_TARGET_NAME} PRIVATE -flto -fuse-ld=lld)
 
     target_link_libraries(${THIS_TARGET_NAME}
-        ${CLIENT_LIBS}
         ${INSTRUMENTED_LLVM_FILE}
+        ${CLIENT_LIBS}
         ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
         )
 

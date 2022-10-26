@@ -89,8 +89,8 @@ class FizzerUtils:
         self.client_file = self.output_dir / client_file_name
 
         client_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
-            self.client_cmake_build_flags, self.client_libraries, 
-            additional_flags, self.instrumented_file, self.client_file
+            self.client_cmake_build_flags, additional_flags, 
+            self.instrumented_file, self.client_libraries, self.client_file
         )
 
         compilation_output = subprocess.run(client_compilation, shell=True)
