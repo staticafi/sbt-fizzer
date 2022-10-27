@@ -60,12 +60,12 @@ class FizzerUtils:
     
         if self.file_suffix == ".ll" or self.file_suffix == ".bc":
             instrumentation = (
-                "opt -enable-new-pm=0 -load {0} -legacy-fizzer-pass " 
+                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-fizzer-pass " 
                 "{1} -S -o {2}"
             ).format(self.pass_path_str, self.file_path, self.instrumented_file)
         else:
             instrumentation = (
-                "clang {0} -flto -flegacy-pass-manager " 
+                "clang {0} -flto @CLANG_USE_LEGACY_PM@ " 
                 "-Xclang -load -Xclang {1} "
                 "-Xclang -disable-O0-optnone -fno-discard-value-names {2} "
                 "-S -o {3}"

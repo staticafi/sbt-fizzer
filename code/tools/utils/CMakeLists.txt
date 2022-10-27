@@ -1,3 +1,9 @@
+# Make sure clang/opt are using the right flags for running passes based on the llvm version
+if("${LLVM_VERSION_MAJOR}" VERSION_GREATER_EQUAL "12")
+  set(OPT_USE_LEGACY_PM "-enable-new-pm=0")
+  set(CLANG_USE_LEGACY_PM "-flegacy-pass-manager")
+endif()
+
 get_target_property(CLIENT_LIBRARIES client_lib LINK_LIBRARIES)
 # Also add the client lib containing main
 list(INSERT CLIENT_LIBRARIES 0 client_lib)

@@ -69,6 +69,23 @@ set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH
         ${Boost_LIBRARIES}
     )
 
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LT_LLVM_INSTALL_DIR}")
+
+if(NOT "${LLVM_VERSION_MAJOR}" VERSION_GREATER_EQUAL "10")
+    message(WARNING "LLVM versions below 10 (found ${LLVM_VERSION_MAJOR}) are not supported.")
+endif()
+
+message("LLVM STATUS:
+    Definitions ${LLVM_DEFINITIONS}
+    Includes    ${LLVM_INCLUDE_DIRS}
+    Libraries   ${LLVM_LIBRARY_DIRS}
+    Targets     ${LLVM_TARGETS_TO_BUILD}"
+)
+
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/dist" CACHE STRING "Install path" FORCE)
 endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
