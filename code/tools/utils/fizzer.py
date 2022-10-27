@@ -9,7 +9,7 @@ def errprint(*args, **kwargs):
 
 def add_base_args(parser):
     parser.add_argument('target_file', 
-                        help='Path to target .c, .ll or .bc file.',
+                        help='Path to target file.',
                         type=Path)
     parser.add_argument('--output_dir', 
                         type=Path,
@@ -58,7 +58,12 @@ class FizzerUtils:
         instrumented_file_name = self.file_name + "_instrumented.ll"
         self.instrumented_file = self.output_dir / instrumented_file_name
     
-        if self.file_suffix == ".c":
+        if self.file_suffix == ".ll" or self.file_suffix == ".bc":
+            instrumentation = (
+                "opt -enable-new-pm=0 -load {0} -legacy-fizzer-pass " 
+                "{1} -S -o {2}"
+            ).format(self.pass_path_str, self.file_path, self.instrumented_file)
+        else:
             instrumentation = (
                 "clang {0} -flto -flegacy-pass-manager " 
                 "-Xclang -load -Xclang {1} "
@@ -68,14 +73,6 @@ class FizzerUtils:
                 additional_flags, self.pass_path_str, 
                 self.file_path, self.instrumented_file
                 )
-        elif self.file_suffix == ".ll" or self.file_suffix == ".bc":
-            instrumentation = (
-                "opt -enable-new-pm=0 -load {0} -legacy-fizzer-pass " 
-                "{1} -S -o {2}"
-            ).format(self.pass_path_str, self.file_path, self.instrumented_file)
-        else:
-            errprint("Unknown file extension, expected .c, .ll or .bc")
-            sys.exit(1)
 
         instrumentation_output = subprocess.run(instrumentation, shell=True)
         if instrumentation_output.returncode:
