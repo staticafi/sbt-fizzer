@@ -45,7 +45,7 @@ if(INSTRUMENTED_LLVM_FILE)
         )
 
     target_compile_options(${THIS_TARGET_NAME} PRIVATE -flto)
-    target_link_options(${THIS_TARGET_NAME} PRIVATE -flto -fuse-ld=lld)
+    target_link_options(${THIS_TARGET_NAME} PRIVATE -flto)
 
     target_link_libraries(${THIS_TARGET_NAME}
         ${INSTRUMENTED_LLVM_FILE}

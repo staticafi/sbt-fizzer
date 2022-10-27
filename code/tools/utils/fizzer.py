@@ -38,7 +38,6 @@ class FizzerUtils:
     client_libraries = "@CLIENT_LIBRARIES_FILES@"
     client_cmake_build_flags = (
                                 "-flto "
-                                "-fuse-ld=lld "
                                 "@CLIENT_NEEDED_COMPILATION_FLAGS@"
                                 )
     pass_path_str = "@FIZZER_PASS_FILE@"
