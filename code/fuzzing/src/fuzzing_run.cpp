@@ -12,8 +12,6 @@ namespace  fuzzing {
 
 analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> const  fuzzer)
 {
-    TMPROF_BLOCK();
-
     ASSUMPTION(fuzzer != nullptr);
 
     analysis_outcomes  results;

@@ -107,7 +107,6 @@ void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
     using namespace std::chrono_literals;
     while (true)
     {
-        TMPROF_BLOCK();
         if (auto excptr = client_executor.get_exception_ptr()) {
             std::rethrow_exception(excptr);
         }
