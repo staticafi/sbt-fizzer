@@ -24,9 +24,6 @@ sensitivity_fuzzer_similar_trace_search::sensitivity_fuzzer_similar_trace_search
 {
     ASSUMPTION(!parent.expired() && std::dynamic_pointer_cast<sensitivity_fuzzer_sequence>(parent.lock()) != nullptr);
 
-    std::vector<std::unordered_set<natural_16_bit> >  escape_stdin_bits;
-    compute_escape_sensitive_bits_for_branchings(trace(), escape_stdin_bits);
-
     if (consider_only_uncovered_branchings)
         for (auto const&  loc_and_indices : trace()->uncovered_branchings)
             for (auto  idx : loc_and_indices.second)
