@@ -76,7 +76,7 @@ class Tool(benchexec.tools.template.BaseTool2):
         @return a list of strings that represent the command line to execute
         """
         if "--max_seconds" not in options and rlimits.cputime:
-            max_seconds = rlimits.cputime - 15
+            max_seconds = rlimits.cputime - 5
             options = options + ["--max_seconds", str(max_seconds)]
         return [executable, *task.input_files_or_identifier, *options]
 
@@ -95,7 +95,37 @@ class Tool(benchexec.tools.template.BaseTool2):
         @param run: information about the run as instanceof of class Run
         @return a non-empty string, usually one of the benchexec.result.RESULT_* constants
         """
-        return result.RESULT_DONE
+        if run.was_timeout:
+            return "timeout"
+        
+        if not run.output:
+            return "error (no output)"
+
+        for line in run.output:
+            line = line.strip()
+            if line.startswith("Fuzzing early"):
+                # remove Details:
+                line = line.split(". ")[0]
+                if line.endswith("invariant failure"):
+                    return "error (invariant failure)"
+                if line.endswith("assumption failure"):
+                    return "error (assumption failure)"
+                if line.endswith("construction"):
+                    return "error (code under construction)"
+                return "error (exception)"
+
+            if not line.startswith("Termination reason:"):
+                continue
+            reason = line.split(": ")[1]
+            if reason.startswith("Max number of seconds"):
+                return result.RESULT_DONE + " (max seconds reached)"
+            if reason.startswith("Max"):
+                return result.RESULT_DONE + " (max executions reached)"
+            if reason.startswith("The"):
+                return result.RESULT_DONE + " (strategy finished)"
+            return result.RESULT_DONE
+
+        return result.RESULT_ERROR
 
     def get_value_from_output(self, output, identifier):
         """
