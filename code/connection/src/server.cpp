@@ -73,7 +73,7 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
             std::sprintf(input.data() + i * 2, "%02x", byte_values[i]);
         }
 
-        throw fuzzing::fuzzer_interrupt_exception(
+        throw std::runtime_error(
             "Unknown client crash during execution on input " + 
             input);
     }
