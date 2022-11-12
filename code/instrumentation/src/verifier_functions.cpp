@@ -15,6 +15,12 @@ unsigned char __VERIFIER_nondet_uchar() {
     return n;
 }
 
+unsigned char __VERIFIER_nondet_unsigned_char() {
+    unsigned char n;
+    iomodels::on_read_stdin(1, (natural_8_bit*) &n, sizeof(n));
+    return n;
+}
+
 _Bool __VERIFIER_nondet_bool() {
     char n;
     iomodels::on_read_stdin(1, (natural_8_bit*) &n, sizeof(n));
