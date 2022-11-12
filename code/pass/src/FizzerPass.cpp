@@ -269,16 +269,18 @@ Value *FizzerPass::instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder) {
 }
 
 void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
+    // don't instrument true or false
+    if (dyn_cast<ConstantInt>(cond)) {
+        return;
+    }
+
     if (PHINode* phi = dyn_cast<PHINode>(cond)) {
         errs() << "EXPERIMENTAL: instrumentation for phi node in " 
                 << bb->getName() << "\n";
         for (unsigned int i = 0; i < phi->getNumIncomingValues(); ++i) {
             Value *cond = phi->getIncomingValue(i);
             BasicBlock* pred = phi->getIncomingBlock(i);
-            // the condition is just true or false
-            if (dyn_cast<ConstantInt>(cond)) {
-                continue;
-            }
+            
             instrumentCond(pred, cond);
         }
         return;
