@@ -22,8 +22,7 @@ struct FizzerPass : public FunctionPass {
     IntegerType *Int32Ty;
     IntegerType *Int64Ty;
 
-    Type *Int8PtrTy;
-    Type *Int64PtrTy;
+    Type *VoidTy;
 
     Type *FloatTy;
     Type *DoubleTy;
@@ -69,8 +68,8 @@ bool FizzerPass::doInitialization(Module &M) {
     Int8Ty = IntegerType::getInt8Ty(C);
     Int32Ty = IntegerType::getInt32Ty(C);
     Int64Ty = IntegerType::getInt64Ty(C);
-    Int8PtrTy = PointerType::getUnqual(Int8Ty);
-    Int64PtrTy = PointerType::getUnqual(Int64Ty);
+
+    VoidTy = Type::getVoidTy(C);
 
     FloatTy = Type::getFloatTy(C);
     DoubleTy = Type::getDoubleTy(C);
@@ -79,14 +78,13 @@ bool FizzerPass::doInitialization(Module &M) {
     DependenciesFPM->add(createLowerSwitchPass());
 
     processBranchFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_branch", Type::getVoidTy(C),
-                              Int32Ty, Int8Ty, DoubleTy);
+        M.getOrInsertFunction("__sbt_fizzer_process_branch", VoidTy,
+                              Int32Ty, Int1Ty, DoubleTy);
 
-    fizzerAbort = M.getOrInsertFunction("__sbt_fizzer_abort", 
-                                        Type::getVoidTy(C));
+    fizzerAbort = M.getOrInsertFunction("__sbt_fizzer_abort", VoidTy);
 
     fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
-                                             Type::getVoidTy(C));
+                                             VoidTy);
 
     basicBlockCount = 0;
 
@@ -278,10 +276,10 @@ void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
         errs() << "EXPERIMENTAL: instrumentation for phi node in " 
                 << bb->getName() << "\n";
         for (unsigned int i = 0; i < phi->getNumIncomingValues(); ++i) {
-            Value *cond = phi->getIncomingValue(i);
+            Value *predCond = phi->getIncomingValue(i);
             BasicBlock* pred = phi->getIncomingBlock(i);
             
-            instrumentCond(pred, cond);
+            instrumentCond(pred, predCond);
         }
         return;
     }
@@ -289,8 +287,6 @@ void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
 
     Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
     Value *distance;
-    Value *coveredBranch =
-        brBuilder.CreateZExt(cond, Int8Ty);
 
     if (CmpInst *cmpInst = dyn_cast<CmpInst>(cond)) {
         distance = instrumentCmpBranch(cmpInst, brBuilder);
@@ -311,7 +307,7 @@ void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
     }
 
     brBuilder.CreateCall(processBranchFunc,
-                            {location, coveredBranch, distance});
+                            {location, cond, distance});
 }
 
 void FizzerPass::replaceCalls(
