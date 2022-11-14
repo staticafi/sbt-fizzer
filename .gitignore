@@ -10,3 +10,4 @@
 *.user
 /CMakeSettings.json
 /cmake-build-*
+**/__pycache__
