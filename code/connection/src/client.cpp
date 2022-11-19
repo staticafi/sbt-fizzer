@@ -27,9 +27,8 @@ message_type client::execute_program() {
         std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
         return message_type::results_from_client_max_trace_reached;
     }
-    catch (const instrumentation::abort_reached_exception& e) {
-        std::cout << "Reached abort" << std::endl;
-        return message_type::results_from_client_abort_reached;
+    catch (const instrumentation::terminate_exception& e) {
+        return message_type::results_from_client_normal;
     }
     catch (const instrumentation::error_reached_exception& e) {
         std::cout << "Reached error" << std::endl;

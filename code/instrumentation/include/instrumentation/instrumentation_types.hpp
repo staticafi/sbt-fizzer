@@ -7,9 +7,9 @@
 
 namespace  instrumentation {
 
-struct  abort_reached_exception: public std::runtime_error
+struct  terminate_exception: public std::runtime_error
 {
-    explicit abort_reached_exception(char const* const message): std::runtime_error(message) {}
+    explicit terminate_exception(char const* const message): std::runtime_error(message) {}
 };
 
 struct  error_reached_exception: public std::runtime_error

@@ -30,7 +30,7 @@ struct FizzerPass : public FunctionPass {
     std::unique_ptr<legacy::FunctionPassManager> DependenciesFPM;
 
     FunctionCallee processBranchFunc;
-    FunctionCallee fizzerAbort;
+    FunctionCallee fizzerTerminate;
     FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCount;
@@ -83,7 +83,7 @@ bool FizzerPass::doInitialization(Module &M) {
         M.getOrInsertFunction("__sbt_fizzer_process_branch", VoidTy,
                               Int32Ty, Int1Ty, DoubleTy);
 
-    fizzerAbort = M.getOrInsertFunction("__sbt_fizzer_abort", VoidTy);
+    fizzerTerminate = M.getOrInsertFunction("__sbt_fizzer_terminate", VoidTy);
 
     fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
                                              VoidTy);
@@ -367,7 +367,8 @@ bool FizzerPass::runOnFunction(Function &F) {
     }
 
     DependenciesFPM->run(F);
-    replaceCalls(F, {{"abort", fizzerAbort}, 
+    replaceCalls(F, {{"abort", fizzerTerminate}, 
+                     {"exit", fizzerTerminate},
                      {"reach_error", fizzerReachError}
                     });
 

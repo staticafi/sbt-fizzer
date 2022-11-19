@@ -20,8 +20,8 @@ void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_
     iomodels::on_branching(info);
 }
 
-void __sbt_fizzer_abort() {
-    throw abort_reached_exception("Abort reached");
+void __sbt_fizzer_terminate() {
+    throw terminate_exception("");
 }
 
 void __sbt_fizzer_reach_error() {

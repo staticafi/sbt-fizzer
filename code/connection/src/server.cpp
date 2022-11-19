@@ -80,18 +80,7 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     else if (ec) {
         throw ec;
     }
-    switch (results_from_client.type()) {
-        case message_type::results_from_client_normal:
-        case message_type::results_from_client_abort_reached:
-        case message_type::results_from_client_error_reached:
-            break;
-        case message_type::results_from_client_max_trace_reached:
-            iomodels::iomanager::instance().received_message_type = 
-                message_type::results_from_client_max_trace_reached;
-            break;
-        default:
-            break;
-    }
+    iomodels::iomanager::instance().received_message_type = results_from_client.type();
 
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(results_from_client);
