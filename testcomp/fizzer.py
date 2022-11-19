@@ -95,9 +95,6 @@ class Tool(benchexec.tools.template.BaseTool2):
         @param run: information about the run as instanceof of class Run
         @return a non-empty string, usually one of the benchexec.result.RESULT_* constants
         """
-        if run.was_timeout:
-            return "timeout"
-        
         if not run.output:
             return "error (no output)"
 
@@ -106,6 +103,8 @@ class Tool(benchexec.tools.template.BaseTool2):
             if line.startswith("Fuzzing early"):
                 # remove Details:
                 line = line.split(". ")[0]
+                if line.startswith("Unknown"):
+                    return "error (client crash)"
                 if line.endswith("invariant failure"):
                     return "error (invariant failure)"
                 if line.endswith("assumption failure"):
