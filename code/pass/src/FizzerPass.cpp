@@ -44,7 +44,9 @@ struct FizzerPass : public FunctionPass {
 
     bool doInitialization(Module &M);
 
-    void instrumentCond(BasicBlock *bb, Value *cond);
+    void printErrCond(Value *cond);
+
+    void instrumentCondBranch(BasicBlock *bb, Value *cond, bool negateCond);
     Value *instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
@@ -90,6 +92,13 @@ bool FizzerPass::doInitialization(Module &M) {
 
     return true;
 }
+
+void FizzerPass::printErrCond(Value *cond) {
+    errs() << "Condition instruction is: ";
+    cond->print(errs());
+    errs() << "\n";
+}
+
 
 CallInst *FizzerPass::instrumentIntEq(Value *val1, Value *val2,
                                       IRBuilder<> &builder) {
@@ -266,48 +275,65 @@ Value *FizzerPass::instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder) {
     return instrumentFcmp(lhs, rhs, cmpInst, builder);
 }
 
-void FizzerPass::instrumentCond(BasicBlock *bb, Value *cond) {
+void FizzerPass::instrumentCondBranch(BasicBlock *bb, Value *currCond, 
+                                      bool negateCond) {
     // don't instrument true or false
-    if (dyn_cast<ConstantInt>(cond)) {
+    if (dyn_cast<ConstantInt>(currCond)) {
         return;
     }
 
-    if (PHINode* phi = dyn_cast<PHINode>(cond)) {
+    if (PHINode* phi = dyn_cast<PHINode>(currCond)) {
         errs() << "EXPERIMENTAL: instrumentation for phi node in " 
                 << bb->getName() << "\n";
+        printErrCond(currCond);
         for (unsigned int i = 0; i < phi->getNumIncomingValues(); ++i) {
             Value *predCond = phi->getIncomingValue(i);
             BasicBlock* pred = phi->getIncomingBlock(i);
             
-            instrumentCond(pred, predCond);
+            instrumentCondBranch(pred, predCond, negateCond);
         }
         return;
     }
+
+    // handle xor used as not (xor cond true)
+    if (BinaryOperator *binOp = dyn_cast<BinaryOperator>(currCond)) {
+        if (binOp->getOpcode() == Instruction::Xor) {
+            Value *prevCond = binOp->getOperand(0);
+            Value *trueConst = binOp->getOperand(1);
+            if (dyn_cast<ConstantInt>(trueConst)) {
+                instrumentCondBranch(bb, prevCond, !negateCond);
+                return;
+            }
+        }
+    }
+
     IRBuilder<> brBuilder(bb->getTerminator());
 
-    Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
-    Value *distance;
+    Value *distance = ConstantFP::get(DoubleTy, 0);
 
-    if (CmpInst *cmpInst = dyn_cast<CmpInst>(cond)) {
+    if (CmpInst *cmpInst = dyn_cast<CmpInst>(currCond)) {
         distance = instrumentCmpBranch(cmpInst, brBuilder);
     }
     // truncating a number to i1, happens for example with bool in C
-    else if (dyn_cast<TruncInst>(cond)) {
+    else if (dyn_cast<TruncInst>(currCond)) {
         distance = ConstantFP::get(DoubleTy, 1);
     // i1 as a return from a call to a function
-    } else if (dyn_cast<CallInst>(cond)) {
+    } else if (dyn_cast<CallInst>(currCond)) {
         distance = ConstantFP::get(DoubleTy, 1);
     } else {
         errs() << "ERROR: instrumentation for branch condition in " 
-                << bb->getName() << " is not supported" << "\n";
-        errs() << "Condition instruction is: ";
-        cond->print(errs());
-        errs() << "\n";
-        distance = ConstantFP::get(DoubleTy, 0);
+        << bb->getName() << " is not supported" << "\n";
+        printErrCond(currCond);
+    }
+
+    Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
+
+    if (negateCond) {
+        currCond = brBuilder.CreateXor(currCond, ConstantInt::get(Int1Ty, 1));
     }
 
     brBuilder.CreateCall(processBranchFunc,
-                            {location, cond, distance});
+                            {location, currCond, distance});
 }
 
 void FizzerPass::replaceCalls(
@@ -357,8 +383,8 @@ bool FizzerPass::runOnFunction(Function &F) {
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-
-        instrumentCond(&BB, brInst->getCondition());
+        Value *cond = brInst->getCondition();
+        instrumentCondBranch(&BB, cond, false);
     }
     return true;
 }
