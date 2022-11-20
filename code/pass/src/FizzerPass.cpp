@@ -309,7 +309,8 @@ void FizzerPass::instrumentCondBranch(BasicBlock *bb, Value *currCond,
 
     IRBuilder<> brBuilder(bb->getTerminator());
 
-    Value *distance = ConstantFP::get(DoubleTy, 0);
+    Value *distance = ConstantFP::get(DoubleTy, 
+                                      std::numeric_limits<double>::max());
 
     if (CmpInst *cmpInst = dyn_cast<CmpInst>(currCond)) {
         distance = instrumentCmpBranch(cmpInst, brBuilder);
