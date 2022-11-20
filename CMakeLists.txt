@@ -33,6 +33,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     message("Compiler = MSVC")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions("
+        -Wall
         -Wno-dangling-else
         -Wno-overloaded-virtual
         -Wno-unused-lambda-capture
