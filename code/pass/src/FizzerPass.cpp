@@ -113,18 +113,18 @@ CallInst *FizzerPass::instrumentFPEq(Value *val1, Value *val2,
     return builder.CreateUnaryIntrinsic(Intrinsic::fabs, diff);
 }
 
+// returns {val1 - val2, val2 - val1 + 1}
 std::tuple<Value *, Value *>
 FizzerPass::instrumentIntIneq(Value *val1, Value *val2, IRBuilder<> &builder) {
-    // returns {val1 - val2, val2 - val1 + 1}
     Value *diff1 = builder.CreateSub(val1, val2);
     Value *diff2 = builder.CreateAdd(builder.CreateSub(val2, val1),
                                      ConstantInt::get(val1->getType(), 1));
     return {diff1, diff2};
 }
 
+// returns {val1 - val2, val2 - val1 + 1}
 std::tuple<Value *, Value *>
 FizzerPass::instrumentFPIneq(Value *val1, Value *val2, IRBuilder<> &builder) {
-    // returns {val1 - val2, val2 - val1 + 1}
     Value *diff1 = builder.CreateFSub(val1, val2);
     Value *diff2 = builder.CreateFAdd(builder.CreateFSub(val2, val1),
                                       ConstantFP::get(val1->getType(), 1));
