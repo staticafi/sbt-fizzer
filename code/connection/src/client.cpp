@@ -84,7 +84,7 @@ bool client::connect(const std::string& address, const std::string& port) {
         std::cerr << "ERROR: could not connect to server\n" << ec.message() << "\n";
         return false;
     }
-    connection_to_server = std::make_unique<connection>(io_context, std::move(socket));
+    connection_to_server = std::make_unique<connection>(std::move(socket));
 
     std::cout << "Connected to server" << std::endl;
     return true;

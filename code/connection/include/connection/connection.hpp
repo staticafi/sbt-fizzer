@@ -9,7 +9,7 @@ namespace connection {
 
 
 struct connection {
-    connection(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket);
+    connection(boost::asio::ip::tcp::socket socket);
 
     template <typename CompletionToken>
     auto async_send_message(message& message, CompletionToken&& token) {
@@ -72,7 +72,6 @@ struct connection {
     std::size_t send_message(message& message);
 
 private:
-    boost::asio::io_context& io_context;
     boost::asio::ip::tcp::socket socket;
 
 };

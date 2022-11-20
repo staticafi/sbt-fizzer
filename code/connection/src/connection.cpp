@@ -5,8 +5,7 @@
 namespace connection {
 
 
-connection::connection(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket socket):
-    io_context(io_context),
+connection::connection(boost::asio::ip::tcp::socket socket):
     socket(std::move(socket))
 {}
 

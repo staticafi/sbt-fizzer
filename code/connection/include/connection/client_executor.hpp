@@ -30,8 +30,8 @@ private:
     std::string path_to_client;
     ts_queue<std::shared_ptr<connection>>& connections;
     std::thread thread;
-    std::deque<boost::process::child> clients;
     std::atomic_bool finished;
+    std::deque<boost::process::child> clients;
     std::exception_ptr excptr;
 };
 

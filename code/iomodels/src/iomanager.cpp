@@ -6,9 +6,9 @@ namespace  iomodels {
 
 iomanager::iomanager()
     : trace()
-    , trace_max_size()
     , stdin_ptr(nullptr)
     , stdout_ptr(nullptr)
+    , trace_max_size()
 {}
 
 

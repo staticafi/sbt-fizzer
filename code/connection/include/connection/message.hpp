@@ -17,7 +17,7 @@ struct message_header {
 private:
     natural_32_bit size = 0;
 
-friend class message;
+friend struct message;
 };
 
 
@@ -60,7 +60,7 @@ private:
     vecu8  bytes;
     natural_32_bit  cursor = 0;
     
-friend class connection;
+friend struct connection;
 };
 
 }

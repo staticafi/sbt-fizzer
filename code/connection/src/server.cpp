@@ -42,7 +42,7 @@ void server::accept_connection() {
     acceptor.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (!ec) {
-                auto new_connection = std::make_shared<connection>(io_context, std::move(socket));
+                auto new_connection = std::make_shared<connection>(std::move(socket));
                 connections.push(std::move(new_connection));
             }
             else {
