@@ -2,6 +2,7 @@
 import subprocess
 import argparse
 import sys
+import shlex
 import time
 from pathlib import Path
 
@@ -76,7 +77,7 @@ class FizzerUtils:
                 )
 
         instrumentation_output = subprocess.run(
-            instrumentation, shell=True, timeout=timeout
+            shlex.split(instrumentation), timeout=timeout
         )
         if instrumentation_output.returncode:
             errprint("Instrumentation of file failed")
@@ -93,7 +94,7 @@ class FizzerUtils:
         )
 
         compilation_output = subprocess.run(
-            client_compilation, shell=True, timeout=timeout
+            shlex.split(client_compilation), timeout=timeout
         )
         if compilation_output.returncode:
             errprint("Compilation of client failed")
@@ -108,7 +109,7 @@ class FizzerUtils:
                 self.client_file, self.output_dir
         )
 
-        invocation_output = subprocess.run(server_invocation, shell=True)
+        invocation_output = subprocess.run(shlex.split(server_invocation))
         if invocation_output.returncode:
             errprint("Running fuzzing failed")
             sys.exit(1)
@@ -161,7 +162,9 @@ if __name__ == "__main__":
         except subprocess.TimeoutExpired as e:
             errprint(f"Instrumentation timed out after {e.timeout} seconds")
             sys.exit(1)
-        print(f"Instrumenting took {adjust_timeout(args, starting_time)} seconds")
+        print(
+            f"Instrumenting took {adjust_timeout(args, starting_time)} seconds"
+        )
 
     print("Building client...")
     try:
@@ -169,7 +172,7 @@ if __name__ == "__main__":
     except subprocess.TimeoutExpired as e:
         errprint(f"Building client timed out after {e.timeout} seconds")
         sys.exit(1)
-    print(f"Building client took {adjust_timeout(args, starting_time)} seconds")
+    print(f"Building took {adjust_timeout(args, starting_time)} seconds")
 
     if args.max_seconds:
         pass_to_server_args_str += f" --max_seconds {args.max_seconds}"
