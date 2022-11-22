@@ -2,6 +2,7 @@
 import subprocess
 import argparse
 import sys
+import time
 from pathlib import Path
 
 def errprint(*args, **kwargs):
@@ -54,7 +55,7 @@ class FizzerUtils:
         self.output_dir = output_dir.absolute()
 
 
-    def instrument(self, additional_flags=""):
+    def instrument(self, additional_flags="", timeout=None):
         instrumented_file_name = self.file_name + "_instrumented.ll"
         self.instrumented_file = self.output_dir / instrumented_file_name
     
@@ -74,13 +75,15 @@ class FizzerUtils:
                 self.file_path, self.instrumented_file
                 )
 
-        instrumentation_output = subprocess.run(instrumentation, shell=True)
+        instrumentation_output = subprocess.run(
+            instrumentation, shell=True, timeout=timeout
+        )
         if instrumentation_output.returncode:
             errprint("Instrumentation of file failed")
             sys.exit(1)
         
 
-    def build_client(self, additional_flags=""):
+    def build_client(self, additional_flags="", timeout=None):
         client_file_name = self.file_name + "_client"
         self.client_file = self.output_dir / client_file_name
 
@@ -89,7 +92,9 @@ class FizzerUtils:
             self.instrumented_file, self.client_libraries, self.client_file
         )
 
-        compilation_output = subprocess.run(client_compilation, shell=True)
+        compilation_output = subprocess.run(
+            client_compilation, shell=True, timeout=timeout
+        )
         if compilation_output.returncode:
             errprint("Compilation of client failed")
             sys.exit(1)
@@ -109,6 +114,13 @@ class FizzerUtils:
             sys.exit(1)
 
 
+def adjust_timeout(args, start):
+    delta = time.time() - start
+    if args.max_seconds:
+        args.max_seconds -= int(delta)
+    return delta
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Tool for instrumenting the program, building the client "
@@ -126,15 +138,40 @@ if __name__ == "__main__":
                             'while compiling the client. ' 
                             'Use as --clang="FLAGS". Default: %(default)s.'
                         ))
+
+    parser.add_argument('--max_seconds',
+                        metavar='SECONDS',
+                        type=int,
+                        help=(
+                            'Maximum allocated time for fuzzing.'
+                        ))
     
 
     args, server_args = parser.parse_known_args()
     pass_to_server_args_str = " ".join(server_args)
     
     utils = FizzerUtils(args.target_file, args.output_dir)
+    starting_time = time.time()
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
     else:
-        utils.instrument(args.instrument)
-    utils.build_client(args.clang)
+        print("Instrumenting target...")
+        try:
+            utils.instrument(args.instrument, timeout=args.max_seconds)
+        except subprocess.TimeoutExpired as e:
+            errprint(f"Instrumentation timed out after {e.timeout} seconds")
+            sys.exit(1)
+        print(f"Instrumenting took {adjust_timeout(args, starting_time)} seconds")
+
+    print("Building client...")
+    try:
+        utils.build_client(args.clang, timeout=args.max_seconds)
+    except subprocess.TimeoutExpired as e:
+        errprint(f"Building client timed out after {e.timeout} seconds")
+        sys.exit(1)
+    print(f"Building client took {adjust_timeout(args, starting_time)} seconds")
+
+    if args.max_seconds:
+        pass_to_server_args_str += f" --max_seconds {args.max_seconds}"
+
     utils.run_fuzzing(pass_to_server_args_str)
