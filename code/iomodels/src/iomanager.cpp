@@ -9,6 +9,7 @@ iomanager::iomanager()
     , stdin_ptr(nullptr)
     , stdout_ptr(nullptr)
     , trace_max_size()
+    , read_input(false)
 {}
 
 
@@ -59,6 +60,9 @@ void  iomanager::set_trace_max_size(std::size_t max_size) {
 
 void  iomanager::branching(instrumentation::branching_coverage_info const&  info)
 {
+    if (!read_input) {
+        return;
+    }
     if (trace.size() >= trace_max_size) {
         throw trace_max_size_reached_exception("Trace reached maximum allowed size");
     }
@@ -92,6 +96,7 @@ void  iomanager::load_stdin(connection::message&  istr)
 
 void  iomanager::read_stdin(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count)
 {
+    read_input = true;
     stdin_ptr->read(id, ptr, count);
 }
 

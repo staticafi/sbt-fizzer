@@ -55,6 +55,7 @@ private:
     stdin_base_ptr  stdin_ptr;
     stdout_base_ptr  stdout_ptr;
     std::size_t trace_max_size;
+    bool read_input;
 public: 
     message_type received_message_type;
 };
