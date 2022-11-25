@@ -156,23 +156,27 @@ if __name__ == "__main__":
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
     else:
-        print("Instrumenting target...")
+        print("Instrumenting target...", flush=True)
         try:
             utils.instrument(args.instrument, timeout=args.max_seconds)
         except subprocess.TimeoutExpired as e:
             errprint(f"Instrumentation timed out after {e.timeout} seconds")
             sys.exit(1)
         print(
-            f"Instrumenting took {adjust_timeout(args, starting_time)} seconds"
+            f"Instrumenting took {adjust_timeout(args, starting_time)} seconds",
+            flush=True
         )
 
-    print("Building client...")
+    print("Building client...", flush=True)
     try:
         utils.build_client(args.clang, timeout=args.max_seconds)
     except subprocess.TimeoutExpired as e:
         errprint(f"Building client timed out after {e.timeout} seconds")
         sys.exit(1)
-    print(f"Building took {adjust_timeout(args, starting_time)} seconds")
+    print(
+        f"Building took {adjust_timeout(args, starting_time)} seconds", 
+        flush=True
+    )
 
     if args.max_seconds:
         pass_to_server_args_str += f" --max_seconds {args.max_seconds}"
