@@ -6,7 +6,7 @@
 
   <resultfiles>**/test-suite</resultfiles>
 
-  <option name="--max_trace_size">7500</option>
+  <option name="--max_trace_size">10000</option>
   <option name="--test_type">testcomp</option>
 
   <rundefinition name="Test-Comp22_coverage-error-call">
@@ -29,6 +29,7 @@
   </tasks>
   <tasks name="ReachSafety-ECA">
     <includesfile>../sv-benchmarks/c/ReachSafety-ECA.set</includesfile>
+    <excludesfile>excludes/ReachSafety-ECA-excludes.set</excludesfile>
   </tasks>
   <tasks name="ReachSafety-Floats">
     <includesfile>../sv-benchmarks/c/ReachSafety-Floats.set</includesfile>
