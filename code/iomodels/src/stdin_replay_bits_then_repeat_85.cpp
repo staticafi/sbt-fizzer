@@ -1,5 +1,6 @@
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
 #include <iostream>
+#include <algorithm>
 
 namespace  iomodels {
 
@@ -52,18 +53,28 @@ void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 
 void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count)
 {
-    for (natural_8_bit  j = 0U; j != count; ++j)
+    natural_8_bit to_replay = std::min<natural_8_bit>((bits.size() - cursor) / 8, count);
+    for (natural_8_bit  j = 0U; j != to_replay; ++j)
     {
-        natural_8_bit  value = 0U;
+        ptr[j] = 0;
         for (natural_8_bit  i = 0; i != 8; ++i)
         {
-            if (cursor == (natural_16_bit)bits.size())
-                bits.push_back(i & 1U); // Here we generate a sequence 0101010101... => we produce a sequence of bytes 85,85,85,...
-            value |= (natural_8_bit)((bits.at(cursor) ? 1U : 0U) << (7U - i));
+            ptr[j] |= (natural_8_bit)((bits.at(cursor) ? 1U : 0U) << (7U - i));
             ++cursor;
         }
-        ptr[j] = value;
     }
+
+    natural_8_bit leftover = count - to_replay;
+    memset((void*) (ptr + to_replay), 85, leftover);
+    for (natural_8_bit  j = 0; j != leftover; ++j)
+    {
+        for (natural_8_bit  i = 0; i != 8; ++i)
+        {
+            bits.push_back(ptr[j] & (1 << (7U - i)));
+            ++cursor;
+        }
+    }
+    
     counts.push_back(8U * count);
 }
 
