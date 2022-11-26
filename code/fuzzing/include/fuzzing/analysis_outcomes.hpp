@@ -30,6 +30,7 @@ struct analysis_outcomes
         INVARIANT_FAILURE,
         ASSUMPTION_FAILURE,
         CODE_UNDER_CONSTRUCTION_REACHED,
+        UNEXPECTED_CLIENT_CRASH,
         UNCLASSIFIED_EXCEPTION
     };
     TERMINATION_TYPE  termination_type;

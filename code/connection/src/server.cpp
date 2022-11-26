@@ -73,8 +73,8 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
             std::sprintf(input.data() + i * 2, "%02x", byte_values[i]);
         }
 
-        throw std::runtime_error(
-            "Unknown client crash during execution on input " + 
+        throw client_crash_exception(
+            "Client crash during execution on input " + 
             input);
     }
     else if (ec) {

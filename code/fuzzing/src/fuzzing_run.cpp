@@ -41,6 +41,11 @@ analysis_outcomes  run(connection::server& server, std::shared_ptr<fuzzer_base> 
         results.termination_type = analysis_outcomes::TERMINATION_TYPE::CODE_UNDER_CONSTRUCTION_REACHED;
         results.termination_message = e.what();
     }
+    catch (connection::client_crash_exception const& e)
+    {
+        results.termination_type = analysis_outcomes::TERMINATION_TYPE::UNEXPECTED_CLIENT_CRASH;
+        results.termination_message = e.what();
+    }
     catch (std::exception const&  e)
     {
         results.termination_type = analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_EXCEPTION;

@@ -1,6 +1,7 @@
 #include <boost/process/io.hpp>
 
 #include <connection/client_executor.hpp>
+#include <connection/server.hpp>
 
 #include <cstdlib>
 #include <chrono>
@@ -48,7 +49,7 @@ void client_executor::start() {
                         ++client_connection_failures;
                     }
                     if (client_connection_failures >= 5) {
-                        throw std::runtime_error("too many client connection failures");
+                        throw client_crash_exception("Too many client connection failures");
                     }
                 }
             }

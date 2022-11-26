@@ -19,6 +19,11 @@
 namespace  connection {
 
 
+struct client_crash_exception: public std::runtime_error{
+    explicit client_crash_exception(std::string const& msg) : std::runtime_error(msg) {}
+};
+
+
 struct  server
 {
     server(uint16_t port, std::string path_to_client);

@@ -49,6 +49,9 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     case analysis_outcomes::TERMINATION_TYPE::CODE_UNDER_CONSTRUCTION_REACHED:
         ostr << "Fuzzing early-terminated due to reaching code under construction.";
         break;
+    case analysis_outcomes::TERMINATION_TYPE::UNEXPECTED_CLIENT_CRASH:
+        ostr << "Fuzzing early-terminated due to an unexpected client crash.";
+        break;
     case analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_EXCEPTION:
         ostr << "Fuzzing early-terminated due to an unclassified exception.";
         break;

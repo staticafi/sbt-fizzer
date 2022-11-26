@@ -103,15 +103,16 @@ class Tool(benchexec.tools.template.BaseTool2):
             if line.startswith("Fuzzing early"):
                 # remove Details:
                 line = line.split(". ")[0]
-                if line.startswith("Unknown"):
-                    return "error (client crash)"
                 if line.endswith("invariant failure"):
                     return "error (invariant failure)"
                 if line.endswith("assumption failure"):
                     return "error (assumption failure)"
                 if line.endswith("construction"):
                     return "error (code under construction)"
-                return "error (exception)"
+                if line.endswith("client crash"):
+                    return "error (client crash)"
+                if line.endswith("exception"):
+                    return "error (exception)"
 
             if not line.startswith("Termination reason:"):
                 continue
