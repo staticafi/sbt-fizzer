@@ -1,24 +1,33 @@
-FIZZ
-====
+# SBT-Fizzer
 
 Experimentations with gray-box program fuzzing.
 
-1. Install prerequisities
-    - MS Windows 10 or later.
-    - MS Visual Studio 2019 or later.
-    - VCPKG
-        - Make sure it is integrated with the Visual Studio.
-    - Boost C++ libraries under VCPKG (in Command Prompt):
-        - vcpkg install boost --triplet=x64-windows
+## Building the fuzzer
 
-2. Install
-    - Clone the fizz's repo (in Command Prompt):
-        - mkdir fizz
-        - cd fizz
-        - git clone https://gitlab.fi.muni.cz/qtrtik/fizz.git .
+### Prerequisites
+    - Linux 
+    - LLVM (>= 12.0.1)
+    - Boost (Tested on >= 1.75.0)
 
-3. Building fizz
-    - Run the Visual Studio.
-    - Open the "fizz" folder created above.
-    - Select "fizz" project, "(install)" version.
-    - Build (and run) the project.
+### Install
+    - mkdir build
+    - cd build
+    - cmake ..
+    - cmake --build . (or specify your generator of choice)
+
+The default install directory is `${PROJECT_SOURCE_DIR}/dist`. Install directory can be configured with `-DCMAKE_INSTALL_PREFIX=/path/to/fizzer/install/prefix`. Client building requires clang/clang++; run `export CC=clang` and `export CXX=clang++` before building.
+
+## Usage
+The binaries are found in `${CMAKE_INSTALL_PREFIX}/tools`
+
+Instrumenting the target program:
+
+`fizzer_instrument [-h] [--output_dir OUTPUT_DIR] target_file`
+
+Building the client:
+
+`fizzer_build_client [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] target_file`
+
+Instrumenting, building, and running fuzzing in one:
+
+`fizzer [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] [--clang FLAGS] [--max_seconds SECONDS] target_file`
