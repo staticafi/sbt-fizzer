@@ -160,11 +160,11 @@ if __name__ == "__main__":
         try:
             utils.instrument(args.instrument, timeout=args.max_seconds)
         except subprocess.TimeoutExpired as e:
-            errprint(f"Instrumentation timed out after {e.timeout} seconds")
+            errprint(f"Instrumentation timed out after {e.timeout:.3f} seconds")
             sys.exit(1)
         print(
             (f"Instrumentation done "
-            f"({adjust_timeout_by_elapsed(args, starting_time)} seconds)"),
+            f"({adjust_timeout_by_elapsed(args, starting_time):.3f} seconds)"),
             flush=True
         )
 
@@ -172,11 +172,11 @@ if __name__ == "__main__":
     try:
         utils.build_client(args.clang, timeout=args.max_seconds)
     except subprocess.TimeoutExpired as e:
-        errprint(f"Building timed out after {e.timeout} seconds")
+        errprint(f"Building timed out after {e.timeout:.3f} seconds")
         sys.exit(1)
     print(
         (f"Building done "
-        f"({adjust_timeout_by_elapsed(args, starting_time)} seconds)"), 
+        f"({adjust_timeout_by_elapsed(args, starting_time):.3f} seconds)"), 
         flush=True
     )
 
