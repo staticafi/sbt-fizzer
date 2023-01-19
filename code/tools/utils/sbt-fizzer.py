@@ -62,7 +62,7 @@ class FizzerUtils:
     
         if self.file_suffix == ".ll" or self.file_suffix == ".bc":
             instrumentation = (
-                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-fizzer-pass " 
+                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass " 
                 "{1} -S -o {2}"
             ).format(self.pass_path_str, self.file_path, self.instrumented_file)
         else:

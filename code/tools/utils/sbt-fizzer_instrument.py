@@ -7,9 +7,9 @@ if __name__ == '__main__':
     from importlib.machinery import SourceFileLoader 
 
     spec = spec_from_loader(
-        "fizzer", 
+        "@FIZZER_TARGET_NAME@", 
         SourceFileLoader(
-            "fizzer", 
+            "@FIZZER_TARGET_NAME@", 
             "@CMAKE_INSTALL_PREFIX@/tools/@FIZZER_TARGET_NAME@"))
     fizzer = module_from_spec(spec)
     spec.loader.exec_module(fizzer)

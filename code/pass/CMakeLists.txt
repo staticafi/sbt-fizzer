@@ -7,12 +7,12 @@ add_definitions(${LLVM_DEFINITIONS})
 # otherwise, we'll get linker errors about missing RTTI data.
 add_compile_options("-fno-rtti")
 
-add_library(fizzer_pass MODULE src/FizzerPass.cpp)
+add_library(sbt-fizzer_pass MODULE src/SBT-FizzerPass.cpp)
 
-set_target_properties(fizzer_pass PROPERTIES
+set_target_properties(sbt-fizzer_pass PROPERTIES
     DEBUG_POSTFIX "_${CMAKE_SYSTEM_NAME}_Debug"
     RELEASE_POSTFIX "_${CMAKE_SYSTEM_NAME}_Release"
     RELWITHDEBINFO_POSTFIX "_${CMAKE_SYSTEM_NAME}_RelWithDebInfo"
     )
 
-install(TARGETS fizzer_pass DESTINATION "lib")
+install(TARGETS sbt-fizzer_pass DESTINATION "lib")

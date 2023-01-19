@@ -2,7 +2,7 @@
 
 std::string  get_program_name()
 {
-    return "server";
+    return "SBT-Fizzer server";
 }
 
 std::string  get_program_version()

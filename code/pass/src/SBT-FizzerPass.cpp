@@ -401,8 +401,8 @@ static void registerFizzerPass(const PassManagerBuilder &,
     PM.add(new FizzerPass());
 }
 
-static RegisterPass<FizzerPass> X("legacy-fizzer-pass",
-                                  "Fizzer Instrumentation pass", false, false);
+static RegisterPass<FizzerPass> X("legacy-sbt-fizzer-pass",
+                                  "SBT-Fizzer instrumentation pass", false, false);
 
 static RegisterStandardPasses
     RegisterFizzerPass(PassManagerBuilder::EP_EarlyAsPossible,
