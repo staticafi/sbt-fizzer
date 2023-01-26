@@ -15,19 +15,30 @@ Experimentations with gray-box program fuzzing.
     - cmake ..
     - cmake --build . (or specify your generator of choice)
 
-The default install directory is `${PROJECT_SOURCE_DIR}/dist`. Install directory can be configured with `-DCMAKE_INSTALL_PREFIX=/path/to/fizzer/install/prefix`. Client building requires clang/clang++; run `export CC=clang` and `export CXX=clang++` before building.
+The default install directory is `${PROJECT_SOURCE_DIR}/dist`.
+Install directory can be configured with: 
+
+`-DCMAKE_INSTALL_PREFIX=/path/to/fizzer/install/prefix`
+ 
+Client building requires clang/clang++; run
+
+`export CC=clang`
+
+`export CXX=clang++`
+
+before building the project.
 
 ## Usage
-The binaries are found in `${CMAKE_INSTALL_PREFIX}/tools`
+The scripts/binaries are found in `${CMAKE_INSTALL_PREFIX}/tools`
 
 Instrumenting the target program:
 
-`fizzer_instrument [-h] [--output_dir OUTPUT_DIR] target_file`
+`sbt-fizzer_instrument [-h] [--output_dir OUTPUT_DIR] target_file`
 
 Building the client:
 
-`fizzer_build_client [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] target_file`
+`sbt-fizzer_build_client [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] target_file`
 
 Instrumenting, building, and running fuzzing in one:
 
-`fizzer [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] [--clang FLAGS] [--max_seconds SECONDS] target_file`
+`sbt-fizzer [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] [--clang FLAGS] [--max_seconds SECONDS] target_file`
