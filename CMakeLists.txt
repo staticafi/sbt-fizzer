@@ -65,12 +65,14 @@ endmacro()
 # find and add Boost
 message("Searching for Boost library ...")
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(Boost REQUIRED COMPONENTS filesystem system thread)
 set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH
         ${Boost_LIBRARIES}
     )
 
+set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
 find_package(LLVM REQUIRED CONFIG)
+llvm_map_components_to_libnames(LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH Core Passes)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LT_LLVM_INSTALL_DIR}")

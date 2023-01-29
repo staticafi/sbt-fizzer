@@ -8,6 +8,7 @@ add_definitions(${LLVM_DEFINITIONS})
 add_compile_options("-fno-rtti")
 
 add_library(sbt-fizzer_pass MODULE src/SBT-FizzerPass.cpp)
+target_link_libraries(sbt-fizzer_pass PRIVATE ${LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH})
 
 set_target_properties(sbt-fizzer_pass PROPERTIES
     DEBUG_POSTFIX "_${CMAKE_SYSTEM_NAME}_Debug"
