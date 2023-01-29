@@ -2,11 +2,43 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "cli.py @ help",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "--help" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ erase",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ int8_if_x_equal_c.c",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-v", "-c", "int8_if_x_equal_c.c" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
             "name": "help",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [ "--help" ],
+            "args": [
+                "--help"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/dist/tools",
             //"cwd": "${command:cmake.getLaunchTargetDirectory}",
@@ -23,7 +55,12 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [ "--path_to_client", "./client", "--port", "12345" ],
+            "args": [
+                "--path_to_client",
+                "./client",
+                "--port",
+                "12345"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/temp"
         }
