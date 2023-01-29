@@ -16,7 +16,7 @@ namespace  connection {
 
 server::server(uint16_t port, std::string path_to_client):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
-    client_executor(10, 
+    client_executor_(10, 
                     path_to_client.empty() ? "" : 
                         std::move(path_to_client) + " --port " + std::to_string(port) + 
                         " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()), 
@@ -96,7 +96,7 @@ void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
     using namespace std::chrono_literals;
     while (true)
     {
-        if (auto excptr = client_executor.get_exception_ptr()) {
+        if (auto excptr = client_executor_.get_exception_ptr()) {
             std::rethrow_exception(excptr);
         }
         if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
@@ -111,9 +111,9 @@ void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
 fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info)
 {
     ASSUMPTION(fuzzing::get_fuzzers_map().count(fuzzer_name) != 0UL);
-    client_executor.start();
+    client_executor_.start();
     fuzzing::analysis_outcomes results = fuzzing::run(*this, fuzzing::get_fuzzers_map().at(fuzzer_name)(info));
-    client_executor.stop();
+    client_executor_.stop();
     return results;
 }
 

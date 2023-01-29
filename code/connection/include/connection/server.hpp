@@ -42,7 +42,7 @@ private:
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
     ts_queue<std::shared_ptr<connection>> connections;
-    client_executor client_executor;
+    client_executor client_executor_;
 };
 
 
