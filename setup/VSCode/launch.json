@@ -36,33 +36,26 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [
-                "--help"
-            ],
+            "args": [ "--help" ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/dist/tools",
-            //"cwd": "${command:cmake.getLaunchTargetDirectory}",
-            "environment": [
-                {
-                    "name": "SOME_VALUE",
-                    "value": "Something something"
-                }
-            ]
-            //"console": "externalTerminal"
         },
         {
-            "name": "run",
+            "name": "run server",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [
-                "--path_to_client",
-                "./client",
-                "--port",
-                "12345"
-            ],
+            "args": [ "--path_to_client", "./client", "--port", "12345" ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/temp"
+            "cwd": "${workspaceFolder}/temp",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "kill clients"
         }
     ]
 }
