@@ -1,6 +1,0 @@
-{
-    "cmake.configureSettings": {
-        "CMAKE_TOOLCHAIN_FILE": "",
-        "CMAKE_BUILD_TYPE": "${buildType}"
-    }
-}
