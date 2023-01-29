@@ -12,7 +12,9 @@ else()
 endif()
 
 add_library(sbt-fizzer_pass MODULE src/SBT-FizzerPass.cpp)
-target_link_libraries(sbt-fizzer_pass PRIVATE ${LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH})
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_link_libraries(sbt-fizzer_pass PRIVATE ${LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH})
+endif()
 
 set_target_properties(sbt-fizzer_pass PROPERTIES
     DEBUG_POSTFIX "_${CMAKE_SYSTEM_NAME}_Debug"
