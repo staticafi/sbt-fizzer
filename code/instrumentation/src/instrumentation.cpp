@@ -6,8 +6,7 @@
 
 namespace instrumentation {
 
-extern "C" {
-void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_type distance) {
+static void sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_type distance) {
     branching_coverage_info info(id);
     info.covered_branch = branch;
 
@@ -20,13 +19,28 @@ void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_
     iomodels::on_branching(info);
 }
 
-void __sbt_fizzer_terminate() {
+static void sbt_fizzer_terminate() {
     throw terminate_exception("");
 }
 
-void __sbt_fizzer_reach_error() {
+static void sbt_fizzer_reach_error() {
     throw error_reached_exception("Error reached");
 }
+
+extern "C" {
+
+void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_type distance) {
+    sbt_fizzer_process_branch(id, branch, distance);
+}
+
+void __sbt_fizzer_terminate() {
+    sbt_fizzer_terminate();
+}
+
+void __sbt_fizzer_reach_error() {
+    sbt_fizzer_reach_error();
+}
+
 }
 
 }

@@ -29,7 +29,7 @@ void run() {
         try {
             boost::algorithm::unhex(get_program_options()->value("input"), std::back_inserter(input_bytes));
         } 
-        catch (boost::algorithm::hex_decode_error &e) {
+        catch (boost::algorithm::hex_decode_error &) {
             std::cerr << "ERROR: in argument input expected hexadecimal value\n";
             return;
         }

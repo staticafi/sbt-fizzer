@@ -20,27 +20,11 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(CMAKE_COMPILER_IS_GNUCXX)
-    add_definitions("-std=c++11 -Wall -Wno-unused-local-typedefs")
-    if ((CMAKE_BUILD_TYPE STREQUAL Debug) OR
-        (CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo))
-        add_definitions("-ggdb3")
-    endif()
     message("Compiler = GCC")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    add_definitions("/bigobj")
-    #add_definitions("/Wall")
-    add_definitions("-D_ENABLE_EXTENDED_ALIGNED_STORAGE")
+    add_compile_options("-D_WIN32_WINNT=0x0601")
     message("Compiler = MSVC")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_definitions("
-        -Wall
-        -Wno-dangling-else
-        -Wno-overloaded-virtual
-        -Wno-unused-lambda-capture
-        -Wno-potentially-evaluated-expression
-        -Wno-#pragma-messages
-        -Wno-deprecated-declarations
-        ")
     message("Compiler = Clang/LLVM")
 else()
     message(SEND_ERROR "Unknown (unsupported) compiler detected. Supported is only GCC (on Linux) and MSVC (on Windows).")

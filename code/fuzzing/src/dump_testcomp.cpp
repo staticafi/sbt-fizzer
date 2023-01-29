@@ -7,6 +7,9 @@
 #include <fstream>
 #include <iomanip>
 #include <chrono>
+#if COMPILER() == COMPILER_VC()
+#   pragma warning(disable:4996) // warning C4996: 'localtime': This function or variable may be unsafe.
+#endif
 
 
 namespace fuzzing {

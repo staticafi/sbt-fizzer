@@ -53,7 +53,7 @@ void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 
 void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count)
 {
-    natural_8_bit to_replay = std::min<natural_8_bit>((bits.size() - cursor) / 8, count);
+    natural_8_bit to_replay = std::min((natural_8_bit)((bits.size() - cursor) / 8), count);
     for (natural_8_bit  j = 0U; j != to_replay; ++j)
     {
         ptr[j] = 0;

@@ -5,7 +5,11 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # LLVM is (typically) built with no C++ RTTI. We need to match that;
 # otherwise, we'll get linker errors about missing RTTI data.
-add_compile_options("-fno-rtti")
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    add_compile_options("/GR-")
+else()
+    add_compile_options("-fno-rtti")
+endif()
 
 add_library(sbt-fizzer_pass MODULE src/SBT-FizzerPass.cpp)
 target_link_libraries(sbt-fizzer_pass PRIVATE ${LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH})

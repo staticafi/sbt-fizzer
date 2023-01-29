@@ -1,6 +1,10 @@
 #include <iomodels/instrumentation_callbacks.hpp>
-
-#include <stdbool.h>
+#include <utility/config.hpp>
+#if COMPILER() == COMPILER_VC()
+#   define _Bool bool
+#else
+#   include <stdbool.h>
+#endif
 
 extern "C" {
 char __VERIFIER_nondet_char() {

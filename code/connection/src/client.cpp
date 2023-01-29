@@ -23,14 +23,14 @@ message_type client::execute_program() {
         __sbt_fizzer_method_under_test();
         return message_type::results_from_client_normal;
     }
-    catch (const iomodels::trace_max_size_reached_exception& e) {
+    catch (const iomodels::trace_max_size_reached_exception&) {
         std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
         return message_type::results_from_client_max_trace_reached;
     }
-    catch (const instrumentation::terminate_exception& e) {
+    catch (const instrumentation::terminate_exception&) {
         return message_type::results_from_client_normal;
     }
-    catch (const instrumentation::error_reached_exception& e) {
+    catch (const instrumentation::error_reached_exception&) {
         std::cout << "Reached error" << std::endl;
         return message_type::results_from_client_error_reached;
     }

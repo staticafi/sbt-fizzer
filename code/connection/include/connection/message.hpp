@@ -39,7 +39,7 @@ struct  message
         std::size_t old_size = bytes.size();
         bytes.resize(old_size + data_size);
         memcpy(bytes.data() + old_size, &v, data_size);
-        header.size += data_size;
+        header.size += (natural_32_bit)data_size;
         return *this;
     }
 
@@ -49,8 +49,8 @@ struct  message
         std::size_t data_size = sizeof(T);
         ASSUMPTION(cursor + data_size <= (natural_32_bit) bytes.size());
         memcpy(&v, bytes.data() + cursor, data_size);
-        cursor += data_size;
-        header.size -= data_size;
+        cursor += (natural_32_bit)data_size;
+        header.size -= (natural_32_bit)data_size;
         return *this;
     }
 
