@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+import shutil
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -21,6 +22,8 @@ if __name__ == '__main__':
     if args.erase:
         for fname in os.listdir(temp_dir):
             ext = os.path.splitext(fname)[1].lower()
+            if os.path.isdir(os.path.join(temp_dir, fname)) and fname == "test-suite":
+                shutil.rmtree(os.path.join(temp_dir, fname))
             if ext == ".html" or ext == ".et" or (args.c_file is not None and (fname.endswith("_instrumented.ll") or fname.endswith("client"))):
                 if args.verbose:
                     print("> rm " + os.path.join(temp_dir, fname))
