@@ -27,7 +27,17 @@
             "request": "launch",
             "program": "${workspaceFolder}/setup/cli.py",
             "console": "integratedTerminal",
-            "args": [ "-e", "-v", "-c", "int8_if_x_equal_c.c" ],
+            "args": [ "-e", "-c", "int8_if_x_equal_c.c" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ array_2-1.i",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-c", "array_2-1.i" ],
             "cwd": "${workspaceFolder}/temp",
             "justMyCode": true
         },
@@ -45,7 +55,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [ "--path_to_client", "./client", "--port", "12345" ],
+            "args": [
+                "--path_to_client", "./client", "--port", "12345",
+                "--max_trace_size", "10000", "--test_type", "testcomp", "--max_seconds", "295"
+                ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/temp",
             "setupCommands": [
