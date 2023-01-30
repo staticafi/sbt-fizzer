@@ -17,7 +17,9 @@
 
 void run() {
     iomodels::iomanager& iomanager = iomodels::iomanager::instance();
-    iomanager.set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>());
+    iomanager.set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>(
+        std::stoul(get_program_options()->value("max_stdin_bits"))
+    ));
     iomanager.set_stdout(std::make_shared<iomodels::stdout_void>());
     iomanager.set_trace_max_size(std::stoul(get_program_options()->value("max_trace_size")));
 
@@ -31,6 +33,11 @@ void run() {
         } 
         catch (boost::algorithm::hex_decode_error &) {
             std::cerr << "ERROR: in argument input expected hexadecimal value\n";
+            return;
+        }
+        if (8ULL * input_bytes.size() > iomanager.get_stdin()->get_max_bits()) {
+            std::cerr << "ERROR: the count of bits in the passed input (" << 8ULL * input_bytes.size()
+                      << ") is above the limit (" << iomanager.get_stdin()->get_max_bits() << ").\n";
             return;
         }
         client.run_input_mode(std::move(input_bytes));

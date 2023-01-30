@@ -15,7 +15,8 @@ void  print_fuzzing_configuration(
         std::string const&  fuzzer_name,
         std::string const&  benchmark_name,
         termination_info const&  info,
-        std::size_t max_trace_size
+        std::size_t  max_trace_size,
+        std::size_t  max_stdin_bits
         );
 
 void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results, bool const  dump_traces = false);

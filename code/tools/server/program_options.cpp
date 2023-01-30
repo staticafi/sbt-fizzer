@@ -24,6 +24,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("max_trace_size", "Max allowed size of the trace of the executed client", "1");
     add_value("max_trace_size", "-1"); // let the default be the maximum value of unsigned long
 
+    add_option("max_stdin_bits", "Max count of input bits from stdin; must be <= 65535", "1");
+    add_value("max_stdin_bits", "6400"); // 10 lines of text, i.e., 10*80*8=6400
+
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");
 

@@ -9,7 +9,7 @@ namespace  iomodels {
 
 struct stdin_replay_bits_then_repeat_85 : public stdin_base
 {
-    stdin_replay_bits_then_repeat_85();
+    stdin_replay_bits_then_repeat_85(std::size_t  max_bits);
 
     void  clear() override;
     void  save(connection::message&  ostr) const override;

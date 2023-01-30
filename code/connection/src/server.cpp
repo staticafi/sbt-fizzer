@@ -19,7 +19,8 @@ server::server(uint16_t port, std::string path_to_client):
     client_executor_(10, 
                     path_to_client.empty() ? "" : 
                         std::move(path_to_client) + " --port " + std::to_string(port) + 
-                        " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()), 
+                        " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()) +
+                        " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_stdin()->get_max_bits()), 
                     connections)
     {}
 
