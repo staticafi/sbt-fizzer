@@ -56,7 +56,8 @@ void run(int argc, char* argv[])
             std::cout,
             get_program_options()->value("fuzzer"),
             client_name,
-            terminator
+            terminator,
+            std::stoul(get_program_options()->value("max_trace_size"))
             );
 
     iomodels::iomanager::instance().set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>());

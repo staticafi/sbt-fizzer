@@ -13,7 +13,8 @@ void  print_fuzzing_configuration(
         std::ostream&  ostr,
         std::string const&  fuzzer_name,
         std::string const&  benchmark_name,
-        termination_info const&  info
+        termination_info const&  info,
+        std::size_t const max_trace_size
         )
 {
     ostr << "Accepted the following configuration:\n"
@@ -21,6 +22,7 @@ void  print_fuzzing_configuration(
          << "   Benchmark: " << benchmark_name << "\n"
          << "   Max executions: " << info.max_driver_executions << "\n"
          << "   Max seconds: " << info.max_fuzzing_seconds << "\n"
+         << "   Max trace size: " << max_trace_size << "\n"
          << "   Allow blind fuzzing: " << std::boolalpha << info.allow_blind_fuzzing << "\n";
     ostr.flush();
 
