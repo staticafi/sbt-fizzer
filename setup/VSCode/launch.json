@@ -42,13 +42,53 @@
             "justMyCode": true
         },
         {
+            "name": "cli.py @ pnr3.c",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-c", "pnr3.c" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ loop1-1.c",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-c", "loop1-1.c" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ array1_pattern.c",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-c", "array1_pattern.c" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
+            "name": "cli.py @ newton_1_1.i",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup/cli.py",
+            "console": "integratedTerminal",
+            "args": [ "-e", "-c", "newton_1_1.i" ],
+            "cwd": "${workspaceFolder}/temp",
+            "justMyCode": true
+        },
+        {
             "name": "help",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [ "--help" ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/dist/tools",
+            "cwd": "${workspaceFolder}/dist/tools"
         },
         {
             "name": "run server",
