@@ -133,7 +133,7 @@ void branching_fuzzer_extended_descent::find_minimum(vecb&  input)
             for (auto it = sorted_bit_max_changes.rbegin(); it != sorted_bit_max_changes.rend(); ++it)
                 bit_order.push_back(it->second);
         }
-        if (partials_extended.size() < num_bits() - 1UL)
+        if (partials_extended.empty() || partials_extended.size() < num_bits() - 1UL)
         {
             input = sample;
             for (std::size_t  i = partials_extended.size(); i != num_bits(); ++i)
