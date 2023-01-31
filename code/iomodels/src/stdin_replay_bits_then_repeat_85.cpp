@@ -17,6 +17,8 @@ stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(std::size_t c
 
 void  stdin_replay_bits_then_repeat_85::clear()
 {
+    stdin_base::clear();
+
     cursor = 0U;
     bits.clear();
     counts.clear();
