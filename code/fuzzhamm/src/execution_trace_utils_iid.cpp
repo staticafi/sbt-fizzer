@@ -41,9 +41,7 @@ iid_branching_selection_penalty::iid_branching_selection_penalty(
     , is_loop_body(classification.loop_body.count(branching.branching_id) != 0ULL)
     , is_loop_head(classification.loop_head.count(branching.branching_id) != 0ULL)
     , stats_ptr(&switching_stats[branching])
-{
-    INVARIANT(!is_loop_head || !is_border);
-}
+{}
 
 
 bool  operator<(iid_branching_selection_penalty const&  left, iid_branching_selection_penalty const&  right)
