@@ -65,7 +65,10 @@ void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 
 void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count)
 {
-    natural_8_bit to_replay = std::min((natural_8_bit)((bits.size() - cursor) / 8), count);
+    // WARNING: If the server sends input s.t. "bits.size() % 8 != 0", then this
+    //          implementation will skip the last "bits.size() - 8 * (bits.size() / 8)" bits.
+
+    natural_8_bit to_replay = (natural_8_bit)std::min((bits.size() - cursor) / 8, (std::size_t)count);
     for (natural_8_bit  j = 0U; j != to_replay; ++j)
     {
         ptr[j] = 0;
@@ -78,7 +81,7 @@ void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bi
 
     natural_8_bit leftover = count - to_replay;
     memset((void*) (ptr + to_replay), 85, leftover);
-    if (get_bits_requested() + 8U * count <= (std::size_t)get_max_bits())
+    if (bits.size() + 8 * leftover <= get_max_bits())
     {
         for (natural_8_bit  j = 0; j != leftover; ++j)
         {
