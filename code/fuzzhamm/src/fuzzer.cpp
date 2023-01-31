@@ -70,7 +70,7 @@ void  fuzzer::collect_execution_results()
         constructed_trace->branching_records.push_back({ info, {}, {}, {}, nullptr });
         hash_combine(
                 constructed_trace->hash_code,
-                (info.branching_id + (natural_32_bit)info.covered_branch * 123U) * constructed_trace->branching_records.size()
+                (info.branching_id.uid + (natural_32_bit)info.covered_branch * 123U) * constructed_trace->branching_records.size()
                 );
     }
 

@@ -2,7 +2,7 @@
 #   define INSTRUMENTATION_INSTRUMENTATION_TYPES_HPP_INCLUDED
 
 #   include <utility/basic_numeric_types.hpp>
-
+#   include <iosfwd>
 #   include <stdexcept>
 
 namespace  instrumentation {
@@ -17,11 +17,21 @@ struct  error_reached_exception: public std::runtime_error
     explicit error_reached_exception(char const* const message): std::runtime_error(message) {}
 };
 
-using  location_id = natural_32_bit;
-constexpr inline location_id  invalid_location_id() { return 0U; }
+union location_id
+{
+    struct { natural_32_bit  id : 23,  context_hash : 9; };
+    natural_32_bit  uid;
+};
+
+inline bool operator==(location_id const l, location_id const r) { return l.uid == r.uid; }
+inline bool operator!=(location_id const l, location_id const r) { return l.uid != r.uid; }
+inline bool operator<(location_id const l, location_id const r) { return l.id < r.id || (l.id == r.id && l.context_hash < r.context_hash); }
+constexpr inline location_id  invalid_location_id() { return {0U}; }
+std::ostream&  operator<<(std::ostream&  ostr, location_id  id);
 
 
 using coverage_distance_type = float_64_bit;
+
 
 struct  branching_coverage_info
 {
@@ -37,5 +47,11 @@ bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_in
 
 
 }
+
+
+template<> struct std::hash<instrumentation::location_id> {
+    std::size_t operator()(instrumentation::location_id const id) const noexcept { return id.uid; }
+};
+
 
 #endif
