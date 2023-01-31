@@ -19,14 +19,24 @@ struct  error_reached_exception: public std::runtime_error
 
 union location_id
 {
-    struct { natural_32_bit  id : 23,  context_hash : 9; };
-    natural_32_bit  uid;
+    location_id(natural_32_bit const  id_, natural_32_bit const  context_hash_ = 0U)
+        : id { id_ }
+        , context_hash { context_hash_ }
+    {}
+
+    struct
+    {
+        natural_32_bit  id;
+        natural_32_bit  context_hash;
+    };
+
+    natural_64_bit  uid;
 };
 
 inline bool operator==(location_id const l, location_id const r) { return l.uid == r.uid; }
 inline bool operator!=(location_id const l, location_id const r) { return l.uid != r.uid; }
 inline bool operator<(location_id const l, location_id const r) { return l.id < r.id || (l.id == r.id && l.context_hash < r.context_hash); }
-constexpr inline location_id  invalid_location_id() { return {0U}; }
+inline location_id  invalid_location_id() { return {0U}; }
 std::ostream&  operator<<(std::ostream&  ostr, location_id  id);
 
 

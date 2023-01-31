@@ -14,6 +14,7 @@
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <llvm/Pass.h>
+#include <algorithm>
 
 using namespace llvm;
 
@@ -37,16 +38,20 @@ struct FizzerPass : public FunctionPass {
     std::unique_ptr<legacy::FunctionPassManager> DependenciesFPM;
 
     FunctionCallee processBranchFunc;
+    FunctionCallee processCallBeginFunc;
+    FunctionCallee processCallEndFunc;
     FunctionCallee fizzerTerminate;
     FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCount;
+    unsigned int callSiteCount;
 
     FizzerPass() : FunctionPass(ID) {}
     void replaceCalls(
         Function &F, 
         std::unordered_map<std::string, FunctionCallee> replacements
     );
+    void instrumentCalls(Function &F);
     bool runOnFunction(Function &F);
 
     bool doInitialization(Module &M);
@@ -90,12 +95,20 @@ bool FizzerPass::doInitialization(Module &M) {
         M.getOrInsertFunction("__sbt_fizzer_process_branch", VoidTy,
                               Int32Ty, Int1Ty, DoubleTy);
 
+    processCallBeginFunc =
+        M.getOrInsertFunction("__sbt_fizzer_process_call_begin", VoidTy,
+                              Int32Ty);
+    processCallEndFunc =
+        M.getOrInsertFunction("__sbt_fizzer_process_call_end", VoidTy,
+                              Int32Ty);
+
     fizzerTerminate = M.getOrInsertFunction("__sbt_fizzer_terminate", VoidTy);
 
     fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
                                              VoidTy);
 
     basicBlockCount = 0;
+    callSiteCount = 0;
 
     return true;
 }
@@ -369,6 +382,30 @@ void FizzerPass::replaceCalls(
     }
 }
 
+void FizzerPass::instrumentCalls(Function &F) {
+    auto const ignore = [](std::string const& name) {
+        return name.find("__sbt_fizzer_") == 0 ||
+               name.find("__VERIFIER_nondet_") == 0;
+    };
+    std::vector<CallInst*> callSites;
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+        if (auto *callInst = dyn_cast<CallInst>(&*I)) {
+            if (callInst->getCalledFunction() != nullptr
+                && !callInst->getCalledFunction()->isDeclaration()
+                && callInst->getNextNode() != nullptr
+                && !ignore(callInst->getCalledFunction()->getName().str())) {
+                callSites.push_back(callInst);
+            }
+        }
+    }
+    for (CallInst* callInst: callSites) {
+        IRBuilder<>{ callInst }.CreateCall(processCallBeginFunc,
+            { ConstantInt::get(Int32Ty, ++callSiteCount) });
+        IRBuilder<>{ callInst->getNextNode() }.CreateCall(processCallEndFunc,
+            { ConstantInt::get(Int32Ty, callSiteCount) });
+    }
+}
+
 bool FizzerPass::runOnFunction(Function &F) {
     if (F.isDeclaration()) {
         return false;
@@ -383,6 +420,8 @@ bool FizzerPass::runOnFunction(Function &F) {
     if (F.getName() == "main") {
         F.setName("__sbt_fizzer_method_under_test");
     }
+
+    instrumentCalls(F);
 
     for (BasicBlock &BB : F) {
         ++basicBlockCount;

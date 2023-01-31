@@ -1,4 +1,6 @@
 #include <iomodels/iomanager.hpp>
+#include <utility/hash_combine.hpp>
+#include <utility/assumptions.hpp>
 #include <iostream>
 
 namespace  iomodels {
@@ -6,6 +8,7 @@ namespace  iomodels {
 
 iomanager::iomanager()
     : trace()
+    , context_hashes{ 0U }
     , stdin_ptr(nullptr)
     , stdout_ptr(nullptr)
     , trace_max_size()
@@ -24,6 +27,8 @@ iomanager&  iomanager::instance()
 void  iomanager::clear_trace()
 {
     trace.clear();
+    context_hashes.clear();
+    context_hashes.push_back(0U);
 }
 
 
@@ -67,6 +72,27 @@ void  iomanager::branching(instrumentation::branching_coverage_info const&  info
         throw trace_max_size_reached_exception("Trace reached maximum allowed size");
     }
     trace.push_back(info);
+    trace.back().branching_id.context_hash = context_hashes.back();
+}
+
+
+void  iomanager::call_begin(natural_32_bit  id)
+{
+    ::hash_combine(id, context_hashes.back());
+    context_hashes.push_back(id);
+}
+
+
+void  iomanager::call_end(natural_32_bit const  id)
+{
+    ASSUMPTION(
+        context_hashes.size() > 1 &&
+        [this](natural_32_bit  id) -> bool {
+            ::hash_combine(id, context_hashes.at(context_hashes.size()-2));
+            return id == context_hashes.back();
+        }(id)
+        );
+    context_hashes.pop_back();
 }
 
 

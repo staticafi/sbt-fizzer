@@ -27,10 +27,26 @@ static void sbt_fizzer_reach_error() {
     throw error_reached_exception("Error reached");
 }
 
+static void sbt_fizzer_process_call_begin(natural_32_bit const  id) {
+    iomodels::on_call_begin(id);
+}
+
+static void sbt_fizzer_process_call_end(natural_32_bit const  id) {
+    iomodels::on_call_end(id);
+}
+
 extern "C" {
 
 void __sbt_fizzer_process_branch(location_id id, bool branch, coverage_distance_type distance) {
     sbt_fizzer_process_branch(id, branch, distance);
+}
+
+void __sbt_fizzer_process_call_begin(natural_32_bit const  id) {
+    sbt_fizzer_process_call_begin(id);
+}
+
+void __sbt_fizzer_process_call_end(natural_32_bit const  id) {
+    sbt_fizzer_process_call_end(id);
 }
 
 void __sbt_fizzer_terminate() {

@@ -18,7 +18,7 @@ bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_in
 
 std::ostream&  operator<<(std::ostream&  ostr, location_id const  id)
 {
-    ostr << id.id << '@' << id.context_hash;
+    ostr << id.id << '!' << id.context_hash;
     return ostr;
 }
 

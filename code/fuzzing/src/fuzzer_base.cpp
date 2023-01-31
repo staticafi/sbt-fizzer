@@ -44,6 +44,9 @@ void  fuzzer_base::_on_driver_begin()
     iomodels::iomanager::instance().clear_stdout();
 
     on_execution_begin();
+
+    ASSUMPTION(iomodels::iomanager::instance().get_stdin()->get_bits().size() <=
+               iomodels::iomanager::instance().get_stdin()->get_max_bits());
 }
 
 
