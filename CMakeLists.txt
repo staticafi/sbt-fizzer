@@ -81,12 +81,12 @@ set(CMAKE_INSTALL_RPATH "./")
 set(FIZZ_3RD_INCLUDE_DIR "${CMAKE_TOOLCHAIN_FILE}/../../../installed/${VCPKG_TARGET_TRIPLET}/include")
 include_directories(${FIZZ_3RD_INCLUDE_DIR})
 message("3rd includes directory = ${FIZZ_3RD_INCLUDE_DIR}")
-message("Sources directory = ${PROJECT_SOURCE_DIR}/code")
+message("Sources directory = ${PROJECT_SOURCE_DIR}/src")
 message("Install directory = ${CMAKE_INSTALL_PREFIX}")
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/code")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-# Add project specific code
-add_subdirectory(./code)
+# Add project specific sources
+add_subdirectory(./src)
 
 message("Generating build files ...")

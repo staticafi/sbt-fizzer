@@ -3,7 +3,7 @@
 /out
 /doc
 /temp
-/code/tools/testapps 
+/src/tools/testapps 
 .idea
 .vscode
 .vs
