@@ -1,10 +1,29 @@
 {
     "version": "2.0.0",
     "tasks": [
-       {
+        {
+            "label": "Benman",
+            "type": "shell",
+            "command": "${command:python.interpreterPath}",
+            "args": [ "${workspaceFolder}/dist/benchmarks/benman.py", "--verbose",
+                "--clear", // build, fuzz, clear
+                    // "all"
+                    // "fast"
+                    // "medium"
+                    // "slow"
+                    // "pending"
+                    "fast/int8_if_x_equal_c.c"
+            ]
+        },
+        {
             "label": "kill clients",
             "type": "shell",
-            "command": "pgrep client | xargs -r kill"
+            "linux": {
+                "command": "pgrep sbt-client | xargs -r kill"
+            },
+            "windows": {
+                "command": "TODO"
+            }
         }
     ]
 }

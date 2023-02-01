@@ -89,4 +89,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # Add project specific sources
 add_subdirectory(./src)
 
+install(DIRECTORY ./benchmarks DESTINATION .)
+
 message("Generating build files ...")

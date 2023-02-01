@@ -2,105 +2,27 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "cli.py @ help",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "--help" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ erase",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ int8_if_x_equal_c.c",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "int8_if_x_equal_c.c" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ array_2-1.i",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "array_2-1.i" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ pnr3.c",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "pnr3.c" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ loop1-1.c",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "loop1-1.c" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ array1_pattern.c",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "array1_pattern.c" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "cli.py @ newton_1_1.i",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/setup/cli.py",
-            "console": "integratedTerminal",
-            "args": [ "-e", "-c", "newton_1_1.i" ],
-            "cwd": "${workspaceFolder}/temp",
-            "justMyCode": true
-        },
-        {
-            "name": "help",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${command:cmake.launchTargetPath}",
-            "args": [ "--help" ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/dist/tools"
-        },
-        {
             "name": "run server",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "--path_to_client", "./client", "--port", "12345",
-                "--max_trace_size", "10000", "--test_type", "testcomp", "--max_seconds", "295"
-                ],
+                "--path_to_client",
+                    //"${workspaceFolder}/temp/zzz.sbt-client",
+                    "fast/int8_if_x_equal_c.sbt-client",
+                "--max_executions", "1000000",
+                "--max_seconds", "30",
+                "--max_trace_size", "10000",
+                "--max_stdin_bits", "6400",
+                "--test_type",
+                    "debug",
+                    // "sbt-eft",
+                    // "testcomp",
+                "--port", "45654",
+                "--output_dir", "${workspaceFolder}/dist/output"
+            ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/temp",
+            "cwd": "${workspaceFolder}/dist/benchmarks",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -108,7 +30,20 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "kill clients"
+            "preLaunchTask": "kill clients",
+            //"postDebugTask": "kill clients"
+        },
+        {
+            "name": "Benman @ dbg",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/dist/benchmarks/benman.py",
+            "console": "integratedTerminal",
+            "args": [ "--verbose", "--clear",
+                "fast/int8_if_x_equal_c.c"
+            ],
+            "cwd": "${workspaceFolder}/dist",
+            "justMyCode": true
         }
     ]
 }
