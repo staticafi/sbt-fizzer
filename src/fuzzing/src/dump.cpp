@@ -2,6 +2,8 @@
 #include <utility/assumptions.hpp>
 #include <utility/math.hpp>
 #include <utility/log.hpp>
+#include <set>
+#include <map>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -70,20 +72,36 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
 
     ostr << "   Seconds spent: " << results.num_elapsed_seconds << '\n';
 
-    ostr << "   Covered branchings [basic block]: " << results.covered_branchings.size() << std::endl;
-    for (instrumentation::location_id const  id : results.covered_branchings)
+    std::set<natural_32_bit>  covered_ids;
+    for (instrumentation::location_id const  loc_id : results.covered_branchings)
+        covered_ids.insert(loc_id.id);
+
+    std::map<std::pair<natural_32_bit, bool>, std::unordered_set<natural_32_bit> >  uncovered_ids;
+    for (auto const&  id_and_branching : results.uncovered_branchings)
+        if (covered_ids.count(id_and_branching.first.id) == 0)
+            uncovered_ids[{ id_and_branching.first.id, id_and_branching.second }].insert(id_and_branching.first.context_hash);
+        else
+        {
+            uncovered_ids.erase({ id_and_branching.first.id, !id_and_branching.second });
+            covered_ids.insert(id_and_branching.first.id);
+        }
+
+    ostr << "   Covered branchings [basic block]: " << covered_ids.size() << std::endl;
+    for (natural_32_bit const  id : covered_ids)
         ostr << "      " << id << "\n";
 
-    ostr << "   Uncovered branchings [basic block, uncovered branch]: " << results.uncovered_branchings.size() << std::endl;
-    for (auto const&  id_and_branching : results.uncovered_branchings)
-        ostr << "      " << id_and_branching.first << ":" << (id_and_branching.second ? "true" : "false") << "\n";
+    ostr << "   Uncovered branchings [basic block:uncovered branch#num_contexts]: " << uncovered_ids.size() << std::endl;
+    for (auto const&  id_and_branching : uncovered_ids)
+        ostr << "      " << id_and_branching.first.first << ":"
+                         << (id_and_branching.first.second ? "true" : "false") << '#'
+                         << id_and_branching.second.size() << "\n";
 
     ostr << "   Traces forming the coverage: " << results.traces_forming_coverage.size() << std::endl;
     if (dump_traces)
         for (trace_with_coverage_info const&  trace : results.traces_forming_coverage)
         {
             ostr << "   ******************************************\n";
-            print_trace_with_coverage_info(ostr, trace, true, false, "   ");
+            print_trace_with_coverage_info(ostr, trace, true, true, "   ");
         }
 
     ostr.flush();
@@ -113,17 +131,7 @@ void  print_trace_with_coverage_info(
     vecu8  byte_values;
     bits_to_bytes(trace.input_stdin, byte_values);
 
-    vecu32  chunk_values;
-    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)trace.input_stdin_counts.size(); i < n; ++i)
-    {
-        ASSUMPTION(trace.input_stdin_counts.at(i) <= 8U * sizeof(chunk_values.back()));
-        chunk_values.push_back(0U);
-        for (natural_8_bit  j = 0U, m = trace.input_stdin_counts.at(i) / 8U; j < m; ++j)
-            *(((natural_8_bit*)&chunk_values.back()) + j) = byte_values.at(k + j);
-        k += trace.input_stdin_counts.at(i) / 8U;
-    }
-
-    ostr << shift << "bytes [stdin, hex]: " << byte_values.size();
+    ostr << shift << "bytes [stdin]{hex}: " << byte_values.size();
     for (natural_32_bit  i = 0U, n = (natural_32_bit)byte_values.size(); i < n; ++i)
     {
         if (i % 16U == 0U) ostr << '\n' << shift << shift;
@@ -132,13 +140,23 @@ void  print_trace_with_coverage_info(
 
     if (dump_chunks)
     {
-        ostr << '\n' << shift << "chunks [stdin, dec, uint]: " << chunk_values.size();
+        veci32  chunk_values;
+        for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)trace.input_stdin_counts.size(); i < n; ++i)
+        {
+            ASSUMPTION(trace.input_stdin_counts.at(i) <= 8U * sizeof(chunk_values.back()));
+            chunk_values.push_back(0U);
+            for (natural_8_bit  j = 0U, m = trace.input_stdin_counts.at(i) / 8U; j < m; ++j)
+                *(((natural_8_bit*)&chunk_values.back()) + j) = byte_values.at(k + j);
+            k += trace.input_stdin_counts.at(i) / 8U;
+        }
+
+        ostr << '\n' << shift << "chunks [num_bytes:int_value]{dec}: " << chunk_values.size();
         for (natural_32_bit  i = 0U, n = (natural_32_bit)chunk_values.size(); i < n; ++i)
         {
             if (i != 0U) ostr << ',';
             if (i % 8U == 0U) ostr << '\n' << shift << shift;
             ostr << std::dec << (natural_32_bit)trace.input_stdin_counts.at(i) / 8U << ':'
-                 << std::dec << (natural_32_bit)chunk_values.at(i);
+                 << std::dec << chunk_values.at(i);
         }
     }
 
@@ -146,25 +164,33 @@ void  print_trace_with_coverage_info(
     {
         if (!trace.discovered_locations.empty())
         {
-            ostr << '\n' << shift << "discovered: " << trace.discovered_locations.size();
-            std::vector<instrumentation::location_id> const  locations(trace.discovered_locations.begin(), trace.discovered_locations.end());
-            for (natural_32_bit  i = 0U, n = (natural_32_bit)locations.size(); i < n; ++i)
+            std::set<natural_32_bit>  locations;
+            for (auto const&  loc : trace.discovered_locations)
+                locations.insert(loc.id);
+
+            ostr << '\n' << shift << "discovered: " << locations.size();
+            natural_32_bit  i = 0U;
+            for (auto it = locations.begin(); it != locations.end(); ++it, ++i)
             {
                 if (i != 0U) ostr << ',';
                 if (i % 16U == 0U) ostr << '\n' << shift << shift;
-                ostr << std::dec << locations.at(i);
+                ostr << std::dec << *it;
             }
         }
 
         if (!trace.covered_locations.empty())
         {
-            ostr << '\n' << shift << "covered: " << trace.covered_locations.size();
-            std::vector<instrumentation::location_id> const  locations(trace.covered_locations.begin(), trace.covered_locations.end());
-            for (natural_32_bit  i = 0U, n = (natural_32_bit)locations.size(); i < n; ++i)
+            std::set<natural_32_bit>  locations;
+            for (auto const&  loc : trace.covered_locations)
+                locations.insert(loc.id);
+
+            ostr << '\n' << shift << "covered: " << locations.size();
+            natural_32_bit  i = 0U;
+            for (auto it = locations.begin(); it != locations.end(); ++it, ++i)
             {
                 if (i != 0U) ostr << ',';
                 if (i % 16U == 0U) ostr << '\n' << shift << shift;
-                ostr << std::dec << locations.at(i);
+                ostr << std::dec << *it;
             }
         }
     }
@@ -173,7 +199,7 @@ void  print_trace_with_coverage_info(
     for (natural_32_bit  i = 0U, n = (natural_32_bit)trace.trace.size(); i < n; ++i)
     {
         if (i % 16U == 0U) ostr << '\n' << shift << shift;
-        ostr << std::dec << trace.trace.at(i).first << (trace.trace.at(i).second ? '+' : '-');
+        ostr << std::dec << trace.trace.at(i).first.id << (trace.trace.at(i).second ? '+' : '-');
     }
 
     ostr << std::endl;
