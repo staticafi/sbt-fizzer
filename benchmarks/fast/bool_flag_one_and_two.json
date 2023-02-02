@@ -1,6 +1,6 @@
 {
-    "max_executions": 1000000,
-    "max_seconds": 30,
+    "max_executions": 410,
+    "max_seconds": 300,
     "max_trace_size": 10000,
     "max_stdin_bits": 6400,
     "test_type": "debug",
