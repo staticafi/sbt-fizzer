@@ -1,9 +1,9 @@
-extern int __VERIFIER_nondet_int();
+extern char __VERIFIER_nondet_char();
 
 int main()
 {
-    int x;
-    x = __VERIFIER_nondet_int();
+    char x;
+    x = __VERIFIER_nondet_char();
     if (x == 123)
         return 1;
     return 0;
