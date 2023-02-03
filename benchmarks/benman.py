@@ -77,7 +77,7 @@ class Benchmark:
         self._erase_file_if_exists(self.client_file)
         self._erase_file_if_exists(self.final_file)
         if not os.path.exists(self.ll_file):
-            self._execute_and_check_output("clang -S -emit-llvm " + quote(self.src_file), self.ll_file)
+            self._execute_and_check_output("clang -g -S -emit-llvm " + quote(self.src_file), self.ll_file)
         if not os.path.exists(self.instrumented_ll_file):
             self._execute_and_check_output(
                 quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
@@ -247,7 +247,8 @@ class Benman:
 
     def run(self) -> None:
         if self.args.clear:
-            self.clear(self.args.clear)
+            assert self.args.clear != '.' or self.args.build is not None
+            self.clear(self.args.clear if self.args.clear != '.' else self.args.build)
         if self.args.build:
             self.build(self.args.build)
         if self.args.fuzz:
