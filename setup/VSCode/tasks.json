@@ -6,6 +6,7 @@
             "type": "shell",
             "command": "${command:python.interpreterPath}",
             "args": [ "${workspaceFolder}/dist/benchmarks/benman.py", "--verbose",
+                // "--clear", ".",
                 "--fuzz", // build, fuzz, clear
                     "all"
                     // "fast"
@@ -48,6 +49,9 @@
                     // "pending/loop1-1.c"
                     // "pending/newton_1_1.i"
                     // "pending/pnr3.c"
+                    // "pending/log_and.c"
+                    // "pending/log_cond.c"
+                    // "pending/call_bool_arg.c"
 
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]
