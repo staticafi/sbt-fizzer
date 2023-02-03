@@ -1,0 +1,14 @@
+{
+    "args": {
+        "max_executions": 6500,
+        "max_seconds": 300,
+        "max_trace_size": 10000,
+        "max_stdin_bits": 6400,
+        "test_type": "debug",
+        "port": 45654
+    },
+    "results": {
+        "num_covered": 2,
+        "num_uncovered": 1
+    }
+}
