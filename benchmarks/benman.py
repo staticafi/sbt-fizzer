@@ -216,8 +216,9 @@ class Benman:
     def fuzz(self, name : str) -> None:
         for pathname in self.collect_benchmarks(name):
             with open(os.path.splitext(pathname)[0] + ".json", "rb") as fp:
-                params = json.load(fp)
-            assert all(x in params for x in [
+                config = json.load(fp)
+            assert all(x in config for x in ["args", "results"]) 
+            assert all(x in config["args"] for x in [
                 "max_executions",
                 "max_seconds",
                 "max_trace_size",
@@ -225,15 +226,16 @@ class Benman:
                 "test_type",
                 "port"
                 ])
+            assert all(x in config["results"] for x in ["num_covered", "num_uncovered"]) 
             benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.args.verbose)
             benchmark.fuzz(
                 self.server_binary,
-                params["max_executions"],
-                params["max_seconds"],
-                params["max_trace_size"],
-                params["max_stdin_bits"],
-                params["test_type"],
-                params["port"],
+                config["args"]["max_executions"],
+                config["args"]["max_seconds"],
+                config["args"]["max_trace_size"],
+                config["args"]["max_stdin_bits"],
+                config["args"]["test_type"],
+                config["args"]["port"],
                 os.path.splitext(os.path.join(self.output_dir, os.path.relpath(pathname, self.benchmarks_dir)))[0]
             )
         kill_clients()

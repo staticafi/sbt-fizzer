@@ -1,8 +1,14 @@
 {
-    "max_executions": 100,
-    "max_seconds": 300,
-    "max_trace_size": 10000,
-    "max_stdin_bits": 6400,
-    "test_type": "debug",
-    "port": 45654
+    "args": {
+        "max_executions": 100,
+        "max_seconds": 300,
+        "max_trace_size": 10000,
+        "max_stdin_bits": 6400,
+        "test_type": "debug",
+        "port": 45654
+    },
+    "results": {
+        "num_covered": 1,
+        "num_uncovered": 0
+    }
 }
