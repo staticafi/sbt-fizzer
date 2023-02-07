@@ -7,7 +7,7 @@
             "command": "${command:python.interpreterPath}",
             "args": [ "${workspaceFolder}/dist/benchmarks/benman.py", "--verbose",
                 // "--clear", ".",
-                "--fuzz", // build, fuzz, clear
+                "--build", // build, fuzz, clear
                     "all"
                     // "fast"
                     // "medium"
