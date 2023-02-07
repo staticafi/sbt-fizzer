@@ -7,7 +7,7 @@
 namespace  iomodels {
 
 
-stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(std::size_t const  max_bits)
+stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(natural_16_bit const  max_bits)
     : stdin_base(max_bits)
     , cursor(0U)
     , bits()

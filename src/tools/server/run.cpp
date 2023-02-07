@@ -62,7 +62,7 @@ void run(int argc, char* argv[])
             );
 
     iomodels::iomanager::instance().set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>(
-        std::stoul(get_program_options()->value("max_stdin_bits"))
+        (natural_16_bit)std::stoul(get_program_options()->value("max_stdin_bits"))
     ));
     iomodels::iomanager::instance().set_stdout(std::make_shared<iomodels::stdout_void>());
     iomodels::iomanager::instance().set_trace_max_size(std::stoul(get_program_options()->value("max_trace_size")));

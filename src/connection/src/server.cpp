@@ -6,10 +6,15 @@
 #include <fuzzing/fuzzing_run.hpp>
 #include <fuzzing/fuzzers_map.hpp>
 #include <utility/timeprof.hpp>
+#include <utility/config.hpp>
 
 #include <sstream>
 #include <chrono>
 #include <iostream>
+
+#if COMPILER() == COMPILER_VC()
+#   pragma warning(disable:4996) // warning C4996: 'sprintf': This function or variable may be unsafe.
+#endif
 
 namespace  connection {
 
