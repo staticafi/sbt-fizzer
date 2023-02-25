@@ -317,10 +317,7 @@ void FizzerPass::instrumentCond(Instruction *inst) {
         distance = ConstantFP::get(DoubleTy, 1);
     // i1 as a return from a call to a function
     } else if (auto *callInst = dyn_cast<CallInst>(inst)) {
-        if (callInst->getType() == Int1Ty) {
-            distance = ConstantFP::get(DoubleTy, 1);
-        }
-        return;
+        distance = ConstantFP::get(DoubleTy, 1);
     } else {
         return;
     }
@@ -412,7 +409,9 @@ bool FizzerPass::runOnFunction(Function &F) {
         BB.setName("bb" + std::to_string(basicBlockCount));
 
         for (Instruction &I: BB) {
-            instrumentCond(&I);
+            if (I.getType() == Int1Ty) {
+                instrumentCond(&I);
+            }
         }
 
         BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
