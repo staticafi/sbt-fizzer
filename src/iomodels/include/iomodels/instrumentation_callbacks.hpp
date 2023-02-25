@@ -8,6 +8,7 @@ namespace  iomodels {
 
 
 void  on_branching(instrumentation::branching_coverage_info const&  info);
+void  on_br_instr(instrumentation::br_instr_coverage_info const&  info);
 
 void  on_call_begin(natural_32_bit  id);
 void  on_call_end(natural_32_bit  id);

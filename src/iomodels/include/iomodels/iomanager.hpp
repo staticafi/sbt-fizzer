@@ -35,6 +35,7 @@ struct  iomanager
     void  load_trace(connection::message&  istr);
     void  set_trace_max_size(std::size_t max_size);
     void  branching(branching_coverage_info const&  info);
+    void  br_instr(br_instr_coverage_info const&  info);
     void  call_begin(natural_32_bit  id);
     void  call_end(natural_32_bit  id);
 
@@ -54,6 +55,7 @@ private:
     iomanager();
 
     std::vector<branching_coverage_info>  trace;
+    std::vector<br_instr_coverage_info>  br_instr_trace;
     std::vector<natural_32_bit>  context_hashes;
     stdin_base_ptr  stdin_ptr;
     stdout_base_ptr  stdout_ptr;

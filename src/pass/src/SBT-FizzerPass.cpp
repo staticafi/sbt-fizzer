@@ -37,13 +37,15 @@ struct FizzerPass : public FunctionPass {
 
     std::unique_ptr<legacy::FunctionPassManager> DependenciesFPM;
 
-    FunctionCallee processBranchFunc;
+    FunctionCallee processCondFunc;
+    FunctionCallee processCondBrFunc;
     FunctionCallee processCallBeginFunc;
     FunctionCallee processCallEndFunc;
     FunctionCallee fizzerTerminate;
     FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCount;
+    unsigned int condCount;
     unsigned int callSiteCount;
 
     FizzerPass() : FunctionPass(ID) {}
@@ -58,8 +60,9 @@ struct FizzerPass : public FunctionPass {
 
     void printErrCond(Value *cond);
 
-    void instrumentCondBranch(BasicBlock *bb, Value *cond, bool negateCond);
-    Value *instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder);
+    void instrumentCondBr(BranchInst *brInst);
+    void instrumentCond(Instruction *inst);
+    Value *instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
     Value *instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
@@ -91,9 +94,13 @@ bool FizzerPass::doInitialization(Module &M) {
     DependenciesFPM = std::make_unique<legacy::FunctionPassManager>(&M);
     DependenciesFPM->add(createLowerSwitchPass());
 
-    processBranchFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_branch", VoidTy,
+    processCondFunc =
+        M.getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
                               Int32Ty, Int1Ty, DoubleTy);
+
+    processCondBrFunc =
+        M.getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
+                              Int32Ty, Int1Ty);
 
     processCallBeginFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_call_begin", VoidTy,
@@ -108,6 +115,7 @@ bool FizzerPass::doInitialization(Module &M) {
                                              VoidTy);
 
     basicBlockCount = 0;
+    condCount = 0;
     callSiteCount = 0;
 
     return true;
@@ -284,77 +292,53 @@ Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
     return distance;
 }
 
-Value *FizzerPass::instrumentCmpBranch(CmpInst *cmpInst, IRBuilder<> &builder) {
+Value *FizzerPass::instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder) {
     Value *lhs = cmpInst->getOperand(0);
     Value *rhs = cmpInst->getOperand(1);
 
     if (cmpInst->isIntPredicate()) {
         return instrumentIcmp(lhs, rhs, cmpInst, builder);
     }
-
     return instrumentFcmp(lhs, rhs, cmpInst, builder);
 }
 
-void FizzerPass::instrumentCondBranch(BasicBlock *bb, Value *currCond, 
-                                      bool negateCond) {
-    // don't instrument true or false
-    if (dyn_cast<ConstantInt>(currCond)) {
+
+void FizzerPass::instrumentCond(Instruction *inst) {
+    if (!inst->getNextNode()) {
         return;
     }
+    IRBuilder<> builder(inst->getNextNode());
 
-    if (PHINode* phi = dyn_cast<PHINode>(currCond)) {
-        errs() << "EXPERIMENTAL: instrumentation for phi node in " 
-                << bb->getName() << "\n";
-        printErrCond(currCond);
-        for (unsigned int i = 0; i < phi->getNumIncomingValues(); ++i) {
-            Value *predCond = phi->getIncomingValue(i);
-            BasicBlock* pred = phi->getIncomingBlock(i);
-            
-            instrumentCondBranch(pred, predCond, negateCond);
-        }
-        return;
-    }
-
-    // handle xor used as not (xor cond true)
-    if (BinaryOperator *binOp = dyn_cast<BinaryOperator>(currCond)) {
-        if (binOp->getOpcode() == Instruction::Xor) {
-            Value *prevCond = binOp->getOperand(0);
-            Value *trueConst = binOp->getOperand(1);
-            if (dyn_cast<ConstantInt>(trueConst)) {
-                instrumentCondBranch(bb, prevCond, !negateCond);
-                return;
-            }
-        }
-    }
-
-    IRBuilder<> brBuilder(bb->getTerminator());
-
-    Value *distance = ConstantFP::get(DoubleTy, 
-                                      std::numeric_limits<double>::max());
-
-    if (CmpInst *cmpInst = dyn_cast<CmpInst>(currCond)) {
-        distance = instrumentCmpBranch(cmpInst, brBuilder);
-    }
+    Value *distance;
+    if (auto *cmpInst = dyn_cast<CmpInst>(inst)) {
+        distance = instrumentCmp(cmpInst, builder);
     // truncating a number to i1, happens for example with bool in C
-    else if (dyn_cast<TruncInst>(currCond)) {
+    } else if (dyn_cast<TruncInst>(inst)) {
         distance = ConstantFP::get(DoubleTy, 1);
     // i1 as a return from a call to a function
-    } else if (dyn_cast<CallInst>(currCond)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+    } else if (auto *callInst = dyn_cast<CallInst>(inst)) {
+        if (callInst->getType() == Int1Ty) {
+            distance = ConstantFP::get(DoubleTy, 1);
+        }
+        return;
     } else {
-        errs() << "ERROR: instrumentation for branch condition in " 
-        << bb->getName() << " is not supported" << "\n";
-        printErrCond(currCond);
+        return;
     }
+    
+    Value *location = ConstantInt::get(Int32Ty, ++condCount);
+    Value *cond = inst;
 
-    Value *location = ConstantInt::get(Int32Ty, basicBlockCount);
+    builder.CreateCall(processCondFunc,
+                {location, cond, distance});
+}
 
-    if (negateCond) {
-        currCond = brBuilder.CreateXor(currCond, ConstantInt::get(Int1Ty, 1));
-    }
+void FizzerPass::instrumentCondBr(BranchInst *brInst) {
+    IRBuilder<> builder(brInst);
+    
+    Value *location = ConstantInt::get(Int32Ty, ++basicBlockCount);
+    Value *cond = brInst->getCondition();
 
-    brBuilder.CreateCall(processBranchFunc,
-                            {location, currCond, distance});
+    builder.CreateCall(processCondBrFunc, {location, cond});
 }
 
 void FizzerPass::replaceCalls(
@@ -427,12 +411,15 @@ bool FizzerPass::runOnFunction(Function &F) {
         ++basicBlockCount;
         BB.setName("bb" + std::to_string(basicBlockCount));
 
+        for (Instruction &I: BB) {
+            instrumentCond(&I);
+        }
+
         BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-        Value *cond = brInst->getCondition();
-        instrumentCondBranch(&BB, cond, false);
+        instrumentCondBr(brInst);
     }
     return true;
 }

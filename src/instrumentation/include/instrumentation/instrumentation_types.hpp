@@ -50,6 +50,16 @@ struct  branching_coverage_info
     location_id  branching_id;
     bool  covered_branch;
     coverage_distance_type  distance_to_uncovered_branch; // Is always positive!
+    natural_32_bit  idx_to_br_instr;
+};
+
+
+struct  br_instr_coverage_info
+{
+    explicit br_instr_coverage_info(location_id const  id);
+
+    location_id  br_instr_id;
+    bool  covered_branch;
 };
 
 

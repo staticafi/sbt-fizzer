@@ -9,6 +9,11 @@ void  on_branching(instrumentation::branching_coverage_info const&  info)
     iomanager::instance().branching(info);
 }
 
+void  on_br_instr(instrumentation::br_instr_coverage_info const&  info)
+{
+    iomanager::instance().br_instr(info);
+}
+
 
 void  on_call_begin(natural_32_bit const  id)
 {

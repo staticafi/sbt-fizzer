@@ -8,7 +8,14 @@ branching_coverage_info::branching_coverage_info(location_id const  id)
     : branching_id(id)
     , covered_branch{}
     , distance_to_uncovered_branch{}
+    , idx_to_br_instr{}
 {}
+
+br_instr_coverage_info::br_instr_coverage_info(location_id const  id)
+    : br_instr_id(id)
+    , covered_branch{}
+{}
+
 
 
 bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_info const&  r)
