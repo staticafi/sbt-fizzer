@@ -38,9 +38,6 @@ macro(append_linker_flags FLAGS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAGS}")
 endmacro()
 
-#append_compiler_flags("-fno-omit-frame-pointer -fsanitize=address")
-#append_linker_flags("-fno-omit-frame-pointer -fsanitize=address")
-
 # find and add Eigen math library
 #message("Searching for Eigen ...")
 #find_package(Eigen3 CONFIG REQUIRED)
