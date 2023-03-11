@@ -37,13 +37,18 @@ def add_instr_args(parser):
 
 
 class FizzerUtils:
-    client_libraries = "@CLIENT_LIBRARIES_FILES@"
+    script_dir = Path(__file__).resolve().parent
+    client_libraries = " ".join(map( # type: ignore
+        lambda rel_path, script_dir=script_dir: str(script_dir / rel_path), 
+        @CLIENT_LIBRARIES_FILES_LIST@ # type: ignore
+    )) + " @BOOST_LIBRARIES_FILES@" 
+    
     client_cmake_build_flags = (
                                 "-flto "
                                 "@CLIENT_NEEDED_COMPILATION_FLAGS@"
                                 )
-    pass_path_str = "@FIZZER_PASS_FILE@"
-    server_path_str = "@SERVER_FILE@"
+    pass_path = script_dir / "@FIZZER_PASS_FILE@"
+    server_path = script_dir / "@SERVER_FILE@"
 
     def __init__(self, file_path, output_dir):
         self.file_path = file_path
@@ -64,7 +69,7 @@ class FizzerUtils:
             instrumentation = (
                 "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass " 
                 "{1} -S -o {2}"
-            ).format(self.pass_path_str, self.file_path, self.instrumented_file)
+            ).format(self.pass_path, self.file_path, self.instrumented_file)
         else:
             instrumentation = (
                 "clang {0} -flto @CLANG_USE_LEGACY_PM@ " 
@@ -72,7 +77,7 @@ class FizzerUtils:
                 "-Xclang -disable-O0-optnone -fno-discard-value-names {2} "
                 "-S -o {3}"
             ).format(
-                additional_flags, self.pass_path_str, 
+                additional_flags, self.pass_path, 
                 self.file_path, self.instrumented_file
                 )
 
@@ -105,7 +110,7 @@ class FizzerUtils:
         server_invocation = (
             "{0} {1} --path_to_client {2} --output_dir {3}"
             ).format(
-                self.server_path_str, server_options, 
+                self.server_path, server_options, 
                 self.client_file, self.output_dir
         )
 
