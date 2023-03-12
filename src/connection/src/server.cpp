@@ -90,6 +90,8 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
 
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(results_from_client);
+    iomodels::iomanager::instance().clear_br_instr_trace();
+    iomodels::iomanager::instance().load_br_instr_trace(results_from_client);
     iomodels::iomanager::instance().clear_stdin();
     iomodels::iomanager::instance().load_stdin(results_from_client);
     iomodels::iomanager::instance().clear_stdout();

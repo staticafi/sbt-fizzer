@@ -35,6 +35,9 @@ struct  iomanager
     void  load_trace(connection::message&  istr);
     void  set_trace_max_size(std::size_t max_size);
     void  branching(branching_coverage_info const&  info);
+    void  clear_br_instr_trace();
+    void  save_br_instr_trace(connection::message&  ostr) const;
+    void  load_br_instr_trace(connection::message&  istr);
     void  br_instr(br_instr_coverage_info const&  info);
     void  call_begin(natural_32_bit  id);
     void  call_end(natural_32_bit  id);

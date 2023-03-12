@@ -117,6 +117,7 @@ bool client::execute_program_and_send_results()
     message results;
     results.header.type = execute_program();
     iomodels::iomanager::instance().save_trace(results);
+    iomodels::iomanager::instance().save_br_instr_trace(results);
     iomodels::iomanager::instance().save_stdin(results);
     iomodels::iomanager::instance().save_stdout(results);
 

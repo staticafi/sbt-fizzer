@@ -8,6 +8,7 @@ namespace  iomodels {
 
 iomanager::iomanager()
     : trace()
+    , br_instr_trace()
     , context_hashes{ 0U }
     , stdin_ptr(nullptr)
     , stdout_ptr(nullptr)
@@ -29,6 +30,35 @@ void  iomanager::clear_trace()
     trace.clear();
     context_hashes.clear();
     context_hashes.push_back(0U);
+}
+
+void  iomanager::clear_br_instr_trace()
+{
+    br_instr_trace.clear();
+}
+
+
+void  iomanager::save_br_instr_trace(connection::message&  ostr) const 
+{
+    ostr << (natural_32_bit)br_instr_trace.size();
+    for (br_instr_coverage_info const&  info : br_instr_trace) 
+    {
+        ostr << info.br_instr_id << info.covered_branch;
+    }
+}
+
+
+void  iomanager::load_br_instr_trace(connection::message&  istr) 
+{
+    natural_32_bit  n;
+    istr >> n;
+    for (natural_32_bit i = 0; i < n; ++i)
+    {
+        br_instr_coverage_info  info(invalid_location_id());
+        istr >> info.br_instr_id;
+        istr >> info.covered_branch;
+        br_instr_trace.push_back(info);
+    }
 }
 
 
