@@ -23,6 +23,7 @@ client::client(boost::asio::io_context& io_context):
 void client::execute_program() {
     iomodels::iomanager::instance().set_termination(iomodels::iomanager::NORMAL);
     iomodels::iomanager::instance().clear_trace();
+    iomodels::iomanager::instance().clear_br_instr_trace();
     try {
         __sbt_fizzer_method_under_test();
     }
