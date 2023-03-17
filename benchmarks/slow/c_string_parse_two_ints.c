@@ -50,7 +50,7 @@ static int  parse_int(char const* const  c_string, char const  which, char const
     while (true)
     {
         if (i == end)
-            return idx;
+        { *result *= sign; return idx; }
         --i;
         *result += (c_string[i] - '0') * exp;
         exp *= 10;
@@ -65,7 +65,7 @@ static bool  mut(char const* const  c_string)
     if (idx_tmp == -1)
         return false;
     idx += idx_tmp + 1;
-    idx_tmp = parse_int(c_string + idx, 'y', '\0', &y);
+    idx_tmp = parse_int(c_string + idx, 'y', '.', &y);
     if (idx_tmp == -1)
         return false;
     return true;
