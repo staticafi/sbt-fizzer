@@ -46,14 +46,43 @@
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
-                "--max_trace_size", "10000",
+                "--max_trace_length", "10000",
+                "--max_stack_size", "25",
                 "--max_stdin_bits", "6400",
+                "--stdin_model", "stdin_replay_bits_then_repeat_85",
+                "--stdout_model", "stdout_void",
+                "--debug_mode",
                 "--test_type",
                     "debug",
                     // "sbt-eft",
                     // "testcomp",
                 "--port", "45654",
                 "--output_dir", "${workspaceFolder}/dist/output"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/benchmarks",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "kill clients",
+            //"postDebugTask": "kill clients"
+        },
+        {
+            "name": "debug client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/dist/benchmarks/fast/int8_if_x_equal_c.sbt-client",
+            "args": [
+                "--max_trace_length", "10000",
+                "--max_stack_size", "25",
+                "--max_stdin_bits", "6400",
+                "--stdin_model", "stdin_replay_bits_then_repeat_85",
+                "--stdout_model", "stdout_void",
+                "--port", "45654"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/dist/benchmarks",
