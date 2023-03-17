@@ -26,8 +26,8 @@ server::server(uint16_t port, std::string path_to_client):
                         " --max_trace_length " + std::to_string(iomodels::iomanager::instance().get_config().max_trace_length) +
                         " --max_stack_size " + std::to_string(iomodels::iomanager::instance().get_config().max_stack_size) +
                         " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_config().max_stdin_bits) +
-                        " --stdin_model_name " + iomodels::iomanager::instance().get_config().stdin_model_name +
-                        " --stdout_model_name " + iomodels::iomanager::instance().get_config().stdout_model_name,
+                        " --stdin_model " + iomodels::iomanager::instance().get_config().stdin_model_name +
+                        " --stdout_model " + iomodels::iomanager::instance().get_config().stdout_model_name,
                     connections)
     {}
 
