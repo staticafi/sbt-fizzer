@@ -131,7 +131,7 @@ void  iomanager::branching(instrumentation::branching_coverage_info const&  info
 
     trace.push_back(info);
     trace.back().id.context_hash = context_hashes.back();
-    trace.back().idx_to_br_instr = br_instr_trace.size();
+    trace.back().idx_to_br_instr = (natural_32_bit)br_instr_trace.size();
 }
 
 
