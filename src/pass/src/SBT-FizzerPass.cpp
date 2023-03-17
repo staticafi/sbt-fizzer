@@ -127,38 +127,6 @@ void FizzerPass::printErrCond(Value *cond) {
     errs() << "\n";
 }
 
-
-CallInst *FizzerPass::instrumentIntEq(Value *val1, Value *val2,
-                                      IRBuilder<> &builder) {
-    Value *diff = builder.CreateSub(val1, val2);
-    return builder.CreateBinaryIntrinsic(Intrinsic::abs, diff,
-                                         ConstantInt::get(Int1Ty, 0));
-}
-
-CallInst *FizzerPass::instrumentFPEq(Value *val1, Value *val2,
-                                     IRBuilder<> &builder) {
-    Value *diff = builder.CreateFSub(val1, val2);
-    return builder.CreateUnaryIntrinsic(Intrinsic::fabs, diff);
-}
-
-// returns {val1 - val2, val2 - val1 + 1}
-std::tuple<Value *, Value *>
-FizzerPass::instrumentIntIneq(Value *val1, Value *val2, IRBuilder<> &builder) {
-    Value *diff1 = builder.CreateSub(val1, val2);
-    Value *diff2 = builder.CreateAdd(builder.CreateSub(val2, val1),
-                                     ConstantInt::get(val1->getType(), 1));
-    return {diff1, diff2};
-}
-
-// returns {val1 - val2, val2 - val1 + 1}
-std::tuple<Value *, Value *>
-FizzerPass::instrumentFPIneq(Value *val1, Value *val2, IRBuilder<> &builder) {
-    Value *diff1 = builder.CreateFSub(val1, val2);
-    Value *diff2 = builder.CreateFAdd(builder.CreateFSub(val2, val1),
-                                      ConstantFP::get(val1->getType(), 1));
-    return {diff1, diff2};
-}
-
 Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
 
@@ -193,97 +161,20 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         }
     }
 
-    switch (opcode) {
-    case CmpInst::ICMP_EQ: ///< equal
-        valTrue = ConstantInt::get(lhs->getType(), 1);
-        valFalse = instrumentIntEq(lhs, rhs, builder);
-        break;
-    case CmpInst::ICMP_NE: ///< not equal
-        valTrue = instrumentIntEq(lhs, rhs, builder);
-        valFalse = ConstantInt::get(lhs->getType(), 1);
-        break;
-    case CmpInst::ICMP_UGT: ///< unsigned greater than
-    case CmpInst::ICMP_SGT: ///< signed greater than
-        std::tie(valTrue, valFalse) = instrumentIntIneq(lhs, rhs, builder);
-        break;
-    case CmpInst::ICMP_UGE: ///< unsigned greater or equal
-    case CmpInst::ICMP_SGE: ///< signed greater or equal
-        std::tie(valFalse, valTrue) = instrumentIntIneq(rhs, lhs, builder);
-        break;
-    case CmpInst::ICMP_ULT: ///< unsigned less than
-    case CmpInst::ICMP_SLT: ///< signed less than
-        std::tie(valTrue, valFalse) = instrumentIntIneq(rhs, lhs, builder);
-        break;
-    case CmpInst::ICMP_ULE: ///< unsigned less or equal
-    case CmpInst::ICMP_SLE: ///< signed less or equal
-        std::tie(valFalse, valTrue) = instrumentIntIneq(lhs, rhs, builder);
-        break;
-    default:
-        break;
-    }
     Value *distance = builder.CreateUIToFP(
-        builder.CreateSelect(cmpInst, valTrue, valFalse), DoubleTy);
+        builder.CreateSub(lhs, rhs), DoubleTy);
 
     return distance;
 }
 
 Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-
-    Value *valTrue = ConstantFP::get(lhs->getType(),
-                                     std::numeric_limits<double>::quiet_NaN());
-    Value *valFalse = ConstantFP::get(lhs->getType(),
-                                      std::numeric_limits<double>::quiet_NaN());
-
     if (lhs->getType()->isFloatTy()) {
         lhs = builder.CreateFPExt(lhs, DoubleTy);
         rhs = builder.CreateFPExt(rhs, DoubleTy);
     }
 
-    switch (cmpInst->getPredicate()) {
-    //                             U L G E    Intuitive operation
-    case CmpInst::FCMP_FALSE: ///< 0 0 0 0    Always false (always folded)
-    case CmpInst::FCMP_ORD:   ///< 0 1 1 1    True if ordered (no nans)
-    case CmpInst::FCMP_UNO:   ///< 1 0 0 0    True if unordered: isnan(X) |
-                              ///<            isnan(Y)
-    case CmpInst::FCMP_TRUE:  ///< 1 1 1 1    Always true (always folded)
-        break;
-    case CmpInst::FCMP_OEQ: ///< 0 0 0 1    True if ordered and equal
-    case CmpInst::FCMP_UEQ: ///< 1 0 0 1    True if unordered or equal
-        valTrue = ConstantFP::get(lhs->getType(), 1);
-        valFalse = instrumentFPEq(lhs, rhs, builder);
-        break;
-    case CmpInst::FCMP_ONE: ///< 0 1 1 0    True if ordered and operands are
-                            ///<            unequal
-    case CmpInst::FCMP_UNE: ///< 1 1 1 0    True if unordered or not equal
-        valTrue = instrumentFPEq(lhs, rhs, builder);
-        valFalse = ConstantFP::get(lhs->getType(), 1);
-        break;
-    case CmpInst::FCMP_OGT: ///< 0 0 1 0    True if ordered and greater than
-    case CmpInst::FCMP_UGT: ///< 1 0 1 0    True if unordered or greater than
-        std::tie(valTrue, valFalse) = instrumentFPIneq(lhs, rhs, builder);
-        break;
-    case CmpInst::FCMP_OGE: ///< 0 0 1 1    True if ordered and greater than or
-                            ///<            equal
-    case CmpInst::FCMP_UGE: ///< 1 0 1 1    True if unordered, greater than, or
-                            ///<            equal
-        std::tie(valFalse, valTrue) = instrumentFPIneq(rhs, lhs, builder);
-        break;
-    case CmpInst::FCMP_OLT: ///< 0 1 0 0    True if ordered and less than
-    case CmpInst::FCMP_ULT: ///< 1 1 0 0    True if unordered or less than
-        std::tie(valTrue, valFalse) = instrumentFPIneq(rhs, lhs, builder);
-        break;
-    case CmpInst::FCMP_OLE: ///< 0 1 0 1    True if ordered and less than or
-                            ///<            equal
-    case CmpInst::FCMP_ULE: ///< 1 1 0 1    True if unordered, less than, or
-                            ///<            equal
-        std::tie(valFalse, valTrue) = instrumentFPIneq(lhs, rhs, builder);
-        break;
-    default:
-        break;
-    }
-
-    Value *distance = builder.CreateSelect(cmpInst, valTrue, valFalse);
+    Value *distance = builder.CreateFSub(lhs, rhs);
 
     if (!distance->getType()->isDoubleTy()) {
         return builder.CreateFPTrunc(distance, DoubleTy);
