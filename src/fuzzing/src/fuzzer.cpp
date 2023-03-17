@@ -327,7 +327,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
         ++statistics.leaf_nodes_created;
         statistics.max_leaf_nodes = std::max(statistics.max_leaf_nodes, leaf_branchings.size());
-        statistics.longest_branch = std::max(statistics.longest_branch, trace_index + 1ULL);
+        statistics.longest_branch = std::max(statistics.longest_branch, (std::size_t)(trace_index + 1));
     }
 
     switch (state)
