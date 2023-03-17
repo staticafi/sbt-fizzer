@@ -30,7 +30,7 @@ Configuration is available through pre-defined macros:
 #   define PLATFORM_LINUX()       2
 #   define PLATFORM_WEBASSEMBLY() 3
 
-#   if defined(WIN32)
+#   if defined(_WIN32) || defined(WIN32)
 #       define PLATFORM()         PLATFORM_WINDOWS()
 #   elif defined(__linux__)
 #       define PLATFORM()         PLATFORM_LINUX()
