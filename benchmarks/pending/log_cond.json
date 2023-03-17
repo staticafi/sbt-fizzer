@@ -2,8 +2,12 @@
     "args": {
         "max_executions": 1000000,
         "max_seconds": 300,
-        "max_trace_size": 10000,
+        "max_trace_length": 10000,
+        "max_stack_size": 25,
         "max_stdin_bits": 6400,
+        "stdin_model": "stdin_replay_bits_then_repeat_85",
+        "stdout_model": "stdout_void",
+        "debug_mode": true,
         "test_type": "debug",
         "port": 45654
     },
