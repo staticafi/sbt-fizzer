@@ -3,7 +3,9 @@
 #include <connection/client.hpp>
 #include <connection/message.hpp>
 #include <connection/connection.hpp>
+#include <instrumentation/exceptions.hpp>
 #include <iomodels/iomanager.hpp>
+#include <iomodels/ioexceptions.hpp>
 
 #include <iostream>
 
@@ -18,21 +20,26 @@ client::client(boost::asio::io_context& io_context):
     {}
 
 
-message_type client::execute_program() {
+void client::execute_program() {
+    iomodels::iomanager::instance().set_termination(iomodels::iomanager::NORMAL);
+    iomodels::iomanager::instance().clear_trace();
     try {
         __sbt_fizzer_method_under_test();
-        return message_type::results_from_client_normal;
-    }
-    catch (const iomodels::trace_max_size_reached_exception&) {
-        std::cout << "WARNING: terminated early because maximum allowed trace size was reached" << std::endl;
-        return message_type::results_from_client_max_trace_reached;
     }
     catch (const instrumentation::terminate_exception&) {
-        return message_type::results_from_client_normal;
+        // Nothing to do.
     }
-    catch (const instrumentation::error_reached_exception&) {
+    catch (const iomodels::execution_crashed& e) {
+        std::cout << "INFO: Discovered crash in the benchmark: " << e.what() << std::endl;
+        iomodels::iomanager::instance().set_termination(iomodels::iomanager::CRASH);
+    }
+    catch (const iomodels::boundary_condition_violation& e) {
+        std::cout << "WARNING: boundary condition violation: " << e.what() << std::endl;
+        iomodels::iomanager::instance().set_termination(iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION);
+    }
+    catch (const instrumentation::error_reached_exception&) { // Why do we need this?
         std::cout << "Reached error" << std::endl;
-        return message_type::results_from_client_error_reached;
+        iomodels::iomanager::instance().set_termination(iomodels::iomanager::CRASH);
     }
 }
 
@@ -44,15 +51,17 @@ void client::run_input_mode(vecu8 input_bytes) {
     }
     input << (natural_16_bit) 0;
 
+    iomodels::iomanager::instance().clear_stdin();
     iomodels::iomanager::instance().load_stdin(input);
+    iomodels::iomanager::instance().clear_stdout();
     iomodels::iomanager::instance().load_stdout(input);
     
     execute_program();
 
     for (const instrumentation::branching_coverage_info& info: iomodels::iomanager::instance().get_trace()) {
-        std::cout << "location: bb" << info.branching_id
-                  << " branch: " << std::boolalpha << info.covered_branch
-                  << " distance to uncovered branch: " << info.distance_to_uncovered_branch
+        std::cout << "location: bb" << info.id
+                  << " branch: " << std::boolalpha << info.direction
+                  << " value: " << info.value
                   << "\n";
     }
 }
@@ -104,7 +113,9 @@ bool client::receive_input() {
         return false;
     }
     
+    iomodels::iomanager::instance().clear_stdin();
     iomodels::iomanager::instance().load_stdin(input);
+    iomodels::iomanager::instance().clear_stdout();
     iomodels::iomanager::instance().load_stdout(input);
     return true;
 }
@@ -112,10 +123,12 @@ bool client::receive_input() {
 
 bool client::execute_program_and_send_results()
 {
+    execute_program();
+
     std::cout << "Program finished, sending results..." << std::endl;
-    
+
     message results;
-    results.header.type = execute_program();
+    iomodels::iomanager::instance().save_termination(results);
     iomodels::iomanager::instance().save_trace(results);
     iomodels::iomanager::instance().save_br_instr_trace(results);
     iomodels::iomanager::instance().save_stdin(results);

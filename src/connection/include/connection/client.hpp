@@ -12,7 +12,7 @@ namespace  connection {
 struct  client
 {
     client(boost::asio::io_context& io_context);
-    message_type execute_program();
+    void execute_program();
     void run_input_mode(vecu8 input_bytes);
     void run(const std::string& address, const std::string& port);
     bool connect(const std::string& address, const std::string& port);

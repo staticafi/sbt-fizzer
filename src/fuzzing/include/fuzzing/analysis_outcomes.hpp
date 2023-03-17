@@ -1,25 +1,16 @@
 #ifndef FUZZING_ANALYSIS_OUTCOMES_HPP_INCLUDED
 #   define FUZZING_ANALYSIS_OUTCOMES_HPP_INCLUDED
 
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/execution_trace.hpp>
+#   include <fuzzing/execution_record.hpp>
+#   include <fuzzing/fuzzer.hpp>
+#   include <utility/math.hpp>
 #   include <vector>
 #   include <string>
 #   include <unordered_set>
+#   include <unordered_map>
 
 namespace  fuzzing {
-
-
-using  branching_location_and_direction = std::pair<instrumentation::location_id, bool>;
-
-
-struct  trace_with_coverage_info
-{
-    std::vector<bool>  input_stdin;
-    std::vector<natural_8_bit>  input_stdin_counts;
-    std::vector<branching_location_and_direction>  trace;
-    std::unordered_set<instrumentation::location_id>  discovered_locations;
-    std::unordered_set<instrumentation::location_id>  covered_locations;
-};
 
 
 struct analysis_outcomes
@@ -27,20 +18,21 @@ struct analysis_outcomes
     enum struct TERMINATION_TYPE
     {
         NORMAL,
-        INVARIANT_FAILURE,
-        ASSUMPTION_FAILURE,
-        CODE_UNDER_CONSTRUCTION_REACHED,
-        UNEXPECTED_CLIENT_CRASH,
-        UNCLASSIFIED_EXCEPTION
+        SERVER_INTERNAL_ERROR,
+        CLIENT_COMMUNICATION_ERROR,
+        UNCLASSIFIED_ERROR
     };
     TERMINATION_TYPE  termination_type;
     std::string  termination_message;
     natural_32_bit  num_executions;
-    natural_32_bit  num_max_trace_size_reached;
     long  num_elapsed_seconds;
-    std::vector<instrumentation::location_id> covered_branchings;
+    std::vector<location_id> covered_branchings;
     std::vector<branching_location_and_direction>  uncovered_branchings;
-    std::vector<trace_with_coverage_info>  traces_forming_coverage;
+    std::vector<execution_record>  execution_records;
+    sensitivity_analysis::performance_statistics   sensitivity_statistics;
+    minimization_analysis::performance_statistics   minimization_statistics;
+    fuzzer::performance_statistics  statistics;
+    std::unordered_map<std::string, std::string>  debug_data;
 };
 
 

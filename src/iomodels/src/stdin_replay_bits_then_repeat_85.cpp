@@ -1,14 +1,14 @@
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
+#include <iomodels/ioexceptions.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <iostream>
-#include <algorithm>
 
 namespace  iomodels {
 
 
-stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(natural_16_bit const  max_bits)
-    : stdin_base(max_bits)
+stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(bit_count_type const  max_bits_)
+    : stdin_base{ max_bits_ }
     , cursor(0U)
     , bits()
     , counts()
@@ -17,8 +17,6 @@ stdin_replay_bits_then_repeat_85::stdin_replay_bits_then_repeat_85(natural_16_bi
 
 void  stdin_replay_bits_then_repeat_85::clear()
 {
-    stdin_base::clear();
-
     cursor = 0U;
     bits.clear();
     counts.clear();
@@ -27,9 +25,7 @@ void  stdin_replay_bits_then_repeat_85::clear()
 
 void  stdin_replay_bits_then_repeat_85::save(connection::message&  ostr) const
 {
-    INVARIANT(bits.size() <= (std::size_t)get_max_bits());
-
-    stdin_base::save(ostr);
+    INVARIANT(bits.size() <= max_bits());
 
     vecu8  bytes;
     bits_to_bytes(bits, bytes);
@@ -45,15 +41,14 @@ void  stdin_replay_bits_then_repeat_85::save(connection::message&  ostr) const
 
 void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 {
-    stdin_base::load(istr);
-
     natural_16_bit  num_bytes;
     istr >> num_bytes;
     vecu8  bytes(num_bytes, 0);
     for (natural_16_bit  i = 0U; i < num_bytes; ++i)
         istr >> bytes.at(i);
     bytes_to_bits(bytes, bits);
-    ASSUMPTION(bits.size() <= (std::size_t)get_max_bits());
+
+    ASSUMPTION(bits.size() <= max_bits());
 
     natural_16_bit  num_counts;
     istr >> num_counts;
@@ -65,6 +60,24 @@ void  stdin_replay_bits_then_repeat_85::load(connection::message&  istr)
 
 void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bit* ptr, natural_8_bit const  count)
 {
+    for (natural_8_bit  j = 0U; j != count; ++j)
+    {
+        natural_8_bit  value = 0U;
+        for (natural_8_bit  i = 0; i != 8; ++i)
+        {
+            if (cursor >= max_bits())
+                throw boundary_condition_violation("The max stdin bits exceeded.");
+
+            if (cursor == (natural_16_bit)bits.size())
+                bits.push_back(i & 1U); // Here we generate a sequence 0101010101... => we produce a sequence of bytes 85,85,85,...
+            value |= (natural_8_bit)((bits.at(cursor) ? 1U : 0U) << (7U - i));
+            ++cursor;
+        }
+        ptr[j] = value;
+    }
+    counts.push_back(8U * count);
+
+    /*
     // WARNING: If the server sends input s.t. "bits.size() % 8 != 0", then this
     //          implementation will skip the last "bits.size() - 8 * (bits.size() / 8)" bits.
 
@@ -94,8 +107,7 @@ void  stdin_replay_bits_then_repeat_85::read(location_id const  id, natural_8_bi
         
         counts.push_back(8U * count);
     }
-
-    stdin_base::read(id, ptr, count);
+    */
 }
 
 

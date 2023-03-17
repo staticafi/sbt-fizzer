@@ -35,7 +35,7 @@ void save_testcomp_metadata(std::ostream&  ostr, const std::string& version, con
 }
 
 
-void save_testcomp_test(std::ostream& ostr, const trace_with_coverage_info& trace) {
+void save_testcomp_test(std::ostream& ostr, const execution_record& trace) {
     ostr << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n";
     ostr << "<!DOCTYPE testcase PUBLIC \"+//IDN sosy-lab.org//DTD test-format testcase ";
     ostr << "1.1//EN\" \"https://sosy-lab.org/test-format/testcase-1.1.dtd\">\n";
@@ -45,12 +45,12 @@ void save_testcomp_test(std::ostream& ostr, const trace_with_coverage_info& trac
 }
 
 
-void save_testcomp_test_inputs(std::ostream& ostr, const trace_with_coverage_info& trace) {
+void save_testcomp_test_inputs(std::ostream& ostr, const execution_record& trace) {
     vecu8  byte_values;
-    bits_to_bytes(trace.input_stdin, byte_values);
+    bits_to_bytes(trace.stdin_bits, byte_values);
 
     natural_32_bit offset = 0;
-    for (natural_8_bit input_chunk: trace.input_stdin_counts) {
+    for (natural_8_bit input_chunk: trace.stdin_bit_counts) {
         ostr << "  <input>0x";
         for (natural_8_bit i = input_chunk / 8; i-- > 0;) {
             ostr << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)byte_values.at(offset + i);
@@ -63,7 +63,7 @@ void save_testcomp_test_inputs(std::ostream& ostr, const trace_with_coverage_inf
 
 void save_testcomp_output(
     std::filesystem::path const& output_dir,
-    std::vector<trace_with_coverage_info> const&  traces_forming_coverage,
+    std::vector<execution_record> const&  traces_forming_coverage,
     const std::string& test_name_prefix,
     const std::string& version,
     const std::string& program_file

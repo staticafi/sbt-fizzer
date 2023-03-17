@@ -1,31 +1,42 @@
 #include <server/program_options.hpp>
 #include <server/program_info.hpp>
-#include <fuzzing/fuzzers_map.hpp>
+#include <iomodels/iomanager.hpp>
+#include <fuzzing/termination_info.hpp>
 #include <utility/assumptions.hpp>
-#include <stdexcept>
-#include <iostream>
 
 program_options::program_options(int argc, char* argv[])
     : program_options_default(argc, argv)
 {
-    add_option("test", "Run all tests.", "0");
-
-    add_option("list_fuzzers", "Prints fuzzers.", "0");
+    add_option("list_stdin_models", "Prints stdin models.", "0");
+    add_option("list_stdout_models", "Prints stdout models.", "0");
 
     add_option("output_dir", "A directory where to store generated tests.", "1");
     add_value("output_dir", ".");
 
+    fuzzing::termination_info const  terminator{};
+
     add_option("max_executions", "Max number of executions of the benchmark.", "1");
-    add_value("max_executions", "1000000");
+    add_value("max_executions", std::to_string(terminator.max_driver_executions));
 
     add_option("max_seconds", "Max number of seconds for fuzzing the benchmark.", "1");
-    add_value("max_seconds", "86400"); // 24h
+    add_value("max_seconds", std::to_string(terminator.max_fuzzing_seconds));
 
-    add_option("max_trace_size", "Max allowed size of the trace of the executed client", "1");
-    add_value("max_trace_size", "-1"); // let the default be the maximum value of unsigned long
+    iomodels::iomanager::configuration const  io_cfg{};
 
-    add_option("max_stdin_bits", "Max count of input bits from stdin; must be <= 65535", "1");
-    add_value("max_stdin_bits", "6400"); // 10 lines of text, i.e., 10*80*8=6400
+    add_option("max_trace_length", "Max number of branchings in a trace.", "1");
+    add_value("max_trace_length", std::to_string(io_cfg.max_trace_length));
+
+    add_option("max_stack_size", "Max number of stack records during benchmark execution.", "1");
+    add_value("max_stack_size", std::to_string(io_cfg.max_stack_size));
+
+    add_option("max_stdin_bits", "Max number of stdin bits read during benchmark execution.", "1");
+    add_value("max_stdin_bits", std::to_string(io_cfg.max_stdin_bits));
+
+    add_option("stdin_model", "The model of stdin to be used during the analysis.", "1");
+    add_value("stdin_model", io_cfg.stdin_model_name);
+
+    add_option("stdout_model", "The model of stdout to be used during the analysis.", "1");
+    add_value("stdout_model", io_cfg.stdout_model_name);
 
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");
@@ -36,10 +47,7 @@ program_options::program_options(int argc, char* argv[])
     add_option("port", "Port the server will use", "1");
     add_value("port", "42085");
 
-    add_option("fuzzer", "A fuzzer to be used.", "1");
-    if (fuzzing::get_fuzzers_map().count("fuzzhamm") != 0UL)
-        add_value("fuzzer", "fuzzhamm");
-
+    add_option("debug_mode", "When specified, the fuzzer will generate debug data during the analysis.", "0");
 }
 
 static program_options_ptr  global_program_options;

@@ -16,6 +16,8 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/iomodels/stdout_void.hpp
     ./src/stdout_void.cpp
+
+    ./include/iomodels/ioexceptions.hpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

@@ -3,12 +3,8 @@
 #include <boost/lexical_cast.hpp>
 
 #include <iomodels/iomanager.hpp>
-#include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
-#include <iomodels/stdout_void.hpp>
 #include <connection/message.hpp>
 #include <utility/math.hpp>
-#include <instrumentation/instrumentation_types.hpp>
-#include <utility/endian.hpp>
 #include <client/program_options.hpp>
 #include <connection/client.hpp>
 
@@ -17,11 +13,14 @@
 
 void run() {
     iomodels::iomanager& iomanager = iomodels::iomanager::instance();
-    iomanager.set_stdin(std::make_shared<iomodels::stdin_replay_bits_then_repeat_85>(
-        (natural_16_bit)std::stoul(get_program_options()->value("max_stdin_bits"))
-    ));
-    iomanager.set_stdout(std::make_shared<iomodels::stdout_void>());
-    iomanager.set_trace_max_size(std::stoul(get_program_options()->value("max_trace_size")));
+
+    iomanager.set_config({
+            .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_trace_length"))),
+            .max_stack_size = (natural_8_bit)std::max(0, std::stoi(get_program_options()->value("max_stack_size"))),
+            .max_stdin_bits = (iomodels::stdin_base::bit_count_type)std::max(0, std::stoi(get_program_options()->value("max_stdin_bits"))),
+            .stdin_model_name = get_program_options()->value("stdin_model"),
+            .stdout_model_name = get_program_options()->value("stdout_model")
+            });
 
     boost::asio::io_context io_context;
     connection::client client(io_context);
@@ -35,9 +34,9 @@ void run() {
             std::cerr << "ERROR: in argument input expected hexadecimal value\n";
             return;
         }
-        if (8ULL * input_bytes.size() > iomanager.get_stdin()->get_max_bits()) {
+        if (8ULL * input_bytes.size() > iomanager.get_stdin()->max_bits()) {
             std::cerr << "ERROR: the count of bits in the passed input (" << 8ULL * input_bytes.size()
-                      << ") is above the limit (" << iomanager.get_stdin()->get_max_bits() << ").\n";
+                      << ") is above the limit (" << iomanager.get_stdin()->max_bits() << ").\n";
             return;
         }
         client.run_input_mode(std::move(input_bytes));

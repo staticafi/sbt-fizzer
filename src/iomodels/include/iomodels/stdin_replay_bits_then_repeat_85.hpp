@@ -9,7 +9,7 @@ namespace  iomodels {
 
 struct stdin_replay_bits_then_repeat_85 : public stdin_base
 {
-    stdin_replay_bits_then_repeat_85(natural_16_bit  max_bits);
+    stdin_replay_bits_then_repeat_85(bit_count_type  max_bits_);
 
     void  clear() override;
     void  save(connection::message&  ostr) const override;
@@ -18,11 +18,12 @@ struct stdin_replay_bits_then_repeat_85 : public stdin_base
 
     vecb const&  get_bits() const override { return bits; }
     vecu8 const&  get_counts() const override { return counts; }
+    bit_count_type  num_bits_read() const override { return cursor; }
 
-    vecb&  bits_ref() { return bits; }
+    void  set_bits(vecb const&  bits_) override { bits = bits_; }
 
 private:
-    natural_16_bit  cursor;
+    bit_count_type  cursor;
     vecb  bits;
     vecu8  counts;
 };

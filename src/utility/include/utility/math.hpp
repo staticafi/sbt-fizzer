@@ -351,31 +351,5 @@ void  generate_samples_of_hamming_class(vec<vecb>&  output_samples, std::size_t 
 void  bits_to_bytes(vecb const&  bits, vecu8&  bytes);
 void  bytes_to_bits(vecu8 const&  bytes, vecb&  bits);
 
-//#   include <Eigen/Core>
-
-//using  mat = Eigen::Matrix<coverage_distance_type, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-//using  vec = Eigen::Matrix<coverage_distance_type, Eigen::Dynamic, 1>;
-
-//struct  vec
-//{
-//    vec(std::size_t const  n)
-//        : data(n, 0.0)
-//    {}
-//    coverage_distance_type operator()(std::size_t const  i) const { return data.at(i); }
-//    coverage_distance_type& operator()(std::size_t const  i) { return data.at(i); }
-//    vec<coverage_distance_type> data;
-//};
-//
-//struct  mat
-//{
-//    mat(std::size_t const  m, std::size_t const  n)
-//        : data(m, vec<coverage_distance_type>(n,0.0))
-//    {}
-//    coverage_distance_type operator()(std::size_t const  i, std::size_t const  j) const { return data.at(i).at(j); }
-//    coverage_distance_type& operator()(std::size_t const  i, std::size_t const  j) { return data.at(i).at(j); }
-//    vec<vec<coverage_distance_type> > data;
-//};
-
-
 
 #endif

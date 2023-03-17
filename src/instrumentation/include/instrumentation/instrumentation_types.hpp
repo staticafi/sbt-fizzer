@@ -2,20 +2,11 @@
 #   define INSTRUMENTATION_INSTRUMENTATION_TYPES_HPP_INCLUDED
 
 #   include <utility/basic_numeric_types.hpp>
+#   include <functional>
 #   include <iosfwd>
-#   include <stdexcept>
 
 namespace  instrumentation {
 
-struct  terminate_exception: public std::runtime_error
-{
-    explicit terminate_exception(char const* const message): std::runtime_error(message) {}
-};
-
-struct  error_reached_exception: public std::runtime_error
-{
-    explicit error_reached_exception(char const* const message): std::runtime_error(message) {}
-};
 
 union location_id
 {
@@ -40,16 +31,15 @@ inline location_id  invalid_location_id() { return {0U}; }
 std::ostream&  operator<<(std::ostream&  ostr, location_id  id);
 
 
-using coverage_distance_type = float_64_bit;
-
+using branching_function_value_type = float_64_bit;
 
 struct  branching_coverage_info
 {
-    explicit branching_coverage_info(location_id const  id);
+    explicit branching_coverage_info(location_id const  id_);
 
-    location_id  branching_id;
-    bool  covered_branch;
-    coverage_distance_type  distance_to_uncovered_branch; // Is always positive!
+    location_id  id;
+    bool  direction;
+    branching_function_value_type  value;
     natural_32_bit  idx_to_br_instr;
 };
 

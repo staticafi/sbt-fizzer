@@ -1,9 +1,9 @@
 #ifndef CONNECTION_MESSAGE_HPP_INCLUDED
 #   define CONNECTION_MESSAGE_HPP_INCLUDED
 
-#   include <connection/message_type.hpp>
 #   include <utility/math.hpp>
 
+#   include <cstdint>
 #   include <cstring>
 
 namespace  connection {
@@ -11,9 +11,8 @@ namespace  connection {
 
 struct message_header {
     message_header();
-    message_header(message_type type);
 
-    message_type type = message_type::not_set;
+    uint32_t type = 0;
 private:
     natural_32_bit size = 0;
 
@@ -24,9 +23,7 @@ friend struct message;
 struct  message
 {
     message();
-    message(message_type type);
 
-    message_type type();
     natural_32_bit size();
 
     void  clear();

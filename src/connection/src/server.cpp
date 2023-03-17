@@ -3,8 +3,6 @@
 #include <connection/server.hpp>
 #include <connection/client.hpp>
 #include <iomodels/iomanager.hpp>
-#include <fuzzing/fuzzing_run.hpp>
-#include <fuzzing/fuzzers_map.hpp>
 #include <utility/timeprof.hpp>
 #include <utility/config.hpp>
 
@@ -23,9 +21,13 @@ server::server(uint16_t port, std::string path_to_client):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
     client_executor_(10, 
                     path_to_client.empty() ? "" : 
-                        std::move(path_to_client) + " --port " + std::to_string(port) + 
-                        " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()) +
-                        " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_stdin()->get_max_bits()), 
+                        std::move(path_to_client) +
+                        " --port " + std::to_string(port) +
+                        " --max_trace_length " + std::to_string(iomodels::iomanager::instance().get_config().max_trace_length) +
+                        " --max_stack_size " + std::to_string(iomodels::iomanager::instance().get_config().max_stack_size) +
+                        " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_config().max_stdin_bits) +
+                        " --stdin_model_name " + iomodels::iomanager::instance().get_config().stdin_model_name +
+                        " --stdout_model_name " + iomodels::iomanager::instance().get_config().stdout_model_name,
                     connections)
     {}
 
@@ -33,13 +35,27 @@ server::server(uint16_t port, std::string path_to_client):
 void server::start() {
     accept_connection();
     thread = std::thread([this]() {io_context.run();});
+    client_executor_.start();
 }
 
 
 void server::stop() {
+    client_executor_.stop();
     io_context.stop();
     if (thread.joinable()) {
         thread.join();
+    }
+}
+
+
+void  server::send_input_to_client_and_receive_result()
+{
+    using namespace std::chrono_literals;
+    if (auto excptr = client_executor_.get_exception_ptr()) {
+        std::rethrow_exception(excptr);
+    }
+    if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
+        send_input_to_client_and_receive_result(*connection);
     }
 }
 
@@ -86,8 +102,8 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     else if (ec) {
         throw ec;
     }
-    iomodels::iomanager::instance().received_message_type = results_from_client.type();
 
+    iomodels::iomanager::instance().load_termination(results_from_client);
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().load_trace(results_from_client);
     iomodels::iomanager::instance().clear_br_instr_trace();
@@ -98,31 +114,5 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     iomodels::iomanager::instance().load_stdout(results_from_client);
 }
 
-
-void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
-{
-    using namespace std::chrono_literals;
-    while (true)
-    {
-        if (auto excptr = client_executor_.get_exception_ptr()) {
-            std::rethrow_exception(excptr);
-        }
-        if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
-            fuzzer->_on_driver_begin();
-            send_input_to_client_and_receive_result(*connection);
-            fuzzer->_on_driver_end();
-        }
-    }
-}
-
-
-fuzzing::analysis_outcomes  server::run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info)
-{
-    ASSUMPTION(fuzzing::get_fuzzers_map().count(fuzzer_name) != 0UL);
-    client_executor_.start();
-    fuzzing::analysis_outcomes results = fuzzing::run(*this, fuzzing::get_fuzzers_map().at(fuzzer_name)(info));
-    client_executor_.stop();
-    return results;
-}
 
 }

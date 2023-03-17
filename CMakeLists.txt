@@ -17,7 +17,7 @@ else()
     message(SEND_ERROR "Unknown build type. Use either Debug, Release, or RelWithDebInfo. E.g.: -DCMAKE_BUILD_TYPE=Release")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(CMAKE_COMPILER_IS_GNUCXX)
     message("Compiler = GCC")
@@ -37,11 +37,6 @@ endmacro()
 macro(append_linker_flags FLAGS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAGS}")
 endmacro()
-
-# find and add Eigen math library
-#message("Searching for Eigen ...")
-#find_package(Eigen3 CONFIG REQUIRED)
-#set(EIGEN_LIST_OF_LIBRARIES_TO_LINK_WITH "Eigen3::Eigen")
 
 # find and add Boost
 message("Searching for Boost library ...")

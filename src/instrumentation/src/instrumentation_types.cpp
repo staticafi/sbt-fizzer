@@ -4,10 +4,10 @@
 namespace  instrumentation {
 
 
-branching_coverage_info::branching_coverage_info(location_id const  id)
-    : branching_id(id)
-    , covered_branch{}
-    , distance_to_uncovered_branch{}
+branching_coverage_info::branching_coverage_info(location_id const  id_)
+    : id{id_}
+    , direction{}
+    , value{}
     , idx_to_br_instr{}
 {}
 
@@ -20,7 +20,7 @@ br_instr_coverage_info::br_instr_coverage_info(location_id const  id)
 
 bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_info const&  r)
 {
-    return l.branching_id == r.branching_id && l.covered_branch == r.covered_branch;
+    return l.id == r.id && l.direction == r.direction;
 }
 
 std::ostream&  operator<<(std::ostream&  ostr, location_id const  id)

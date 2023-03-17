@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <utility/log.hpp>
 #include <utility/timestamp.hpp>
 #include <utility/assumptions.hpp>

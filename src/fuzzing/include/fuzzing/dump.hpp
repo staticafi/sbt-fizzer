@@ -3,6 +3,7 @@
 
 #   include <fuzzing/analysis_outcomes.hpp>
 #   include <fuzzing/termination_info.hpp>
+#   include <iomodels/iomanager.hpp>
 #   include <string>
 #   include <iosfwd>
 #   include <filesystem>
@@ -12,29 +13,31 @@ namespace  fuzzing {
 
 void  print_fuzzing_configuration(
         std::ostream&  ostr,
-        std::string const&  fuzzer_name,
-        std::string const&  benchmark_name,
-        termination_info const&  info,
-        std::size_t  max_trace_size,
-        std::size_t  max_stdin_bits
+        std::string const&  benchmark,
+        iomodels::iomanager::configuration const&  ioconfig,
+        termination_info const&  terminator
         );
 
 void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results, bool const  dump_traces = false);
 
-void  print_trace_with_coverage_info(
+void  print_execution_record(
         std::ostream&  ostr,
-        trace_with_coverage_info const&  trace,
-        bool  dump_coverage_info,
+        execution_record const&  record,
         bool  dump_chunks,
         std::string const&  shift = ""
         );
 
-void  save_traces_with_coverage_infos_to_directory(
+void  save_execution_records_to_directory(
         std::filesystem::path const&  output_dir,
-        std::vector<trace_with_coverage_info> const&  traces_forming_coverage,
-        bool  dump_coverage_info,
+        std::vector<execution_record> const&  records,
         bool  dump_chunks,
         std::string const&  test_name_prefix = ""
+        );
+
+void  save_debug_data_to_directory(
+        std::filesystem::path const&  output_dir,
+        std::string const&  name_prefix,
+        std::unordered_map<std::string, std::string> const&  data
         );
 
 

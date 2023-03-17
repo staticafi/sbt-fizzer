@@ -1,9 +1,9 @@
 #include <fuzzing/dump.hpp>
+#include <connection/client.hpp>
+#include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/math.hpp>
 #include <utility/log.hpp>
-#include <set>
-#include <map>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -13,28 +13,32 @@ namespace  fuzzing {
 
 void  print_fuzzing_configuration(
         std::ostream&  ostr,
-        std::string const&  fuzzer_name,
-        std::string const&  benchmark_name,
-        termination_info const&  info,
-        std::size_t const  max_trace_size,
-        std::size_t const  max_stdin_bits
+        std::string const&  benchmark,
+        iomodels::iomanager::configuration const&  ioconfig,
+        termination_info const&  terminator
         )
 {
     ostr << "Accepted the following configuration:\n"
-         << "   Fuzzer: " << fuzzer_name << "\n"
-         << "   Benchmark: " << benchmark_name << "\n"
-         << "   Max executions: " << info.max_driver_executions << "\n"
-         << "   Max seconds: " << info.max_fuzzing_seconds << "\n"
-         << "   Max trace size: " << max_trace_size << "\n"
-         << "   Max stdin bits: " << max_stdin_bits << "\n"
-         << "   Allow blind fuzzing: " << std::boolalpha << info.allow_blind_fuzzing << "\n";
+         << "   Benchmark: " << benchmark << "\n"
+         << "   Max executions: " << terminator.max_driver_executions << "\n"
+         << "   Max seconds: " << terminator.max_fuzzing_seconds << "\n"
+         << "   Max trace length: " << ioconfig.max_trace_length << "\n"
+         << "   Max stack size: " << (int)ioconfig.max_stack_size << "\n"
+         << "   Max stdin bits: " << ioconfig.max_stdin_bits << "\n"
+         << "   stdin model: " << ioconfig.stdin_model_name << "\n"
+         << "   stdout model: " << ioconfig.stdout_model_name << "\n"
+         ;
     ostr.flush();
 
     LOG(LSL_INFO,
-        "Fuzzing '" << benchmark_name << "' by '" << fuzzer_name << ". "
-            << "[Max executions: " << info.max_driver_executions
-            << ", Max seconds: " << info.max_fuzzing_seconds
-            << ", Allow blind fuzzing: " << std::boolalpha << info.allow_blind_fuzzing
+        "Fuzzing '" << benchmark << ". "
+            << "[Max executions: " << terminator.max_driver_executions
+            << ", Max seconds: " << terminator.max_fuzzing_seconds
+            << ", Max trace length: " << ioconfig.max_trace_length << "\n"
+            << ", Max stack size: " << (int)ioconfig.max_stack_size << "\n"
+            << ", Max stdin bits: " << ioconfig.max_stdin_bits << "\n"
+            << ", stdin model: " << ioconfig.stdin_model_name << "\n"
+            << ", stdout model: " << ioconfig.stdout_model_name << "\n"
             << ']');
 }
 
@@ -46,62 +50,68 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     case analysis_outcomes::TERMINATION_TYPE::NORMAL:
         ostr << "Fuzzing terminated normally.";
         break;
-    case analysis_outcomes::TERMINATION_TYPE::INVARIANT_FAILURE:
+    case analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR:
         ostr << "Fuzzing early-terminated due to invariant failure.";
         break;
-    case analysis_outcomes::TERMINATION_TYPE::ASSUMPTION_FAILURE:
-        ostr << "Fuzzing early-terminated due to assumption failure.";
+    case analysis_outcomes::TERMINATION_TYPE::CLIENT_COMMUNICATION_ERROR:
+        ostr << "Fuzzing early-terminated due to error in communication with the client.";
         break;
-    case analysis_outcomes::TERMINATION_TYPE::CODE_UNDER_CONSTRUCTION_REACHED:
-        ostr << "Fuzzing early-terminated due to reaching code under construction.";
-        break;
-    case analysis_outcomes::TERMINATION_TYPE::UNEXPECTED_CLIENT_CRASH:
-        ostr << "Fuzzing early-terminated due to an unexpected client crash.";
-        break;
-    case analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_EXCEPTION:
-        ostr << "Fuzzing early-terminated due to an unclassified exception.";
+    case analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_ERROR:
+        ostr << "Fuzzing early-terminated due to an unclassified error.";
         break;
     }
     ostr << " Details:\n   Termination reason: " << results.termination_message << std::endl;
 
-    ostr << "   Executions performed: " << results.num_executions << '\n';
-    
-    if (results.num_max_trace_size_reached > 0) {
-        ostr << "   Times maximum trace size was reached: " << results.num_max_trace_size_reached << '\n';
-    }
+    ostr << "   Executions performed: " << results.num_executions << '\n'
+         << "   Seconds spent: " << results.num_elapsed_seconds << '\n'
+         << "   Sensitivity analysis:\n"
+         << "       Generated inputs: " << results.sensitivity_statistics.generated_inputs << '\n'
+         << "       Max bits: " << results.sensitivity_statistics.max_bits << '\n'
+         << "       Start calls: " << results.sensitivity_statistics.start_calls << '\n'
+         << "       Stop calls regular: " << results.sensitivity_statistics.stop_calls_regular << '\n'
+         << "       Stop calls early: " << results.sensitivity_statistics.stop_calls_early << '\n'
+         << "   Minimization analysis:\n"
+         << "       Generated inputs: " << results.minimization_statistics.generated_inputs << '\n'
+         << "       Max bits: " << results.minimization_statistics.max_bits << '\n'
+         << "       Seeds processed: " << results.minimization_statistics.seeds_processed << '\n'
+         << "       Gradient steps: " << results.minimization_statistics.gradient_steps << '\n'
+         << "       Start calls: " << results.minimization_statistics.start_calls << '\n'
+         << "       Stop calls regular: " << results.minimization_statistics.stop_calls_regular << '\n'
+         << "       Stop calls early: " << results.minimization_statistics.stop_calls_early << '\n'
+         << "   Fuzzer:\n"
+         << "       Tree leaves created: " << results.statistics.leaf_nodes_created << '\n'
+         << "       Tree leaves destroyed: " << results.statistics.leaf_nodes_destroyed << '\n'
+         << "       Tree nodes created: " << results.statistics.nodes_created << '\n'
+         << "       Tree nodes destroyed: " << results.statistics.nodes_destroyed << '\n'
+         << "       Max tree leaves: " << results.statistics.max_leaf_nodes << '\n'
+         << "       Longest tree branch: " << results.statistics.longest_branch << '\n'
+         << "       Traces to crash total: " << results.statistics.traces_to_crash_total << '\n'
+         << "       Traces to crash recorded: " << results.statistics.traces_to_crash_recorded << '\n'
+         ;
 
-    ostr << "   Seconds spent: " << results.num_elapsed_seconds << '\n';
+    if (results.statistics.leaf_nodes_created != results.statistics.leaf_nodes_destroyed)
+        ostr << "   WARNING: The number of created and destroyed leaf nodes differ." << '\n';
+    if (results.statistics.nodes_created != results.statistics.nodes_destroyed)
+        ostr << "   WARNING: The number of created and destroyed nodes differ => Memory leak!" << '\n';
+    if (results.sensitivity_statistics.start_calls != results.sensitivity_statistics.stop_calls_regular + results.sensitivity_statistics.stop_calls_early)
+        ostr << "   WARNING: The number of starts does not match to the number of stops in the sensitivity analysis." << '\n';
+    if (results.minimization_statistics.start_calls != results.minimization_statistics.stop_calls_regular + results.minimization_statistics.stop_calls_early)
+        ostr << "   WARNING: The number of starts does not match to the number of stops in the minimization analysis." << '\n';
 
-    std::set<natural_32_bit>  covered_ids;
-    for (instrumentation::location_id const  loc_id : results.covered_branchings)
-        covered_ids.insert(loc_id.id);
-
-    std::map<std::pair<natural_32_bit, bool>, std::unordered_set<natural_32_bit> >  uncovered_ids;
-    for (auto const&  id_and_branching : results.uncovered_branchings)
-        if (covered_ids.count(id_and_branching.first.id) == 0)
-            uncovered_ids[{ id_and_branching.first.id, id_and_branching.second }].insert(id_and_branching.first.context_hash);
-        else
-        {
-            uncovered_ids.erase({ id_and_branching.first.id, !id_and_branching.second });
-            covered_ids.insert(id_and_branching.first.id);
-        }
-
-    ostr << "   Covered branchings [basic block]: " << covered_ids.size() << std::endl;
-    for (natural_32_bit const  id : covered_ids)
+    ostr << "   Covered branchings [line]: " << results.covered_branchings.size() << std::endl;
+    for (instrumentation::location_id const  id : results.covered_branchings)
         ostr << "      " << id << "\n";
 
-    ostr << "   Uncovered branchings [basic block:uncovered branch#num_contexts]: " << uncovered_ids.size() << std::endl;
-    for (auto const&  id_and_branching : uncovered_ids)
-        ostr << "      " << id_and_branching.first.first << ":"
-                         << (id_and_branching.first.second ? "true" : "false") << '#'
-                         << id_and_branching.second.size() << "\n";
+    ostr << "   Uncovered branchings [line, direction]: " << results.uncovered_branchings.size() << std::endl;
+    for (auto const&  id_and_branching : results.uncovered_branchings)
+        ostr << "      " << id_and_branching.first << (id_and_branching.second ? '+' : '-') << "\n";
 
-    ostr << "   Traces forming the coverage: " << results.traces_forming_coverage.size() << std::endl;
+    ostr << "   Generated tests: " << results.execution_records.size() << std::endl;
     if (dump_traces)
-        for (trace_with_coverage_info const&  trace : results.traces_forming_coverage)
+        for (execution_record const&  record : results.execution_records)
         {
             ostr << "   ******************************************\n";
-            print_trace_with_coverage_info(ostr, trace, true, true, "   ");
+            print_execution_record(ostr, record, true, "   ");
         }
 
     ostr.flush();
@@ -114,24 +124,39 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     {
         std::stringstream  sstr;
         for (auto const&  id_and_branching : results.uncovered_branchings)
-            sstr << id_and_branching.first << ":" << (id_and_branching.second ? "true" : "false") << ", ";
+            sstr << id_and_branching.first << (id_and_branching.second ? '+' : '-');
         LOG(LSL_INFO, "Fuzzing did not cover these branchings: " << sstr.str());
     }
 }
 
 
-void  print_trace_with_coverage_info(
+void  print_execution_record(
         std::ostream&  ostr,
-        trace_with_coverage_info const&  trace,
-        bool  dump_coverage_info,
+        execution_record const&  record,
         bool  dump_chunks,
         std::string const&  shift
         )
 {
     vecu8  byte_values;
-    bits_to_bytes(trace.input_stdin, byte_values);
+    bits_to_bytes(record.stdin_bits, byte_values);
 
-    ostr << shift << "bytes [stdin]{hex}: " << byte_values.size();
+    vecu32  chunk_values;
+    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_bit_counts.size(); i < n; ++i)
+    {
+        ASSUMPTION(record.stdin_bit_counts.at(i) <= 8U * sizeof(chunk_values.back()));
+        chunk_values.push_back(0U);
+        for (natural_8_bit  j = 0U, m = record.stdin_bit_counts.at(i) / 8U; j < m; ++j)
+            *(((natural_8_bit*)&chunk_values.back()) + j) = byte_values.at(k + j);
+        k += record.stdin_bit_counts.at(i) / 8U;
+    }
+
+    ostr << shift << "flags [discovery, coverage, crash]:\n" << shift << shift 
+         << ((record.flags & execution_record::BRANCH_DISCOVERED) != 0) << ", "
+         << ((record.flags & execution_record::BRANCH_COVERED) != 0) << ", "
+         << ((record.flags & execution_record::EXECUTION_CRASHES) != 0) << '\n'
+         ;
+
+    ostr << shift << "bytes [stdin, hex]: " << byte_values.size();
     for (natural_32_bit  i = 0U, n = (natural_32_bit)byte_values.size(); i < n; ++i)
     {
         if (i % 16U == 0U) ostr << '\n' << shift << shift;
@@ -140,84 +165,53 @@ void  print_trace_with_coverage_info(
 
     if (dump_chunks)
     {
-        veci32  chunk_values;
-        for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)trace.input_stdin_counts.size(); i < n; ++i)
-        {
-            ASSUMPTION(trace.input_stdin_counts.at(i) <= 8U * sizeof(chunk_values.back()));
-            chunk_values.push_back(0U);
-            for (natural_8_bit  j = 0U, m = trace.input_stdin_counts.at(i) / 8U; j < m; ++j)
-                *(((natural_8_bit*)&chunk_values.back()) + j) = byte_values.at(k + j);
-            k += trace.input_stdin_counts.at(i) / 8U;
-        }
-
-        ostr << '\n' << shift << "chunks [num_bytes:int_value]{dec}: " << chunk_values.size();
+        ostr << '\n' << shift << "chunks [stdin, dec, uint]: " << chunk_values.size();
         for (natural_32_bit  i = 0U, n = (natural_32_bit)chunk_values.size(); i < n; ++i)
         {
-            if (i != 0U) ostr << ',';
+            if (i != 0U) ostr << ", ";
             if (i % 8U == 0U) ostr << '\n' << shift << shift;
-            ostr << std::dec << (natural_32_bit)trace.input_stdin_counts.at(i) / 8U << ':'
-                 << std::dec << chunk_values.at(i);
+            ostr << std::dec << (natural_32_bit)record.stdin_bit_counts.at(i) / 8U << ':'
+                 << std::dec << (natural_32_bit)chunk_values.at(i);
         }
     }
 
-    if (dump_coverage_info)
-    {
-        if (!trace.discovered_locations.empty())
-        {
-            std::set<natural_32_bit>  locations;
-            for (auto const&  loc : trace.discovered_locations)
-                locations.insert(loc.id);
-
-            ostr << '\n' << shift << "discovered: " << locations.size();
-            natural_32_bit  i = 0U;
-            for (auto it = locations.begin(); it != locations.end(); ++it, ++i)
-            {
-                if (i != 0U) ostr << ',';
-                if (i % 16U == 0U) ostr << '\n' << shift << shift;
-                ostr << std::dec << *it;
-            }
-        }
-
-        if (!trace.covered_locations.empty())
-        {
-            std::set<natural_32_bit>  locations;
-            for (auto const&  loc : trace.covered_locations)
-                locations.insert(loc.id);
-
-            ostr << '\n' << shift << "covered: " << locations.size();
-            natural_32_bit  i = 0U;
-            for (auto it = locations.begin(); it != locations.end(); ++it, ++i)
-            {
-                if (i != 0U) ostr << ',';
-                if (i % 16U == 0U) ostr << '\n' << shift << shift;
-                ostr << std::dec << *it;
-            }
-        }
-    }
-
-    ostr << '\n' << shift << "branchings: " << trace.trace.size();
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)trace.trace.size(); i < n; ++i)
+    ostr << '\n' << shift << "branchings: " << record.path.size();
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)record.path.size(); i < n; ++i)
     {
         if (i % 16U == 0U) ostr << '\n' << shift << shift;
-        ostr << std::dec << trace.trace.at(i).first.id << (trace.trace.at(i).second ? '+' : '-');
+        ostr << std::dec << record.path.at(i).first << (record.path.at(i).second ? '+' : '-');
     }
 
     ostr << std::endl;
 }
 
-void  save_traces_with_coverage_infos_to_directory(
+void  save_execution_records_to_directory(
         std::filesystem::path const&  output_dir,
-        std::vector<trace_with_coverage_info> const&  traces_forming_coverage,
-        bool  dump_coverage_info,
+        std::vector<execution_record> const&  records,
         bool  dump_chunks,
         std::string const&  test_name_prefix
         )
 {
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)traces_forming_coverage.size(); i < n; ++i)
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)records.size(); i < n; ++i)
     {
         std::filesystem::path const  test_file_path = output_dir / (test_name_prefix + "_" + std::to_string(i + 1U) + ".et");
         std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
-        print_trace_with_coverage_info(ostr, traces_forming_coverage.at(i), dump_coverage_info, dump_chunks, "   ");
+        print_execution_record(ostr, records.at(i), dump_chunks, "   ");
+    }
+}
+
+
+void  save_debug_data_to_directory(
+        std::filesystem::path const&  output_dir,
+        std::string const&  name_prefix,
+        std::unordered_map<std::string, std::string> const&  data
+        )
+{
+    for (auto const&  suffix_and_value : data)
+    {
+        std::filesystem::path const  debug_file_path = output_dir / (name_prefix + suffix_and_value.first);
+        std::ofstream  ostr(debug_file_path.c_str(), std::ios::binary);
+        ostr << suffix_and_value.second;
     }
 }
 

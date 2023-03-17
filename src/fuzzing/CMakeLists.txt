@@ -1,26 +1,33 @@
 set(THIS_TARGET_NAME fuzzing)
 
 add_library(${THIS_TARGET_NAME}
-    ./include/fuzzing/fuzzer_base.hpp
-    ./src/fuzzer_base.cpp
+    ./include/fuzzing/stdin_bits.hpp
+    ./include/fuzzing/branching_node.hpp
+    ./include/fuzzing/fuzzer.hpp
+    ./src/fuzzer.cpp
+
+    ./include/fuzzing/sensitivity_analysis.hpp
+    ./src/sensitivity_analysis.cpp
+
+    ./include/fuzzing/minimization_analysis.hpp
+    ./src/minimization_analysis.cpp
+
+    ./include/fuzzing/execution_trace.hpp
+    ./src/execution_trace.cpp
 
     ./include/fuzzing/termination_info.hpp
     ./include/fuzzing/analysis_outcomes.hpp
+    ./include/fuzzing/execution_record.hpp
 
-    ./include/fuzzing/fuzzer_dummy.hpp
-    ./src/fuzzer_dummy.cpp
-
-    ./include/fuzzing/fuzzing_run.hpp
-    ./src/fuzzing_run.cpp
-
-    ./include/fuzzing/fuzzers_map.hpp
-    ./src/fuzzers_map.cpp
+    ./include/fuzzing/fuzzing_loop.hpp
+    ./src/fuzzing_loop.cpp
 
     ./include/fuzzing/dump.hpp
     ./src/dump.cpp
-
     ./include/fuzzing/dump_testcomp.hpp
     ./src/dump_testcomp.cpp
+    ./include/fuzzing/dump_tree.hpp
+    ./src/dump_tree.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

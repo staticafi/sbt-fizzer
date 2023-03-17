@@ -6,7 +6,6 @@
 #   include <connection/message.hpp>
 #   include <connection/connection.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
-#   include <fuzzing/fuzzer_base.hpp>
 #   include <fuzzing/termination_info.hpp>
 #   include <connection/ts_queue.hpp>
 #   include <connection/client_executor.hpp>
@@ -30,14 +29,13 @@ struct  server
     
     void  start();
     void  stop();
+
+    void  send_input_to_client_and_receive_result();
+    
+private:
     void  accept_connection();
     void  send_input_to_client_and_receive_result(std::shared_ptr<connection> connection);
 
-    void  fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer);
-    fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
-    
-
-private:
     boost::asio::io_context io_context;
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
