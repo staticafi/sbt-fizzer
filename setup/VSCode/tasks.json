@@ -46,12 +46,12 @@
 
                     // "pending/array_2-1.i"
                     // "pending/array1_pattern.c"
+                    // "pending/call_bool_arg.c"
+                    // "pending/log_and.c"
+                    // "pending/log_cond.c"
                     // "pending/loop1-1.c"
                     // "pending/newton_1_1.i"
                     // "pending/pnr3.c"
-                    // "pending/log_and.c"
-                    // "pending/log_cond.c"
-                    // "pending/call_bool_arg.c"
 
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]

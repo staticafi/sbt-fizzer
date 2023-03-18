@@ -38,11 +38,14 @@
                     // "fast/uint16_if_parabola.sbt-client",
                     // "fast/uint32_if_parabola.sbt-client",
 
-                    // "pending/array_2-1.i"
-                    // "pending/array1_pattern.c"
-                    // "pending/loop1-1.c"
-                    // "pending/newton_1_1.i"
-                    // "pending/pnr3.c"
+                    // "pending/array_2-1.sbt-client",
+                    // "pending/array1_pattern.sbt-client",
+                    // "pending/call_bool_arg.sbt-client",
+                    // "pending/log_and.sbt-client",
+                    // "pending/log_cond.sbt-client",
+                    // "pending/loop1-1.sbt-client",
+                    // "pending/newton_1_1.sbt-client",
+                    // "pending/pnr3.sbt-client",
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
@@ -141,14 +144,14 @@
                     // "fast/uint16_if_parabola.c",
                     // "fast/uint32_if_parabola.c",
 
-                    // "pending/array_2-1.i"
-                    // "pending/array1_pattern.c"
-                    // "pending/loop1-1.c"
-                    // "pending/newton_1_1.i"
-                    // "pending/pnr3.c"
-                    // "pending/log_and.c"
-                    // "pending/log_cond.c"
-                    // "pending/call_bool_arg.c"
+                    // "pending/array_2-1.i",
+                    // "pending/array1_pattern.c",
+                    // "pending/call_bool_arg.c",
+                    // "pending/log_and.c",
+                    // "pending/log_cond.c",
+                    // "pending/loop1-1.c",
+                    // "pending/newton_1_1.i",
+                    // "pending/pnr3.c",
                 ],
             "cwd": "${workspaceFolder}/dist",
             "justMyCode": true
