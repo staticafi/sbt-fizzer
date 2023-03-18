@@ -161,8 +161,10 @@ Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
         }
     }
 
-    Value *distance = builder.CreateUIToFP(
-        builder.CreateSub(lhs, rhs), DoubleTy);
+    bool const is_unsigned = CmpInst::ICMP_UGT <= opcode && opcode <= CmpInst::ICMP_ULE;
+
+    Value *distance = is_unsigned ? builder.CreateUIToFP(builder.CreateSub(lhs, rhs), DoubleTy) :
+                                    builder.CreateSIToFP(builder.CreateSub(lhs, rhs), DoubleTy) ;
 
     return distance;
 }
