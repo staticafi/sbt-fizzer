@@ -44,6 +44,21 @@ void run(int argc, char* argv[])
     }
     std::string client_name = "client";
     if (!get_program_options()->value("path_to_client").empty()) {
+        if (!std::filesystem::is_regular_file(get_program_options()->value("path_to_client")))
+        {
+            std::cerr << "ERROR: The passed client path '"
+                      << get_program_options()->value("path_to_client")
+                      << "' does not reference a regular file.\n";
+            return;
+        }
+        std::filesystem::perms const perms = std::filesystem::status(get_program_options()->value("path_to_client")).permissions();
+        if ((perms & std::filesystem::perms::owner_exec) == std::filesystem::perms::none)
+        {
+            std::cerr << "ERROR: The passed client path '"
+                      << get_program_options()->value("path_to_client")
+                      << "' references a file which is NOT executable.\n";
+            return;
+        }
         std::filesystem::path client_path(get_program_options()->value("path_to_client"));
         client_name = client_path.stem().string();
     }
