@@ -1,5 +1,6 @@
 #include <iomodels/iomanager.hpp>
 #include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
+#include <iomodels/stdin_replay_bits_then_repeat_zero.hpp>
 #include <iomodels/stdout_void.hpp>
 #include <iomodels/ioexceptions.hpp>
 #include <utility/hash_combine.hpp>
@@ -189,7 +190,9 @@ std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_cou
 {
     static std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_count_type)> > const  models {
         { "stdin_replay_bits_then_repeat_85", [](stdin_base::bit_count_type const  max_bits){
-            return std::make_shared<stdin_replay_bits_then_repeat_85>(max_bits); } }
+            return std::make_shared<stdin_replay_bits_then_repeat_85>(max_bits); } },
+        { "stdin_replay_bits_then_repeat_zero", [](stdin_base::bit_count_type const  max_bits){
+            return std::make_shared<stdin_replay_bits_then_repeat_zero>(max_bits); } }
     };
     return models;
 }
