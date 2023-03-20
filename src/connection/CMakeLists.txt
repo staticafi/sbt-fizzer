@@ -7,6 +7,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/client.hpp
     ./src/client.cpp
 
+    ./include/connection/kleeient.hpp
+    ./src/kleeient.cpp
+
     ./include/connection/message.hpp
     ./src/message.cpp
 
