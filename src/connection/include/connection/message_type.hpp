@@ -11,7 +11,9 @@ enum class message_type: uint32_t {
     input_for_client,
     results_from_client_normal,
     results_from_client_max_trace_reached,
-    results_from_client_error_reached
+    results_from_client_error_reached,
+    results_from_kleeient_normal,
+    results_from_kleeient_infeasible
 };
 
 }
