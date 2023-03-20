@@ -1,0 +1,6 @@
+{
+    "cmake.configureSettings": {
+        "CMAKE_TOOLCHAIN_FILE": "<vcpkg-install-dir>/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "${buildType}"
+    }
+}
