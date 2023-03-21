@@ -20,7 +20,6 @@ target_link_libraries(${THIS_TARGET_NAME}
     connection  # Duplicating because of Mingw (otherwise linking errors)
     fuzzing     # Duplicating because of Mingw (otherwise linking errors)
     utility
-    ${EIGEN_LIST_OF_LIBRARIES_TO_LINK_WITH}
     ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
     )
 
