@@ -11,6 +11,7 @@ else()
     add_compile_options("-fno-rtti")
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
 add_library(sbt-fizzer_pass MODULE src/SBT-FizzerPass.cpp)
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_link_libraries(sbt-fizzer_pass PRIVATE ${LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH})
