@@ -52,6 +52,7 @@ struct  execution_trace
     sensitivity_fuzzer_base_ptr  fuzzer;
     std::unordered_set<natural_16_bit>  sensitive_stdin_bits;
     integer_32_bit  fuzzed_record_idx;
+    bool feasible;
 };
 
 

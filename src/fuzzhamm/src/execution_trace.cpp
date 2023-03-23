@@ -13,6 +13,7 @@ execution_trace::execution_trace()
     , fuzzer(nullptr)
     , sensitive_stdin_bits()
     , fuzzed_record_idx(-1)
+    , feasible(true)
 {}
 
 

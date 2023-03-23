@@ -62,6 +62,10 @@ void  iomanager::set_trace_max_size(std::size_t max_size) {
     trace_max_size = max_size;
 }
 
+void  iomanager::set_trace(std::vector<branching_coverage_info> trace_) {
+    trace = trace_;
+}
+
 
 void  iomanager::branching(instrumentation::branching_coverage_info const&  info)
 {
