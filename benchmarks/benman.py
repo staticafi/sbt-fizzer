@@ -5,6 +5,8 @@ import shutil
 import platform
 import argparse
 
+from typing import Union, List
+
 
 def ASSUMPTION(cond, msg="Unknown."):
     if not cond:
@@ -263,7 +265,7 @@ class Benman:
         self.llvm_pass_binary = self._find_binary_file(self.lib_dir, "sbt-fizzer_pass_")
         ASSUMPTION(self.llvm_pass_binary is not None, "The server binary not found. Build and install the project first.")
 
-    def _find_binary_file(self, folder : str, subname : str) -> str|None:
+    def _find_binary_file(self, folder : str, subname : str) -> Union[str, None]:
         second_change = None
         for fname in os.listdir(folder):
             if os.path.isfile(os.path.join(folder, fname)) and subname in fname:
@@ -273,7 +275,7 @@ class Benman:
                     second_change = os.path.join(folder, fname)
         return second_change
 
-    def collect_benchmarks(self, name : str) -> list[str]:
+    def collect_benchmarks(self, name : str) -> List[str]:
         def complete_and_check_benchmark_path(name : str) -> str:
             pathname = os.path.join(self.benchmarks_dir, name)
             ASSUMPTION(os.path.isfile(pathname), "The benchmark path is invalid: " + pathname)
