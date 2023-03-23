@@ -8,8 +8,6 @@
 program_options::program_options(int argc, char* argv[])
     : program_options_default(argc, argv)
 {
-    add_option("input", "Run the instrumented file with the specified hexadecimal input and output the trace.", "1");
-
     add_option("address", "The address of the SBT-Fizzer server in IPv4 dotted decimal form or IPv6 hexadecimal notation.", "1");
     add_value("address", "127.0.0.1");
 
