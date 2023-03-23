@@ -44,9 +44,9 @@ struct FizzerPass : public FunctionPass {
     FunctionCallee fizzerTerminate;
     FunctionCallee fizzerReachError;
 
-    unsigned int basicBlockCount;
-    unsigned int condCount;
-    unsigned int callSiteCount;
+    unsigned int basicBlockCounter;
+    unsigned int condCounter;
+    unsigned int callSiteCounter;
 
     FizzerPass() : FunctionPass(ID) {}
     void replaceCalls(
@@ -67,13 +67,6 @@ struct FizzerPass : public FunctionPass {
                           IRBuilder<> &builder);
     Value *instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
-
-    CallInst *instrumentIntEq(Value *val1, Value *val2, IRBuilder<> &builder);
-    CallInst *instrumentFPEq(Value *val1, Value *val2, IRBuilder<> &builder);
-    std::tuple<Value *, Value *> instrumentIntIneq(Value *val1, Value *val2,
-                                                   IRBuilder<> &builder);
-    std::tuple<Value *, Value *> instrumentFPIneq(Value *val1, Value *val2,
-                                                  IRBuilder<> &builder);
 };
 
 } // namespace
@@ -114,9 +107,9 @@ bool FizzerPass::doInitialization(Module &M) {
     fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
                                              VoidTy);
 
-    basicBlockCount = 0;
-    condCount = 0;
-    callSiteCount = 0;
+    basicBlockCounter = 0;
+    condCounter = 0;
+    callSiteCounter = 0;
 
     return true;
 }
@@ -130,43 +123,39 @@ void FizzerPass::printErrCond(Value *cond) {
 Value *FizzerPass::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
 
-    Value *valTrue = ConstantInt::get(lhs->getType(), 0);
-    Value *valFalse = ConstantInt::get(lhs->getType(), 0);
-
-    CmpInst::Predicate opcode = cmpInst->getPredicate();
-
     // pointer comparison -> consider the distance to be 1
     if (lhs->getType()->isPointerTy()) {
         return ConstantFP::get(DoubleTy, 1);
-    } else {
-        // if the value was extended we can't overflow meaning we don't need to
-        // cast to a higher type
-        if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
-              dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
+    }
 
-            // extend based on the signedness
-            if (CmpInst::ICMP_UGT <= opcode && opcode <= CmpInst::ICMP_ULE) {
-                lhs =
-                    builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
-            }
-            // treat values tested for equality as signed
-            else {
-                lhs =
-                    builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
-            }
+    bool isUnsigned = cmpInst->isUnsigned();
+
+    // if the value was extended we can't overflow meaning we don't need to
+    // cast to a higher type
+    if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
+            dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
+
+        // extend based on the signedness
+        if (isUnsigned) {
+            lhs =
+                builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
+            rhs =
+                builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
+        }
+        else {
+            lhs =
+                builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
+            rhs =
+                builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
         }
     }
 
-    bool const is_unsigned = CmpInst::ICMP_UGT <= opcode && opcode <= CmpInst::ICMP_ULE;
+    Value *distance = builder.CreateSub(lhs, rhs);
 
-    Value *distance = is_unsigned ? builder.CreateUIToFP(builder.CreateSub(lhs, rhs), DoubleTy) :
-                                    builder.CreateSIToFP(builder.CreateSub(lhs, rhs), DoubleTy) ;
-
-    return distance;
+    if (isUnsigned) {
+        return builder.CreateUIToFP(distance, DoubleTy);
+    }
+    return builder.CreateSIToFP(distance, DoubleTy);
 }
 
 Value *FizzerPass::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
@@ -209,13 +198,13 @@ void FizzerPass::instrumentCond(Instruction *inst) {
     } else if (dyn_cast<TruncInst>(inst)) {
         distance = ConstantFP::get(DoubleTy, 1);
     // i1 as a return from a call to a function
-    } else if (auto *callInst = dyn_cast<CallInst>(inst)) {
+    } else if (dyn_cast<CallInst>(inst)) {
         distance = ConstantFP::get(DoubleTy, 1);
     } else {
         return;
     }
     
-    Value *location = ConstantInt::get(Int32Ty, ++condCount);
+    Value *location = ConstantInt::get(Int32Ty, ++condCounter);
     Value *cond = inst;
 
     builder.CreateCall(processCondFunc,
@@ -225,7 +214,7 @@ void FizzerPass::instrumentCond(Instruction *inst) {
 void FizzerPass::instrumentCondBr(BranchInst *brInst) {
     IRBuilder<> builder(brInst);
     
-    Value *location = ConstantInt::get(Int32Ty, ++basicBlockCount);
+    Value *location = ConstantInt::get(Int32Ty, ++basicBlockCounter);
     Value *cond = brInst->getCondition();
 
     builder.CreateCall(processCondBrFunc, {location, cond});
@@ -272,11 +261,11 @@ void FizzerPass::instrumentCalls(Function &F) {
             }
         }
     }
-    for (CallInst* callInst: callSites) {
+    for (CallInst *callInst: callSites) {
         IRBuilder<>{ callInst }.CreateCall(processCallBeginFunc,
-            { ConstantInt::get(Int32Ty, ++callSiteCount) });
+            { ConstantInt::get(Int32Ty, ++callSiteCounter) });
         IRBuilder<>{ callInst->getNextNode() }.CreateCall(processCallEndFunc,
-            { ConstantInt::get(Int32Ty, callSiteCount) });
+            { ConstantInt::get(Int32Ty, callSiteCounter) });
     }
 }
 
@@ -298,8 +287,8 @@ bool FizzerPass::runOnFunction(Function &F) {
     instrumentCalls(F);
 
     for (BasicBlock &BB : F) {
-        ++basicBlockCount;
-        BB.setName("bb" + std::to_string(basicBlockCount));
+        ++basicBlockCounter;
+        BB.setName("bb" + std::to_string(basicBlockCounter));
 
         for (Instruction &I: BB) {
             if (I.getType() == Int1Ty) {
