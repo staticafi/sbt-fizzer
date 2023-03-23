@@ -46,6 +46,7 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , state{ STARTUP }
     , sensitivity{}
     , minimization{}
+    , jetklee{}
 
     , statistics{}
 
@@ -168,6 +169,11 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
                 return;
             break;
 
+        case JETKLEE_QUERY:
+            if (jetklee.generate_next_input(stdin_bits))
+                return;
+            break;
+
         default: UNREACHABLE(); break;
     }
 
@@ -185,6 +191,11 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
         case MINIMIZATION:
             if (minimization.generate_next_input(stdin_bits))
+                return;
+            break;
+
+        case JETKLEE_QUERY:
+            if (jetklee.generate_next_input(stdin_bits))
                 return;
             break;
 
@@ -333,11 +344,11 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && minimization.is_ready());
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_ready());
             break;
 
         case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && minimization.is_ready());
+            INVARIANT(sensitivity.is_busy() && minimization.is_ready() && jetklee.is_ready());
             sensitivity.process_execution_results(trace, entry_branching);
             {
                 leaf_branching_processing_props const&  props = leaf_branchings.at(sensitivity.get_leaf_branching());
@@ -347,10 +358,17 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && minimization.is_busy());
+            INVARIANT(sensitivity.is_ready() && minimization.is_busy() && jetklee.is_ready());
             minimization.process_execution_results(trace);
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
                 minimization.stop();
+            break;
+
+        case JETKLEE_QUERY:
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_busy());
+            jetklee.process_execution_results(trace);
+            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true))
+                jetklee.stop();
             break;
 
         default: UNREACHABLE(); break;
@@ -388,7 +406,7 @@ void  fuzzer::do_cleanup()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
+    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_ready() && state != FINISHED);
 
     if (state == SENSITIVITY)
     {
@@ -616,7 +634,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
+    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_ready() && state != FINISHED);
 
     branching_node*  winner_node = nullptr;
     branching_node*  winner_leaf = nullptr;
@@ -688,6 +706,12 @@ void  fuzzer::select_next_state()
         INVARIANT(winner_leaf != nullptr && !winner_leaf->sensitivity_performed);
         sensitivity.start(winner_leaf->best_stdin, winner_leaf->best_trace, winner_leaf);
         state = SENSITIVITY;
+    }
+    else if (jetklee.is_worth_processing(winner_node))
+    {
+        INVARIANT(!winner_node->jetklee_queued);
+        jetklee.start(winner_node);
+        state = JETKLEE_QUERY;
     }
     else
     {

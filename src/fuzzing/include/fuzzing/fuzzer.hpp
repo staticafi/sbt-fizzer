@@ -4,6 +4,7 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
+#   include <fuzzing/jetklee_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
@@ -59,6 +60,7 @@ struct  fuzzer final
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
+    jetklee_analysis::performance_statistics const&  get_jetklee_statistics() const { return jetklee.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
 
     std::unordered_map<std::string, std::string> const&  get_debug_data() const { return debug_data; }
@@ -70,6 +72,7 @@ private:
         STARTUP,
         SENSITIVITY,
         MINIMIZATION,
+        JETKLEE_QUERY,
         FINISHED
     };
 
@@ -129,6 +132,7 @@ private:
     STATE  state;
     sensitivity_analysis  sensitivity;
     minimization_analysis  minimization;
+    jetklee_analysis  jetklee;
 
     performance_statistics  statistics;
 

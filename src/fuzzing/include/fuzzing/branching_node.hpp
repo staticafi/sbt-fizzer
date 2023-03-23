@@ -52,6 +52,7 @@ struct  branching_node
 
         , sensitivity_performed{ false }
         , minimization_performed{ false }
+        , jetklee_queued{ false }
 
         , sensitive_stdin_bits{}
     {}
@@ -84,6 +85,7 @@ struct  branching_node
 
     bool sensitivity_performed;
     bool minimization_performed;
+    bool jetklee_queued;
 
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 };

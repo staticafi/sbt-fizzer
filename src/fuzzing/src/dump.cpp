@@ -78,6 +78,10 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << "       Start calls: " << results.minimization_statistics.start_calls << '\n'
          << "       Stop calls regular: " << results.minimization_statistics.stop_calls_regular << '\n'
          << "       Stop calls early: " << results.minimization_statistics.stop_calls_early << '\n'
+         << "   JetKlee analysis:\n"
+         << "       Generated inputs: " << results.jetklee_statistics.generated_inputs << '\n'
+         << "       Start calls: " << results.jetklee_statistics.start_calls << '\n'
+         << "       Covered branchings: " << results.jetklee_statistics.covered_branchings << '\n'
          << "   Fuzzer:\n"
          << "       Tree leaves created: " << results.statistics.leaf_nodes_created << '\n'
          << "       Tree leaves destroyed: " << results.statistics.leaf_nodes_destroyed << '\n'
