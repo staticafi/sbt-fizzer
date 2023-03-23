@@ -55,6 +55,7 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , sensitivity{}
     , minimization{}
     , bitshare{}
+    , jetklee{}
 
     , statistics{}
 
@@ -191,6 +192,11 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
             case SENSITIVITY:
                 if (sensitivity.generate_next_input(stdin_bits))
+                    return;
+                break;
+
+            case JETKLEE_QUERY:
+                if (jetklee.generate_next_input(stdin_bits))
                     return;
                 break;
 
@@ -361,16 +367,16 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_ready() && jetklee.is_ready());
             break;
 
         case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_busy() && minimization.is_ready() && bitshare.is_ready() && jetklee.is_ready());
             sensitivity.process_execution_results(trace, entry_branching);
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && minimization.is_busy() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_ready() && minimization.is_busy() && bitshare.is_ready() && jetklee.is_ready());
             minimization.process_execution_results(trace);
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
             {
@@ -384,6 +390,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             bitshare.process_execution_results(trace);
             if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
                 bitshare.stop();
+            break;
+
+        case JETKLEE_QUERY:
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_busy());
+            jetklee.process_execution_results(trace);
+            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true))
+                jetklee.stop();
             break;
 
         default: UNREACHABLE(); break;
@@ -423,7 +436,7 @@ void  fuzzer::do_cleanup()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
+    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_ready() && state != FINISHED);
 
     if (state == SENSITIVITY)
     {
@@ -652,7 +665,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
+    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_ready() && state != FINISHED);
 
     struct  selection_winner
     {
@@ -774,6 +787,12 @@ void  fuzzer::select_next_state()
         INVARIANT(!winner.node->sensitive_stdin_bits.empty());
         bitshare.start(winner.node);
         state = BITSHARE;
+    }
+    else if (jetklee.is_worth_processing(winner_node))
+    {
+        INVARIANT(!winner_node->jetklee_queued);
+        jetklee.start(winner_node);
+        state = JETKLEE_QUERY;
     }
     else
     {

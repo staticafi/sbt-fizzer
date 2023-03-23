@@ -174,6 +174,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << "\n"
          << shift << "},\n"
          ;
+    // TODO: print jetklee_analysis results
 
     ostr << shift << "\"num_covered_branchings\": " << results.covered_branchings.size() << ",\n"
          << shift << "\"covered_branchings\": [";

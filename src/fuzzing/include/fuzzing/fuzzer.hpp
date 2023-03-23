@@ -4,7 +4,11 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
+<<<<<<< HEAD
 #   include <fuzzing/bitshare_analysis.hpp>
+=======
+#   include <fuzzing/jetklee_analysis.hpp>
+>>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
@@ -69,7 +73,11 @@ struct  fuzzer final
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
+<<<<<<< HEAD
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
+=======
+    jetklee_analysis::performance_statistics const&  get_jetklee_statistics() const { return jetklee.get_statistics(); }
+>>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
 
     std::unordered_map<std::string, std::string> const&  get_debug_data() const { return debug_data; }
@@ -81,7 +89,11 @@ private:
         STARTUP,
         SENSITIVITY,
         MINIMIZATION,
+<<<<<<< HEAD
         BITSHARE,
+=======
+        JETKLEE_QUERY,
+>>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
         FINISHED
     };
 
@@ -141,7 +153,11 @@ private:
     STATE  state;
     sensitivity_analysis  sensitivity;
     minimization_analysis  minimization;
+<<<<<<< HEAD
     bitshare_analysis  bitshare;
+=======
+    jetklee_analysis  jetklee;
+>>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 
     performance_statistics  statistics;
 

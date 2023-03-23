@@ -33,6 +33,7 @@ struct analysis_outcomes
     sensitivity_analysis::performance_statistics   sensitivity_statistics;
     minimization_analysis::performance_statistics   minimization_statistics;
     bitshare_analysis::performance_statistics   bitshare_statistics;
+    jetklee_analysis::performance_statistics   jetklee_statistics;
     fuzzer::performance_statistics  statistics;
     std::unordered_map<std::string, std::string>  debug_data;
 };

@@ -60,6 +60,7 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
     results.sensitivity_statistics = f.get_sensitivity_statistics();
     results.minimization_statistics = f.get_minimization_statistics();
     results.bitshare_statistics = f.get_bitshare_statistics();
+    results.jetklee_statistics = f.get_jetklee_statistics();
     results.statistics = f.get_fuzzer_statistics();
     if (debug_mode)
         results.debug_data = f.get_debug_data();

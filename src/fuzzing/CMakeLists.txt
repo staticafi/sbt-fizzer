@@ -15,6 +15,10 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/bitshare_analysis.hpp
     ./src/bitshare_analysis.cpp
 
+    ./include/fuzzing/jetklee_analysis.hpp
+    ./src/jetklee_analysis.cpp
+
+
     ./include/fuzzing/execution_trace.hpp
     ./src/execution_trace.cpp
 
