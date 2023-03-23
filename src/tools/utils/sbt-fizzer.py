@@ -62,12 +62,12 @@ class FizzerUtils:
     
         if self.file_suffix == ".ll" or self.file_suffix == ".bc":
             instrumentation = (
-                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass " 
+                "opt-12 @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass "
                 "{1} -S -o {2}"
             ).format(self.pass_path_str, self.file_path, self.instrumented_file)
         else:
             instrumentation = (
-                "clang {0} -flto @CLANG_USE_LEGACY_PM@ " 
+                "clang-12 {0} -flto @CLANG_USE_LEGACY_PM@ "
                 "-Xclang -load -Xclang {1} "
                 "-Xclang -disable-O0-optnone -fno-discard-value-names {2} "
                 "-S -o {3}"
@@ -88,7 +88,7 @@ class FizzerUtils:
         client_file_name = self.file_name + "_client"
         self.client_file = self.output_dir / client_file_name
 
-        client_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
+        client_compilation = "clang++-12 {0} {1} {2} {3} -o {4}".format(
             self.client_cmake_build_flags, additional_flags, 
             self.instrumented_file, self.client_libraries, self.client_file
         )
