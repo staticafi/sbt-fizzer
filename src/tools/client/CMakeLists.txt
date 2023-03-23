@@ -50,7 +50,6 @@ if(INSTRUMENTED_LLVM_FILE)
     target_link_libraries(${THIS_TARGET_NAME}
         ${INSTRUMENTED_LLVM_FILE}
         ${CLIENT_LIBS}
-        ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
         )
 
 

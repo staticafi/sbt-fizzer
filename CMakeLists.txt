@@ -40,11 +40,11 @@ endmacro()
 
 # find and add Boost
 message("Searching for Boost library ...")
-set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS filesystem system thread)
-set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH
-        ${Boost_LIBRARIES}
-    )
+find_package(Boost 1.69 REQUIRED)
+message("Boost STATUS:
+    Includes ${Boost_INCLUDE_DIRS}
+")
+include_directories(${Boost_INCLUDE_DIRS})
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
 find_package(LLVM REQUIRED CONFIG)

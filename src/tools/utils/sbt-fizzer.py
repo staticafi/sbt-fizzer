@@ -41,7 +41,7 @@ class FizzerUtils:
     client_libraries = " ".join(map( # type: ignore
         lambda rel_path, script_dir=script_dir: str(script_dir / rel_path), 
         @CLIENT_LIBRARIES_FILES_LIST@ # type: ignore
-    )) + " @BOOST_LIBRARIES_FILES@" 
+    ))
     
     client_cmake_build_flags = (
                                 "-flto "
