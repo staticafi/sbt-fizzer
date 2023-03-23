@@ -8,6 +8,7 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/src/client/include"
     "${PROJECT_SOURCE_DIR}/src/fuzzing/include"
     "${PROJECT_SOURCE_DIR}/src/fuzzhamm/include"
+    "${PROJECT_SOURCE_DIR}/src/klee_fuzzer/include"
     )
 message("Including the following libraries to the build:")
 add_subdirectory(./utility)
@@ -24,6 +25,8 @@ add_subdirectory(./fuzzing)
     message("  fuzzing")
 add_subdirectory(./fuzzhamm)
     message("  fuzzhamm")
+add_subdirectory(./klee_fuzzer)
+    message("  klee_fuzzer")
 
 # Here follow tools, if they should be included.
 if(NOT DEFINED FIZZ_BUILD_ALSO_TOOLS)

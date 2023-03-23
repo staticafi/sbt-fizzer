@@ -17,6 +17,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     iomodels
     fuzzing
     fuzzhamm
+    klee_fuzzer
     instrumentation # Duplicating because of Mingw (otherwise linking errors)
     connection  # Duplicating because of Mingw (otherwise linking errors)
     fuzzing     # Duplicating because of Mingw (otherwise linking errors)

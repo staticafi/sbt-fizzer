@@ -21,17 +21,21 @@ namespace  connection {
 
 server::server(uint16_t port, std::string path_to_client):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
+    kleeient_acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port + 1)),
     client_executor_(10, 
                     path_to_client.empty() ? "" : 
                         std::move(path_to_client) + " --port " + std::to_string(port) + 
                         " --max_trace_size " + std::to_string(iomodels::iomanager::instance().get_trace_max_size()) +
                         " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_stdin()->get_max_bits()), 
                     connections)
-    {}
+    {
+        std::cout << "Listening for kleeient on port " << port + 1 << std::endl; // TODO: remove
+    }
 
 
 void server::start() {
     accept_connection();
+    accept_kleeient_connection();
     thread = std::thread([this]() {io_context.run();});
 }
 
@@ -57,6 +61,20 @@ void server::accept_connection() {
             accept_connection();
         }
     );
+}
+
+// blocks until a connection is established
+void server::accept_kleeient_connection() {
+    std::cout << "Waiting for kleeient to connect...\n";
+    boost::asio::ip::tcp::socket socket(io_context);
+    boost::system::error_code ec;
+    kleeient_acceptor.accept(socket, ec);
+    if (ec) {
+        std::cerr << "ERROR: accepting connection\n" << ec.message() << "\n";
+        abort(/* Is there a better way? */);
+    }
+    klee_connection = std::make_shared<connection>(std::move(socket));
+    std::cout << "Kleeient connected.\n";
 }
 
 
@@ -96,6 +114,27 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     iomodels::iomanager::instance().load_stdout(results_from_client);
 }
 
+void  server::send_input_to_kleeient_and_receive_result(std::shared_ptr<connection> connection)
+{
+    message input_to_client;
+    iomodels::iomanager::instance().save_trace(input_to_client);
+
+    boost::system::error_code ec;
+    connection->send_message(input_to_client, ec);
+
+    message results_from_client;
+    connection->receive_message(results_from_client, ec);
+
+    if (ec) {
+        throw ec;
+    }
+
+    iomodels::iomanager::instance().received_message_type = results_from_client.type();
+    iomodels::iomanager::instance().clear_stdin();
+    if (iomodels::iomanager::instance().received_message_type == message_type::results_from_kleeient_normal)
+        iomodels::iomanager::instance().load_stdin(results_from_client);
+}
+
 
 void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
 {
@@ -105,11 +144,20 @@ void  server::fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer)
         if (auto excptr = client_executor_.get_exception_ptr()) {
             std::rethrow_exception(excptr);
         }
-        if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
-            fuzzer->_on_driver_begin();
+        fuzzer->_on_driver_begin();
+        if (iomodels::iomanager::instance().get_trace().size() > 0)
+        {
+            //fuzzer->_on_driver_begin();
+            send_input_to_kleeient_and_receive_result(klee_connection);
+            fuzzer->_on_driver_end();
+        }
+        else if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
+            //fuzzer->_on_driver_begin();
             send_input_to_client_and_receive_result(*connection);
             fuzzer->_on_driver_end();
         }
+        else
+            abort();
     }
 }
 

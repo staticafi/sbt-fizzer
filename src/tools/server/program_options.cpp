@@ -37,8 +37,8 @@ program_options::program_options(int argc, char* argv[])
     add_value("port", "42085");
 
     add_option("fuzzer", "A fuzzer to be used.", "1");
-    if (fuzzing::get_fuzzers_map().count("fuzzhamm") != 0UL)
-        add_value("fuzzer", "fuzzhamm");
+    // if (fuzzing::get_fuzzers_map().count("fuzzhamm") != 0UL)
+    //     add_value("fuzzer", "fuzzhamm");
 
 }
 

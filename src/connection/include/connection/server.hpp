@@ -31,7 +31,9 @@ struct  server
     void  start();
     void  stop();
     void  accept_connection();
+    void  accept_kleeient_connection();
     void  send_input_to_client_and_receive_result(std::shared_ptr<connection> connection);
+    void  send_input_to_kleeient_and_receive_result(std::shared_ptr<connection> connection);
 
     void  fuzzing_loop(std::shared_ptr<fuzzing::fuzzer_base> const  fuzzer);
     fuzzing::analysis_outcomes  run_fuzzing(std::string const&  fuzzer_name, fuzzing::termination_info const&  info);
@@ -41,7 +43,9 @@ private:
     boost::asio::io_context io_context;
     std::thread thread;
     boost::asio::ip::tcp::acceptor acceptor;
+    boost::asio::ip::tcp::acceptor kleeient_acceptor;
     ts_queue<std::shared_ptr<connection>> connections;
+    std::shared_ptr<connection> klee_connection;
     client_executor client_executor_;
 };
 
