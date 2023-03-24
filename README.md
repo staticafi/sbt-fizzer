@@ -18,9 +18,9 @@ file `LICENSE.txt` into the repository: https://github.com/staticafi/sbt-fizzer-
 The primary target platform is PC running either Windows 10 (or later) or Ubuntu
 22.04 (or later) operating systems.
 
-**NOTE**: Although **SBT-Fizzer** can be built the Windows 10,
+**NOTE**: Although **SBT-Fizzer** can be built on Windows 10,
 there are still issues running LLVM instrumentation. So, using 
-the project under Windows  is still under construction.
+the project under Windows is still under construction.
 
 ## Software dependencies
 
@@ -68,7 +68,7 @@ start with the **age** project:
         - (optional) **Git Graph** by mhutchie: https://github.com/mhutchie/vscode-git-graph
         - (optional) **Code Spell Checker** by Street Side Software: https://github.com/streetsidesoftware/vscode-spell-checker
         - (optional) **Graphviz Interactive Preview** by tintinweb: https://marketplace.visualstudio.com/items?itemName=tintinweb.graphviz-interactive-preview
-    - It is common and useful to use `launch.json` config file for launching an
+    - It is common and useful to use the `launch.json` config file for launching an
         executable. That way you can specify command-line parameters for the
         executable. The initial (minimal) version is under `setup` folder. You
         only need to copy the file from the `setup` folder to the folder
@@ -84,13 +84,13 @@ start with the **age** project:
 We do not provide **SBT-Fizzer** in binary form. That means you must
 download the source code and then build it.
 
-The recommended way how to obtain source code is via `Git`. You can
-either clone or fork **SBT-Fizzer**'s repository. Cloning is recommended for
-a member of **SBT-Fizzer** project with Developer rights. Forking is then for
-everyone else. Both procedures are described is subsections below.
+The recommended way of obtaining the source code is via `Git`. You can
+either clone or fork **SBT-Fizzer**'s repository. Cloning is recommended for 
+members of the **SBT-Fizzer** project with Developer rights. Forking is then for
+everyone else. Both procedures are described in the subsections below.
 
 NOTE: Alternatively, you can also download a ZIP package with the source
-code from the projects web: https://github.com/staticafi/sbt-fizzer-private
+code from the project's website: https://github.com/staticafi/sbt-fizzer-private
 
 ### Cloning
 
@@ -104,7 +104,7 @@ git clone https://github.com/staticafi/sbt-fizzer-private.git .
 
 ### Forking
 
-First you need to go to GitHub and make a fork of **SBT-Fizzer** project:
+First, you need to go to GitHub and make a fork of **SBT-Fizzer** project:
 - Go to https://github.com/staticafi/sbt-fizzer-private
 - Click on the **Fork** button at the upper-right corner of the page.
 - Put in all information requested in the form.
@@ -116,9 +116,9 @@ reference your forked repository.
 
 ## Integrating **vcpkg**
 
-Before we can build **SBT-Fizzer** in VS Code, we must let VS Code to know
-where is **vcpkg** installed (because it contains SW packages **SBT-Fizzer**
-needs during the build process). We must create file
+Before we can build **SBT-Fizzer** in VS Code, we must let VS Code know
+where **vcpkg** is installed (because it contains SW packages **SBT-Fizzer**
+needs during the build process). We must create the file
 
 ```
 <SBT-Fizzer-root-dir>/.vscode/settings.json
@@ -134,7 +134,7 @@ with this content:
     }
 }
 ```
-where `<vcpkg-install-dir>` must be replaced by the actuall installation directory of **vcpkg**.
+where `<vcpkg-install-dir>` must be replaced by the actual installation directory of **vcpkg**.
 
 NOTE: When working on Windows, VS Code may have created a "global" 
 settings file here:
@@ -149,8 +149,8 @@ can just update this existing "global" setting file by adding the section:
         "CMAKE_BUILD_TYPE": "${buildType}"
     }
 ```
-The advantage of this approach is, that the **vcpkg** integration
-to VS Code would work for all CMake C++ projects on your computer
+The advantage of this approach is that the **vcpkg** integration
+with VS Code would work for all CMake C++ projects on your computer
 (including **SBT-Fizzer** of course).
 
 ## Building **SBT-Fizzer**
@@ -159,15 +159,15 @@ Open **Microsoft Visual Studio Code** and in the main menu choose:
 `File/Open Folder...` and open the **SBT-Fizzer**'s directory `<SBT-Fizzer-root-dir>`.
 
 Now you should be able to build **SBT-Fizzer** the same way as any other
-CMake C++ application. All needed information are available here:
+CMake C++ application. All needed information is available here:
 https://code.visualstudio.com/docs/cpp/introvideos-cpp
 
-Once you successfully build the `install` target, then you can find
+Once you successfully build the `install` target, you can find
 the built binaries under the `dist` directory.
 
 ## Usage
 
-You can use the compiled binaries either via VS Code or manually in terminal.
+You can use the compiled binaries either via VS Code or manually in a terminal.
 
 ### **Running binaries in VS Code**
 
@@ -175,14 +175,14 @@ First you need to build benchmark(s). So, go to the debugger
 tab (Ctrl+Shift+D) and select the target `Benman @ dbg`.
 Then press F5 to start benchmark building. By editing this
 target in `launch.json` file under `.vscode` folder you can
-specify what benchmarks to actually build. By default there
-is set `all` meaning that all benchmarks are compiled.
+specify what benchmarks to build. By default this
+is set to `all`, meaning that all benchmarks are compiled.
 
 Now you can debug the fuzzer (server). In the debugger tab
 select the target `run server`. Then press F5 to start debugging.
 By editing this target in `launch.json` file under `.vscode` 
-folder you can specify what benchmark we be analysed during the
-debug session. By default there is set one randomly choosen 
+folder you can specify what benchmark will be analyzed during the
+debug session. The default setting is one randomly chosen 
 benchmark.
 
 ### **Running binaries in terminal**
