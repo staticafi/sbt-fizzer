@@ -51,7 +51,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << "Fuzzing terminated normally.";
         break;
     case analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR:
-        ostr << "Fuzzing early-terminated due to invariant failure.";
+        ostr << "Fuzzing early-terminated due to an internal server error.";
         break;
     case analysis_outcomes::TERMINATION_TYPE::CLIENT_COMMUNICATION_ERROR:
         ostr << "Fuzzing early-terminated due to error in communication with the client.";
