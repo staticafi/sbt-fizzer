@@ -25,9 +25,10 @@ private:
         std::unique_ptr<std::ofstream> traces);
 
     bool connect(const std::string& address, const std::string& port);
-    bool receive_input();
-    std::string invoke_klee();
-    void write_stdin(message&  ostr, std::vector<uint8_t> bytes, std::vector<uint8_t> counts);
+    bool receive_input(std::vector<bool>& trace);
+    std::string invoke_klee(const std::vector<bool> &trace);
+    void write_stdin(message& ostr, std::vector<uint8_t>& bytes);
+    void read_trace(message& istr, std::vector<bool>& trace);
     bool send_result(std::string);
 
 
