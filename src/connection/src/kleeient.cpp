@@ -1,4 +1,3 @@
-#include <boost/algorithm/hex.hpp>
 #include <boost/process.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -7,7 +6,6 @@
 #include <connection/kleeient.hpp>
 #include <connection/message.hpp>
 #include <connection/connection.hpp>
-#include <iomodels/iomanager.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -65,10 +63,12 @@ void kleeient::run(const std::string& address, const std::string& port) {
         return;
     }
 
+    std::vector<bool> trace;
     while (true) {
-        if (!receive_input())
+        trace.clear();
+        if (!receive_input(trace))
             return;
-        auto klee_response = invoke_klee();
+        auto klee_response = invoke_klee(trace);
         send_result(klee_response);
     }
 }
@@ -95,7 +95,7 @@ bool kleeient::connect(const std::string& address, const std::string& port) {
     return true;
 }
 
-bool kleeient::receive_input() {
+bool kleeient::receive_input(std::vector<bool>& trace) {
     std::cout << "Receiving input from server..." << std::endl;
 
     boost::system::error_code ec;
@@ -109,19 +109,19 @@ bool kleeient::receive_input() {
         return false;
     }
 
-    iomodels::iomanager::instance().load_trace(input);
     std::cout << "Received input from server" << std::endl;
+    read_trace(input, trace);
     return true;
 }
 
 // input trace is obtained from iomanager
-std::string kleeient::invoke_klee()
+std::string kleeient::invoke_klee(const std::vector<bool>& trace)
 {
     std::cout << "Received following trace:" << std::endl;
-    for (auto &record : iomodels::iomanager::instance().get_trace())
+    for (bool dir : trace)
     {
-        std::cout << record.covered_branch;
-        *traces << (record.covered_branch ? "1" : "0");
+        std::cout << dir;
+        *traces << (dir ? "1" : "0");
     }
     *traces << std::endl << std::flush;
 
@@ -137,16 +137,27 @@ std::string kleeient::invoke_klee()
     return json_string;
 }
 
-void kleeient::write_stdin(message&  ostr, std::vector<uint8_t> bytes, std::vector<uint8_t> counts)
+void kleeient::write_stdin(message& ostr, std::vector<uint8_t>& bytes)
 {
     ostr << (size_t)(bytes.size() * 8); // write bits_read
     ostr << (natural_16_bit)bytes.size();
     for (natural_8_bit  byte : bytes)
         ostr << byte;
 
-    ostr << (natural_16_bit)counts.size();
-    for (natural_8_bit cnt : counts)
-        ostr << cnt;
+    // ostr << (natural_16_bit)counts.size();
+    // for (natural_8_bit cnt : counts)
+    //    ostr << cnt;
+}
+
+void kleeient::read_trace(message& istr, std::vector<bool>& trace)
+{
+    size_t size;
+    istr >> size;
+    for (size_t i = 0; i < size; i++) {
+        bool dir;
+        istr >> dir;
+        trace.push_back(dir);
+    }
 }
 
 bool kleeient::send_result(std::string json_string)
@@ -156,13 +167,12 @@ bool kleeient::send_result(std::string json_string)
     auto json_stream = std::basic_istringstream(json_string);
     boost::property_tree::ptree json;
     boost::property_tree::json_parser::read_json(json_stream, json);
-
     bool feasible = json.get<bool>("feasible");
 
     message msg;
 
     if (feasible) {
-        msg.header.type = message_type::results_from_kleeient_normal;
+        msg.header.type = 1;
 
         std::vector<uint8_t> bytes;
         std::vector<uint8_t> counts;
@@ -171,16 +181,16 @@ bool kleeient::send_result(std::string json_string)
         {
             bytes.push_back(v.second.get_value<uint8_t>());
         }
-        BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
-                    json.get_child("input_tc").get_child("chunks"))
-        {
-            counts.push_back(v.second.get_value<uint8_t>() * 8);
-            // * 8 because json stores number of bytes and fuzzer expects number of bits
-        }
+        // BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
+        //             json.get_child("input_tc").get_child("chunks"))
+        // {
+        //     counts.push_back(v.second.get_value<uint8_t>() * 8);
+        //     // * 8 because json stores number of bytes and fuzzer expects number of bits
+        // }
 
-        write_stdin(msg, bytes, counts);
+        write_stdin(msg, bytes);
     } else {
-        msg.header.type = message_type::results_from_kleeient_infeasible;
+        msg.header.type = 0;
     }
 
     boost::system::error_code ec;
