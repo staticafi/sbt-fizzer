@@ -8,7 +8,6 @@ set(KLEEIENT_SOURCES
     ./program_info.cpp
 
     ./main.cpp
-    ./run_kleeient.cpp
     )
 
 set(KLEEIENT_LIBS
