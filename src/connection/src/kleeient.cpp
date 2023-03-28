@@ -139,14 +139,9 @@ std::string kleeient::invoke_klee(const std::vector<bool>& trace)
 
 void kleeient::write_stdin(message& ostr, std::vector<uint8_t>& bytes)
 {
-    ostr << (size_t)(bytes.size() * 8); // write bits_read
-    ostr << (natural_16_bit)bytes.size();
+    ostr << (size_t) bytes.size();
     for (natural_8_bit  byte : bytes)
         ostr << byte;
-
-    // ostr << (natural_16_bit)counts.size();
-    // for (natural_8_bit cnt : counts)
-    //    ostr << cnt;
 }
 
 void kleeient::read_trace(message& istr, std::vector<bool>& trace)

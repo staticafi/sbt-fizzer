@@ -7,9 +7,6 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/client.hpp
     ./src/client.cpp
 
-    ./include/connection/kleeient.hpp
-    ./src/kleeient.cpp
-
     ./include/connection/message.hpp
     ./src/message.cpp
 
@@ -20,6 +17,12 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/connection/client_executor.hpp
     ./src/client_executor.cpp
+
+    ./include/connection/kleeient.hpp
+    ./src/kleeient.cpp
+
+    ./include/connection/kleeient_connector.hpp
+    ./src/kleeient_connector.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
