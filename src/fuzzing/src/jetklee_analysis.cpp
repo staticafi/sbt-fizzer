@@ -2,6 +2,7 @@
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
+#include <connection/kleeient_connector.hpp>
 
 namespace  fuzzing {
 
@@ -72,8 +73,25 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    // Here should be called JetKlee to obtain the desired input stdin bits.
-    bits_ref = *node_ptr->best_stdin; // This is not the desired implementation.
+    connection::kleeient_connector connector(45655);
+    connector.wait_for_connection();
+
+
+    fuzzing::branching_node *node = node_ptr;
+    std::vector<bool> trace;
+    while (node->predecessor != nullptr)
+    {
+        trace.push_back(node->predecessor->successor_direction(node));
+        node = node->predecessor;
+    }
+    std::reverse(trace.begin(), trace.end());
+
+    std::vector<uint8_t> bytes;
+    connector.get_model(trace, bytes);
+
+    for (natural_8_bit const  byte : bytes)
+        for (natural_8_bit  i = 0U; i != 8U; ++i)
+            bits_ref.push_back(byte & (1 << (7U - i)));    
 
     ++statistics.generated_inputs;
 
