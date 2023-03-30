@@ -39,6 +39,7 @@
                     // "fast/uint32_if_parabola.sbt-client",
 
                     // "pending/array_2-1.sbt-client",
+                    // "pending/array-1.sbt-client",
                     // "pending/array1_pattern.sbt-client",
                     // "pending/call_bool_arg.sbt-client",
                     // "pending/log_and.sbt-client",
@@ -145,6 +146,7 @@
                     // "fast/uint32_if_parabola.c",
 
                     // "pending/array_2-1.i",
+                    // "pending/array-1.c",
                     // "pending/array1_pattern.c",
                     // "pending/call_bool_arg.c",
                     // "pending/log_and.c",
