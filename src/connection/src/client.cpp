@@ -46,6 +46,7 @@ void client::execute_program() {
 
 void client::run_input_mode(vecu8 input_bytes) {
     message input;
+    input << (natural_16_bit) (input_bytes.size() * 8U);
     input << (natural_16_bit) input_bytes.size();
     for (natural_8_bit byte: input_bytes) {
         input << byte;
