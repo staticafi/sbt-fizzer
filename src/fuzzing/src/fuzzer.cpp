@@ -484,7 +484,7 @@ void  fuzzer::do_cleanup()
     {
         iid_frontier_record const  rec = *iid_frontier.begin();
 
-        if (covered_branchings.contains(rec.iid_node->id))
+        if (covered_branchings.contains(rec.iid_node->id) || did_branchings.contains(rec.iid_node->id))
         {
             iid_frontier.erase(iid_frontier.begin());
             iid_regions.erase(rec.iid_node->id);
