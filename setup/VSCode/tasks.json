@@ -61,7 +61,7 @@
             "label": "kill clients",
             "type": "shell",
             "linux": {
-                "command": "pgrep sbt-client | xargs -r kill"
+                "command": "pgrep --full \".sbt-client\" | xargs -r kill"
             },
             "windows": {
                 "command": "TODO"
