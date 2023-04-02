@@ -53,6 +53,7 @@
                     // "pending/loop1-1.c"
                     // "pending/newton_1_1.i"
                     // "pending/pnr3.c"
+                    // "pending/TelAviv-Amir-Minimum-alloca.c",
 
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]

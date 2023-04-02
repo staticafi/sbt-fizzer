@@ -47,6 +47,7 @@
                     // "pending/loop1-1.sbt-client",
                     // "pending/newton_1_1.sbt-client",
                     // "pending/pnr3.sbt-client",
+                    // "pending/TelAviv-Amir-Minimum-alloca.sbt-client",
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
@@ -154,6 +155,8 @@
                     // "pending/loop1-1.c",
                     // "pending/newton_1_1.i",
                     // "pending/pnr3.c",
+                    // "pending/TelAviv-Amir-Minimum-alloca.c",
+
                 ],
             "cwd": "${workspaceFolder}/dist",
             "justMyCode": true
