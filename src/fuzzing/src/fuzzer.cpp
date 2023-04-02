@@ -62,10 +62,16 @@ fuzzer::~fuzzer()
 
 void  fuzzer::terminate()
 {
-    sensitivity.stop();
-    minimization.stop();
+    stop_all_analyzes();
     while (!leaf_branchings.empty())
         remove_leaf_branching_node(leaf_branchings.begin()->first);
+}
+
+
+void  fuzzer::stop_all_analyzes()
+{
+    sensitivity.stop();
+    minimization.stop();
 }
 
 
@@ -75,12 +81,14 @@ std::string  fuzzer::round_begin()
     {
         if (uncovered_branchings.empty())
         {
+            stop_all_analyzes();
             debug_save_branching_tree("final");
             terminate();
             return "All reachable branchings were covered.";
         }
         if (!can_make_progress())
         {
+            stop_all_analyzes();
             debug_save_branching_tree("final");
             terminate();
             return "The fuzzer cannot make further progress (the fuzzing strategy is depleted).";
@@ -89,13 +97,14 @@ std::string  fuzzer::round_begin()
 
     if (num_remaining_seconds() <= 0L)
     {
+        stop_all_analyzes();
         debug_save_branching_tree("final");
-        terminate();
         return "Max number of seconds for fuzzing was reached.";
     }
 
     if (num_remaining_driver_executions() <= 0L)
     {
+        stop_all_analyzes();
         debug_save_branching_tree("final");
         terminate();
         return "Max number of benchmark executions reached.";

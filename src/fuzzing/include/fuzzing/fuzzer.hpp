@@ -40,6 +40,7 @@ struct  fuzzer final
     ~fuzzer();
 
     void  terminate();
+    void  stop_all_analyzes();
 
     termination_info const& get_termination_info() const { return termination_props; }
 
