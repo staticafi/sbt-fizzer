@@ -15,7 +15,7 @@ struct kleeient
 {
 public:
     void run(const std::string& address, const std::string& port);
-    static kleeient get_instance(boost::asio::io_context& io_context);
+    static kleeient get_instance(boost::asio::io_context& io_context, const std::string& program_path);
 
 private:
     kleeient(

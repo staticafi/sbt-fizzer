@@ -1,6 +1,7 @@
 #include <connection/kleeient_connector.hpp>
 #include <connection/connection.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <utility/assumptions.hpp>
 #include <iostream>
 
 namespace  connection {
@@ -9,6 +10,8 @@ kleeient_connector::kleeient_connector(uint16_t port):
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)){}
 
 bool kleeient_connector::get_model(const std::vector<bool> trace, std::vector<uint8_t>& model) {
+    ASSUMPTION(kleeient_connection != nullptr);
+
     send_trace(trace);
     return receive_response(model);
 }

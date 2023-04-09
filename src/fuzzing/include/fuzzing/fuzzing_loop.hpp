@@ -8,7 +8,10 @@
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::function<void()> const&  benchmark_executor, fuzzing::termination_info const&  info, bool  debug_mode = false);
+analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
+                       std::unique_ptr<connection::kleeient_connector>  kleeient_connector,
+                       termination_info const&  info,
+                       bool  debug_mode);
 
 
 }

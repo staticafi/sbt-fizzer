@@ -47,6 +47,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("port", "Port the server will use", "1");
     add_value("port", "42085");
 
+    add_option("kleeient_port", "Port the kleeient will use", "1");
+    add_value("kleeient_port", "42086");
+
     add_option("debug_mode", "When specified, the fuzzer will generate debug data during the analysis.", "0");
 }
 
