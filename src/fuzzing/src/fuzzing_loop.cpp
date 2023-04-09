@@ -6,19 +6,23 @@
 #include <utility/development.hpp>
 #include <utility/timeprof.hpp>
 #include <utility/config.hpp>
+#include <connection/kleeient_connector.hpp>
 #include <algorithm>
 
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termination_info const&  info, bool const  debug_mode)
+analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
+                       std::unique_ptr<connection::kleeient_connector> kleeient_connector,
+                       termination_info const&  info,
+                       bool const  debug_mode)
 {
     TMPROF_BLOCK();
 
     analysis_outcomes  results;
     results.execution_records.push_back({});
 
-    fuzzer f{ info, debug_mode };
+    fuzzer f{ info, std::move(kleeient_connector), debug_mode };
 
     try
     {

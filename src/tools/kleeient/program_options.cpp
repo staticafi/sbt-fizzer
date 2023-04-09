@@ -12,6 +12,8 @@ program_options::program_options(int argc, char* argv[])
 
     add_option("port", "The port of the SBT-Fizzer server.", "1");
     add_value("port", "42086");
+
+    add_option("path", "Path to the tested program in .ll format.", "1");
 }
 
 static program_options_ptr  global_program_options;

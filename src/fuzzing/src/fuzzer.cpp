@@ -4,6 +4,7 @@
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
+#include <connection/kleeient_connector.hpp>
 
 namespace  fuzzing {
 
@@ -32,7 +33,9 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
 }
 
 
-fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
+fuzzer::fuzzer(termination_info const&  info,
+               std::unique_ptr<connection::kleeient_connector> kleeient_connector,
+               bool const  debug_mode_)
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -55,7 +58,7 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , sensitivity{}
     , minimization{}
     , bitshare{}
-    , jetklee{}
+    , jetklee{ std::move(kleeient_connector) }
 
     , statistics{}
 

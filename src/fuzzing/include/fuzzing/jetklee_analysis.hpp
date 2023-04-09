@@ -3,6 +3,7 @@
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
+#   include <connection/kleeient_connector.hpp>
 #   include <unordered_set>
 
 namespace  fuzzing {
@@ -23,7 +24,7 @@ struct  jetklee_analysis
         std::size_t  covered_branchings{ 0 };
     };
 
-    jetklee_analysis();
+    jetklee_analysis(std::unique_ptr<connection::kleeient_connector> kleeient_connector);
 
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
@@ -44,6 +45,7 @@ private:
 
     STATE  state;
     branching_node*  node_ptr;
+    std::unique_ptr<connection::kleeient_connector> kleeient_connector;
 
     performance_statistics  statistics;
 };

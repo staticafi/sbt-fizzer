@@ -1,6 +1,8 @@
 #include <server/program_info.hpp>
 #include <server/program_options.hpp>
 #include <connection/server.hpp>
+#include <connection/kleeient_connector.hpp>
+#include <connection/kleeient.hpp>
 #include <iomodels/iomanager.hpp>
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzing_loop.hpp>
@@ -10,6 +12,9 @@
 #include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
 #include <iostream>
+#include <thread>
+
+#include <boost/filesystem.hpp>
 
 
 void run(int argc, char* argv[])
@@ -151,8 +156,20 @@ void run(int argc, char* argv[])
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Fuzzing was started..." << std::endl << std::flush;
 
+    auto kleeient_connector = std::make_unique<connection::kleeient_connector>(get_program_options()->value_as_int("kleeient_port"));
+    std::thread klee_thread (
+        []() {
+            boost::asio::io_context io_context;
+            auto path = boost::filesystem::path(get_program_options()->value("path_to_client")).replace_extension(".ll").string();
+            // TODO: pass .ll path in program options
+            connection::kleeient kleeient = connection::kleeient::get_instance(io_context, path);
+            kleeient.run("127.0.0.1", get_program_options()->value("kleeient_port"));
+        });
+    kleeient_connector->wait_for_connection();
+
     fuzzing::analysis_outcomes const  results = fuzzing::run(
             [&server](){ server.send_input_to_client_and_receive_result(); },
+            std::move(kleeient_connector),
             terminator,
             get_program_options()->has("debug_mode")
             );
@@ -227,4 +244,6 @@ void run(int argc, char* argv[])
     
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Done.\n" << std::flush;
+
+    klee_thread.join();
 }

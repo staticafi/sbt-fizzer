@@ -2,6 +2,8 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/dll.hpp>
 
 #include <connection/kleeient.hpp>
 #include <connection/message.hpp>
@@ -22,15 +24,20 @@ kleeient::kleeient(
     models(std::move(models)),
     traces(std::move(traces)) {}
 
-kleeient kleeient::get_instance(boost::asio::io_context& io_context)
+kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::string& program_path)
 {
-    auto output_dir = std::string("/home/kebab/fuzzer/sbt-fizzer-private/dist/klee-output/");
-    auto klee_path = std::string("/home/kebab/llvm-playground/JetKlee/build/bin/klee");
+    auto installation_dir = boost::dll::program_location().parent_path();
+    auto klee_executable_path = installation_dir/"klee";
     auto traces = std::string("traces");
     auto models = std::string("models");
-    auto traces_path = output_dir + traces;
-    auto models_path = output_dir + models;
-    auto program_path = std::string("/home/kebab/fuzzer/sbt-fizzer-private/dist/benchmarks/fast/nested_ifs.ll");
+
+    auto output_dir = installation_dir/"klee-output/";
+    auto traces_path = output_dir/traces;
+    auto models_path = output_dir/models;
+
+    if (boost::filesystem::exists(output_dir))
+        boost::filesystem::remove_all(output_dir);
+    boost::filesystem::create_directory(output_dir);
 
     if (mkfifo(traces_path.c_str(), S_IRUSR | S_IWUSR) == -1) {
         throw std::runtime_error("Could not create traces pipe");
@@ -40,15 +47,15 @@ kleeient kleeient::get_instance(boost::asio::io_context& io_context)
     }
 
     std::unique_ptr<boost::process::child> process = std::make_unique<boost::process::child>(
-        klee_path,
+        klee_executable_path,
         boost::process::args({
-            "--output-dir=" + output_dir,
+            "--output-dir", output_dir.string(),
             "--use-interactive-search",
-            "--interactive-search-file=" + traces_path, // TODO: fix relative/absolute path handling in klee
+            "--interactive-search-file", traces_path.string(),
             "--write-ktests=false",
             "--dump-states-on-halt=false",
             "--write-json",
-            "--json-path=" + models, // relative to `output_dir`
+            "--json-path", models, // relative to `output_dir`
             "--suppress-intermediate-queries",
             "--keep-finalized-states",
             program_path }));
@@ -96,8 +103,6 @@ bool kleeient::connect(const std::string& address, const std::string& port) {
 }
 
 bool kleeient::receive_input(std::vector<bool>& trace) {
-    std::cout << "Receiving input from server..." << std::endl;
-
     boost::system::error_code ec;
     message input;
     connection_to_server->receive_message(input, ec);
@@ -109,7 +114,6 @@ bool kleeient::receive_input(std::vector<bool>& trace) {
         return false;
     }
 
-    std::cout << "Received input from server" << std::endl;
     read_trace(input, trace);
     return true;
 }
@@ -126,13 +130,11 @@ std::string kleeient::invoke_klee(const std::vector<bool>& trace)
     *traces << std::endl << std::flush;
 
     std::cout << std::endl;
-    std::cout << "=== end ===" << std::endl;
 
     std::cout << "Klee responded with following JSON:" << std::endl;
     std::string json_string;
     std::getline(*models, json_string);
     std::cout << json_string << std::endl;
-    std::cout << "=== end ===" << std::endl;
 
     return json_string;
 }
@@ -157,7 +159,7 @@ void kleeient::read_trace(message& istr, std::vector<bool>& trace)
 
 bool kleeient::send_result(std::string json_string)
 {
-    std::cout << "JetKlee finished, sending results..." << std::endl;
+    std::cout << "Request finished, sending results..." << std::endl << std::endl;
 
     auto json_stream = std::basic_istringstream(json_string);
     boost::property_tree::ptree json;
@@ -170,18 +172,11 @@ bool kleeient::send_result(std::string json_string)
         msg.header.type = 1;
 
         std::vector<uint8_t> bytes;
-        std::vector<uint8_t> counts;
         BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
                     json.get_child("input_tc").get_child("bytes"))
         {
             bytes.push_back(v.second.get_value<uint8_t>());
         }
-        // BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
-        //             json.get_child("input_tc").get_child("chunks"))
-        // {
-        //     counts.push_back(v.second.get_value<uint8_t>() * 8);
-        //     // * 8 because json stores number of bytes and fuzzer expects number of bits
-        // }
 
         write_stdin(msg, bytes);
     } else {
@@ -194,8 +189,6 @@ bool kleeient::send_result(std::string json_string)
         std::cerr << "ERROR: sending result to server\n" << ec.message() << "\n";
         return false;
     }
-
-    std::cout << "Results sent to server" << std::endl;
     return true;
 }
 

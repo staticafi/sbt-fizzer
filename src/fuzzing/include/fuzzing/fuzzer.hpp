@@ -13,6 +13,7 @@
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/std_pair_hash.hpp>
+#   include <connection/kleeient_connector.hpp>
 #   include <string>
 #   include <unordered_set>
 #   include <unordered_map>
@@ -49,7 +50,9 @@ struct  fuzzer final
         std::size_t  traces_to_boundary_violation{ 0 };
     };
 
-    explicit fuzzer(termination_info const&  info, bool  debug_mode_ = false);
+    explicit fuzzer(termination_info const&  info,
+                    std::unique_ptr<connection::kleeient_connector> kleeient_connector,
+                    bool  debug_mode_ = false);
     ~fuzzer();
 
     void  terminate();

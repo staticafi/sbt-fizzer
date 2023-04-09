@@ -7,10 +7,11 @@
 namespace  fuzzing {
 
 
-jetklee_analysis::jetklee_analysis()
+jetklee_analysis::jetklee_analysis(std::unique_ptr<connection::kleeient_connector> kleeient_connector)
     : state{ READY }
     , node_ptr{ nullptr }
     , statistics{}
+    , kleeient_connector{ std::move(kleeient_connector) }
 {}
 
 
@@ -73,10 +74,6 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    connection::kleeient_connector connector(45655);
-    connector.wait_for_connection();
-
-
     fuzzing::branching_node *node = node_ptr;
     std::vector<bool> trace;
     while (node->predecessor != nullptr)
@@ -86,8 +83,12 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
     }
     std::reverse(trace.begin(), trace.end());
 
+    // false explored -> visit true
+    // false not explored -> visit false
+    trace.push_back(node_ptr->is_direction_explored(false));
+
     std::vector<uint8_t> bytes;
-    connector.get_model(trace, bytes);
+    kleeient_connector->get_model(trace, bytes);
 
     for (natural_8_bit const  byte : bytes)
         for (natural_8_bit  i = 0U; i != 8U; ++i)
