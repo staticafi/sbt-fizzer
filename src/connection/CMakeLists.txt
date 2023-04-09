@@ -25,6 +25,9 @@ add_library(${THIS_TARGET_NAME}
     ./src/kleeient_connector.cpp
     )
 
+# libdl is required for BOOST.DLL
+target_link_libraries(${THIS_TARGET_NAME} ${CMAKE_DL_LIBS})
+
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
     RELEASE_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Release"
