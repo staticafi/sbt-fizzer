@@ -107,6 +107,19 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << "      " << id_and_branching.first << (id_and_branching.second ? '+' : '-') << "\n";
 
     ostr << "   Generated tests: " << results.execution_records.size() << std::endl;
+    {
+        std::uint32_t num_crashes = 0U;
+        std::uint32_t num_boundary_violations = 0U;
+        for (execution_record const&  record : results.execution_records)
+        {
+            if (record.flags & execution_record::EXECUTION_CRASHES)
+                ++num_crashes;
+            if (record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION)
+                ++num_boundary_violations;
+        }
+        ostr << "      Crashes: " << num_crashes << std::endl;
+        ostr << "      Boundary violations: " << num_boundary_violations << std::endl;
+    }
     if (dump_traces)
         for (execution_record const&  record : results.execution_records)
         {

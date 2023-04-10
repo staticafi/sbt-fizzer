@@ -378,6 +378,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             }
         }
 
+        if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION)
+            exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
+
         if (construction_props.any_location_discovered)
             exe_flags |= execution_record::BRANCH_DISCOVERED;
 

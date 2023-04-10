@@ -14,6 +14,7 @@ struct  execution_record
     static execution_flags constexpr  BRANCH_DISCOVERED   = 1 << 0;
     static execution_flags constexpr  BRANCH_COVERED      = 1 << 1;
     static execution_flags constexpr  EXECUTION_CRASHES   = 1 << 2;
+    static execution_flags constexpr  BOUNDARY_CONDITION_VIOLATION = 1 << 3;
 
     execution_flags  flags { 0 }; 
     vecb  stdin_bits {};
