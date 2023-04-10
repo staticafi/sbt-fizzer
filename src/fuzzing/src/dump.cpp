@@ -140,7 +140,7 @@ void  print_execution_record(
     vecu8  byte_values;
     bits_to_bytes(record.stdin_bits, byte_values);
 
-    vecu32  chunk_values;
+    vecu64  chunk_values;
     for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_bit_counts.size(); i < n; ++i)
     {
         ASSUMPTION(record.stdin_bit_counts.at(i) <= 8U * sizeof(chunk_values.back()));
