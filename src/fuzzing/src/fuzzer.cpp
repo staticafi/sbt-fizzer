@@ -348,11 +348,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case SENSITIVITY:
             INVARIANT(sensitivity.is_busy() && minimization.is_ready());
             sensitivity.process_execution_results(trace, entry_branching);
-            {
-                leaf_branching_processing_props const&  props = leaf_branchings.at(sensitivity.get_leaf_branching());
-                if (props.uncovered_branchings.empty() && props.frontier_branching == nullptr)
-                    sensitivity.stop();
-            }
             break;
 
         case MINIMIZATION:
@@ -511,8 +506,9 @@ void  fuzzer::do_cleanup()
                 continue;
             }
 
-            if (!rec.node->sensitivity_performed || (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty()))
-                break;
+            if (!rec.node->is_direction_explored(false) || !rec.node->is_direction_explored(true))
+                if (!rec.node->sensitivity_performed || (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty()))
+                    break;
 
             iid_frontier.erase(iid_frontier.begin());
             if (rec.node->successor(false).pointer != nullptr)
@@ -532,10 +528,10 @@ void  fuzzer::do_cleanup()
         }
         else
         {
-            if (rec.iid_node != rec.node && ( 
-                        !rec.node->sensitivity_performed ||
-                        (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty())))
-                break;
+            if (rec.iid_node != rec.node) 
+                if (!rec.node->is_direction_explored(false) || !rec.node->is_direction_explored(true))
+                    if (!rec.node->sensitivity_performed || (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty()))
+                        break;
 
             iid_frontier.erase(iid_frontier.begin());
             if (rec.node->predecessor != nullptr && !iid_regions.contains(rec.node->predecessor->id))
