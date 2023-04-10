@@ -55,6 +55,8 @@
                     // "pending/pnr3.c"
                     // "pending/TelAviv-Amir-Minimum-alloca.c",
                     // "pending/benchmark08_conjunctive.i",
+                    // "pending/cs_stack-1.c",
+                    // "pending/ex2-alloca.c",
 
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]

@@ -49,6 +49,8 @@
                     // "pending/pnr3.sbt-client",
                     // "pending/TelAviv-Amir-Minimum-alloca.sbt-client",
                     // "pending/benchmark08_conjunctive.sbt-client",
+                    // "pending/cs_stack-1.sbt-client",
+                    // "pending/ex2-alloca.sbt-client",
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
@@ -158,7 +160,8 @@
                     // "pending/pnr3.c",
                     // "pending/TelAviv-Amir-Minimum-alloca.c",
                     // "pending/benchmark08_conjunctive.i",
-
+                    // "pending/cs_stack-1.c",
+                    // "pending/ex2-alloca.c",
                 ],
             "cwd": "${workspaceFolder}/dist",
             "justMyCode": true
