@@ -119,7 +119,7 @@ void run(int argc, char* argv[])
                       << "       => No test was written to disk.\n";
         else
         {
-            std::cout << "Saving tests under the output directory...";
+            std::cout << "Saving tests under the output directory...\n";
 
             std::string test_name = "test";
             if (!get_program_options()->value("path_to_client").empty()) {
@@ -135,7 +135,7 @@ void run(int argc, char* argv[])
                     );
                 if (!results.debug_data.empty())
                 {
-                    std::cout << "Saving debug data under the output directory...";
+                    std::cout << "Saving debug data under the output directory...\n";
                     fuzzing::save_debug_data_to_directory(
                             output_dir,
                             test_name,
