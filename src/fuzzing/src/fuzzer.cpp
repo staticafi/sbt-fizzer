@@ -99,6 +99,7 @@ std::string  fuzzer::round_begin()
     {
         stop_all_analyzes();
         debug_save_branching_tree("final");
+        terminate();
         return "Max number of seconds for fuzzing was reached.";
     }
 
