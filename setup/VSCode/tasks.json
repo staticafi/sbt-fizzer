@@ -57,6 +57,7 @@
                     // "pending/benchmark08_conjunctive.i",
                     // "pending/cs_stack-1.c",
                     // "pending/ex2-alloca.c",
+                    // "pending/count_by_nondet.i",
 
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]
