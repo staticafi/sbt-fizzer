@@ -70,6 +70,14 @@
             "windows": {
                 "command": "TODO"
             }
+        },
+        {
+            "label": "clean dist",
+            "type": "shell",
+            "command": "rm -Rf *.html ../output",
+            "options": {
+                "cwd": "${workspaceFolder}/dist/benchmarks"
+            }
         }
     ]
 }
