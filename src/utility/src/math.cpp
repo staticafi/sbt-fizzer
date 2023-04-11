@@ -1,4 +1,5 @@
 #include <utility/math.hpp>
+#include <utility/invariants.hpp>
 #include <utility/development.hpp>
 #include <unordered_set>
 #include <algorithm>
@@ -120,12 +121,13 @@ natural_64_bit  n_choose_k(natural_8_bit  n, natural_8_bit  k)
 
 std::size_t  sample_counts_per_hamming_class(vecu64&  output_counts, std::size_t const  num_bits, std::size_t const  total_samples_count)
 {
-    vecu64 const&  row = pascal_triangle_row((natural_8_bit)num_bits);
+    vecu64 const&  row = pascal_triangle_row((natural_8_bit)std::min(num_bits, (std::size_t)std::numeric_limits<natural_8_bit>::max()));
     natural_64_bit const s = sum(row);
+    float_64_bit const c = std::min(s, total_samples_count);
     std::size_t  total_count = 0ULL;
     for (auto x : row)
     {
-        natural_64_bit const  count = (natural_64_bit)std::max(1.0, total_samples_count * ((float_64_bit)x / (float_64_bit)s) + 0.5);
+        natural_64_bit const  count = (natural_64_bit)std::max(1.0, c * ((float_64_bit)x / (float_64_bit)s) + 0.5);
         output_counts.push_back(count);
         total_count += count;
     }
@@ -163,8 +165,9 @@ void  generate_samples_of_hamming_class(vec<vecb>&  output_samples, std::size_t 
     for (std::size_t  i = 0UL; i != num_samples_to_generate; ++i)
     {
         output_samples.push_back({});
-        while (true)
+        for (std::size_t j = 0; true; ++j)
         {
+            INVARIANT(j < 1000 * num_samples_to_generate); // We should never be that unlucky. Otherwise we should change the algorithm.
             generate_sample_of_hamming_class(output_samples.back(), num_bits, hamming_class, generator);
             std::size_t const  h = make_hash(output_samples.back());
             if (hashes.count(h) == 0UL)
