@@ -80,6 +80,71 @@
             "options": {
                 "cwd": "${workspaceFolder}/dist/benchmarks"
             }
+        },
+        {
+            "label": "TestCov",
+            "type": "shell",
+            "command": "testcov",
+            "dependsOrder": "sequence",
+            "dependsOn": [ "zip tests" ],
+            "options": {
+                "cwd": "${workspaceFolder}/dist/benchmarks"
+            },
+            "args": [ "--no-isolation", "--test-suite", "../output/test-suite/tests.zip",
+                // "fast/bool_flag_one_and_two.c"
+                // "fast/c_string_count_chars.c"
+                // "fast/c_string_parse_two_ints.c"
+                // "fast/float_if_x_eq_c.c"
+                // "fast/int16_equal.c"
+                // "fast/int16_if_parabola.c"
+                // "fast/int16_if_x_equal_c.c"
+                // "fast/int16_if_x_equal_y_c.c"
+                // "fast/int16_if_x_ge_c.c"
+                // "fast/int16_if_x_lt_c.c"
+                // "fast/int16_if_x_xor_a_eq_b.c"
+                // "fast/int16_less.c"
+                // "fast/int32_ackermann.c"
+                // "fast/int32_if_parabola.c"
+                // "fast/int32_if_x_equal_c.c"
+                // "fast/int32_if_x_equal_y_c.c"
+                // "fast/int32_if_x_ge_c.c"
+                // "fast/int32_if_x_lt_c.c"
+                // "fast/int32_if_x_xor_a_eq_b.c"
+                // "fast/int32_logical_or_two_vars.c"
+                // "fast/int8_if_hash_x_y_z_eq_c.c"
+                // "fast/int8_if_x_equal_c.c"
+                // "fast/int8_if_x_equal_y_c.c"
+                // "fast/int8_if_x_ge_c.c"
+                // "fast/int8_if_x_lt_c.c"
+                // "fast/int8_if_x_xor_a_eq_b.c"
+                "fast/nested_ifs.c"
+                // "fast/uint16_if_parabola.c"
+                // "fast/uint32_if_parabola.c"
+
+                // "pending/array_2-1.i"
+                // "pending/array-1.c",
+                // "pending/array1_pattern.c"
+                // "pending/call_bool_arg.c"
+                // "pending/log_and.c"
+                // "pending/log_cond.c"
+                // "pending/loop1-1.c"
+                // "pending/newton_1_1.i"
+                // "pending/pnr3.c"
+                // "pending/TelAviv-Amir-Minimum-alloca.c",
+                // "pending/benchmark08_conjunctive.i",
+                // "pending/cs_stack-1.c",
+                // "pending/ex2-alloca.c",
+                // "pending/count_by_nondet.i",
+                // "pending/Problem08_label00.c",
+                ]
+        },
+        {
+            "label": "zip tests",
+            "type": "shell",
+            "command": "zip -r tests.zip ./*.xml",
+            "options": {
+                "cwd": "${workspaceFolder}/dist/output/test-suite"
+            }
         }
     ]
 }
