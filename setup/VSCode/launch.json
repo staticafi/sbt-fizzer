@@ -52,6 +52,7 @@
                     // "pending/cs_stack-1.sbt-client",
                     // "pending/ex2-alloca.sbt-client",
                     // "pending/count_by_nondet.sbt-client",
+                    // "pending/Problem08_label00.sbt-client",
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
@@ -164,6 +165,7 @@
                     // "pending/cs_stack-1.c",
                     // "pending/ex2-alloca.c",
                     // "pending/count_by_nondet.i",
+                    // "pending/Problem08_label00.c",
                 ],
             "cwd": "${workspaceFolder}/dist",
             "justMyCode": true
