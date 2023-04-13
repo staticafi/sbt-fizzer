@@ -26,7 +26,7 @@ add_library(${THIS_TARGET_NAME}
     )
 
 # libdl is required for BOOST.DLL
-target_link_libraries(${THIS_TARGET_NAME} ${CMAKE_DL_LIBS})
+target_link_libraries(${THIS_TARGET_NAME} ${CMAKE_DL_LIBS} ${Boost_LIBRARIES})
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
