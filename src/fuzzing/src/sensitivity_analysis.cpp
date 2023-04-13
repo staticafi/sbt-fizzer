@@ -90,6 +90,8 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr && entry_branching_ptr != nullptr);
 
+    stdin_bit_index const low_bit_idx = ((mutated_bit_index - 1) / 8) * 8;
+
     branching_node*  node = entry_branching_ptr;
     auto  it_orig = trace->begin();
     auto  it_curr = trace_ptr->begin();
@@ -98,9 +100,12 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
     {
         if (it_orig->value != it_curr->value)
         {
-            auto const  it_and_state = node->sensitive_stdin_bits.insert(mutated_bit_index - 1);
-            if (it_and_state.second)
-                nodes.insert(node);
+            for (stdin_bit_index i = 0; i != 8; ++i)
+            {
+                auto const  it_and_state = node->sensitive_stdin_bits.insert(low_bit_idx + i);
+                if (it_and_state.second)
+                    nodes.insert(node);
+            }
         }
 
         if (it_orig->direction != it_curr->direction)
