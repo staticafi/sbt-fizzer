@@ -76,7 +76,7 @@
         {
             "label": "clean dist",
             "type": "shell",
-            "command": "rm -Rf *.html ../output",
+            "command": "rm -Rf *.html *_CRASH.txt *.gcov ./output ../output",
             "options": {
                 "cwd": "${workspaceFolder}/dist/benchmarks"
             }
