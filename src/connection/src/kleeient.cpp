@@ -27,7 +27,8 @@ kleeient::kleeient(
 kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::string& program_path)
 {
     auto installation_dir = boost::dll::program_location().parent_path();
-    auto klee_executable_path = installation_dir/"klee";
+    auto klee_executable_path = installation_dir/"JetKlee/bin/klee";
+    auto klee_libs_path = installation_dir/"JetKlee/Release+Asserts/lib";
     auto traces = std::string("traces");
     auto models = std::string("models");
 
@@ -46,8 +47,11 @@ kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::
         throw std::runtime_error("Could not create models pipe");
     }
 
+    auto env = boost::this_process::environment();
+    env["KLEE_RUNTIME_LIBRARY_PATH"] = klee_libs_path.string();
     std::unique_ptr<boost::process::child> process = std::make_unique<boost::process::child>(
         klee_executable_path,
+        env,
         boost::process::args({
             "--output-dir", output_dir.string(),
             "--use-interactive-search",
