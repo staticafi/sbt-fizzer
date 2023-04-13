@@ -52,7 +52,7 @@ message("Boost STATUS:
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM 10 REQUIRED CONFIG)
 llvm_map_components_to_libnames(LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH Core Passes)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
