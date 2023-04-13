@@ -84,6 +84,7 @@ class FizzerUtils:
         instrumentation_output = subprocess.run(
             shlex.split(instrumentation), timeout=timeout
         )
+        subprocess.run(["clang", "-o", self.output_dir/(self.file_name + "_client.ll"), "-S", "-emit-llvm", self.file_path])
         if instrumentation_output.returncode:
             errprint("Instrumentation of file failed")
             sys.exit(1)
