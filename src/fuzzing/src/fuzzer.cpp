@@ -130,7 +130,9 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 
     vecb  stdin_bits;
     generate_next_input(stdin_bits);
-    iomodels::iomanager::instance().get_stdin()->set_bits(stdin_bits);
+    vecu8 stdin_bytes;
+    bits_to_bytes(stdin_bits, stdin_bytes);
+    iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
 
     return true;
 }
@@ -146,8 +148,8 @@ bool  fuzzer::round_end(execution_record&  record)
     if (is_path_worth_recording)
     {
         record.flags = flags;
-        record.stdin_bits = iomodels::iomanager::instance().get_stdin()->get_bits();
-        record.stdin_bit_counts = iomodels::iomanager::instance().get_stdin()->get_counts();
+        record.stdin_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
+        record.stdin_byte_counts = iomodels::iomanager::instance().get_stdin()->get_counts();
         for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
             record.path.push_back({ info.id, info.direction });
     }
@@ -231,7 +233,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         return true; // the analyzed program has exactly 1 trace.
     }
 
-    stdin_bits_pointer const  bits = std::make_shared<vecb>(iomodels::iomanager::instance().get_stdin()->get_bits());
+    vecb stdin_bits;
+    bytes_to_bits(iomodels::iomanager::instance().get_stdin()->get_bytes(), stdin_bits);
+    stdin_bits_pointer const  bits = std::make_shared<vecb>(stdin_bits);
     execution_trace_pointer const  trace = std::make_shared<execution_trace>(iomodels::iomanager::instance().get_trace());
 
     leaf_branching_construction_props  construction_props;

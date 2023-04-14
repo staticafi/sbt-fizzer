@@ -25,7 +25,7 @@ server::server(uint16_t port, std::string path_to_client):
                         " --port " + std::to_string(port) +
                         " --max_trace_length " + std::to_string(iomodels::iomanager::instance().get_config().max_trace_length) +
                         " --max_stack_size " + std::to_string(iomodels::iomanager::instance().get_config().max_stack_size) +
-                        " --max_stdin_bits " + std::to_string(iomodels::iomanager::instance().get_config().max_stdin_bits) +
+                        " --max_stdin_bytes " + std::to_string(iomodels::iomanager::instance().get_config().max_stdin_bytes) +
                         " --stdin_model " + iomodels::iomanager::instance().get_config().stdin_model_name +
                         " --stdout_model " + iomodels::iomanager::instance().get_config().stdout_model_name,
                     connections)
@@ -88,11 +88,10 @@ void  server::send_input_to_client_and_receive_result(std::shared_ptr<connection
     message results_from_client;
     connection->receive_message(results_from_client, ec);
     if (ec == boost::asio::error::eof) {
-        vecu8  byte_values;
-        bits_to_bytes(iomodels::iomanager::instance().get_stdin()->get_bits(), byte_values);
-        std::string input(byte_values.size() * 2 + 1, '\0');
-        for (std::size_t i = 0; i < byte_values.size(); ++i) {
-            std::sprintf(input.data() + i * 2, "%02x", byte_values[i]);
+        const vecu8& input_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
+        std::string input(input_bytes.size() * 2 + 1, '\0');
+        for (std::size_t i = 0; i < input_bytes.size(); ++i) {
+            std::sprintf(input.data() + i * 2, "%02x", input_bytes[i]);
         }
 
         throw client_crash_exception(

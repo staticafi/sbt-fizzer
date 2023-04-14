@@ -14,9 +14,9 @@ using namespace instrumentation;
 
 struct  stdin_base
 {
-    using  bit_count_type = natural_16_bit;
+    using  byte_count_type = natural_16_bit;
 
-    explicit stdin_base(bit_count_type const  max_bits_) : m_max_bits{ max_bits_ } {}
+    explicit stdin_base(byte_count_type const  max_bytes_) : m_max_bytes{ max_bytes_ } {}
     virtual ~stdin_base() = default;
 
     virtual void  clear() = 0;
@@ -24,16 +24,16 @@ struct  stdin_base
     virtual void  load(connection::message&  istr) = 0;
     virtual void  read(location_id  id, natural_8_bit*  ptr, natural_8_bit  count) = 0;
 
-    virtual vecb const&  get_bits() const = 0;
+    virtual vecu8 const&  get_bytes() const = 0;
     virtual vecu8 const&  get_counts() const = 0;
-    virtual bit_count_type  num_bits_read() const = 0;
+    virtual byte_count_type  num_bytes_read() const = 0;
 
-    virtual void  set_bits(vecb const&  bits) = 0;
+    virtual void  set_bytes(vecu8 const&  bytes) = 0;
 
-    bit_count_type  max_bits() const { return m_max_bits; }
+    byte_count_type  max_bytes() const { return m_max_bytes; }
 
 private:
-    bit_count_type  m_max_bits;
+    byte_count_type  m_max_bytes;
 };
 
 

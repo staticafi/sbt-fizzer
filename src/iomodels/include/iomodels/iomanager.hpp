@@ -24,8 +24,8 @@ struct  iomanager
     {
         natural_32_bit  max_trace_length{ 10000 };
         natural_8_bit  max_stack_size{ 25 };
-        stdin_base::bit_count_type  max_stdin_bits{ 14400 }; // Standard page: 60 * 30 chars * 8 bits.
-        std::string  stdin_model_name{ "stdin_replay_bits_then_repeat_85" };
+        stdin_base::byte_count_type  max_stdin_bytes{ 1800 }; // Standard page: 60 * 30 chars.
+        std::string  stdin_model_name{ "stdin_replay_bytes_then_repeat_85" };
         std::string  stdout_model_name{ "stdout_void" };
     };
 
@@ -61,7 +61,7 @@ struct  iomanager
     void  call_begin(natural_32_bit  id);
     void  call_end(natural_32_bit  id);
 
-    static std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_count_type)> > const&  get_stdin_models_map();
+    static std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::byte_count_type)> > const&  get_stdin_models_map();
     stdin_base_ptr  get_stdin() const;
     void  clear_stdin();
     void  save_stdin(connection::message&  ostr) const;

@@ -17,7 +17,7 @@ void run() {
     iomanager.set_config({
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_trace_length"))),
             .max_stack_size = (natural_8_bit)std::max(0, std::stoi(get_program_options()->value("max_stack_size"))),
-            .max_stdin_bits = (iomodels::stdin_base::bit_count_type)std::max(0, std::stoi(get_program_options()->value("max_stdin_bits"))),
+            .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("max_stdin_bytes"))),
             .stdin_model_name = get_program_options()->value("stdin_model"),
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
@@ -34,9 +34,9 @@ void run() {
             std::cerr << "ERROR: in argument input expected hexadecimal value\n";
             return;
         }
-        if (8ULL * input_bytes.size() > iomanager.get_stdin()->max_bits()) {
+        if (input_bytes.size() > iomanager.get_stdin()->max_bytes()) {
             std::cerr << "ERROR: the count of bits in the passed input (" << 8ULL * input_bytes.size()
-                      << ") is above the limit (" << iomanager.get_stdin()->max_bits() << ").\n";
+                      << ") is above the limit (" << iomanager.get_stdin()->max_bytes() << ").\n";
             return;
         }
         client.run_input_mode(std::move(input_bytes));

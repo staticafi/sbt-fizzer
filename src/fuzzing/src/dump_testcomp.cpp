@@ -46,17 +46,14 @@ void save_testcomp_test(std::ostream& ostr, const execution_record& trace) {
 
 
 void save_testcomp_test_inputs(std::ostream& ostr, const execution_record& trace) {
-    vecu8  byte_values;
-    bits_to_bytes(trace.stdin_bits, byte_values);
-
     natural_32_bit offset = 0;
-    for (natural_8_bit input_chunk: trace.stdin_bit_counts) {
+    for (natural_8_bit input_chunk: trace.stdin_byte_counts) {
         ostr << "  <input>0x";
-        for (natural_8_bit i = input_chunk / 8; i-- > 0;) {
-            ostr << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)byte_values.at(offset + i);
+        for (natural_8_bit i = input_chunk; i-- > 0;) {
+            ostr << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)trace.stdin_bytes.at(offset + i);
         }
         ostr << "</input>\n";
-        offset += input_chunk / 8;
+        offset += input_chunk;
     }
 }
 

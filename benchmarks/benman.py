@@ -173,7 +173,7 @@ class Benchmark:
             "max_executions",
             "max_seconds",
             "max_trace_length",
-            "max_stdin_bits",
+            "max_stdin_bytes",
             "stdin_model",
             "stdout_model"
             ]), "Benchmark's JSON file does not contain all required options for running the tool.")
@@ -190,7 +190,7 @@ class Benchmark:
                 "--max_executions " + str(config["args"]["max_executions"]) + " " +
                 "--max_seconds " + str(config["args"]["max_seconds"]) + " " +
                 "--max_trace_length " + str(config["args"]["max_trace_length"]) + " " +
-                "--max_stdin_bits " + str(config["args"]["max_stdin_bits"]) + " " +
+                "--max_stdin_bytes " + str(config["args"]["max_stdin_bytes"]) + " " +
                 "--stdin_model " + config["args"]["stdin_model"] + " " +
                 "--stdout_model " + config["args"]["stdout_model"] + " " +
                 "--test_type " + "native" + " " +

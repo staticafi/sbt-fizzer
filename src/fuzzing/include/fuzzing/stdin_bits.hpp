@@ -10,7 +10,7 @@ namespace  fuzzing {
 
 
 using  stdin_bits_pointer = std::shared_ptr<vecb>;
-using  stdin_bit_index = iomodels::stdin_base::bit_count_type;
+using  stdin_bit_index = natural_32_bit;
 static stdin_bit_index constexpr  invalid_stdin_bit_index{ std::numeric_limits<stdin_bit_index>::max() };
 
 

@@ -29,8 +29,8 @@ program_options::program_options(int argc, char* argv[])
     add_option("max_stack_size", "Max number of stack records during benchmark execution.", "1");
     add_value("max_stack_size", std::to_string(io_cfg.max_stack_size));
 
-    add_option("max_stdin_bits", "Max number of stdin bits read during benchmark execution.", "1");
-    add_value("max_stdin_bits", std::to_string(io_cfg.max_stdin_bits));
+    add_option("max_stdin_bytes", "Max number of stdin bits read during benchmark execution.", "1");
+    add_value("max_stdin_bytes", std::to_string(io_cfg.max_stdin_bytes));
 
     add_option("stdin_model", "The model of stdin to be used during the analysis.", "1");
     add_value("stdin_model", io_cfg.stdin_model_name);

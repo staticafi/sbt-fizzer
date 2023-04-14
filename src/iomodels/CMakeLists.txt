@@ -9,10 +9,8 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/iomodels/stdin_base.hpp
 
-    ./include/iomodels/stdin_replay_bits_then_repeat_85.hpp
-    ./src/stdin_replay_bits_then_repeat_85.cpp
-    ./include/iomodels/stdin_replay_bits_then_repeat_zero.hpp
-    ./src/stdin_replay_bits_then_repeat_zero.cpp
+    ./include/iomodels/stdin_replay_bytes_then_repeat_byte.hpp
+    ./src/stdin_replay_bytes_then_repeat_byte.cpp
 
     ./include/iomodels/stdout_base.hpp
 

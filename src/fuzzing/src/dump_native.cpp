@@ -11,17 +11,14 @@ namespace  fuzzing {
 
 void  save_native_test(std::ostream&  ostr, execution_record const&  record)
 {
-    vecu8  byte_values;
-    bits_to_bytes(record.stdin_bits, byte_values);
-
     vecu64  chunk_values;
-    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_bit_counts.size(); i < n; ++i)
+    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_byte_counts.size(); i < n; ++i)
     {
-        ASSUMPTION(record.stdin_bit_counts.at(i) <= 8U * sizeof(chunk_values.back()));
+        ASSUMPTION(record.stdin_byte_counts.at(i) <= 8U * sizeof(chunk_values.back()));
         chunk_values.push_back(0U);
-        for (natural_8_bit  j = 0U, m = record.stdin_bit_counts.at(i) / 8U; j < m; ++j)
-            *(((natural_8_bit*)&chunk_values.back()) + j) = byte_values.at(k + j);
-        k += record.stdin_bit_counts.at(i) / 8U;
+        for (natural_8_bit  j = 0U, m = record.stdin_byte_counts.at(i); j < m; ++j)
+            *(((natural_8_bit*)&chunk_values.back()) + j) = record.stdin_bytes.at(k + j);
+        k += record.stdin_byte_counts.at(i);
     }
 
     std::string const  shift = "    ";
@@ -33,12 +30,12 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
          << shift << "\"crash\": " << ((record.flags & execution_record::EXECUTION_CRASHES) != 0) << ",\n"
          ;
 
-    ostr << shift << "\"num_bytes\": " << byte_values.size() << ",\n"
+    ostr << shift << "\"num_bytes\": " << record.stdin_bytes.size() << ",\n"
          << shift << "\"bytes\": [";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)byte_values.size(); i < n; ++i)
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)record.stdin_bytes.size(); i < n; ++i)
     {
         if (i % 16U == 0U) ostr << '\n' << shift << shift;
-        ostr << '\"' << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)byte_values.at(i) << '\"';
+        ostr << '\"' << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)record.stdin_bytes.at(i) << '\"';
         if (i + 1 < n)
             ostr << ", ";
     }
@@ -49,7 +46,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     for (natural_32_bit  i = 0U, n = (natural_32_bit)chunk_values.size(); i < n; ++i)
     {
         if (i % 8U == 0U) ostr << '\n' << shift << shift;
-        ostr << std::dec << (natural_32_bit)record.stdin_bit_counts.at(i) / 8U << ','
+        ostr << std::dec << (natural_32_bit)record.stdin_byte_counts.at(i) / 8U << ','
              << std::dec << (natural_32_bit)chunk_values.at(i);
         if (i + 1 < n)
             ostr << ',' << shift;

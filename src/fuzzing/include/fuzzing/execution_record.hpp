@@ -17,8 +17,8 @@ struct  execution_record
     static execution_flags constexpr  BOUNDARY_CONDITION_VIOLATION = 1 << 3;
 
     execution_flags  flags { 0 }; 
-    vecb  stdin_bits {};
-    vecu8  stdin_bit_counts {};
+    vecu8  stdin_bytes {};
+    vecu8  stdin_byte_counts {};
     execution_path  path {};
 };
 

@@ -1,6 +1,5 @@
 #include <iomodels/iomanager.hpp>
-#include <iomodels/stdin_replay_bits_then_repeat_85.hpp>
-#include <iomodels/stdin_replay_bits_then_repeat_zero.hpp>
+#include <iomodels/stdin_replay_bytes_then_repeat_byte.hpp>
 #include <iomodels/stdout_void.hpp>
 #include <iomodels/ioexceptions.hpp>
 #include <utility/hash_combine.hpp>
@@ -125,7 +124,7 @@ void  iomanager::load_trace(connection::message&  istr)
 
 void  iomanager::branching(instrumentation::branching_coverage_info const&  info)
 {
-    if (get_stdin()->num_bits_read() == 0)
+    if (get_stdin()->num_bytes_read() == 0)
         return;
     if (trace.size() >= config.max_trace_length)
         throw boundary_condition_violation("The max trace length exceeded.");
@@ -138,7 +137,7 @@ void  iomanager::branching(instrumentation::branching_coverage_info const&  info
 
 void iomanager::br_instr(instrumentation::br_instr_coverage_info const&  info)
 {
-    if (get_stdin()->num_bits_read() == 0)
+    if (get_stdin()->num_bytes_read() == 0)
         return;
     br_instr_trace.push_back(info);
 }
@@ -186,13 +185,13 @@ void  iomanager::call_end(natural_32_bit const  id)
 }
 
 
-std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_count_type)> > const&  iomanager::get_stdin_models_map()
+std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::byte_count_type)> > const&  iomanager::get_stdin_models_map()
 {
-    static std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_count_type)> > const  models {
-        { "stdin_replay_bits_then_repeat_85", [](stdin_base::bit_count_type const  max_bits){
-            return std::make_shared<stdin_replay_bits_then_repeat_85>(max_bits); } },
-        { "stdin_replay_bits_then_repeat_zero", [](stdin_base::bit_count_type const  max_bits){
-            return std::make_shared<stdin_replay_bits_then_repeat_zero>(max_bits); } }
+    static std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::byte_count_type)> > const  models {
+        { "stdin_replay_bytes_then_repeat_85", [](stdin_base::byte_count_type const  max_bytes){
+            return std::make_shared<stdin_replay_bytes_then_repeat_byte>(max_bytes, 85); } },
+        { "stdin_replay_bytes_then_repeat_zero", [](stdin_base::byte_count_type const  max_bytes){
+            return std::make_shared<stdin_replay_bytes_then_repeat_byte>(max_bytes, 0); } }
     };
     return models;
 }
@@ -201,7 +200,7 @@ std::unordered_map<std::string, std::function<stdin_base_ptr(stdin_base::bit_cou
 stdin_base_ptr  iomanager::get_stdin() const
 {
     if (stdin_ptr == nullptr)
-        stdin_ptr = get_stdin_models_map().at(config.stdin_model_name)(config.max_stdin_bits);
+        stdin_ptr = get_stdin_models_map().at(config.stdin_model_name)(config.max_stdin_bytes);
     return stdin_ptr;
 }
 
