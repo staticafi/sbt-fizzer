@@ -635,46 +635,90 @@ void  fuzzer::select_next_state()
 
     INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
 
-    branching_node*  winner_node = nullptr;
-    branching_node*  winner_leaf = nullptr;
-
-    for (auto& leaf_and_props : leaf_branchings)
-        for (auto& loc_and_nodes : leaf_and_props.second.uncovered_branchings)
-            for (branching_node* node : loc_and_nodes.second)
-                if (winner_node == nullptr
-                        || winner_node->trace_index > node->trace_index
-                        || (winner_node->trace_index == node->trace_index
-                                //&& winner_leaf->trace_index < leaf_and_props.first->trace_index
-                                && !winner_leaf->sensitivity_performed && node->sensitivity_performed
-                                )
-                        )
-                {
-                    winner_node = node;
-                    winner_leaf = leaf_and_props.first;
-                }
-    if (winner_node == nullptr)
+    struct  selection_winner
     {
-        INVARIANT(winner_leaf == nullptr);
+        branching_node* node = nullptr;
+        branching_node* leaf = nullptr;
+    };
+
+    selection_winner winner{};
+
+    {
+        struct  did_compare_record : public selection_winner
+        {
+            std::size_t  num_nodes = 0;
+
+            bool operator<(did_compare_record const&  other) const
+            {
+                if (node == nullptr || other.node == nullptr)
+                    return node != nullptr;
+
+                if (node->sensitivity_performed)
+                {
+                    if (!other.node->sensitivity_performed)
+                        return true;
+                }
+                else
+                {
+                    if (other.node->sensitivity_performed)
+                        return false;
+
+                    if (num_nodes < other.num_nodes)
+                        return false;
+                    if (num_nodes > other.num_nodes)
+                        return true;
+                }
+
+                if (node->trace_index < other.node->trace_index)
+                    return true;
+                if (node->trace_index > other.node->trace_index)
+                    return false;
+
+                if (node->sensitive_stdin_bits.size() < other.node->sensitive_stdin_bits.size())
+                    return true;
+
+                return false;
+            }
+        };
+
+        did_compare_record  did_winner{ winner, 0 };
+        for (auto& leaf_and_props : leaf_branchings)
+            for (auto& loc_and_nodes : leaf_and_props.second.uncovered_branchings)
+                for (branching_node* node : loc_and_nodes.second)
+                {
+                    did_compare_record const  current {
+                            { node, leaf_and_props.first },
+                            leaf_and_props.second.uncovered_branchings.size()
+                            };
+                    if (current < did_winner)
+                        did_winner = current;
+                }
+        winner = did_winner;
+    }
+
+    if (winner.node == nullptr)
+    {
+        INVARIANT(winner.leaf == nullptr);
 
         if (!iid_frontier.empty())
         {
             debug_save_branching_tree("iid");
 
-            winner_node = iid_frontier.begin()->node;
-            if (!winner_node->sensitivity_performed)
+            winner.node = iid_frontier.begin()->node;
+            if (!winner.node->sensitivity_performed)
             {
-                winner_leaf = winner_node;
-                while (!leaf_branchings.contains(winner_leaf))
+                winner.leaf = winner.node;
+                while (!leaf_branchings.contains(winner.leaf))
                 {
-                    branching_node* const  left = winner_leaf->successor(false).pointer;
-                    branching_node* const  right = winner_leaf->successor(true).pointer;
+                    branching_node* const  left = winner.leaf->successor(false).pointer;
+                    branching_node* const  right = winner.leaf->successor(true).pointer;
 
                     INVARIANT(left != nullptr || right != nullptr);
 
                     if (left != nullptr)
-                        winner_leaf = left;
+                        winner.leaf = left;
                     else
-                        winner_leaf = right;
+                        winner.leaf = right;
                 }
             }
         }
@@ -685,31 +729,31 @@ void  fuzzer::select_next_state()
             for (auto& leaf_and_props : leaf_branchings)
             {
                 branching_node* const  node = leaf_and_props.second.frontier_branching;
-                if (node != nullptr && (winner_node == nullptr || winner_node->trace_index > node->trace_index))
+                if (node != nullptr && (winner.node == nullptr || winner.node->trace_index > node->trace_index))
                 {
-                    winner_node = node;
-                    winner_leaf = leaf_and_props.first;
+                    winner.node = node;
+                    winner.leaf = leaf_and_props.first;
                 }
             }
         }
     }
 
-    if (winner_node == nullptr)
+    if (winner.node == nullptr)
     {
         state = FINISHED;
         return;
     }
 
-    if (!winner_node->sensitivity_performed)
+    if (!winner.node->sensitivity_performed)
     {
-        INVARIANT(winner_leaf != nullptr && !winner_leaf->sensitivity_performed);
-        sensitivity.start(winner_leaf->best_stdin, winner_leaf->best_trace, winner_leaf);
+        INVARIANT(winner.leaf != nullptr && !winner.leaf->sensitivity_performed);
+        sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf);
         state = SENSITIVITY;
     }
     else
     {
-        INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
-        minimization.start(winner_node, winner_node->best_stdin);
+        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
+        minimization.start(winner.node, winner.node->best_stdin);
         state = MINIMIZATION;
     }
 }
