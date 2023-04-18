@@ -152,14 +152,12 @@ class Benman:
         self.args = parser.parse_args()
 
         self.python_binary = '"' + sys.executable + '"'
-        self._script_dir = os.path.abspath(os.path.dirname(__file__))
-        assert os.path.basename(os.path.dirname(self._script_dir)) == "dist", \
-            "Run the installed version of script to the 'dist' directory. Build and install the project, if not present."
-        self.benchmarks_dir = self._script_dir
-        self.output_dir = os.path.normpath(os.path.join(self._script_dir, "..", "output", "benchmarks"))
-        self.tools_dir = os.path.normpath(os.path.join(self._script_dir, "..", "tools"))
+        self._benchmarks_dir = os.getcwd()
+        self.benchmarks_dir = self._benchmarks_dir
+        self.output_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "output", "benchmarks"))
+        self.tools_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "tools"))
         assert os.path.isdir(self.tools_dir), "The tools install directory not found. Build and install the project first."
-        self.lib_dir = os.path.normpath(os.path.join(self._script_dir, "..", "lib"))
+        self.lib_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "lib"))
         assert os.path.isdir(self.lib_dir), "The lib install directory not found. Build and install the project first."
         self.llvm_instrumenter = os.path.join(self.tools_dir, "sbt-fizzer_instrument")
         assert os.path.isfile(self.llvm_instrumenter), "The llvm instrumentation script not found. Build and install the project first."

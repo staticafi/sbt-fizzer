@@ -115,6 +115,7 @@
             "console": "integratedTerminal",
             "args": [ "--verbose",
                 // "--clear", ".",
+                // "--fuzz",
                 "--build",
                     "all"
                     // "fast"
@@ -169,7 +170,7 @@
                     // "pending/count_by_nondet.i",
                     // "pending/Problem08_label00.c",
                 ],
-            "cwd": "${workspaceFolder}/dist",
+            "cwd": "${workspaceFolder}/dist/benchmarks",
             "justMyCode": true
         }
     ]
