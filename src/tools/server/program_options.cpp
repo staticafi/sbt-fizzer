@@ -62,6 +62,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("test_type", "Output type (native, testcomp)", "1");
     add_value("test_type", "native");
 
+    add_option("path_to_program_ll", "Path to test.llvm to be used by JetKlee.", "1");
+    add_value("path_to_program_ll", "");
+
     add_option("port", "Port the server will use", "1");
     add_value("port", "42085");
 

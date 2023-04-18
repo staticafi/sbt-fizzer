@@ -84,11 +84,13 @@ class FizzerUtils:
         instrumentation_output = subprocess.run(
             shlex.split(instrumentation), timeout=timeout
         )
-        subprocess.run(["clang", "-o", self.output_dir/(self.file_name + "_client.ll"), "-S", "-emit-llvm", self.file_path])
         if instrumentation_output.returncode:
             errprint("Instrumentation of file failed")
             sys.exit(1)
-        
+
+    def compile_program_ll(self):
+        self.program_ll = self.output_dir / (self.file_name + ".ll")
+        subprocess.run(["clang", "-o", self.program_ll, "-S", "-emit-llvm", self.file_path])
 
     def build_client(self, additional_flags="", timeout=None):
         client_file_name = self.file_name + "_client"
@@ -109,10 +111,10 @@ class FizzerUtils:
         
     def run_fuzzing(self, server_options=""):
         server_invocation = (
-            "{0} {1} --path_to_client {2} --output_dir {3}"
+            "{0} {1} --path_to_client {2} --path_to_program_ll {3} --output_dir {4}"
             ).format(
                 self.server_path, server_options, 
-                self.client_file, self.output_dir
+                self.client_file, self.program_ll, self.output_dir
         )
 
         invocation_output = subprocess.run(shlex.split(server_invocation))
@@ -165,6 +167,7 @@ if __name__ == "__main__":
         print("Instrumenting target...", flush=True)
         try:
             utils.instrument(args.instrument, timeout=args.max_seconds)
+            utils.compile_program_ll()
         except subprocess.TimeoutExpired as e:
             errprint(f"Instrumentation timed out after {e.timeout:.3f} seconds")
             sys.exit(1)
