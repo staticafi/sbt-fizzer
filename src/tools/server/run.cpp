@@ -101,9 +101,7 @@ void run(int argc, char* argv[])
     std::thread klee_thread (
         []() {
             boost::asio::io_context io_context;
-            auto path = boost::filesystem::path(get_program_options()->value("path_to_client")).replace_extension(".ll").string();
-            // TODO: pass .ll path in program options
-            connection::kleeient kleeient = connection::kleeient::get_instance(io_context, path);
+            connection::kleeient kleeient = connection::kleeient::get_instance(io_context, get_program_options()->value("path_to_program_ll"));
             kleeient.run("127.0.0.1", get_program_options()->value("kleeient_port"));
         });
     kleeient_connector->wait_for_connection();

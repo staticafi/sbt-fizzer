@@ -41,6 +41,9 @@ program_options::program_options(int argc, char* argv[])
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");
 
+    add_option("path_to_program_ll", "Path to test.llvm to be used by JetKlee.", "1");
+    add_value("path_to_program_ll", "");
+
     add_option("test_type", "Output type (testcomp, debug, sbt-eft)", "1");
     add_value("test_type", "debug");
 

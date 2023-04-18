@@ -27,8 +27,8 @@ kleeient::kleeient(
 kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::string& program_path)
 {
     auto installation_dir = boost::dll::program_location().parent_path();
-    auto klee_executable_path = installation_dir/"JetKlee/bin/klee";
-    auto klee_libs_path = installation_dir/"JetKlee/Release+Asserts/lib";
+    auto klee_executable_path = installation_dir/"JetKlee/build/bin/klee";
+    auto klee_libs_path = installation_dir/"JetKlee/build/Release+Asserts/lib";
     auto traces = std::string("traces");
     auto models = std::string("models");
 

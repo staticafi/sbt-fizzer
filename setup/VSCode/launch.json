@@ -47,6 +47,8 @@
                     // "pending/newton_1_1.sbt-client",
                     // "pending/pnr3.sbt-client",
 
+                "--path_to_program_ll", "fast/int16_if_parabola.ll",
+
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
                 "--max_trace_length", "10000",
