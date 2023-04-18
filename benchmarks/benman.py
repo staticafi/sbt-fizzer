@@ -100,7 +100,7 @@ class Benchmark:
         server_pathname : str,
         max_executions: int,
         max_seconds : int,
-        max_trace_size : int,
+        max_trace_length : int,
         max_stdin_bits : int,
         test_type : str,
         port : int,
@@ -118,7 +118,7 @@ class Benchmark:
                 "--path_to_client " + quote(self.final_file) + " " +
                 "--max_executions " + str(max_executions) + " " +
                 "--max_seconds " + str(max_seconds) + " " +
-                "--max_trace_size " + str(max_trace_size) + " " +
+                "--max_trace_length " + str(max_trace_length) + " " +
                 "--max_stdin_bits " + str(max_stdin_bits) + " " +
                 "--test_type " + test_type + " " +
                 "--port " + str(port)  + " " +
@@ -221,7 +221,7 @@ class Benman:
             assert all(x in config["args"] for x in [
                 "max_executions",
                 "max_seconds",
-                "max_trace_size",
+                "max_trace_length",
                 "max_stdin_bits",
                 "test_type",
                 "port"
@@ -232,7 +232,7 @@ class Benman:
                 self.server_binary,
                 config["args"]["max_executions"],
                 config["args"]["max_seconds"],
-                config["args"]["max_trace_size"],
+                config["args"]["max_trace_length"],
                 config["args"]["max_stdin_bits"],
                 config["args"]["test_type"],
                 config["args"]["port"],
