@@ -6,6 +6,11 @@ import platform
 import argparse
 
 
+def ASSUMPTION(cond, msg="Unknown."):
+    if not cond:
+        raise Exception(msg)
+
+
 def quote(path : str) -> str:
     return '"' + path + '"'
 
@@ -42,7 +47,7 @@ class Benchmark:
         os.chdir(folder)
 
     def popd(self) -> str:
-        assert len(self.dir_stack) > 0
+        ASSUMPTION(len(self.dir_stack) > 0, "Cannot pop from the empty stack of directories.")
         os.chdir(self.dir_stack[-1])
         del self.dir_stack[-1]
 
@@ -68,7 +73,7 @@ class Benchmark:
 
     def _execute_and_check_output(self, cmdline : str, desired_output : str) -> None:
         self._execute(cmdline, os.path.dirname(desired_output))
-        assert os.path.isfile(desired_output), "Output is missing: " + desired_output
+        ASSUMPTION(os.path.isfile(desired_output), "_execute_and_check_output(): the output is missing: " + desired_output)
 
     def build(self) -> None:
         self.log("===")
@@ -94,7 +99,7 @@ class Benchmark:
             )
         self.log("rename " + quote(self.client_file) + " " + quote(self.final_file))
         os.rename(self.client_file, self.final_file)
-        assert os.path.isfile(self.final_file), "Output is missing: " + self.final_file
+        ASSUMPTION(os.path.isfile(self.final_file), "build(): the output is missing: " + self.final_file)
 
     def fuzz(self,
         server_pathname : str,
@@ -102,7 +107,8 @@ class Benchmark:
         max_seconds : int,
         max_trace_length : int,
         max_stdin_bits : int,
-        test_type : str,
+        stdin_model : str,
+        stdout_model : str,
         port : int,
         output_dir : str
         ) -> None:
@@ -120,7 +126,9 @@ class Benchmark:
                 "--max_seconds " + str(max_seconds) + " " +
                 "--max_trace_length " + str(max_trace_length) + " " +
                 "--max_stdin_bits " + str(max_stdin_bits) + " " +
-                "--test_type " + test_type + " " +
+                "--stdin_model " + stdin_model + " " +
+                "--stdout_model " + stdout_model + " " +
+                "--test_type " + "debug" + " " +
                 "--port " + str(port)  + " " +
                 "--output_dir " + quote(output_dir),
             output_dir
@@ -156,17 +164,17 @@ class Benman:
         self.benchmarks_dir = self._benchmarks_dir
         self.output_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "output", "benchmarks"))
         self.tools_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "tools"))
-        assert os.path.isdir(self.tools_dir), "The tools install directory not found. Build and install the project first."
+        ASSUMPTION(os.path.isdir(self.tools_dir), "The tools install directory not found. Build and install the project first.")
         self.lib_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "lib"))
-        assert os.path.isdir(self.lib_dir), "The lib install directory not found. Build and install the project first."
+        ASSUMPTION(os.path.isdir(self.lib_dir), "The lib install directory not found. Build and install the project first.")
         self.llvm_instrumenter = os.path.join(self.tools_dir, "sbt-fizzer_instrument")
-        assert os.path.isfile(self.llvm_instrumenter), "The llvm instrumentation script not found. Build and install the project first."
+        ASSUMPTION(os.path.isfile(self.llvm_instrumenter), "The llvm instrumentation script not found. Build and install the project first.")
         self.client_builder = os.path.join(self.tools_dir, "sbt-fizzer_build_client")
-        assert os.path.isfile(self.client_builder), "The client build script not found. Build and install the project first."
+        ASSUMPTION(os.path.isfile(self.client_builder), "The client build script not found. Build and install the project first.")
         self.server_binary = self._find_binary_file(self.tools_dir, "server_")
-        assert self.server_binary is not None, "The server binary not found. Build and install the project first."
+        ASSUMPTION(self.server_binary is not None, "The server binary not found. Build and install the project first.")
         self.llvm_pass_binary = self._find_binary_file(self.lib_dir, "sbt-fizzer_pass_")
-        assert self.llvm_pass_binary is not None, "The server binary not found. Build and install the project first."
+        ASSUMPTION(self.llvm_pass_binary is not None, "The server binary not found. Build and install the project first.")
 
     def _find_binary_file(self, folder : str, subname : str) -> str|None:
         second_change = None
@@ -181,8 +189,8 @@ class Benman:
     def collect_benchmarks(self, name : str) -> list[str]:
         def complete_and_check_benchmark_path(name : str) -> str:
             pathname = os.path.join(self.benchmarks_dir, name)
-            assert os.path.isfile(pathname), "The benchmark path is invalid: " + pathname
-            assert os.path.isfile(os.path.splitext(pathname)[0] + ".json"), "Missing '.json' file for benchmark: " + pathname
+            ASSUMPTION(os.path.isfile(pathname), "The benchmark path is invalid: " + pathname)
+            ASSUMPTION(os.path.isfile(os.path.splitext(pathname)[0] + ".json"), "Missing '.json' file for benchmark: " + pathname)
             return pathname
 
         def search_for_benchmarks(folder : str) -> list:
@@ -215,16 +223,17 @@ class Benman:
         for pathname in self.collect_benchmarks(name):
             with open(os.path.splitext(pathname)[0] + ".json", "rb") as fp:
                 config = json.load(fp)
-            assert all(x in config for x in ["args", "results"]) 
-            assert all(x in config["args"] for x in [
+            ASSUMPTION(all(x in config for x in ["args", "results"]), "Cannot find 'args' or 'results' in the benchmark's JSON file.")
+            ASSUMPTION(all(x in config["args"] for x in [
                 "max_executions",
                 "max_seconds",
                 "max_trace_length",
                 "max_stdin_bits",
-                "test_type",
-                "port"
-                ])
-            assert all(x in config["results"] for x in ["num_covered", "num_uncovered"]) 
+                "stdin_model",
+                "stdout_model"
+                ]), "Benchmark's JSON file does not contain all required options for running the tool.")
+            ASSUMPTION(all(x in config["results"] for x in ["num_covered", "num_uncovered"]),
+                       "The 'results' folder in the benchmark's JSON file does not contain all required keys.")
             benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.args.verbose)
             benchmark.fuzz(
                 self.server_binary,
@@ -232,8 +241,9 @@ class Benman:
                 config["args"]["max_seconds"],
                 config["args"]["max_trace_length"],
                 config["args"]["max_stdin_bits"],
-                config["args"]["test_type"],
-                config["args"]["port"],
+                config["args"]["stdin_model"],
+                config["args"]["stdout_model"],
+                45654,
                 os.path.splitext(os.path.join(self.output_dir, os.path.relpath(pathname, self.benchmarks_dir)))[0]
             )
         kill_clients()
@@ -245,7 +255,7 @@ class Benman:
 
     def run(self) -> None:
         if self.args.clear:
-            assert self.args.clear != '.' or self.args.build is not None
+            ASSUMPTION(self.args.clear != '.' or self.args.build is not None, "Triggered the forbidden use of the 'clear' command.")
             self.clear(self.args.clear if self.args.clear != '.' else self.args.build)
         if self.args.build:
             self.build(self.args.build)
