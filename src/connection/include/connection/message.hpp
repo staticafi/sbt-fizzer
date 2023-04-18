@@ -10,7 +10,6 @@ namespace  connection {
 
 
 struct message_header {
-    message_header();
 
     uint32_t type = 0;
 private:
@@ -22,37 +21,31 @@ friend struct message;
 
 struct  message
 {
-    message();
-
     natural_32_bit size();
 
-    void  clear();
+    void clear();
     bool empty();
+    void load(const void* src, size_t n);
+    void save(void* dest, size_t n);
+
+    bool exhausted() const;
 
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     message&  operator<<(const T& v)
     {
-        std::size_t data_size = sizeof(T);
-        std::size_t old_size = bytes.size();
-        bytes.resize(old_size + data_size);
-        memcpy(bytes.data() + old_size, &v, data_size);
-        header.size += (natural_32_bit)data_size;
+        load(&v, sizeof(T));
         return *this;
     }
 
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     message&  operator>>(T& v)
     {
-        std::size_t data_size = sizeof(T);
-        ASSUMPTION(cursor + data_size <= (natural_32_bit) bytes.size());
-        memcpy(&v, bytes.data() + cursor, data_size);
-        cursor += (natural_32_bit)data_size;
-        header.size -= (natural_32_bit)data_size;
+        save(&v, sizeof(T));
         return *this;
     }
 
 
-    message_header header{};
+    message_header header;
 private:
     vecu8  bytes;
     natural_32_bit  cursor = 0;
