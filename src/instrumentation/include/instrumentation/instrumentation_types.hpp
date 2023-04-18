@@ -10,15 +10,18 @@ namespace  instrumentation {
 
 union location_id
 {
-    location_id(natural_32_bit const  id_, natural_32_bit const  context_hash_ = 0U)
+    using  id_type = natural_32_bit;
+    using  context_type = natural_32_bit;
+
+    location_id(id_type const  id_, context_type const  context_hash_ = 0U)
         : id { id_ }
         , context_hash { context_hash_ }
     {}
 
     struct
     {
-        natural_32_bit  id;
-        natural_32_bit  context_hash;
+        id_type  id;
+        context_type  context_hash;
     };
 
     natural_64_bit  uid;

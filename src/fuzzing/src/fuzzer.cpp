@@ -54,6 +54,7 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , state{ STARTUP }
     , sensitivity{}
     , minimization{}
+    , bitshare{}
 
     , statistics{}
 
@@ -80,6 +81,7 @@ void  fuzzer::stop_all_analyzes()
 {
     sensitivity.stop();
     minimization.stop();
+    bitshare.stop();
 }
 
 
@@ -169,47 +171,40 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 {
     TMPROF_BLOCK();
 
-    switch (state)
+    for (int i = 0; i != 3; ++i)
     {
-        case STARTUP:
-            if (get_performed_driver_executions() == 0U)
+        switch (state)
+        {
+            case STARTUP:
+                if (get_performed_driver_executions() == 0U)
+                    return;
+                break;
+
+            case SENSITIVITY:
+                if (sensitivity.generate_next_input(stdin_bits))
+                    return;
+                break;
+
+            case MINIMIZATION:
+                if (minimization.generate_next_input(stdin_bits))
+                    return;
+                break;
+
+            case BITSHARE:
+                if (bitshare.generate_next_input(stdin_bits))
+                    return;
+                break;
+
+            case FINISHED:
                 return;
-            break;
 
-        case SENSITIVITY:
-            if (sensitivity.generate_next_input(stdin_bits))
-                return;
-            break;
+            default: { UNREACHABLE(); break; }
+        }
 
-        case MINIMIZATION:
-            if (minimization.generate_next_input(stdin_bits))
-                return;
-            break;
+        do_cleanup();
+        select_next_state();
 
-        default: UNREACHABLE(); break;
-    }
-
-    do_cleanup();
-    select_next_state();
-
-    stdin_bits.clear();
-
-    switch (state)
-    {
-        case SENSITIVITY:
-            if (sensitivity.generate_next_input(stdin_bits))
-                return;
-            break;
-
-        case MINIMIZATION:
-            if (minimization.generate_next_input(stdin_bits))
-                return;
-            break;
-
-        case FINISHED:
-            return;
-
-        default: break;
+        stdin_bits.clear();
     }
 
     UNREACHABLE();
@@ -351,19 +346,29 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && minimization.is_ready());
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_ready());
             break;
 
         case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && minimization.is_ready());
+            INVARIANT(sensitivity.is_busy() && minimization.is_ready() && bitshare.is_ready());
             sensitivity.process_execution_results(trace, entry_branching);
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && minimization.is_busy());
+            INVARIANT(sensitivity.is_ready() && minimization.is_busy() && bitshare.is_ready());
             minimization.process_execution_results(trace);
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
+            {
                 minimization.stop();
+                bitshare.bits_available_for_branching(minimization.get_node(), trace, bits);
+            }
+            break;
+
+        case BITSHARE:
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_busy());
+            bitshare.process_execution_results(trace);
+            if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
+                bitshare.stop();
             break;
 
         default: UNREACHABLE(); break;
@@ -749,6 +754,12 @@ void  fuzzer::select_next_state()
         INVARIANT(winner.leaf != nullptr && !winner.leaf->sensitivity_performed);
         sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf);
         state = SENSITIVITY;
+    }
+    else if (!winner.node->bitshare_performed)
+    {
+        INVARIANT(!winner.node->sensitive_stdin_bits.empty());
+        bitshare.start(winner.node);
+        state = BITSHARE;
     }
     else
     {

@@ -12,6 +12,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/minimization_analysis.hpp
     ./src/minimization_analysis.cpp
 
+    ./include/fuzzing/bitshare_analysis.hpp
+    ./src/bitshare_analysis.cpp
+
     ./include/fuzzing/execution_trace.hpp
     ./src/execution_trace.cpp
 

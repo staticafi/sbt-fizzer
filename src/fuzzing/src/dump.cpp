@@ -78,6 +78,17 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << "       Start calls: " << results.minimization_statistics.start_calls << '\n'
          << "       Stop calls regular: " << results.minimization_statistics.stop_calls_regular << '\n'
          << "       Stop calls early: " << results.minimization_statistics.stop_calls_early << '\n'
+         << "   Bitshare analysis:\n"
+         << "       Generated inputs: " << results.bitshare_statistics.generated_inputs << '\n'
+         << "       Hits: " << results.bitshare_statistics.hits << '\n'
+         << "       Misses: " << results.bitshare_statistics.misses << '\n'
+         << "       Start calls: " << results.bitshare_statistics.start_calls << '\n'
+         << "       Stop calls regular: " << results.bitshare_statistics.stop_calls_regular << '\n'
+         << "       Stop calls early: " << results.bitshare_statistics.stop_calls_early << '\n'
+         << "       Stop calls instant: " << results.bitshare_statistics.stop_calls_instant << '\n'
+         << "       Num locations: " << results.bitshare_statistics.num_locations << '\n'
+         << "       Num insertions: " << results.bitshare_statistics.num_insertions << '\n'
+         << "       Num deletions: " << results.bitshare_statistics.num_deletions << '\n'
          << "   Fuzzer:\n"
          << "       Tree leaves created: " << results.statistics.leaf_nodes_created << '\n'
          << "       Tree leaves destroyed: " << results.statistics.leaf_nodes_destroyed << '\n'
