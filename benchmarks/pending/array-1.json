@@ -1,18 +1,23 @@
 {
     "args": {
-        "max_executions": 6500,
+        "max_executions": 10000,
         "max_seconds": 300,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bits": 6400,
         "stdin_model": "stdin_replay_bits_then_repeat_85",
-        "stdout_model": "stdout_void",
-        "debug_mode": true,
-        "test_type": "debug",
-        "port": 45654
+        "stdout_model": "stdout_void"
     },
     "results": {
-        "num_covered": 2,
-        "num_uncovered": 1
+        "termination_type": "NORMAL",
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "executions_performed": 10000,
+        "num_covered_branchings": 2,
+        "covered_branchings": [
+            2,0,    3,0
+        ],
+        "num_generated_tests": 2,
+        "num_crashes": 0,
+        "num_boundary_violations": 0
     }
 }

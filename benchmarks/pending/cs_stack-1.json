@@ -1,18 +1,34 @@
 {
     "args": {
-        "max_executions": 1000000,
+        "max_executions": 10000,
         "max_seconds": 300,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bits": 6400,
         "stdin_model": "stdin_replay_bits_then_repeat_85",
-        "stdout_model": "stdout_void",
-        "debug_mode": true,
-        "test_type": "debug",
-        "port": 45654
+        "stdout_model": "stdout_void"
     },
     "results": {
-        "num_covered": 1,
-        "num_uncovered": 1
+        "termination_type": "NORMAL",
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "executions_performed": 10000,
+        "num_covered_branchings": 47,
+        "covered_branchings": [
+            1,1013906012,    1,1013906132,    1,1013906262,    1,1013907757,    
+            1,1013907883,    1,1013908022,    1,1013908148,    1,1013908271,    
+            1,2654437791,    1,2654439817,    3,2654437476,    3,2654437596,    
+            3,2654437726,    3,2654439219,    3,2654439345,    3,2654439486,    
+            3,2654439612,    3,2654439733,    4,2654437476,    4,2654437596,    
+            4,2654437726,    4,2654439219,    4,2654439345,    4,2654439486,    
+            4,2654439612,    5,2654437476,    5,2654437596,    5,2654437726,    
+            5,2654439219,    5,2654439345,    5,2654439486,    5,2654439612,    
+            48,0,    50,0,    51,0,    52,0,    
+            71,0,    72,0,    73,0,    74,0,    
+            77,0,    78,0,    79,0,    80,0,    
+            81,0,    84,0,    88,0
+        ],
+        "num_generated_tests": 27,
+        "num_crashes": 0,
+        "num_boundary_violations": 0
     }
 }

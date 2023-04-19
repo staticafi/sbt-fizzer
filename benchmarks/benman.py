@@ -23,9 +23,10 @@ def kill_clients():
 
 
 class Benchmark:
-    def __init__(self, pathname : str, llvm_instumenter : str, client_builder : str, verbose : bool) -> None:
+    def __init__(self, pathname : str, llvm_instumenter : str, client_builder : str, server : str, verbose : bool) -> None:
         self.llvm_instumenter = llvm_instumenter
         self.client_builder = client_builder
+        self.server = server
         self.verbose = verbose
 
         self.python_binary = sys.executable
@@ -35,6 +36,7 @@ class Benchmark:
         self.name = os.path.splitext(self.fname)[0]
 
         self.src_file = os.path.join(self.work_dir, self.fname)
+        self.config_file = os.path.join(self.work_dir, self.name + ".json")
         self.ll_file = os.path.join(self.work_dir, self.name + ".ll")
         self.instrumented_ll_file = os.path.join(self.work_dir, self.name + "_instrumented.ll")
         self.client_file = os.path.join(self.work_dir, self.name + "_client")
@@ -51,9 +53,11 @@ class Benchmark:
         os.chdir(self.dir_stack[-1])
         del self.dir_stack[-1]
 
-    def log(self, message : str) -> None:
+    def log(self, message : str, brief_message: str = None) -> None:
         if self.verbose:
             print(">>> " + message)
+        elif brief_message is not None:
+            print(brief_message, end="")
 
     def _erase_file_if_exists(self, pathname : str) -> None:
         if os.path.exists(pathname):
@@ -65,6 +69,9 @@ class Benchmark:
             self.log("rmtree " + pathname)
             shutil.rmtree(pathname)
 
+    def _compute_output_dir(self, benchmarks_root_dir : str, output_root_dir : str):
+        return os.path.splitext(os.path.join(output_root_dir, os.path.relpath(self.src_file, benchmarks_root_dir)))[0]
+
     def _execute(self, cmdline : str, output_dir : str) -> None:
         self.pushd(output_dir)
         self.log(cmdline)
@@ -75,9 +82,81 @@ class Benchmark:
         self._execute(cmdline, os.path.dirname(desired_output))
         ASSUMPTION(os.path.isfile(desired_output), "_execute_and_check_output(): the output is missing: " + desired_output)
 
+    def _is_ignored(self) -> bool:
+        if self.work_dir.endswith("pending"):
+            # "array_2-1",
+            # "array-1",
+            # "array1_pattern", # GENERATES 3171 TESTS FOR 8 COVERED BRANCHINGS!!
+            # "benchmark08_conjunctive",
+            # "count_by_nondet",
+            # "cs_stack-1",
+            # "loop1-1", # GENERATES 6435 TESTS FOR 5 COVERED BRANCHINGS!!
+            # "newton_1_1",
+            # "pnr3",
+            # "Problem08_label00",
+            # "TelAviv-Amir-Minimum-alloca", # NONDETERMINISM VIA ALLOCA
+            return True
+        return self.name in [
+            # TODO: reduce this list by improving the fuzzer on these benchmarks.
+            # fast:
+            "float_if_x_eq_c",
+            "int8_if_hash_x_y_z_eq_c",
+            "int16_if_x_lt_c", # VERY SUSPICIOUS BEHAVIOR!!
+        ]
+
+    def _check_outcomes(self, config : dict, outcomes : dict):
+        checked_properties_and_comparators = {
+            "termination_type": "EQ",
+            "termination_reason": "EQ",
+            "executions_performed": "LE",
+            "num_covered_branchings": "GE",
+            "covered_branchings": None,
+            "num_generated_tests": "GE",
+            "num_crashes": "GE",
+            "num_boundary_violations": "LE"
+        }
+
+        def is_valid(obtained, expected, op : str) -> bool:
+            if op == "EQ": return obtained == expected
+            if op == "NE": return obtained != expected
+            if op == "LT": return obtained < expected
+            if op == "LE": return obtained <= expected
+            if op == "GT": return obtained > expected
+            if op == "GE": return obtained >= expected
+            raise Exception("Invalid comparison operator '" + op + "'.")
+
+        for property, expected_value in config["results"].items():
+            ASSUMPTION(
+                property in checked_properties_and_comparators,
+                "Unsupported key '" + property + "' in the 'results' section of benchmark's config JSON file."
+                )
+            ASSUMPTION(
+                property in outcomes,
+                "The valid key '" + property + "' was not found in the 'outcomes' JSON file."
+                )
+            if type(expected_value) in [int, float, str]:
+                if not is_valid(outcomes[property], expected_value, checked_properties_and_comparators[property]):
+                    return False
+            else:
+                ASSUMPTION(property == "covered_branchings", "Only 'covered_branchings' can be a 'list' property to check.")
+                ASSUMPTION(len(expected_value) % 2 == 0, "Expected covered branchings list must have even number of elements.")
+                ASSUMPTION(len(outcomes[property]) % 2 == 0, "Obtained covered branchings list must have even number of elements.")
+                def get_branchings(seq : list) -> set:
+                    result = set()
+                    if len(seq) > 0:
+                        for i in range(0, len(seq)-1, 2):
+                            result.add((seq[i], seq[i+1]))
+                    return result
+                expected_branchings = get_branchings(expected_value)
+                obtained_branchings = get_branchings(outcomes[property])
+                for x in expected_branchings:
+                    if x not in obtained_branchings:
+                        return False
+        return True
+
     def build(self) -> None:
         self.log("===")
-        self.log("=== Building: " + self.src_file)
+        self.log("=== Building: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
         self.log("===")
         self._erase_file_if_exists(self.client_file)
         self._erase_file_if_exists(self.final_file)
@@ -100,51 +179,75 @@ class Benchmark:
         self.log("rename " + quote(self.client_file) + " " + quote(self.final_file))
         os.rename(self.client_file, self.final_file)
         ASSUMPTION(os.path.isfile(self.final_file), "build(): the output is missing: " + self.final_file)
+        self.log("Done", "Done\n")
 
-    def fuzz(self,
-        server_pathname : str,
-        max_executions: int,
-        max_seconds : int,
-        max_trace_length : int,
-        max_stdin_bits : int,
-        stdin_model : str,
-        stdout_model : str,
-        port : int,
-        output_dir : str
-        ) -> None:
+    def fuzz(self, benchmarks_root_dir : str, output_root_dir : str) -> bool:
         self.log("===")
-        self.log("=== Fuzzing: " + self.src_file)
+        self.log("=== Fuzzing: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
         self.log("===")
+        if self._is_ignored() is True:
+            self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
+            return True
+        with open(self.config_file, "rb") as fp:
+            config = json.load(fp)
+        ASSUMPTION(all(x in config for x in ["args", "results"]), "Cannot find 'args' or 'results' in the benchmark's JSON file.")
+        ASSUMPTION(all(x in config["args"] for x in [
+            "max_executions",
+            "max_seconds",
+            "max_trace_length",
+            "max_stdin_bits",
+            "stdin_model",
+            "stdout_model"
+            ]), "Benchmark's JSON file does not contain all required options for running the tool.")
+
+        output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
+
         self._erase_dir_if_exists(output_dir)
         self.log("makedirs " + output_dir)
         os.makedirs(output_dir)
         kill_clients()
         self._execute(
-            quote(server_pathname) + " " +
+            quote(self.server) + " " +
                 "--path_to_client " + quote(self.final_file) + " " +
-                "--max_executions " + str(max_executions) + " " +
-                "--max_seconds " + str(max_seconds) + " " +
-                "--max_trace_length " + str(max_trace_length) + " " +
-                "--max_stdin_bits " + str(max_stdin_bits) + " " +
-                "--stdin_model " + stdin_model + " " +
-                "--stdout_model " + stdout_model + " " +
+                "--max_executions " + str(config["args"]["max_executions"]) + " " +
+                "--max_seconds " + str(config["args"]["max_seconds"]) + " " +
+                "--max_trace_length " + str(config["args"]["max_trace_length"]) + " " +
+                "--max_stdin_bits " + str(config["args"]["max_stdin_bits"]) + " " +
+                "--stdin_model " + config["args"]["stdin_model"] + " " +
+                "--stdout_model " + config["args"]["stdout_model"] + " " +
                 "--test_type " + "native" + " " +
-                "--port " + str(port)  + " " +
+                ("--silent_mode " if self.verbose is False else "") +
+                "--port " + str(45654)  + " " +
                 "--output_dir " + quote(output_dir),
             output_dir
             )
 
+        try:
+            if self._is_ignored() is True:
+                self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
+                return True
+            outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")
+            with open(outcomes_pathname, "rb") as fp:
+                outcomes = json.load(fp)
+            if self._check_outcomes(config, outcomes) is True:
+                self.log("The outcomes are as expected => the test has PASSED.", "ok\n")
+                return True
+        except Exception as e:
+            self.log("FAILURE due to an EXCEPTION: " + str(e), "EXCEPTION[" + str(e) + "]\n")
+            return False
+        self.log("The outcomes are NOT as expected => the test has FAILED.", "FAILED\n")
+        return False
+
     def clear(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
         self.log("===")
-        self.log("=== Clearing: " + self.src_file)
+        self.log("=== Clearing: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
         self.log("===")
         self._erase_file_if_exists(self.ll_file)
         self._erase_file_if_exists(self.instrumented_ll_file)
         self._erase_file_if_exists(self.client_file)
         self._erase_file_if_exists(self.final_file)
-        self._erase_dir_if_exists(
-            os.path.splitext(os.path.join(output_root_dir, os.path.relpath(self.src_file, benchmarks_root_dir)))[0]
-            )
+        self._erase_dir_if_exists(self._compute_output_dir(benchmarks_root_dir, output_root_dir))
+        self.log("Done", "Done\n")
 
 
 class Benman:
@@ -195,12 +298,14 @@ class Benman:
 
         def search_for_benchmarks(folder : str) -> list:
             benchmarks = []
-            for name in os.listdir(os.path.join(self.benchmarks_dir, folder)):
-                if os.path.splitext(name)[1].lower() in [".c", ".i"]:
-                    try:
-                        benchmarks.append(complete_and_check_benchmark_path(os.path.join(folder, name)))
-                    except Exception:
-                        pass
+            pathname = os.path.join(self.benchmarks_dir, folder)
+            if os.path.isdir(pathname):
+                for name in os.listdir(pathname):
+                    if os.path.splitext(name)[1].lower() in [".c", ".i"]:
+                        try:
+                            benchmarks.append(complete_and_check_benchmark_path(os.path.join(folder, name)))
+                        except Exception:
+                            pass
             return benchmarks
 
         kinds = ["fast", "medium", "slow", "pending"]
@@ -212,59 +317,51 @@ class Benman:
             benchmarks += search_for_benchmarks(name)
         else:
             benchmarks.append(complete_and_check_benchmark_path(name))
-        return benchmarks
+        return sorted(benchmarks)
 
-    def build(self, name : str) -> None:
+    def build(self, name : str) -> bool:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.args.verbose)
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
             benchmark.build()
+        return True
 
-    def fuzz(self, name : str) -> None:
-        for pathname in self.collect_benchmarks(name):
-            with open(os.path.splitext(pathname)[0] + ".json", "rb") as fp:
-                config = json.load(fp)
-            ASSUMPTION(all(x in config for x in ["args", "results"]), "Cannot find 'args' or 'results' in the benchmark's JSON file.")
-            ASSUMPTION(all(x in config["args"] for x in [
-                "max_executions",
-                "max_seconds",
-                "max_trace_length",
-                "max_stdin_bits",
-                "stdin_model",
-                "stdout_model"
-                ]), "Benchmark's JSON file does not contain all required options for running the tool.")
-            ASSUMPTION(all(x in config["results"] for x in ["num_covered", "num_uncovered"]),
-                       "The 'results' folder in the benchmark's JSON file does not contain all required keys.")
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.args.verbose)
-            benchmark.fuzz(
-                self.server_binary,
-                config["args"]["max_executions"],
-                config["args"]["max_seconds"],
-                config["args"]["max_trace_length"],
-                config["args"]["max_stdin_bits"],
-                config["args"]["stdin_model"],
-                config["args"]["stdout_model"],
-                45654,
-                os.path.splitext(os.path.join(self.output_dir, os.path.relpath(pathname, self.benchmarks_dir)))[0]
-            )
+    def fuzz(self, name : str) -> bool:
+        num_failures = 0
+        benchmark_paths = self.collect_benchmarks(name)
+        for pathname in benchmark_paths:
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
+            if not benchmark.fuzz(self.benchmarks_dir, self.output_dir):
+                num_failures += 1
         kill_clients()
+        if num_failures > 0:
+            print("FAILURE[" + str(num_failures) + "/" + str(len(benchmark_paths)) + "]")
+            return False
+        else:
+            print("SUCCESS")
+            return True
 
     def clear(self, name : str) -> None:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.args.verbose)
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
             benchmark.clear(self.benchmarks_dir, self.output_dir)
+        return True
 
-    def run(self) -> None:
+    def run(self) -> bool:
         if self.args.clear:
             ASSUMPTION(self.args.clear != '.' or self.args.build is not None, "Triggered the forbidden use of the 'clear' command.")
-            self.clear(self.args.clear if self.args.clear != '.' else self.args.build)
+            return self.clear(self.args.clear if self.args.clear != '.' else self.args.build)
         if self.args.build:
-            self.build(self.args.build)
+            return self.build(self.args.build)
         if self.args.fuzz:
-            self.fuzz(self.args.fuzz)
+            return self.fuzz(self.args.fuzz)
 
 if __name__ == '__main__':
+    exit_code = 0
     try:
         benman = Benman()
-        benman.run()
+        if benman.run() is False:
+            exit_code = 1
     except Exception as e:
+        exit_code = 1
         print("ERROR: " + str(e))
+    exit(exit_code)

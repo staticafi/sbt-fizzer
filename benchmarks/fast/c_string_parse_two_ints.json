@@ -1,18 +1,31 @@
 {
     "args": {
-        "max_executions": 8000,
+        "max_executions": 10000,
         "max_seconds": 300,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bits": 6400,
         "stdin_model": "stdin_replay_bits_then_repeat_85",
-        "stdout_model": "stdout_void",
-        "debug_mode": true,
-        "test_type": "debug",
-        "port": 45654
+        "stdout_model": "stdout_void"
     },
     "results": {
-        "num_covered": 1,
-        "num_uncovered": 0
+        "termination_type": "NORMAL",
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "executions_performed": 5650,
+        "num_covered_branchings": 35,
+        "covered_branchings": [
+            1,0,    2,0,    3,0,    4,0,    
+            5,2654435832,    6,2654435832,    7,2654435832,    8,1013904435,    
+            8,1013904498,    9,1013904435,    9,1013904498,    10,1013904435,    
+            10,1013904498,    11,1013904435,    11,1013904498,    12,1013904435,    
+            12,1013904498,    13,1013904435,    13,1013904498,    14,1013904435,    
+            14,1013904498,    15,1013904435,    15,1013904498,    16,1013904435,    
+            16,1013904498,    17,1013904435,    17,1013904498,    18,1013904435,    
+            18,1013904498,    19,1013904435,    19,1013904498,    20,1013904435,    
+            20,1013904498,    21,1013904435,    21,1013904498
+        ],
+        "num_generated_tests": 30,
+        "num_crashes": 0,
+        "num_boundary_violations": 0
     }
 }
