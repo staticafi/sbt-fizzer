@@ -5,6 +5,7 @@
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzing_loop.hpp>
 #include <fuzzing/dump.hpp>
+#include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
 #include <iostream>
 
@@ -33,17 +34,12 @@ void run(int argc, char* argv[])
             std::cout << name_and_constructor.first << std::endl;
         return;
     }
-    const std::string& test_type = get_program_options()->value("test_type");
-    if (test_type != "debug" && test_type != "sbt-eft" && test_type != "testcomp") {
-        std::cerr << "ERROR: unknown output type specified. Use debug, sbt-eft or testcomp\n";
-        return;
-    }
-    if (get_program_options()->value("path_to_client") == "")
+    if (get_program_options()->value("path_to_client").empty())
     {
         std::cerr << "WARNING: empty path to client specified. The server will not automatically run fuzzing clients.\n";
     }
     std::string client_name = "client";
-    if (!get_program_options()->value("path_to_client").empty()) {
+    {
         if (!std::filesystem::is_regular_file(get_program_options()->value("path_to_client")))
         {
             std::cerr << "ERROR: The passed client path '"
@@ -63,6 +59,37 @@ void run(int argc, char* argv[])
         client_name = client_path.stem().string();
     }
 
+    std::string test_name;
+    if (!get_program_options()->value("path_to_client").empty()) {
+        test_name = client_name + "_test";
+    } else {
+        test_name = "test";        
+    }
+
+    const std::string& test_type = get_program_options()->value("test_type");
+    if (test_type != "native" && test_type != "testcomp") {
+        std::cerr << "ERROR: unknown output type specified. Use native or testcomp.\n";
+        return;
+    }
+
+    if (get_program_options()->value("output_dir").empty())
+    {
+        std::cerr << "ERROR: The output directory path is empty.\n";
+        return;
+    }
+    std::filesystem::path output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
+    if (test_type == "testcomp") {
+        output_dir /= "test-suite";
+    }
+    {
+        std::error_code  ec;
+        if (!std::filesystem::create_directories(output_dir, ec) && ec)
+        {
+            std::cerr << "ERROR: Failed to create/access the output directory:\n        " << output_dir << "\n";
+            return;
+        }
+    }
+
     fuzzing::termination_info const  terminator{
             .max_driver_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
             .max_fuzzing_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds")))
@@ -76,8 +103,20 @@ void run(int argc, char* argv[])
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
 
+    std::cout << "Accepted the following configuration:" << std::endl;
     fuzzing::print_fuzzing_configuration(
             std::cout,
+            client_name,
+            iomodels::iomanager::instance().get_config(),
+            terminator
+            );
+    fuzzing::log_fuzzing_configuration(
+            client_name,
+            iomodels::iomanager::instance().get_config(),
+            terminator
+            );
+    fuzzing::save_fuzzing_configuration(
+            output_dir, 
             client_name,
             iomodels::iomanager::instance().get_config(),
             terminator
@@ -92,8 +131,7 @@ void run(int argc, char* argv[])
         return;
     }
 
-    std::cout << "Fuzzing started..." << std::endl << std::flush;
-
+    std::cout << "Fuzzing was started..." << std::endl << std::flush;
     fuzzing::analysis_outcomes const  results = fuzzing::run(
             [&server](){ server.send_input_to_client_and_receive_result(); },
             terminator,
@@ -102,58 +140,30 @@ void run(int argc, char* argv[])
 
     server.stop();
 
-    fuzzing::print_analysis_outcomes(std::cout, results, false);
+    std::cout << "Fuzzing was stopped. Details:" << std::endl;
+    fuzzing::print_analysis_outcomes(std::cout, results);
+    fuzzing::log_analysis_outcomes(results);
+    fuzzing::save_analysis_outcomes(output_dir, client_name, results);
 
-    if (!get_program_options()->value("output_dir").empty())
-    {
-        std::filesystem::path output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
-
-        if (test_type == "testcomp") {
-            output_dir /= "test-suite";
-        }
-
-        std::error_code  ec;
-        if (!std::filesystem::create_directories(output_dir, ec) && ec)
-            std::cerr << "ERROR: Failed to create/access the output directory:\n        " 
-                      << output_dir << "\n"
-                      << "       => No test was written to disk.\n";
-        else
+    std::cout << "Saving tests under the output directory...\n";
+    if (test_type == "native") {
+        fuzzing::save_native_output(output_dir, results.execution_records, test_name);
+        if (!results.debug_data.empty())
         {
-            std::cout << "Saving tests under the output directory...\n";
-
-            std::string test_name = "test";
-            if (!get_program_options()->value("path_to_client").empty()) {
-                test_name += "_for_" + client_name;
-            }
-
-            if (test_type == "debug") {
-                fuzzing::save_execution_records_to_directory(
-                    output_dir,
-                    results.execution_records,
-                    true,
-                    test_name
-                    );
-                if (!results.debug_data.empty())
-                {
-                    std::cout << "Saving debug data under the output directory...\n";
-                    fuzzing::save_debug_data_to_directory(
-                            output_dir,
-                            test_name,
-                            results.debug_data
-                            );
-                }
-            }
-            else if (test_type == "testcomp") {
-                fuzzing::save_testcomp_output(
-                    output_dir, 
-                    results.execution_records,
-                    test_name,
-                    get_program_version(),
-                    get_program_options()->value("path_to_client")
-                    );
-            }
-            
-            std::cout << "Done.\n" << std::flush;
+            std::cout << "Saving debug data under the output directory...\n";
+            fuzzing::save_debug_data_to_directory(output_dir, test_name, results.debug_data);
         }
     }
+    else {
+        ASSUMPTION(test_type == "testcomp");
+        fuzzing::save_testcomp_output(
+            output_dir, 
+            results.execution_records,
+            test_name,
+            get_program_version(),
+            get_program_options()->value("path_to_client")
+            );
+    }
+    
+    std::cout << "Done.\n" << std::flush;
 }

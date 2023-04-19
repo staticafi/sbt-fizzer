@@ -17,21 +17,24 @@ void  print_fuzzing_configuration(
         iomodels::iomanager::configuration const&  ioconfig,
         termination_info const&  terminator
         );
-
-void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results, bool const  dump_traces = false);
-
-void  print_execution_record(
-        std::ostream&  ostr,
-        execution_record const&  record,
-        bool  dump_chunks,
-        std::string const&  shift = ""
+void  log_fuzzing_configuration(
+        std::string const&  benchmark,
+        iomodels::iomanager::configuration const&  ioconfig,
+        termination_info const&  terminator
+        );
+void  save_fuzzing_configuration(
+        std::filesystem::path const&  output_dir,
+        std::string const&  benchmark,
+        iomodels::iomanager::configuration const&  ioconfig,
+        termination_info const&  terminator
         );
 
-void  save_execution_records_to_directory(
+void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results);
+void  log_analysis_outcomes(analysis_outcomes const&  results);
+void  save_analysis_outcomes(
         std::filesystem::path const&  output_dir,
-        std::vector<execution_record> const&  records,
-        bool  dump_chunks,
-        std::string const&  test_name_prefix = ""
+        std::string const&  benchmark,
+        analysis_outcomes const&  results
         );
 
 void  save_debug_data_to_directory(

@@ -27,6 +27,8 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/fuzzing/dump.hpp
     ./src/dump.cpp
+    ./include/fuzzing/dump_native.hpp
+    ./src/dump_native.cpp
     ./include/fuzzing/dump_testcomp.hpp
     ./src/dump_testcomp.cpp
     ./include/fuzzing/dump_tree.hpp

@@ -19,7 +19,7 @@ def kill_clients():
     if platform.system() == "Windows":
         pass # TODO!
     else:
-        os.system("pgrep sbt-client | xargs -r kill")
+        os.system("pgrep --full \".sbt-client\" | xargs -r kill")
 
 
 class Benchmark:
@@ -128,7 +128,7 @@ class Benchmark:
                 "--max_stdin_bits " + str(max_stdin_bits) + " " +
                 "--stdin_model " + stdin_model + " " +
                 "--stdout_model " + stdout_model + " " +
-                "--test_type " + "debug" + " " +
+                "--test_type " + "native" + " " +
                 "--port " + str(port)  + " " +
                 "--output_dir " + quote(output_dir),
             output_dir

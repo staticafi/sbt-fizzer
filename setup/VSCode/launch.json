@@ -64,8 +64,7 @@
                 "--stdout_model", "stdout_void",
                 "--debug_mode",
                 "--test_type",
-                    "debug",
-                    // "sbt-eft",
+                    "native",
                     // "testcomp",
                 "--port", "45654",
                 "--output_dir", "${workspaceFolder}/dist/output"
