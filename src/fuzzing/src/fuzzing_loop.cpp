@@ -20,16 +20,13 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
 
     fuzzer f{ info, debug_mode };
 
-#if BUILD_RELEASE() == 1
     try
-#endif
     {
         while (true)
         {
             TMPROF_BLOCK();
 
-            results.termination_message = f.round_begin();
-            if (!results.termination_message.empty())
+            if (!f.round_begin(results.termination_reason))
             {
                 results.termination_type = analysis_outcomes::TERMINATION_TYPE::NORMAL;
                 break;
@@ -41,38 +38,15 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
                 results.execution_records.push_back({});
         }
     }
-#if BUILD_RELEASE() == 1
-    catch (invariant_failure const& e)
-    {
-        results.termination_type = analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR;
-        results.termination_message = e.what();
-    }
-    catch (assumption_failure const& e)
-    {
-        results.termination_type = analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR;
-        results.termination_message = e.what();
-    }
-    catch (under_construction const& e)
-    {
-        results.termination_type = analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR;
-        results.termination_message = e.what();
-    }
     catch (std::exception const&  e)
     {
-        results.termination_type = analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_ERROR;
-        results.termination_message = e.what();
+        results.termination_type = analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR;
+        results.error_message = e.what();
     }
-#endif
 
     if (results.termination_type != analysis_outcomes::TERMINATION_TYPE::NORMAL)
     {
-#if BUILD_RELEASE() == 1
-        try {
-#endif
-            f.terminate();
-#if BUILD_RELEASE() == 1
-        } catch (...) {}
-#endif
+        try { f.terminate(); } catch (...) {}
     }
 
     results.execution_records.pop_back();

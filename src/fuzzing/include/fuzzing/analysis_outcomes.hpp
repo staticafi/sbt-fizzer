@@ -23,7 +23,8 @@ struct analysis_outcomes
         UNCLASSIFIED_ERROR
     };
     TERMINATION_TYPE  termination_type;
-    std::string  termination_message;
+    fuzzer::TERMINATION_REASON  termination_reason; // Valid only if 'termination_type == NORMAL'.
+    std::string  error_message; // Valid only if 'termination_type != NORMAL'.
     natural_32_bit  num_executions;
     long  num_elapsed_seconds;
     std::vector<location_id> covered_branchings;

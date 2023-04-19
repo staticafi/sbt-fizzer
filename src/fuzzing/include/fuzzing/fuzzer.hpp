@@ -25,6 +25,14 @@ using namespace instrumentation;
 
 struct  fuzzer final
 {
+    enum struct TERMINATION_REASON
+    {
+        ALL_REACHABLE_BRANCHINGS_COVERED,
+        FUZZING_STRATEGY_DEPLETED,
+        TIME_BUDGET_DEPLETED,
+        EXECUTIONS_BUDGET_DEPLETED
+    };
+
     struct  performance_statistics
     {
         std::size_t  leaf_nodes_created{ 0 };
@@ -56,7 +64,7 @@ struct  fuzzer final
 
     bool  can_make_progress() const { return state != FINISHED; }
 
-    std::string  round_begin();
+    bool  round_begin(TERMINATION_REASON&  termination_reason);
     bool  round_end(execution_record&  record);
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }

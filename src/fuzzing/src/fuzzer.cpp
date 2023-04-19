@@ -85,7 +85,7 @@ void  fuzzer::stop_all_analyzes()
 }
 
 
-std::string  fuzzer::round_begin()
+bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 {
     if (get_performed_driver_executions() > 0U)
     {
@@ -94,14 +94,16 @@ std::string  fuzzer::round_begin()
             stop_all_analyzes();
             debug_save_branching_tree("final");
             terminate();
-            return "All reachable branchings were covered.";
+            termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
+            return false;
         }
         if (!can_make_progress())
         {
             stop_all_analyzes();
             debug_save_branching_tree("final");
             terminate();
-            return "The fuzzer cannot make further progress (the fuzzing strategy is depleted).";
+            termination_reason = TERMINATION_REASON::FUZZING_STRATEGY_DEPLETED;
+            return false;
         }
     }
 
@@ -110,7 +112,8 @@ std::string  fuzzer::round_begin()
         stop_all_analyzes();
         debug_save_branching_tree("final");
         terminate();
-        return "Max number of seconds for fuzzing was reached.";
+        termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
+        return false;
     }
 
     if (num_remaining_driver_executions() <= 0L)
@@ -118,7 +121,8 @@ std::string  fuzzer::round_begin()
         stop_all_analyzes();
         debug_save_branching_tree("final");
         terminate();
-        return "Max number of benchmark executions reached.";
+        termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
+        return false;
     }
 
     iomodels::iomanager::instance().clear_stdin();
@@ -128,7 +132,7 @@ std::string  fuzzer::round_begin()
     generate_next_input(stdin_bits);
     iomodels::iomanager::instance().get_stdin()->set_bits(stdin_bits);
 
-    return {};
+    return true;
 }
 
 

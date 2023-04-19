@@ -2,6 +2,7 @@
 #include <connection/client.hpp>
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
+#include <utility/invariants.hpp>
 #include <utility/math.hpp>
 #include <utility/log.hpp>
 #include <iostream>
@@ -65,25 +66,48 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
 
     ostr << "{\n";
 
-    ostr << shift << "\"termination_type\": ";
+    ostr << shift << "\"termination_type\": \"";
     switch (results.termination_type)
     {
     case analysis_outcomes::TERMINATION_TYPE::NORMAL:
-        ostr << "\"Fuzzing terminated normally.\"";
+        ostr << "NORMAL";
         break;
     case analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR:
-        ostr << "\"Fuzzing early-terminated due to an internal server error.\"";
+        ostr << "SERVER_INTERNAL_ERROR";
         break;
     case analysis_outcomes::TERMINATION_TYPE::CLIENT_COMMUNICATION_ERROR:
-        ostr << "\"Fuzzing early-terminated due to error in communication with the client.\"";
+        ostr << "CLIENT_COMMUNICATION_ERROR";
         break;
     case analysis_outcomes::TERMINATION_TYPE::UNCLASSIFIED_ERROR:
-        ostr << "\"Fuzzing early-terminated due to an unclassified error.\"";
+        ostr << "UNCLASSIFIED_ERROR";
         break;
+    default: { UNREACHABLE(); break; }
     }
-    ostr << ",\n";
+    ostr << "\",\n";
 
-    ostr << shift << "\"termination_reason\": \"" << results.termination_message << "\",\n";
+    if (results.termination_type == analysis_outcomes::TERMINATION_TYPE::NORMAL)
+    {
+        ostr << shift << "\"termination_reason\": \"";
+        switch (results.termination_reason)
+        {
+        case fuzzer::TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED:
+            ostr << "ALL_REACHABLE_BRANCHINGS_COVERED";
+            break;
+        case fuzzer::TERMINATION_REASON::FUZZING_STRATEGY_DEPLETED:
+            ostr << "FUZZING_STRATEGY_DEPLETED";
+            break;
+        case fuzzer::TERMINATION_REASON::TIME_BUDGET_DEPLETED:
+            ostr << "TIME_BUDGET_DEPLETED";
+            break;
+        case fuzzer::TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED:
+            ostr << "EXECUTIONS_BUDGET_DEPLETED";
+            break;
+        default: { UNREACHABLE(); break; }
+        }
+        ostr << "\",\n";
+    }
+    else
+        ostr << shift << "\"error_message\": \"" << results.error_message << "\",\n";
 
     std::vector<std::string>  warnings;
     if (results.statistics.leaf_nodes_created != results.statistics.leaf_nodes_destroyed)
