@@ -103,13 +103,16 @@ void run(int argc, char* argv[])
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
 
-    std::cout << "Accepted the following configuration:" << std::endl;
-    fuzzing::print_fuzzing_configuration(
-            std::cout,
-            client_name,
-            iomodels::iomanager::instance().get_config(),
-            terminator
-            );
+    if (!get_program_options()->has("silent_mode"))
+    {
+        std::cout << "Accepted the following configuration:" << std::endl;
+        fuzzing::print_fuzzing_configuration(
+                std::cout,
+                client_name,
+                iomodels::iomanager::instance().get_config(),
+                terminator
+                );
+    }
     fuzzing::log_fuzzing_configuration(
             client_name,
             iomodels::iomanager::instance().get_config(),
@@ -131,7 +134,8 @@ void run(int argc, char* argv[])
         return;
     }
 
-    std::cout << "Fuzzing was started..." << std::endl << std::flush;
+    if (!get_program_options()->has("silent_mode"))
+        std::cout << "Fuzzing was started..." << std::endl << std::flush;
     fuzzing::analysis_outcomes const  results = fuzzing::run(
             [&server](){ server.send_input_to_client_and_receive_result(); },
             terminator,
@@ -140,17 +144,22 @@ void run(int argc, char* argv[])
 
     server.stop();
 
-    std::cout << "Fuzzing was stopped. Details:" << std::endl;
-    fuzzing::print_analysis_outcomes(std::cout, results);
+    if (!get_program_options()->has("silent_mode"))
+    {
+        std::cout << "Fuzzing was stopped. Details:" << std::endl;
+        fuzzing::print_analysis_outcomes(std::cout, results);
+    }
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, client_name, results);
 
-    std::cout << "Saving tests under the output directory...\n";
+    if (!get_program_options()->has("silent_mode"))
+        std::cout << "Saving tests under the output directory...\n";
     if (test_type == "native") {
         fuzzing::save_native_output(output_dir, results.execution_records, test_name);
         if (!results.debug_data.empty())
         {
-            std::cout << "Saving debug data under the output directory...\n";
+            if (!get_program_options()->has("silent_mode"))
+                std::cout << "Saving debug data under the output directory...\n";
             fuzzing::save_debug_data_to_directory(output_dir, test_name, results.debug_data);
         }
     }
@@ -165,5 +174,6 @@ void run(int argc, char* argv[])
             );
     }
     
-    std::cout << "Done.\n" << std::flush;
+    if (!get_program_options()->has("silent_mode"))
+        std::cout << "Done.\n" << std::flush;
 }
