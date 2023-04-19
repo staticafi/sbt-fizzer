@@ -160,7 +160,7 @@ void run(int argc, char* argv[])
     std::thread klee_thread (
         []() {
             boost::asio::io_context io_context;
-            connection::kleeient kleeient = connection::kleeient::get_instance(io_context, get_program_options()->value("path_to_program_ll"));
+            connection::kleeient kleeient = connection::kleeient::prepare_instance(io_context, get_program_options()->value("path_to_program_ll"));
             kleeient.run("127.0.0.1", get_program_options()->value("kleeient_port"));
         });
     kleeient_connector->wait_for_connection();

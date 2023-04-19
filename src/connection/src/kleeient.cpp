@@ -1,4 +1,12 @@
 #include <boost/process.hpp>
+#include <boost/process/extend.hpp>
+#include <boost/process/async.hpp>
+#include <boost/process/child.hpp>
+#include <boost/process/exception.hpp>
+#include <boost/process/error.hpp>
+#include <boost/asio.hpp>
+#include <thread>
+
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
@@ -16,15 +24,15 @@ namespace connection {
 
 kleeient::kleeient(
         boost::asio::io_context& io_context,
-        std::unique_ptr<boost::process::child> klee_process,
-        std::unique_ptr<std::ifstream> models,
-        std::unique_ptr<std::ofstream> traces):
+        boost::process::child klee_process,
+        std::ifstream models,
+        std::ofstream traces):
     io_context(io_context),
     klee_process(std::move(klee_process)),
     models(std::move(models)),
     traces(std::move(traces)) {}
 
-kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::string& program_path)
+kleeient kleeient::prepare_instance(boost::asio::io_context& io_context, const std::string& program_path)
 {
     auto installation_dir = boost::dll::program_location().parent_path();
     auto klee_executable_path = installation_dir/"JetKlee/build/bin/klee";
@@ -49,7 +57,7 @@ kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::
 
     auto env = boost::this_process::environment();
     env["KLEE_RUNTIME_LIBRARY_PATH"] = klee_libs_path.string();
-    std::unique_ptr<boost::process::child> process = std::make_unique<boost::process::child>(
+    auto process = boost::process::child(
         klee_executable_path,
         env,
         boost::process::args({
@@ -63,10 +71,9 @@ kleeient kleeient::get_instance(boost::asio::io_context& io_context, const std::
             "--suppress-intermediate-queries",
             "--keep-finalized-states",
             program_path }));
-    std::unique_ptr<std::ifstream> models_stream = std::make_unique<std::ifstream>(models_path);
-    std::unique_ptr<std::ofstream> traces_stream = std::make_unique<std::ofstream>(traces_path);
+    std::ifstream models_stream (models_path);
+    std::ofstream traces_stream (traces_path);
     return kleeient(io_context, std::move(process), std::move(models_stream), std::move(traces_stream));
-    // TODO: delete pipes in destructor (or maybe RAII solution?)
 }
 
 void kleeient::run(const std::string& address, const std::string& port) {
@@ -74,9 +81,8 @@ void kleeient::run(const std::string& address, const std::string& port) {
         return;
     }
 
-    std::vector<bool> trace;
     while (true) {
-        trace.clear();
+        std::vector<bool> trace;
         if (!receive_input(trace))
             return;
         auto klee_response = invoke_klee(trace);
@@ -129,15 +135,15 @@ std::string kleeient::invoke_klee(const std::vector<bool>& trace)
     for (bool dir : trace)
     {
         std::cout << dir;
-        *traces << (dir ? "1" : "0");
+        traces << (dir ? "1" : "0");
     }
-    *traces << std::endl << std::flush;
+    traces << std::endl << std::flush;
 
     std::cout << std::endl;
 
     std::cout << "Klee responded with following JSON:" << std::endl;
     std::string json_string;
-    std::getline(*models, json_string);
+    std::getline(models, json_string);
     std::cout << json_string << std::endl;
 
     return json_string;
