@@ -1,12 +1,6 @@
 #include <boost/process.hpp>
-#include <boost/process/extend.hpp>
-#include <boost/process/async.hpp>
 #include <boost/process/child.hpp>
-#include <boost/process/exception.hpp>
-#include <boost/process/error.hpp>
 #include <boost/asio.hpp>
-#include <thread>
-
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
@@ -17,6 +11,7 @@
 #include <connection/message.hpp>
 #include <connection/connection.hpp>
 
+#include <thread>
 #include <iostream>
 #include <fstream>
 
@@ -24,15 +19,15 @@ namespace connection {
 
 kleeient::kleeient(
         boost::asio::io_context& io_context,
-        boost::process::child klee_process,
+        std::thread klee_thread,
         std::ifstream models,
         std::ofstream traces):
     io_context(io_context),
-    klee_process(std::move(klee_process)),
+    klee_thread(std::move(klee_thread)),
     models(std::move(models)),
     traces(std::move(traces)) {}
 
-kleeient kleeient::prepare_instance(boost::asio::io_context& io_context, const std::string& program_path)
+kleeient kleeient::prepare_instance(boost::asio::io_context &io_context, const std::string& program_path)
 {
     auto installation_dir = boost::dll::program_location().parent_path();
     auto klee_executable_path = installation_dir/"JetKlee/build/bin/klee";
@@ -54,26 +49,34 @@ kleeient kleeient::prepare_instance(boost::asio::io_context& io_context, const s
     if (mkfifo(models_path.c_str(), S_IRUSR | S_IWUSR) == -1) {
         throw std::runtime_error("Could not create models pipe");
     }
-
+    
     auto env = boost::this_process::environment();
     env["KLEE_RUNTIME_LIBRARY_PATH"] = klee_libs_path.string();
-    auto process = boost::process::child(
-        klee_executable_path,
-        env,
-        boost::process::args({
-            "--output-dir", output_dir.string(),
-            "--use-interactive-search",
-            "--interactive-search-file", traces_path.string(),
-            "--write-ktests=false",
-            "--dump-states-on-halt=false",
-            "--write-json",
-            "--json-path", models, // relative to `output_dir`
-            "--suppress-intermediate-queries",
-            "--keep-finalized-states",
-            program_path }));
+
+    auto klee_thread = std::thread([&]() {
+        auto process = boost::process::child(
+            klee_executable_path,
+            env,
+            boost::process::args({
+                "--output-dir", output_dir.string(),
+                "--use-interactive-search",
+                "--interactive-search-file", traces_path.string(),
+                "--write-ktests=false",
+                "--dump-states-on-halt=false",
+                "--write-json",
+                "--json-path", models, // relative to `output_dir`
+                "--suppress-intermediate-queries",
+                "--keep-finalized-states",
+                program_path,
+            }));
+        process.wait();
+        if (process.exit_code() != 0)
+            throw std::runtime_error("Klee exited with non-zero code");
+    });
+
     std::ifstream models_stream (models_path);
     std::ofstream traces_stream (traces_path);
-    return kleeient(io_context, std::move(process), std::move(models_stream), std::move(traces_stream));
+    return kleeient(io_context, std::move(klee_thread), std::move(models_stream), std::move(traces_stream));
 }
 
 void kleeient::run(const std::string& address, const std::string& port) {
@@ -200,6 +203,13 @@ bool kleeient::send_result(std::string json_string)
         return false;
     }
     return true;
+}
+
+void kleeient::join()
+{
+    traces.close();
+    if (klee_thread.joinable())
+        klee_thread.join();
 }
 
 }

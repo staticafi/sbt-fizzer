@@ -103,6 +103,7 @@ void run(int argc, char* argv[])
             boost::asio::io_context io_context;
             connection::kleeient kleeient = connection::kleeient::prepare_instance(io_context, get_program_options()->value("path_to_program_ll"));
             kleeient.run("127.0.0.1", get_program_options()->value("kleeient_port"));
+            kleeient.join();
         });
     kleeient_connector->wait_for_connection();
 
@@ -114,6 +115,8 @@ void run(int argc, char* argv[])
             );
 
     server.stop();
+    if (klee_thread.joinable())
+        klee_thread.join();
 
     fuzzing::print_analysis_outcomes(std::cout, results, false);
 
@@ -169,5 +172,4 @@ void run(int argc, char* argv[])
             std::cout << "Done.\n" << std::flush;
         }
     }
-    klee_thread.join();
 }
