@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
             std::cout << get_program_version() << "\n";
         } else {
             boost::asio::io_context io_context;
-            connection::kleeient kleeient = connection::kleeient::get_instance(io_context, get_program_options()->value("path"));
+            connection::kleeient kleeient = connection::kleeient::prepare_instance(io_context, get_program_options()->value("path"));
             kleeient.run(
                 get_program_options()->value("address"),
                 get_program_options()->value("port"));

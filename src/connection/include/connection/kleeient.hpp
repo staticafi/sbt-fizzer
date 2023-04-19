@@ -15,14 +15,14 @@ struct kleeient
 {
 public:
     void run(const std::string& address, const std::string& port);
-    static kleeient get_instance(boost::asio::io_context& io_context, const std::string& program_path);
+    static kleeient prepare_instance(boost::asio::io_context& io_context, const std::string& program_path);
 
 private:
     kleeient(
         boost::asio::io_context& io_context,
-        std::unique_ptr<boost::process::child> klee_process,
-        std::unique_ptr<std::ifstream> models,
-        std::unique_ptr<std::ofstream> traces);
+        boost::process::child klee_process,
+        std::ifstream models,
+        std::ofstream traces);
 
     bool connect(const std::string& address, const std::string& port);
     bool receive_input(std::vector<bool>& trace);
@@ -34,9 +34,9 @@ private:
 
     boost::asio::io_context& io_context;
     std::unique_ptr<connection> connection_to_server;
-    std::unique_ptr<std::ifstream> models;
-    std::unique_ptr<std::ofstream> traces;
-    std::unique_ptr<boost::process::child> klee_process;
+    std::ifstream models;
+    std::ofstream traces;
+    boost::process::child klee_process;
 };
 
 
