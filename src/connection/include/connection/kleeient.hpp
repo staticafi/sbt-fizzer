@@ -2,7 +2,6 @@
 #   define CONNECTION_KLEEIENT_HPP_INCLUDED
 
 #   include <boost/asio.hpp>
-#   include <boost/process.hpp>
 #   include <boost/property_tree/ptree.hpp>
 #   include <connection/message.hpp>
 #   include <connection/connection.hpp>
@@ -16,11 +15,12 @@ struct kleeient
 public:
     void run(const std::string& address, const std::string& port);
     static kleeient prepare_instance(boost::asio::io_context& io_context, const std::string& program_path);
+    void join();
 
 private:
     kleeient(
         boost::asio::io_context& io_context,
-        boost::process::child klee_process,
+        std::thread klee_thread,
         std::ifstream models,
         std::ofstream traces);
 
@@ -36,7 +36,7 @@ private:
     std::unique_ptr<connection> connection_to_server;
     std::ifstream models;
     std::ofstream traces;
-    boost::process::child klee_process;
+    std::thread klee_thread;
 };
 
 

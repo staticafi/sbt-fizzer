@@ -162,6 +162,7 @@ void run(int argc, char* argv[])
             boost::asio::io_context io_context;
             connection::kleeient kleeient = connection::kleeient::prepare_instance(io_context, get_program_options()->value("path_to_program_ll"));
             kleeient.run("127.0.0.1", get_program_options()->value("kleeient_port"));
+            kleeient.join();
         });
     kleeient_connector->wait_for_connection();
 
@@ -171,6 +172,7 @@ void run(int argc, char* argv[])
             terminator,
             get_program_options()->has("debug_mode")
             );
+
 
     if (!get_program_options()->has("silent_mode"))
     {
@@ -206,6 +208,8 @@ void run(int argc, char* argv[])
     }
 
     server.stop();
+    if (klee_thread.joinable())
+        klee_thread.join();
 
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, client_name, results);
@@ -242,6 +246,4 @@ void run(int argc, char* argv[])
     
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Done.\n" << std::flush;
-
-    klee_thread.join();
 }
