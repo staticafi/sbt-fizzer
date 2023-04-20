@@ -22,8 +22,8 @@
             8,2027809127,    8,2654435832,    8,3668340393,    8,3668340399,    
             8,3668340520,    8,3668340524
         ],
-        "num_generated_tests": 24,
+        "num_generated_tests": 12,
         "num_crashes": 0,
-        "num_boundary_violations": 13
+        "num_boundary_violations": 1
     }
 }
