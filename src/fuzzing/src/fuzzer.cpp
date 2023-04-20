@@ -140,7 +140,10 @@ bool  fuzzer::round_end(execution_record&  record)
 {
     execution_record::execution_flags const  flags = process_execution_results();
 
-    if (flags != 0)
+    bool const  is_path_worth_recording =
+            flags & (execution_record::BRANCH_DISCOVERED | execution_record::BRANCH_COVERED | execution_record::EXECUTION_CRASHES);
+
+    if (is_path_worth_recording)
     {
         record.flags = flags;
         record.stdin_bits = iomodels::iomanager::instance().get_stdin()->get_bits();
@@ -152,7 +155,7 @@ bool  fuzzer::round_end(execution_record&  record)
     time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 
-    return flags != 0;
+    return is_path_worth_recording;
 }
 
 
