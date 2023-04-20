@@ -228,12 +228,11 @@ class Benchmark:
 class Benman:
     def __init__(self) -> None:
         parser = argparse.ArgumentParser(description="Builds the client for the benchmark(s) or fuzz the benchmark(s).")
-        parser.add_argument("--build", help="Build the passed benchmark(s). Possible values: "
-                                            "all, fast, medium, slow, pending, fast/..., medium/..., slow/..., pending/...")
-        parser.add_argument("--fuzz", help="Fuzz the passed benchmark(s). Possible values: "
+        parser.add_argument("--clear", action='store_true', help="Clears the build files and outputs of the input benchmark(s).")
+        parser.add_argument("--build", action='store_true', help="Builds the input benchmark(s).")
+        parser.add_argument("--fuzz", action='store_true', help="Applies fuzzing on the input benchmark(s).")
+        parser.add_argument("--input", help="Benchmark(s) to be processed. Possible values: "
                                            "all, fast, medium, slow, pending, fast/..., medium/..., slow/..., pending/...")
-        parser.add_argument("--clear", help="Clears outputs of the passed benchmark(s). Possible values: "
-                                            "all, fast, medium, slow, pending, fast/..., medium/..., slow/..., pending/...")
         parser.add_argument("--verbose", action='store_true', help="Enables the verbose mode.")
         self.args = parser.parse_args()
 
@@ -323,14 +322,13 @@ class Benman:
 
     def run(self) -> bool:
         if self.args.clear:
-            ASSUMPTION(self.args.clear != '.' or self.args.build is not None, "Triggered the forbidden use of the 'clear' command.")
-            if self.clear(self.args.clear if self.args.clear != '.' else self.args.build) is False:
+            if self.clear(self.args.input) is False:
                 return False
         if self.args.build:
-            if self.build(self.args.build) is False:
+            if self.build(self.args.input) is False:
                 return False
         if self.args.fuzz:
-            if self.fuzz(self.args.fuzz) is False:
+            if self.fuzz(self.args.input) is False:
                 return False
         return True
 

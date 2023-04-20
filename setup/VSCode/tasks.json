@@ -6,9 +6,11 @@
             "type": "shell",
             "command": "${command:python.interpreterPath}",
             "args": [ "${workspaceFolder}/dist/benchmarks/benman.py",
-                "--verbose",
-                // "--clear", ".",
-                "--build", // build, fuzz, clear
+                // "--verbose",
+                "--clear",
+                "--build",
+                "--fuzz",
+                "--input",
                     "all"
                     // "fast"
                     // "medium"

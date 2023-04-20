@@ -114,10 +114,11 @@
             "program": "${workspaceFolder}/dist/benchmarks/benman.py",
             "console": "integratedTerminal",
             "args": [
-                "--verbose",
-                // "--clear", ".",
-                // "--fuzz",
+                // "--verbose",
+                "--clear",
                 "--build",
+                "--fuzz",
+                "--input",
                     "all"
                     // "fast"
                     // "medium"
