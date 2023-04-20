@@ -134,7 +134,7 @@ class Benchmark:
 
     def build(self) -> None:
         self.log("===")
-        self.log("=== Building: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
+        self.log("=== Building: " + self.src_file, "building: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
         self._erase_file_if_exists(self.client_file)
         self._erase_file_if_exists(self.final_file)
@@ -161,7 +161,7 @@ class Benchmark:
 
     def fuzz(self, benchmarks_root_dir : str, output_root_dir : str) -> bool:
         self.log("===")
-        self.log("=== Fuzzing: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
+        self.log("=== Fuzzing: " + self.src_file, "fuzzing: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
         if self.work_dir.endswith("pending"):
             self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
@@ -215,7 +215,7 @@ class Benchmark:
 
     def clear(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
         self.log("===")
-        self.log("=== Clearing: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
+        self.log("=== Clearing: " + self.src_file, "clearing: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
         self._erase_file_if_exists(self.ll_file)
         self._erase_file_if_exists(self.instrumented_ll_file)
@@ -324,11 +324,15 @@ class Benman:
     def run(self) -> bool:
         if self.args.clear:
             ASSUMPTION(self.args.clear != '.' or self.args.build is not None, "Triggered the forbidden use of the 'clear' command.")
-            return self.clear(self.args.clear if self.args.clear != '.' else self.args.build)
+            if self.clear(self.args.clear if self.args.clear != '.' else self.args.build) is False:
+                return False
         if self.args.build:
-            return self.build(self.args.build)
+            if self.build(self.args.build) is False:
+                return False
         if self.args.fuzz:
-            return self.fuzz(self.args.fuzz)
+            if self.fuzz(self.args.fuzz) is False:
+                return False
+        return True
 
 if __name__ == '__main__':
     exit_code = 0
