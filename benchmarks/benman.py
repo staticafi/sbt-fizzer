@@ -82,26 +82,6 @@ class Benchmark:
         self._execute(cmdline, os.path.dirname(desired_output))
         ASSUMPTION(os.path.isfile(desired_output), "_execute_and_check_output(): the output is missing: " + desired_output)
 
-    def _is_ignored(self) -> bool:
-        if self.work_dir.endswith("pending"):
-            # "array_2-1",
-            # "array-1",
-            # "array1_pattern", # GENERATES 3171 TESTS FOR 8 COVERED BRANCHINGS!!
-            # "benchmark08_conjunctive",
-            # "count_by_nondet",
-            # "cs_stack-1",
-            # "loop1-1", # GENERATES 6435 TESTS FOR 5 COVERED BRANCHINGS!!
-            # "newton_1_1",
-            # "pnr3",
-            # "Problem08_label00",
-            # "TelAviv-Amir-Minimum-alloca", # NONDETERMINISM VIA ALLOCA
-            return True
-        return self.name in [
-            # TODO: reduce this list by improving the fuzzer on these benchmarks.
-            # fast:
-            "int8_if_hash_x_y_z_eq_c",
-        ]
-
     def _check_outcomes(self, config : dict, outcomes : dict):
         checked_properties_and_comparators = {
             "termination_type": "EQ",
@@ -183,7 +163,7 @@ class Benchmark:
         self.log("===")
         self.log("=== Fuzzing: " + self.src_file, os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + "...")
         self.log("===")
-        if self._is_ignored() is True:
+        if self.work_dir.endswith("pending"):
             self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
             return True
         with open(self.config_file, "rb") as fp:
@@ -221,9 +201,6 @@ class Benchmark:
             )
 
         try:
-            if self._is_ignored() is True:
-                self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
-                return True
             outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")
             with open(outcomes_pathname, "rb") as fp:
                 outcomes = json.load(fp)
