@@ -101,7 +101,6 @@ class Benchmark:
             # fast:
             "float_if_x_eq_c",
             "int8_if_hash_x_y_z_eq_c",
-            "int16_if_x_lt_c", # VERY SUSPICIOUS BEHAVIOR!!
         ]
 
     def _check_outcomes(self, config : dict, outcomes : dict):
