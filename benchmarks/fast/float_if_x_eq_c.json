@@ -1,6 +1,6 @@
 {
     "args": {
-        "max_executions": 100,
+        "max_executions": 20000,
         "max_seconds": 300,
         "max_trace_length": 10000,
         "max_stack_size": 25,
@@ -10,13 +10,14 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "executions_performed": 100,
-        "num_covered_branchings": 0,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "executions_performed": 19900,
+        "num_covered_branchings": 1,
         "covered_branchings": [
+            1,0
         ],
-        "num_generated_tests": 1,
+        "num_generated_tests": 2,
         "num_crashes": 0,
         "num_boundary_violations": 0
-    }
+        }
 }

@@ -99,7 +99,6 @@ class Benchmark:
         return self.name in [
             # TODO: reduce this list by improving the fuzzer on these benchmarks.
             # fast:
-            "float_if_x_eq_c",
             "int8_if_hash_x_y_z_eq_c",
         ]
 
