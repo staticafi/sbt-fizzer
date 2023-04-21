@@ -30,14 +30,10 @@ void  stdin_replay_bytes_then_repeat_byte::save(connection::message& ostr) const
     INVARIANT(bytes.size() <= max_bytes());
 
     ostr << (natural_16_bit)bytes.size();
-    for (natural_8_bit  byte : bytes) {
-        ostr << byte;
-    }
+    ostr.load(bytes.data(),(natural_16_bit)bytes.size());
 
     ostr << (natural_16_bit)counts.size();
-    for (natural_8_bit count: counts) {
-        ostr << count;
-    }
+    ostr.load(counts.data(), (natural_16_bit)counts.size());
 }
 
 
@@ -46,18 +42,14 @@ void  stdin_replay_bytes_then_repeat_byte::load(connection::message&  istr)
     natural_16_bit  num_bytes;
     istr >> num_bytes;
     bytes.resize(num_bytes);
-    for (natural_8_bit& byte: bytes) {
-        istr >> byte;
-    }
+    istr.save(bytes.data(), num_bytes);
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
     natural_16_bit  num_counts;
     istr >> num_counts;
     counts.resize(num_counts);
-    for (natural_8_bit& count: counts) {
-        istr >> count;
-    }
+    istr.save(counts.data(), num_counts);
 }
 
 
