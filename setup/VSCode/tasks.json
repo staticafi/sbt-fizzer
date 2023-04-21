@@ -17,6 +17,7 @@
                     // "slow"
                     // "pending"
 
+                    // "fast/array-1.c",
                     // "fast/bool_flag_one_and_two.c"
                     // "fast/c_string_count_chars.c"
                     // "fast/c_string_parse_two_ints.c"
@@ -52,7 +53,6 @@
                     // "fast/uint32_if_parabola.c"
 
                     // "pending/array_2-1.i"
-                    // "pending/array-1.c",
                     // "pending/array1_pattern.c"
                     // "pending/loop1-1.c"
                     // "pending/newton_1_1.i"
@@ -94,6 +94,7 @@
                 "cwd": "${workspaceFolder}/dist/benchmarks"
             },
             "args": [ "--no-isolation", "--test-suite", "../output/test-suite/tests.zip",
+                // "fast/array-1.c",
                 // "fast/bool_flag_one_and_two.c"
                 // "fast/c_string_count_chars.c"
                 // "fast/c_string_parse_two_ints.c"
@@ -130,7 +131,6 @@
                 // "fast/uint32_if_parabola.c"
 
                 // "pending/array_2-1.i"
-                // "pending/array-1.c",
                 // "pending/array1_pattern.c"
                 // "pending/loop1-1.c"
                 // "pending/newton_1_1.i"
