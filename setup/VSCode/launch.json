@@ -9,6 +9,7 @@
             "args": [
                 "--path_to_client",
                     // "fast/array-1.sbt-client",
+                    // "fast/array1_pattern.sbt-client",
                     // "fast/bool_flag_one_and_two.sbt-client",
                     // "fast/c_string_count_chars.sbt-client",
                     // "fast/c_string_parse_two_ints.sbt-client",
@@ -45,7 +46,6 @@
                     // "fast/uint32_if_parabola.sbt-client",
 
                     // "pending/array_2-1.sbt-client",
-                    // "pending/array1_pattern.sbt-client",
                     // "pending/loop1-1.sbt-client",
                     // "pending/newton_1_1.sbt-client",
                     // "pending/pnr3.sbt-client",
@@ -126,6 +126,7 @@
                     // "pending"
 
                     // "fast/array-1.c",
+                    // "fast/array1_pattern.c",
                     // "fast/bool_flag_one_and_two.c",
                     // "fast/c_string_count_chars.c",
                     // "fast/c_string_parse_two_ints.c",
@@ -162,7 +163,6 @@
                     // "fast/uint32_if_parabola.c",
 
                     // "pending/array_2-1.i",
-                    // "pending/array1_pattern.c",
                     // "pending/loop1-1.c",
                     // "pending/newton_1_1.i",
                     // "pending/pnr3.c",
