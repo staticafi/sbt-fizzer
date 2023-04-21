@@ -78,12 +78,16 @@ void run(int argc, char* argv[])
         return;
     }
     std::filesystem::path output_dir = std::filesystem::absolute(get_program_options()->value("output_dir"));
-    if (test_type == "testcomp") {
-        output_dir /= "test-suite";
-    }
     {
         std::error_code  ec;
-        if (!std::filesystem::create_directories(output_dir, ec) && ec)
+        if (test_type == "testcomp") 
+        {
+            std::filesystem::create_directories(output_dir / "test-suite", ec);
+        }
+        else {
+            std::filesystem::create_directories(output_dir, ec);
+        }
+        if (ec)
         {
             std::cerr << "ERROR: Failed to create/access the output directory:\n        " << output_dir << "\n";
             return;
@@ -166,7 +170,7 @@ void run(int argc, char* argv[])
     else {
         ASSUMPTION(test_type == "testcomp");
         fuzzing::save_testcomp_output(
-            output_dir, 
+            output_dir / "test-suite", 
             results.execution_records,
             test_name,
             get_program_version(),
