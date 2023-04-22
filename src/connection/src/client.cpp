@@ -69,65 +69,44 @@ void client::run_input_mode(vecu8 input_bytes) {
 }
 
 void client::run(const std::string& address, const std::string& port) {
-    if (!connect(address, port)) {
-        return;
-    }
+    connect(address, port);
 
-    if (!receive_input()) {
-        return;
+    try {
+        receive_input();
+        execute_program_and_send_results();
     }
-
-    execute_program_and_send_results();
+    catch (boost::system::system_error const& e) {
+        if (e.code() == boost::asio::error::eof) {
+            return;
+        }
+        throw e;
+    }
 }
 
-bool client::connect(const std::string& address, const std::string& port) {
+void client::connect(const std::string& address, const std::string& port) {
     boost::asio::ip::tcp::resolver resolver(io_context);
-    boost::system::error_code ec;
-    boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port, ec);
-    if (ec) {
-        std::cerr << "ERROR: could not resolve address and port\n" << ec.message() << "\n";
-        return false;
-    }
+    boost::asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(address, port);
 
     boost::asio::ip::tcp::socket socket(io_context);
-    boost::asio::connect(socket, endpoints, ec);
-    if (ec) {
-        std::cerr << "ERROR: could not connect to server\n" << ec.message() << "\n";
-        return false;
-    }
+    boost::asio::connect(socket, endpoints);
     connection_to_server = std::make_unique<connection>(std::move(socket));
-
-    std::cout << "Connected to server" << std::endl;
-    return true;
 }
 
-bool client::receive_input() {
-    std::cout << "Receiving input from server..." << std::endl;
+void client::receive_input() {
 
-    boost::system::error_code ec;
     message input;
-    connection_to_server->receive_message(input, ec);
-    if (ec == boost::asio::error::eof) {
-        return false;
-    }
-    else if (ec) {
-        std::cerr << "ERROR: receiving input from server\n" << ec.message() << "\n";
-        return false;
-    }
+    connection_to_server->receive_message(input);
     
     iomodels::iomanager::instance().clear_stdin();
     iomodels::iomanager::instance().load_stdin(input);
     iomodels::iomanager::instance().clear_stdout();
     iomodels::iomanager::instance().load_stdout(input);
-    return true;
 }
 
 
-bool client::execute_program_and_send_results()
+void client::execute_program_and_send_results()
 {
     execute_program();
-
-    std::cout << "Program finished, sending results..." << std::endl;
 
     message results;
     iomodels::iomanager::instance().save_termination(results);
@@ -136,15 +115,7 @@ bool client::execute_program_and_send_results()
     iomodels::iomanager::instance().save_stdin(results);
     iomodels::iomanager::instance().save_stdout(results);
 
-    boost::system::error_code ec;
-    connection_to_server->send_message(results, ec);
-    if (ec) {
-        std::cerr << "ERROR: sending result to server\n" << ec.message() << "\n";
-        return false;
-    }
-
-    std::cout << "Results sent to server" << std::endl;
-    return true;
+    connection_to_server->send_message(results);
 }
 
 
