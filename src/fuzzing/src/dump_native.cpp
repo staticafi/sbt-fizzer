@@ -14,7 +14,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     vecu64  chunk_values;
     for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_byte_counts.size(); i < n; ++i)
     {
-        ASSUMPTION(record.stdin_byte_counts.at(i) <= 8U * sizeof(chunk_values.back()));
+        ASSUMPTION(record.stdin_byte_counts.at(i) <= sizeof(chunk_values.back()));
         chunk_values.push_back(0U);
         for (natural_8_bit  j = 0U, m = record.stdin_byte_counts.at(i); j < m; ++j)
             *(((natural_8_bit*)&chunk_values.back()) + j) = record.stdin_bytes.at(k + j);
@@ -46,7 +46,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     for (natural_32_bit  i = 0U, n = (natural_32_bit)chunk_values.size(); i < n; ++i)
     {
         if (i % 8U == 0U) ostr << '\n' << shift << shift;
-        ostr << std::dec << (natural_32_bit)record.stdin_byte_counts.at(i) / 8U << ','
+        ostr << std::dec << (natural_32_bit)record.stdin_byte_counts.at(i) << ','
              << std::dec << (natural_32_bit)chunk_values.at(i);
         if (i + 1 < n)
             ostr << ',' << shift;
