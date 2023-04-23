@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from pathlib import Path
 
 
 if __name__ == '__main__':
@@ -10,7 +11,9 @@ if __name__ == '__main__':
         "@FIZZER_TARGET_NAME@", 
         SourceFileLoader(
             "@FIZZER_TARGET_NAME@", 
-            "@CMAKE_INSTALL_PREFIX@/tools/@FIZZER_TARGET_NAME@"))
+            str(Path(__file__).resolve().parent / "@FIZZER_TARGET_NAME@")
+            )
+        )
     fizzer = module_from_spec(spec)
     spec.loader.exec_module(fizzer)
 
