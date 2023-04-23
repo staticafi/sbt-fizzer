@@ -42,7 +42,7 @@ void client_executor::start() {
                     clients.emplace_back(path_to_client, boost::process::std_out > boost::process::null);
 
                     // wait until it connects, or kill it if it doesn't connect in time
-                    if (!connections.wait_for_add_or_timeout(2000ms)) {
+                    if (!connections.wait_until_push_or_timeout(2000ms)) {
                         clients.back().terminate();
                         clients.pop_back();
                         std::cerr << "ERROR: client failed to connect in time during client execution\n";

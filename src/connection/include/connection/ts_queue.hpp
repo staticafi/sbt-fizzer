@@ -16,12 +16,12 @@ struct ts_queue {
         return value;
     }
 
+    void push(const T& value) {
+        push_impl(value);
+    }
+
     void push(T&& value) {
-        std::unique_lock lock(deque_mux);
-        deque.push_back(std::forward<T>(value));
-        added = true;
-        lock.unlock();
-        blocking.notify_all();
+        push_impl(std::move(value));
     }
 
     bool empty() {
@@ -44,7 +44,7 @@ struct ts_queue {
         return result;
     }
 
-    template< class Rep, class Period>
+    template<class Rep, class Period>
     std::optional<T> wait_and_pop_or_timeout(const std::chrono::duration<Rep, Period>& timeout) {
         std::optional<T> result;
         std::unique_lock lock(deque_mux);
@@ -70,21 +70,31 @@ struct ts_queue {
         deque.clear();
     }
 
-    template< class Rep, class Period>
-    bool wait_for_add_or_timeout(const std::chrono::duration<Rep, Period>& timeout) {
+    template<class Rep, class Period>
+    bool wait_until_push_or_timeout(const std::chrono::duration<Rep, Period>& timeout) {
         std::unique_lock lock(deque_mux);
-        if (blocking.wait_for(lock, timeout, [this]{return added;})) {
-            added = false;
+        if (blocking.wait_for(lock, timeout, [this]{return pushed;})) {
+            pushed = false;
             return true;
         }
         return false;
     }
 
 private:
+    template <typename U>
+    void push_impl(U&& value) {
+        std::unique_lock lock(deque_mux);
+        deque.push_back(std::forward<U>(value));
+        pushed = true;
+        lock.unlock();
+        blocking.notify_all();
+    }
+
+
     std::deque<T> deque;
     std::mutex deque_mux;
     std::condition_variable blocking;
-    bool added = false;
+    bool pushed = false;
 };
 
 #endif
