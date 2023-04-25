@@ -182,7 +182,7 @@ bool kleeient::send_result(std::string json_string)
     message msg;
 
     if (feasible) {
-        msg.header.type = 1;
+        msg.header.type = 0;
 
         std::vector<uint8_t> bytes;
         BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
@@ -193,7 +193,7 @@ bool kleeient::send_result(std::string json_string)
 
         write_stdin(msg, bytes);
     } else {
-        msg.header.type = 0;
+        msg.header.type = -1;
     }
 
     boost::system::error_code ec;

@@ -816,6 +816,8 @@ void  fuzzer::select_next_state()
 
 bool  fuzzer::use_jetklee(branching_node* node)
 {
+    if (node->jetklee_queued)
+        return false;
     if (jetklee_usage_policy == ALWAYS)
         return true;
     else if (jetklee_usage_policy == NEVER)
