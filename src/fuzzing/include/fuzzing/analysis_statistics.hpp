@@ -10,7 +10,8 @@ using wall_time = std::chrono::time_point<std::chrono::system_clock>;
 
 struct outcome
 {
-    bool measured = false;
+    bool started = false;
+    bool stopped = false;
     clock_t cpu_start = 0;
     clock_t cpu_stop = 0;
     wall_time wall_start {};
