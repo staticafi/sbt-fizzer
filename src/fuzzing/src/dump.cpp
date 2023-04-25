@@ -43,7 +43,10 @@ void  print_fuzzing_configuration(
 }
 
 
-void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results, bool const  dump_traces)
+void  print_analysis_outcomes(std::ostream&  ostr,
+    analysis_outcomes const&  results,
+    bool const  dump_traces,
+    bool dump_analysis_statistics)
 {
     switch (results.termination_type)
     {
@@ -131,6 +134,8 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
             sstr << id_and_branching.first << (id_and_branching.second ? '+' : '-');
         LOG(LSL_INFO, "Fuzzing did not cover these branchings: " << sstr.str());
     }
+
+    results.analysis_statistics.dump(ostr);
 }
 
 

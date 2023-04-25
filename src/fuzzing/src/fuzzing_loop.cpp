@@ -22,7 +22,7 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
     analysis_outcomes  results;
     results.execution_records.push_back({});
 
-    fuzzer f{ info, std::move(kleeient_connector), debug_mode };
+    fuzzer f{ info, std::move(kleeient_connector), debug_mode, true };
 
 #if BUILD_RELEASE() == 1
     try
@@ -91,6 +91,7 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
     results.minimization_statistics = f.get_minimization_statistics();
     results.jetklee_statistics = f.get_jetklee_statistics();
     results.statistics = f.get_fuzzer_statistics();
+    results.analysis_statistics = f.get_analysis_statistics();
     if (debug_mode)
         results.debug_data = f.get_debug_data();
 

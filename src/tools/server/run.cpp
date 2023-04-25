@@ -118,7 +118,7 @@ void run(int argc, char* argv[])
     if (klee_thread.joinable())
         klee_thread.join();
 
-    fuzzing::print_analysis_outcomes(std::cout, results, false);
+    fuzzing::print_analysis_outcomes(std::cout, results, false, true);
 
     if (!get_program_options()->value("output_dir").empty())
     {

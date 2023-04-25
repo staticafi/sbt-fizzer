@@ -27,7 +27,8 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
 
 fuzzer::fuzzer(termination_info const&  info,
                std::unique_ptr<connection::kleeient_connector> kleeient_connector,
-               bool const  debug_mode_)
+               bool const  debug_mode_,
+               bool capture_analysis_stats_ )
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -52,7 +53,9 @@ fuzzer::fuzzer(termination_info const&  info,
     , jetklee{ std::move(kleeient_connector) }
 
     , statistics{}
+    , analysis_statistics{}
 
+    , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
     , debug_data{}
 {}
@@ -363,15 +366,21 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case MINIMIZATION:
             INVARIANT(sensitivity.is_ready() && minimization.is_busy() && jetklee.is_ready());
             minimization.process_execution_results(trace);
-            if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
+            if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true)) {
                 minimization.stop();
+                if (capture_analysis_stats)
+                    analysis_statistics.stop_minimization();
+            }
             break;
 
         case JETKLEE_QUERY:
             INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_busy());
             jetklee.process_execution_results(trace);
-            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true))
+            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true)) {
                 jetklee.stop();
+                if (capture_analysis_stats)
+                    analysis_statistics.stop_jetklee();
+            }
             break;
 
         default: UNREACHABLE(); break;
@@ -709,18 +718,41 @@ void  fuzzer::select_next_state()
         INVARIANT(winner_leaf != nullptr && !winner_leaf->sensitivity_performed);
         sensitivity.start(winner_leaf->best_stdin, winner_leaf->best_trace, winner_leaf);
         state = SENSITIVITY;
+        return;
     }
-    else if (jetklee.is_worth_processing(winner_node))
-    {
-        INVARIANT(!winner_node->jetklee_queued);
-        jetklee.start(winner_node);
-        state = JETKLEE_QUERY;
+
+    bool direction = winner_node->is_direction_explored(false);
+        // false explored -> visit true
+        // false not explored -> visit false
+
+    if (!capture_analysis_stats){
+        if (jetklee.is_worth_processing(winner_node))
+        {
+            INVARIANT(!winner_node->jetklee_queued);
+            jetklee.start(winner_node, direction);
+            state = JETKLEE_QUERY;
+        }
+        else 
+        {
+            INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
+            minimization.start(winner_node, winner_node->best_stdin);
+            state = MINIMIZATION;
+        }
     }
     else
     {
-        INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
-        minimization.start(winner_node, winner_node->best_stdin);
-        state = MINIMIZATION;
+        auto last_node = analysis_statistics.get_last_node();
+        if (analysis_statistics.performed_minimization(last_node) && !analysis_statistics.performed_jetklee(last_node)) {
+            analysis_statistics.start_jetklee(last_node, analysis_statistics.get_last_direction());
+            jetklee.start(last_node, analysis_statistics.get_last_direction());
+            state = JETKLEE_QUERY;
+        }
+        else
+        {
+            analysis_statistics.start_minimization(winner_node, direction);
+            minimization.start(winner_node, winner_node->best_stdin);
+            state = MINIMIZATION;
+        }
     }
 }
 

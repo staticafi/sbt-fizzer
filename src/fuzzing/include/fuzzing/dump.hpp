@@ -18,7 +18,10 @@ void  print_fuzzing_configuration(
         termination_info const&  terminator
         );
 
-void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results, bool const  dump_traces = false);
+void  print_analysis_outcomes(std::ostream&  ostr,
+        analysis_outcomes const&  results,
+        bool  dump_traces = false,
+        bool  dump_analysis_statistics = false);
 
 void  print_execution_record(
         std::ostream&  ostr,
