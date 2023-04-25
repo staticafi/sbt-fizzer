@@ -40,6 +40,9 @@ bool kleeient_connector::receive_response(std::vector<uint8_t>& model)
         throw ec;
     }
 
+    if (result.header.type != 0) // infeasible path
+        return false;
+
     size_t size;
     result >> size;
     uint8_t byte;

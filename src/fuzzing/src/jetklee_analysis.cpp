@@ -87,7 +87,11 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
     trace.push_back(direction);
 
     std::vector<uint8_t> bytes;
-    kleeient_connector->get_model(trace, bytes);
+    if (!kleeient_connector->get_model(trace, bytes))
+        return true; // TODO: Fuzzer now doesn't handle infeasibility.
+                     // Once it does, we should return false.
+                     // Returning inccorrect input is a current workaround
+                     // as the fuzzer will move to a different branching.
 
     for (natural_8_bit const  byte : bytes)
         for (natural_8_bit  i = 0U; i != 8U; ++i)
