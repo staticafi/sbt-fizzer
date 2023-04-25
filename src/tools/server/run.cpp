@@ -166,11 +166,25 @@ void run(int argc, char* argv[])
         });
     kleeient_connector->wait_for_connection();
 
+    std::string jetklee_usage = get_program_options()->value("jetklee_usage");
+    fuzzing::fuzzer::jetklee_usage jetklee_usage_policy;
+    if (jetklee_usage == "heuristic") {
+        jetklee_usage_policy =  jetklee_usage_policy = fuzzing::fuzzer::jetklee_usage::HEURISTIC;
+    } else if (jetklee_usage == "always") {
+        jetklee_usage_policy =  jetklee_usage_policy = fuzzing::fuzzer::jetklee_usage::ALWAYS;
+    } else if (jetklee_usage == "never") {
+        jetklee_usage_policy =  jetklee_usage_policy = fuzzing::fuzzer::jetklee_usage::NEVER;
+    } else {
+        std::cerr << "ERROR: invalid value for the jetklee_usage option\n";
+        return;
+    }
+
     fuzzing::analysis_outcomes const  results = fuzzing::run(
             [&server](){ server.send_input_to_client_and_receive_result(); },
             std::move(kleeient_connector),
             terminator,
-            get_program_options()->has("debug_mode")
+            get_program_options()->has("debug_mode"),
+            jetklee_usage_policy
             );
 
 

@@ -36,7 +36,8 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
 fuzzer::fuzzer(termination_info const&  info,
                std::unique_ptr<connection::kleeient_connector> kleeient_connector,
                bool const  debug_mode_,
-               bool capture_analysis_stats_ )
+               bool capture_analysis_stats_,
+               jetklee_usage jetklee_usage_policy_)
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -67,6 +68,7 @@ fuzzer::fuzzer(termination_info const&  info,
     , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
     , debug_data{}
+    , jetklee_usage_policy {jetklee_usage_policy_ }
 {}
 
 
@@ -810,6 +812,15 @@ void  fuzzer::select_next_state()
         minimization.start(winner.node, winner.node->best_stdin);
         state = MINIMIZATION;
     }
+}
+
+bool  fuzzer::use_jetklee(branching_node* node)
+{
+    if (jetklee_usage_policy == ALWAYS)
+        return true;
+    else if (jetklee_usage_policy == NEVER)
+        return false;
+    return jetklee.is_worth_processing(node);    
 }
 
 

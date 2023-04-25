@@ -4,11 +4,8 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
-<<<<<<< HEAD
 #   include <fuzzing/bitshare_analysis.hpp>
-=======
 #   include <fuzzing/jetklee_analysis.hpp>
->>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 #   include <fuzzing/execution_record.hpp>
 #   include <fuzzing/analysis_statistics.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
@@ -38,6 +35,13 @@ struct  fuzzer final
         TIME_BUDGET_DEPLETED,
         EXECUTIONS_BUDGET_DEPLETED
     };
+    
+    enum jetklee_usage
+    {
+        ALWAYS,
+        NEVER,
+        HEURISTIC
+    };
 
     struct  performance_statistics
     {
@@ -54,7 +58,8 @@ struct  fuzzer final
     explicit fuzzer(termination_info const&  info,
                     std::unique_ptr<connection::kleeient_connector> kleeient_connector,
                     bool  debug_mode_ = false,
-                    bool  capture_analysis_stats = false);
+                    bool  capture_analysis_stats = false,
+                    jetklee_usage  jetklee_usage_policy = HEURISTIC);
     ~fuzzer();
 
     void  terminate();
@@ -78,11 +83,8 @@ struct  fuzzer final
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
-<<<<<<< HEAD
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
-=======
     jetklee_analysis::performance_statistics const&  get_jetklee_statistics() const { return jetklee.get_statistics(); }
->>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
     analysis_statistics const&  get_analysis_statistics() const { return analysis_stats; }
 
@@ -95,11 +97,8 @@ private:
         STARTUP,
         SENSITIVITY,
         MINIMIZATION,
-<<<<<<< HEAD
         BITSHARE,
-=======
         JETKLEE_QUERY,
->>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
         FINISHED
     };
 
@@ -138,6 +137,8 @@ private:
 
     void  select_next_state();
 
+    bool  use_jetklee(branching_node* node);
+
     termination_info termination_props;
 
     natural_32_bit  num_driver_executions;
@@ -159,17 +160,15 @@ private:
     STATE  state;
     sensitivity_analysis  sensitivity;
     minimization_analysis  minimization;
-<<<<<<< HEAD
     bitshare_analysis  bitshare;
-=======
     jetklee_analysis  jetklee;
->>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 
     performance_statistics  statistics;
     analysis_statistics analysis_stats;
 
     bool  debug_mode;
     bool  capture_analysis_stats;
+    jetklee_usage  jetklee_usage_policy;
     mutable std::unordered_map<std::string, std::string>  debug_data;
 };
 

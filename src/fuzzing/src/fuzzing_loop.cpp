@@ -15,14 +15,15 @@ namespace  fuzzing {
 analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
                        std::unique_ptr<connection::kleeient_connector> kleeient_connector,
                        termination_info const&  info,
-                       bool const  debug_mode)
+                       bool const  debug_mode,
+                       fuzzer::jetklee_usage  jetklee_usage_policy)
 {
     TMPROF_BLOCK();
 
     analysis_outcomes  results;
     results.execution_records.push_back({});
 
-    fuzzer f{ info, std::move(kleeient_connector), debug_mode, true };
+    fuzzer f{ info, std::move(kleeient_connector), debug_mode, true, jetklee_usage_policy};
 
     try
     {
