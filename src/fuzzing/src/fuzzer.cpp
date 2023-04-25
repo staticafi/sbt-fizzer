@@ -62,7 +62,7 @@ fuzzer::fuzzer(termination_info const&  info,
     , jetklee{ std::move(kleeient_connector) }
 
     , statistics{}
-    , analysis_statistics{}
+    , analysis_stats{}
 
     , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
@@ -404,7 +404,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true)) {
                 jetklee.stop();
                 if (capture_analysis_stats)
-                    analysis_statistics.stop_jetklee();
+                    analysis_stats.stop_jetklee();
             }
             break;
 
