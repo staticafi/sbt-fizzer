@@ -67,7 +67,7 @@ struct  fuzzer final
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     jetklee_analysis::performance_statistics const&  get_jetklee_statistics() const { return jetklee.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
-    analysis_statistics const&  get_analysis_statistics() const { return analysis_statistics; }
+    analysis_statistics const&  get_analysis_statistics() const { return analysis_stats; }
 
     std::unordered_map<std::string, std::string> const&  get_debug_data() const { return debug_data; }
 
@@ -141,7 +141,7 @@ private:
     jetklee_analysis  jetklee;
 
     performance_statistics  statistics;
-    analysis_statistics analysis_statistics;
+    analysis_statistics analysis_stats;
 
     bool  debug_mode;
     bool  capture_analysis_stats;

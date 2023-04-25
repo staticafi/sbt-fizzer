@@ -53,7 +53,7 @@ fuzzer::fuzzer(termination_info const&  info,
     , jetklee{ std::move(kleeient_connector) }
 
     , statistics{}
-    , analysis_statistics{}
+    , analysis_stats{}
 
     , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
@@ -369,7 +369,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true)) {
                 minimization.stop();
                 if (capture_analysis_stats)
-                    analysis_statistics.stop_minimization();
+                    analysis_stats.stop_minimization();
             }
             break;
 
@@ -379,7 +379,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true)) {
                 jetklee.stop();
                 if (capture_analysis_stats)
-                    analysis_statistics.stop_jetklee();
+                    analysis_stats.stop_jetklee();
             }
             break;
 
@@ -741,15 +741,15 @@ void  fuzzer::select_next_state()
     }
     else
     {
-        auto last_node = analysis_statistics.get_last_node();
-        if (analysis_statistics.performed_minimization(last_node) && !analysis_statistics.performed_jetklee(last_node)) {
-            analysis_statistics.start_jetklee(last_node, analysis_statistics.get_last_direction());
-            jetklee.start(last_node, analysis_statistics.get_last_direction());
+        auto last_node = analysis_stats.get_last_node();
+        if (analysis_stats.performed_minimization(last_node) && !analysis_stats.performed_jetklee(last_node)) {
+            analysis_stats.start_jetklee(last_node, analysis_stats.get_last_direction());
+            jetklee.start(last_node, analysis_stats.get_last_direction());
             state = JETKLEE_QUERY;
         }
         else
         {
-            analysis_statistics.start_minimization(winner_node, direction);
+            analysis_stats.start_minimization(winner_node, direction);
             minimization.start(winner_node, winner_node->best_stdin);
             state = MINIMIZATION;
         }
