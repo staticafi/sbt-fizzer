@@ -51,7 +51,7 @@ void analysis_statistics::initialize_measurement(branching_node *node)
 
 void analysis_statistics::populate_outcome_start(outcome &o)
 {
-    o.measured = true;
+    o.started = true;
     o.cpu_start = std::clock();
     o.wall_start = std::chrono::system_clock::now();
 
@@ -59,6 +59,7 @@ void analysis_statistics::populate_outcome_start(outcome &o)
 
 void analysis_statistics::populate_outcome_stop(outcome &o)
 {
+    o.stopped = true;
     o.cpu_stop = std::clock();
     o.wall_stop = std::chrono::system_clock::now();
     o.generated_inputs = 1; // TODO
@@ -66,12 +67,12 @@ void analysis_statistics::populate_outcome_stop(outcome &o)
 
 bool analysis_statistics::performed_minimization(branching_node *node) 
 {
-    return measurements.contains(node) && measurements[node].minimization_outcome.measured;
+    return measurements.contains(node) && measurements[node].minimization_outcome.stopped;
 }
 
 bool analysis_statistics::performed_jetklee(branching_node *node)
 {
-    return measurements.contains(node) && measurements[node].jetklee_outcome.measured;
+    return measurements.contains(node) && measurements[node].jetklee_outcome.stopped;
 }
 
 branching_node* analysis_statistics::get_last_node()
@@ -110,7 +111,7 @@ void analysis_statistics::dump(std::ostream& ostr) const
          << "jetklee_cpu_time" << std::endl;
     for (auto const& it : measurements) {
         auto m = it.second;
-        if (!m.jetklee_outcome.measured || !m.minimization_outcome.measured)
+        if (!m.jetklee_outcome.stopped || !m.minimization_outcome.stopped)
             continue;
         
         double minimization_cpu_time = cpu_duration(m.minimization_outcome.cpu_start, m.minimization_outcome.cpu_stop);
