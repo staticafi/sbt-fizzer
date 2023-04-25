@@ -39,6 +39,8 @@ void analysis_statistics::initialize_measurement(branching_node *node)
     m.unique_sensitive_bits = 0; // TODO
     m.total_read_bits = node->best_stdin->size();
     m.trace_length = 0;
+    m.node_id = node->id.id;
+    m.node_hash = node->id.context_hash;
     branching_node *it = node;
     while (it != nullptr)
     {
@@ -101,34 +103,41 @@ double wall_duration(wall_time from, wall_time to)
 void analysis_statistics::dump(std::ostream& ostr) const
 {
     ostr << "=== analysis statistics begin ===" << std::endl;
-    ostr << "trace_length\t"
+    ostr << "branching\t"
+         << "trace_length\t"
          << "unique_sensitive_bits\t"
          << "total_sensitive_bits\t"
          << "total_read_bits\t"
          << "minimization_wall_time\t"
-         << "jetklee_wall_time\t"
          << "minimization_cpu_time\t"
+         << "jetklee_wall_time\t"
          << "jetklee_cpu_time" << std::endl;
     for (auto const& it : measurements) {
         auto m = it.second;
-        if (!m.jetklee_outcome.stopped || !m.minimization_outcome.stopped)
-            continue;
         
-        double minimization_cpu_time = cpu_duration(m.minimization_outcome.cpu_start, m.minimization_outcome.cpu_stop);
-        double jetklee_cpu_time = cpu_duration(m.jetklee_outcome.cpu_start, m.jetklee_outcome.cpu_stop);
-        double minimization_wall_time = wall_duration(m.minimization_outcome.wall_start, m.minimization_outcome.wall_stop);
-        double jetklee_wall_time = wall_duration(m.jetklee_outcome.wall_start, m.jetklee_outcome.wall_stop);
-        
-        ostr << m.trace_length << "\t"
+        ostr << m.node_id << "!" << m.node_hash << "\t"
+             << m.trace_length << "\t"
              << m.unique_sensitive_bits << "\t"
              << m.total_sensitive_bits << "\t"
-             << m.total_read_bits << "\t"
-             << minimization_wall_time << "\t"
-             << jetklee_wall_time << "\t"
-             << minimization_cpu_time << "\t"
-             << jetklee_cpu_time << "\t" << std::endl;
+             << m.total_read_bits << "\t";
+        if (m.minimization_outcome.stopped) {
+            double minimization_wall_time = wall_duration(m.minimization_outcome.wall_start, m.minimization_outcome.wall_stop);
+            double minimization_cpu_time = cpu_duration(m.minimization_outcome.cpu_start, m.minimization_outcome.cpu_stop);
+            ostr << minimization_wall_time << "\t"
+                 << minimization_cpu_time << "\t";
+        } else {
+            ostr << "N/A\tN/A\t";
+        }
+        if (m.jetklee_outcome.stopped) {
+            double jetklee_wall_time = wall_duration(m.jetklee_outcome.wall_start, m.jetklee_outcome.wall_stop);
+            double jetklee_cpu_time = cpu_duration(m.jetklee_outcome.cpu_start, m.jetklee_outcome.cpu_stop);
+            ostr << jetklee_wall_time << "\t"
+                 << jetklee_cpu_time << "\t";
+        } else {
+            ostr << "N/A\tN/A\t";
+        }
+        ostr << std::endl;
     }
-    ostr << "";
 
     ostr << "=== analysis statistics end ===" << std::endl;
 }

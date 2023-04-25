@@ -25,7 +25,8 @@ struct measurement
     size_t total_sensitive_bits = 0;
     size_t total_read_bits = 0;
     size_t trace_length = 0;
-    branching_node *node = 0;
+    uint32_t node_id = 0;
+    uint32_t node_hash = 0;
     outcome minimization_outcome {};
     outcome jetklee_outcome {};
 };
