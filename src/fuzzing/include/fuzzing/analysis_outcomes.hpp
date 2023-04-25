@@ -4,6 +4,7 @@
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <fuzzing/fuzzer.hpp>
+#   include <fuzzing/analysis_statistics.hpp>
 #   include <utility/math.hpp>
 #   include <vector>
 #   include <string>
@@ -35,6 +36,7 @@ struct analysis_outcomes
     bitshare_analysis::performance_statistics   bitshare_statistics;
     jetklee_analysis::performance_statistics   jetklee_statistics;
     fuzzer::performance_statistics  statistics;
+    fuzzing::analysis_statistics  analysis_statistics;
     std::unordered_map<std::string, std::string>  debug_data;
 };
 

@@ -41,6 +41,9 @@ add_library(${THIS_TARGET_NAME}
     ./src/dump_testcomp.cpp
     ./include/fuzzing/dump_tree.hpp
     ./src/dump_tree.cpp
+
+    ./include/fuzzing/analysis_statistics.hpp
+    ./src/analysis_statistics.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

@@ -62,7 +62,8 @@ void  save_fuzzing_configuration(
 }
 
 
-void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results)
+void  print_analysis_outcomes(std::ostream&  ostr,
+    analysis_outcomes const&  results,)
 {
     std::string const  shift = "    ";
 
@@ -217,14 +218,32 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     }
 
     ostr << "}\n";
+
+    results.analysis_statistics.dump(ostr);
 }
 
 
+<<<<<<< HEAD
 void  log_analysis_outcomes(analysis_outcomes const&  results)
 {
     std::stringstream sstr;
     print_analysis_outcomes(sstr, results);
     LOG(LSL_INFO, sstr.str());
+=======
+    if (results.termination_type != analysis_outcomes::TERMINATION_TYPE::NORMAL)
+        LOG(LSL_ERROR, "Fuzzing did not terminate normally. Reason: " << results.termination_message);
+    else
+        LOG(LSL_INFO, "Fuzzing terminated normally. Reason: " << results.termination_message);
+    if (!results.uncovered_branchings.empty())
+    {
+        std::stringstream  sstr;
+        for (auto const&  id_and_branching : results.uncovered_branchings)
+            sstr << id_and_branching.first << (id_and_branching.second ? '+' : '-');
+        LOG(LSL_INFO, "Fuzzing did not cover these branchings: " << sstr.str());
+    }
+
+
+>>>>>>> Add analysis performance tracking
 }
 
 

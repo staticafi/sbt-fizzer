@@ -37,13 +37,14 @@ bool  jetklee_analysis::is_worth_processing(branching_node* const  tested_node_p
 }
 
 
-void  jetklee_analysis::start(branching_node* const  node_ptr_)
+void  jetklee_analysis::start(branching_node* const  node_ptr_, bool direction_)
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(!node_ptr_->is_direction_explored(false) || !node_ptr_->is_direction_explored(true));
+    //ASSUMPTION(!node_ptr_->is_direction_explored(false) || !node_ptr_->is_direction_explored(true));
 
     state = BUSY;
     node_ptr = node_ptr_;
+    direction = direction_;
 
     ++statistics.start_calls;
 }
@@ -83,9 +84,7 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
     }
     std::reverse(trace.begin(), trace.end());
 
-    // false explored -> visit true
-    // false not explored -> visit false
-    trace.push_back(node_ptr->is_direction_explored(false));
+    trace.push_back(direction);
 
     std::vector<uint8_t> bytes;
     kleeient_connector->get_model(trace, bytes);

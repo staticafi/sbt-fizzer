@@ -33,7 +33,7 @@ struct  jetklee_analysis
 
     bool  is_worth_processing(branching_node*  tested_node_ptr) const;
 
-    void  start(branching_node*  node_ptr_);
+    void  start(branching_node*  node_ptr_, bool direction);
     void  stop();
 
     bool  generate_next_input(vecb&  bits_ref);
@@ -45,7 +45,8 @@ private:
 
     STATE  state;
     branching_node*  node_ptr;
-    std::unique_ptr<connection::kleeient_connector> kleeient_connector;
+    bool  direction;
+    std::unique_ptr<connection::kleeient_connector>  kleeient_connector;
 
     performance_statistics  statistics;
 };

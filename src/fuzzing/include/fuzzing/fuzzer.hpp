@@ -10,6 +10,7 @@
 #   include <fuzzing/jetklee_analysis.hpp>
 >>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 #   include <fuzzing/execution_record.hpp>
+#   include <fuzzing/analysis_statistics.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/std_pair_hash.hpp>
@@ -52,7 +53,8 @@ struct  fuzzer final
 
     explicit fuzzer(termination_info const&  info,
                     std::unique_ptr<connection::kleeient_connector> kleeient_connector,
-                    bool  debug_mode_ = false);
+                    bool  debug_mode_ = false,
+                    bool  capture_analysis_stats = false);
     ~fuzzer();
 
     void  terminate();
@@ -82,6 +84,7 @@ struct  fuzzer final
     jetklee_analysis::performance_statistics const&  get_jetklee_statistics() const { return jetklee.get_statistics(); }
 >>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
+    analysis_statistics const&  get_analysis_statistics() const { return analysis_statistics; }
 
     std::unordered_map<std::string, std::string> const&  get_debug_data() const { return debug_data; }
 
@@ -163,8 +166,10 @@ private:
 >>>>>>> Integration of JetKlee analysis (does not call JetKlee yet)
 
     performance_statistics  statistics;
+    analysis_statistics analysis_statistics;
 
     bool  debug_mode;
+    bool  capture_analysis_stats;
     mutable std::unordered_map<std::string, std::string>  debug_data;
 };
 

@@ -35,7 +35,8 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
 
 fuzzer::fuzzer(termination_info const&  info,
                std::unique_ptr<connection::kleeient_connector> kleeient_connector,
-               bool const  debug_mode_)
+               bool const  debug_mode_,
+               bool capture_analysis_stats_ )
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -61,7 +62,9 @@ fuzzer::fuzzer(termination_info const&  info,
     , jetklee{ std::move(kleeient_connector) }
 
     , statistics{}
+    , analysis_statistics{}
 
+    , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
     , debug_data{}
 {}
@@ -398,8 +401,11 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case JETKLEE_QUERY:
             INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_busy());
             jetklee.process_execution_results(trace);
-            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true))
+            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true)) {
                 jetklee.stop();
+                if (capture_analysis_stats)
+                    analysis_statistics.stop_jetklee();
+            }
             break;
 
         default: UNREACHABLE(); break;
@@ -784,6 +790,7 @@ void  fuzzer::select_next_state()
         INVARIANT(winner.leaf != nullptr && !winner.leaf->sensitivity_performed);
         sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf);
         state = SENSITIVITY;
+        return;
     }
     else if (!winner.node->bitshare_performed)
     {

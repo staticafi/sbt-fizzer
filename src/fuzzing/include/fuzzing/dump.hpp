@@ -27,11 +27,14 @@ void  save_fuzzing_configuration(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
         iomodels::iomanager::configuration const&  ioconfig,
-        termination_info const&  terminator
+        termination_info const&  terminator);
+
+void  print_analysis_outcomes(std::ostream&  ostr,
+        analysis_outcomes const&  results,
         );
 
-void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results);
 void  log_analysis_outcomes(analysis_outcomes const&  results);
+
 void  save_analysis_outcomes(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
