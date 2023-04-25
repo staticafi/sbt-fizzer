@@ -27,6 +27,13 @@ using namespace instrumentation;
 
 struct  fuzzer final
 {
+    enum jetklee_usage
+    {
+        ALWAYS,
+        NEVER,
+        HEURISTIC
+    };
+
     struct  performance_statistics
     {
         std::size_t  leaf_nodes_created{ 0 };
@@ -42,7 +49,8 @@ struct  fuzzer final
     explicit fuzzer(termination_info const&  info,
                     std::unique_ptr<connection::kleeient_connector> kleeient_connector,
                     bool  debug_mode_ = false,
-                    bool  capture_analysis_stats = false);
+                    bool  capture_analysis_stats = false,
+                    jetklee_usage  jetklee_usage_policy = HEURISTIC);
     ~fuzzer();
 
     void  terminate();
@@ -117,6 +125,8 @@ private:
 
     void  select_next_state();
 
+    bool  use_jetklee(branching_node* node);
+
     termination_info termination_props;
 
     natural_32_bit  num_driver_executions;
@@ -145,6 +155,7 @@ private:
 
     bool  debug_mode;
     bool  capture_analysis_stats;
+    jetklee_usage  jetklee_usage_policy;
     mutable std::unordered_map<std::string, std::string>  debug_data;
 };
 

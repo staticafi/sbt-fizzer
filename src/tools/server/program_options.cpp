@@ -54,6 +54,9 @@ program_options::program_options(int argc, char* argv[])
     add_value("kleeient_port", "42086");
 
     add_option("debug_mode", "When specified, the fuzzer will generate debug data during the analysis.", "0");
+
+    add_option("jetklee_usage", "Jetklee usage policy (always, never, heuristic", "1");
+    add_value("jetklee_usage", "heuristic");
 }
 
 static program_options_ptr  global_program_options;

@@ -11,7 +11,8 @@ namespace  fuzzing {
 analysis_outcomes  run(std::function<void()> const&  benchmark_executor,
                        std::unique_ptr<connection::kleeient_connector>  kleeient_connector,
                        termination_info const&  info,
-                       bool  debug_mode);
+                       bool  debug_mode,
+                       fuzzer::jetklee_usage  jetklee_usage_policy);
 
 
 }

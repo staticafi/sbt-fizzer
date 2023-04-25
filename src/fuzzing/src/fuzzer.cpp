@@ -28,7 +28,8 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
 fuzzer::fuzzer(termination_info const&  info,
                std::unique_ptr<connection::kleeient_connector> kleeient_connector,
                bool const  debug_mode_,
-               bool capture_analysis_stats_ )
+               bool capture_analysis_stats_,
+               jetklee_usage jetklee_usage_policy_)
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -58,6 +59,7 @@ fuzzer::fuzzer(termination_info const&  info,
     , capture_analysis_stats{ capture_analysis_stats_ }
     , debug_mode{ debug_mode_ }
     , debug_data{}
+    , jetklee_usage_policy {jetklee_usage_policy_ }
 {}
 
 
@@ -713,6 +715,10 @@ void  fuzzer::select_next_state()
         return;
     }
 
+    bool direction = winner_node->is_direction_explored(false);
+    // false explored -> visit true
+    // false not explored -> visit false
+
     if (!winner_node->sensitivity_performed)
     {
         INVARIANT(winner_leaf != nullptr && !winner_leaf->sensitivity_performed);
@@ -720,40 +726,33 @@ void  fuzzer::select_next_state()
         state = SENSITIVITY;
         return;
     }
+    else if (use_jetklee(winner_node))
+    {
+        INVARIANT(!winner_node->jetklee_queued);
 
-    bool direction = winner_node->is_direction_explored(false);
-        // false explored -> visit true
-        // false not explored -> visit false
-
-    if (!capture_analysis_stats){
-        if (jetklee.is_worth_processing(winner_node))
-        {
-            INVARIANT(!winner_node->jetklee_queued);
-            jetklee.start(winner_node, direction);
-            state = JETKLEE_QUERY;
-        }
-        else 
-        {
-            INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
-            minimization.start(winner_node, winner_node->best_stdin);
-            state = MINIMIZATION;
-        }
+        if (capture_analysis_stats)
+            analysis_stats.start_jetklee(winner_node, analysis_stats.get_last_direction());
+        jetklee.start(winner_node, direction);
+        state = JETKLEE_QUERY;
     }
     else
     {
-        auto last_node = analysis_stats.get_last_node();
-        if (analysis_stats.performed_minimization(last_node) && !analysis_stats.performed_jetklee(last_node)) {
-            analysis_stats.start_jetklee(last_node, analysis_stats.get_last_direction());
-            jetklee.start(last_node, analysis_stats.get_last_direction());
-            state = JETKLEE_QUERY;
-        }
-        else
-        {
-            analysis_stats.start_minimization(winner_node, direction);
-            minimization.start(winner_node, winner_node->best_stdin);
-            state = MINIMIZATION;
-        }
+        INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
+
+        if (capture_analysis_stats)
+            analysis_stats.start_minimization(winner_node, analysis_stats.get_last_direction());
+        minimization.start(winner_node, winner_node->best_stdin);
+        state = MINIMIZATION;
     }
+}
+
+bool  fuzzer::use_jetklee(branching_node* node)
+{
+    if (jetklee_usage_policy == ALWAYS)
+        return true;
+    else if (jetklee_usage_policy == NEVER)
+        return false;
+    return jetklee.is_worth_processing(node);    
 }
 
 
