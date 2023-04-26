@@ -7,6 +7,7 @@ namespace fuzzing {
 void analysis_statistics::start_minimization(branching_node* node, bool direction) {
     initialize_measurement(node);
     populate_outcome_start(measurements[node].minimization_outcome);
+    last_measurement = &measurements[node].minimization_outcome;
     last_direction = direction;
     last_node = node;
 }
@@ -20,6 +21,7 @@ void analysis_statistics::start_jetklee(branching_node* node, bool direction)
 {
     initialize_measurement(node);
     populate_outcome_start(measurements[node].jetklee_outcome);
+    last_measurement = &measurements[node].jetklee_outcome;
     last_direction = direction;
     last_node = node;
 }
@@ -27,6 +29,14 @@ void analysis_statistics::start_jetklee(branching_node* node, bool direction)
 void analysis_statistics::stop_jetklee()
 {
     populate_outcome_stop(measurements[last_node].jetklee_outcome);
+}
+
+void analysis_statistics::stop_last_analysis()
+{
+    if (last_measurement == nullptr)
+        return;
+    populate_outcome_stop(*last_measurement);
+    last_measurement = nullptr;
 }
 
 void analysis_statistics::initialize_measurement(branching_node *node)

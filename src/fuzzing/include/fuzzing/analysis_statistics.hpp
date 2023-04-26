@@ -38,6 +38,7 @@ public:
     void stop_minimization();
     void start_jetklee(branching_node *node, bool direction);
     void stop_jetklee();
+    void stop_last_analysis();
     bool performed_minimization(branching_node *node);
     bool performed_jetklee(branching_node *node);
     branching_node *get_last_node();
@@ -48,7 +49,8 @@ private:
     void populate_outcome_start(outcome& outcome);
     void populate_outcome_stop(outcome& outcome);
     std::map<branching_node*, measurement> measurements;
-    branching_node* last_node;
+    branching_node* last_node = nullptr;
+    outcome* last_measurement = nullptr;
     bool last_direction = false;
 };
 
