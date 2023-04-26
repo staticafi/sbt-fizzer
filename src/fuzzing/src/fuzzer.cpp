@@ -731,7 +731,10 @@ void  fuzzer::select_next_state()
         INVARIANT(!winner_node->jetklee_queued);
 
         if (capture_analysis_stats)
+        {
+            analysis_stats.stop_last_analysis();
             analysis_stats.start_jetklee(winner_node, analysis_stats.get_last_direction());
+        }
         jetklee.start(winner_node, direction);
         state = JETKLEE_QUERY;
     }
@@ -740,7 +743,10 @@ void  fuzzer::select_next_state()
         INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
 
         if (capture_analysis_stats)
+        {
+            analysis_stats.stop_last_analysis();
             analysis_stats.start_minimization(winner_node, analysis_stats.get_last_direction());
+        }
         minimization.start(winner_node, winner_node->best_stdin);
         state = MINIMIZATION;
     }
