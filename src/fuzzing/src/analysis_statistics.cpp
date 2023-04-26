@@ -1,6 +1,8 @@
 #include <fuzzing/analysis_statistics.hpp>
 #include <fuzzing/branching_node.hpp>
 #include <chrono>
+#include <set>
+#include <iterator>
 
 namespace fuzzing {
 
@@ -39,25 +41,44 @@ void analysis_statistics::stop_last_analysis()
     last_measurement = nullptr;
 }
 
+
+
 void analysis_statistics::initialize_measurement(branching_node *node)
 {
     if (measurements.contains(node))
         return;
 
-    measurement m;
-    m.total_sensitive_bits = node->sensitive_stdin_bits.size();
-    m.unique_sensitive_bits = 0; // TODO
-    m.total_read_bits = node->best_stdin->size();
-    m.trace_length = 0;
-    m.node_id = node->id.id;
-    m.node_hash = node->id.context_hash;
-    branching_node *it = node;
-    while (it != nullptr)
+    std::set<natural_32_bit> locations;
+    size_t length = 0;
+    for (branching_node *it = node; it != nullptr; it = it->predecessor)
     {
-        it = it->predecessor;
-        m.trace_length++;
+        length++;
+        locations.emplace(it->id.id);
+    }
+    std::set<stdin_bit_index> predecessors_sensitive_bits;
+    for (branching_node *it = node == nullptr ? node : node->predecessor; it != nullptr; it = it->predecessor)
+    {
+        predecessors_sensitive_bits.insert(it->sensitive_stdin_bits.begin(), it->sensitive_stdin_bits.end());
     }
 
+    // node->sensitive_stdin_bits is unordered_set so we have to use this
+    std::set<stdin_bit_index> all_sensitive_bits;
+    std::set<stdin_bit_index> overlapping_sensitive_bits;
+    all_sensitive_bits.insert(predecessors_sensitive_bits.begin(), predecessors_sensitive_bits.end());
+    all_sensitive_bits.insert(node->sensitive_stdin_bits.begin(), node->sensitive_stdin_bits.end());
+    std::copy_if(predecessors_sensitive_bits.begin(), predecessors_sensitive_bits.end(),
+        std::inserter(overlapping_sensitive_bits, overlapping_sensitive_bits.begin()),
+        [node](stdin_bit_index idx){return node->sensitive_stdin_bits.contains(idx);} );;
+
+    measurement m;
+    m.total_sensitive_bits = all_sensitive_bits.size();
+    m.branching_sensitive_bits = node->sensitive_stdin_bits.size();
+    m.overlapping_sensitive_bits = overlapping_sensitive_bits.size();
+    m.total_read_bits = node->best_stdin->size();
+    m.trace_length = length;
+    m.unique_locations = locations.size();
+    m.node_id = node->id.id;
+    m.node_hash = node->id.context_hash;
     measurements[node] = m;
 }
 
@@ -115,8 +136,10 @@ void analysis_statistics::dump(std::ostream& ostr) const
     ostr << "=== analysis statistics begin ===" << std::endl;
     ostr << "branching\t"
          << "trace_length\t"
-         << "unique_sensitive_bits\t"
+         << "unique_locations\t"
          << "total_sensitive_bits\t"
+         << "branching_sensitive_bits\t"
+         << "overlapping_sensitive_bits\t"
          << "total_read_bits\t"
          << "minimization_wall_time\t"
          << "minimization_cpu_time\t"
@@ -127,8 +150,10 @@ void analysis_statistics::dump(std::ostream& ostr) const
         
         ostr << m.node_id << "!" << m.node_hash << "\t"
              << m.trace_length << "\t"
-             << m.unique_sensitive_bits << "\t"
+             << m.unique_locations << "\t"
              << m.total_sensitive_bits << "\t"
+             << m.branching_sensitive_bits << "\t"
+             << m.overlapping_sensitive_bits << "\t"
              << m.total_read_bits << "\t";
         if (m.minimization_outcome.stopped) {
             double minimization_wall_time = wall_duration(m.minimization_outcome.wall_start, m.minimization_outcome.wall_stop);

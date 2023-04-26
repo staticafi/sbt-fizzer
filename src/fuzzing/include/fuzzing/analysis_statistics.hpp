@@ -21,10 +21,12 @@ struct outcome
 
 struct measurement
 {
-    size_t unique_sensitive_bits = 0;
     size_t total_sensitive_bits = 0;
+    size_t branching_sensitive_bits = 0;
+    size_t overlapping_sensitive_bits = 0;
     size_t total_read_bits = 0;
     size_t trace_length = 0;
+    size_t unique_locations = 0;
     uint32_t node_id = 0;
     uint32_t node_hash = 0;
     outcome minimization_outcome {};
