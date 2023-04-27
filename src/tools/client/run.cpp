@@ -18,6 +18,8 @@ void run() {
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_trace_length"))),
             .max_stack_size = (natural_8_bit)std::max(0, std::stoi(get_program_options()->value("max_stack_size"))),
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("max_stdin_bytes"))),
+            .max_exec_milliseconds = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_milliseconds"))),
+            .max_exec_megabytes = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_megabytes"))),
             .stdin_model_name = get_program_options()->value("stdin_model"),
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
