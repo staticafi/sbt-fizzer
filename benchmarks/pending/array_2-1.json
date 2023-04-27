@@ -5,18 +5,20 @@
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
+        "max_exec_milliseconds": 250,
+        "max_exec_megabytes": 1024,
         "stdin_model": "stdin_replay_bytes_then_repeat_85",
         "stdout_model": "stdout_void"
     },
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "executions_performed": 6500,
+        "executions_performed": 1,
         "num_covered_branchings": 0,
         "covered_branchings": [
         ],
-        "num_generated_tests": 6401,
+        "num_generated_tests": 1,
         "num_crashes": 0,
-        "num_boundary_violations": 6401
+        "num_boundary_violations": 0
     }
 }

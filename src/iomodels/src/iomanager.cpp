@@ -139,6 +139,8 @@ void iomanager::br_instr(instrumentation::br_instr_coverage_info const&  info)
 {
     if (get_stdin()->num_bytes_read() == 0)
         return;
+    if (br_instr_trace.size() >= config.max_trace_length)
+        throw boundary_condition_violation("The max br-trace length exceeded.");
     br_instr_trace.push_back(info);
 }
 

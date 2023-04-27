@@ -28,6 +28,8 @@ void  print_fuzzing_configuration(
          << shift << "\"max_trace_length\": " << ioconfig.max_trace_length << ",\n"
          << shift << "\"max_stack_size\": " << (int)ioconfig.max_stack_size << ",\n"
          << shift << "\"max_stdin_bytes\": " << ioconfig.max_stdin_bytes << ",\n"
+         << shift << "\"max_exec_milliseconds\": " << ioconfig.max_exec_milliseconds << ",\n"
+         << shift << "\"max_exec_megabytes\": " << ioconfig.max_exec_megabytes << ",\n"
          << shift << "\"stdin_model\": \"" << ioconfig.stdin_model_name << "\",\n"
          << shift << "\"stdout_model\": \"" << ioconfig.stdout_model_name << "\"\n"
          << "}\n"

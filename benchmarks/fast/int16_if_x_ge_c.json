@@ -5,6 +5,8 @@
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
+        "max_exec_milliseconds": 250,
+        "max_exec_megabytes": 1024,
         "stdin_model": "stdin_replay_bytes_then_repeat_85",
         "stdout_model": "stdout_void"
     },
