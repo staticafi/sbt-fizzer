@@ -168,8 +168,8 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"tree_nodes_destroyed\": " << results.statistics.nodes_destroyed << ",\n"
          << shift << shift << "\"max_tree_leaves\": " << results.statistics.max_leaf_nodes << ",\n"
          << shift << shift << "\"longest_tree_branch\": " << results.statistics.longest_branch << ",\n"
-         << shift << shift << "\"traces_to_crash_total\": " << results.statistics.traces_to_crash_total << ",\n"
-         << shift << shift << "\"traces_to_crash_recorded\": " << results.statistics.traces_to_crash_recorded << "\n"
+         << shift << shift << "\"traces_to_crash\": " << results.statistics.traces_to_crash << ",\n"
+         << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << "\n"
          << shift << "},\n"
          ;
 
