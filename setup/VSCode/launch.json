@@ -90,6 +90,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/dist/benchmarks/fast/int8_if_x_equal_c.sbt-client",
             "args": [
+                "--input", "00",
                 "--max_trace_length", "10000",
                 "--max_stack_size", "25",
                 "--max_stdin_bytes", "6400",
