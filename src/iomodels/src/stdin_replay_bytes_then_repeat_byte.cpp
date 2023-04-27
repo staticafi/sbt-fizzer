@@ -32,11 +32,11 @@ void  stdin_replay_bytes_then_repeat_byte::save_(Medium& dest) const
 {
     INVARIANT(bytes.size() <= max_bytes());
 
-    dest << (natural_16_bit)bytes.size();
-    dest.load(bytes.data(),(natural_16_bit)bytes.size());
+    dest << (byte_count_type)bytes.size();
+    dest.load(bytes.data(),(byte_count_type)bytes.size());
 
-    dest << (natural_16_bit)counts.size();
-    dest.load(counts.data(), (natural_16_bit)counts.size());
+    dest << (byte_count_type)counts.size();
+    dest.load(counts.data(), (byte_count_type)counts.size());
 }
 
 template void stdin_replay_bytes_then_repeat_byte::save_(shared_memory&) const;
@@ -56,14 +56,14 @@ void  stdin_replay_bytes_then_repeat_byte::save(shared_memory& dest) const
 template <typename Medium>
 void  stdin_replay_bytes_then_repeat_byte::load_(Medium&  src)
 {
-    natural_16_bit  num_bytes;
+    byte_count_type  num_bytes;
     src >> num_bytes;
     bytes.resize(num_bytes);
     src.save(bytes.data(), num_bytes);
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
-    natural_16_bit  num_counts;
+    byte_count_type  num_counts;
     src >> num_counts;
     counts.resize(num_counts);
     src.save(counts.data(), num_counts);

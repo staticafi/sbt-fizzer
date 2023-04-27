@@ -11,7 +11,7 @@ namespace  iomodels {
 
 struct  stdin_base
 {
-    using  byte_count_type = natural_16_bit;
+    using  byte_count_type = natural_32_bit;
 
     explicit stdin_base(byte_count_type const  max_bytes_) : m_max_bytes{ max_bytes_ } {}
     virtual ~stdin_base() = default;
