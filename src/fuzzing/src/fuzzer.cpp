@@ -391,19 +391,18 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
         if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::CRASH)
         {
-            ++statistics.traces_to_crash_total;
+            ++statistics.traces_to_crash;
 
             auto const  it_and_state = branchings_to_crashes.insert(construction_props.leaf->id);
             if (it_and_state.second)
-            {
                 exe_flags |= execution_record::EXECUTION_CRASHES;
-
-                ++statistics.traces_to_crash_recorded;
-            }
         }
 
         if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION)
+        {
+            ++statistics.traces_to_boundary_violation;
             exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
+        }
 
         if (construction_props.any_location_discovered)
             exe_flags |= execution_record::BRANCH_DISCOVERED;

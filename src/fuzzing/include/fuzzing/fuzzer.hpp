@@ -41,8 +41,8 @@ struct  fuzzer final
         std::size_t  nodes_destroyed{ 0 };
         std::size_t  max_leaf_nodes{ 0 };
         std::size_t  longest_branch{ 0 };
-        std::size_t  traces_to_crash_total{ 0 };
-        std::size_t  traces_to_crash_recorded{ 0 };
+        std::size_t  traces_to_crash{ 0 };
+        std::size_t  traces_to_boundary_violation{ 0 };
     };
 
     explicit fuzzer(termination_info const&  info, bool  debug_mode_ = false);
