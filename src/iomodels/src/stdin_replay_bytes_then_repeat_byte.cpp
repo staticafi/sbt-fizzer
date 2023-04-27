@@ -28,24 +28,24 @@ void  stdin_replay_bytes_then_repeat_byte::save(connection::message& ostr) const
 {
     INVARIANT(bytes.size() <= max_bytes());
 
-    ostr << (natural_16_bit)bytes.size();
-    ostr.load(bytes.data(),(natural_16_bit)bytes.size());
+    ostr << (byte_count_type)bytes.size();
+    ostr.load(bytes.data(),(byte_count_type)bytes.size());
 
-    ostr << (natural_16_bit)counts.size();
-    ostr.load(counts.data(), (natural_16_bit)counts.size());
+    ostr << (byte_count_type)counts.size();
+    ostr.load(counts.data(), (byte_count_type)counts.size());
 }
 
 
 void  stdin_replay_bytes_then_repeat_byte::load(connection::message&  istr)
 {
-    natural_16_bit  num_bytes;
+    byte_count_type  num_bytes;
     istr >> num_bytes;
     bytes.resize(num_bytes);
     istr.save(bytes.data(), num_bytes);
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
-    natural_16_bit  num_counts;
+    byte_count_type  num_counts;
     istr >> num_counts;
     counts.resize(num_counts);
     istr.save(counts.data(), num_counts);
