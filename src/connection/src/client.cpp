@@ -46,12 +46,11 @@ void client::execute_program() {
 
 void client::run_input_mode(vecu8 input_bytes) {
     message input;
-    input << (natural_16_bit) (input_bytes.size() * 8U);
-    input << (natural_16_bit) input_bytes.size();
+    input << (iomodels::stdin_base::byte_count_type) input_bytes.size();
     for (natural_8_bit byte: input_bytes) {
         input << byte;
     }
-    input << (natural_16_bit) 0;
+    input << (iomodels::stdin_base::byte_count_type) 0;
 
     iomodels::iomanager::instance().clear_stdin();
     iomodels::iomanager::instance().load_stdin(input);
@@ -60,6 +59,8 @@ void client::run_input_mode(vecu8 input_bytes) {
     
     execute_program();
 
+    std::cout << "trace length: " << iomodels::iomanager::instance().get_trace().size() << '\n';
+    std::cout << "stdin_bytes: " << iomodels::iomanager::instance().get_stdin()->get_bytes().size() << '\n';
     for (const instrumentation::branching_coverage_info& info: iomodels::iomanager::instance().get_trace()) {
         std::cout << "location: bb" << info.id
                   << " branch: " << std::boolalpha << info.direction
