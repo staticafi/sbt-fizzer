@@ -15,11 +15,11 @@ program_options::program_options(int argc, char* argv[])
 
     fuzzing::termination_info const  terminator{};
 
-    add_option("max_executions", "Max number of executions of the benchmark.", "1");
-    add_value("max_executions", std::to_string(terminator.max_driver_executions));
+    add_option("max_executions", "Max number of executions for fuzzing the benchmark.", "1");
+    add_value("max_executions", std::to_string(terminator.max_executions));
 
     add_option("max_seconds", "Max number of seconds for fuzzing the benchmark.", "1");
-    add_value("max_seconds", std::to_string(terminator.max_fuzzing_seconds));
+    add_value("max_seconds", std::to_string(terminator.max_seconds));
 
     iomodels::iomanager::configuration const  io_cfg{};
 
@@ -43,6 +43,9 @@ program_options::program_options(int argc, char* argv[])
 
     add_option("stdout_model", "The model of stdout to be used during the analysis.", "1");
     add_value("stdout_model", io_cfg.stdout_model_name);
+
+    add_option("max_optimizing_seconds", "Max number of seconds for optimization of raw tests obtained from fuzzing.", "1");
+    add_value("max_optimizing_seconds", std::to_string(terminator.max_optimizing_seconds));
 
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");

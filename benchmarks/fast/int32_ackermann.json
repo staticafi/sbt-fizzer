@@ -8,12 +8,13 @@
         "max_exec_milliseconds": 250,
         "max_exec_megabytes": 1024,
         "stdin_model": "stdin_replay_bytes_then_repeat_85",
-        "stdout_model": "stdout_void"
+        "stdout_model": "stdout_void",
+        "max_optimizing_seconds": 10
     },
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "executions_performed": 1000,
+        "num_executions": 1000,
         "num_covered_branchings": 26,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    

@@ -64,7 +64,8 @@
                 "--max_exec_megabytes", "1024",
                 "--stdin_model", "stdin_replay_bytes_then_repeat_85",
                 "--stdout_model", "stdout_void",
-                "--debug_mode",
+                "--max_optimizing_seconds", "10",
+                // "--debug_mode",
                 // "--silent_mode",
                 "--test_type",
                     "native",
@@ -116,7 +117,7 @@
             "name": "Benman @ dbg",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/dist/benchmarks/benman.py",
+            "program": "${workspaceFolder}/benchmarks/benman.py",
             "console": "integratedTerminal",
             "args": [
                 // "--verbose",

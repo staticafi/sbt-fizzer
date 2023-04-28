@@ -53,8 +53,8 @@ struct  fuzzer final
 
     termination_info const& get_termination_info() const { return termination_props; }
 
-    long  num_remaining_driver_executions() const { return (long)termination_props.max_driver_executions - (long)num_driver_executions; }
-    long  num_remaining_seconds() const { return (long)termination_props.max_fuzzing_seconds - get_elapsed_seconds(); }
+    long  num_remaining_driver_executions() const { return (long)termination_props.max_executions - (long)num_driver_executions; }
+    long  num_remaining_seconds() const { return (long)termination_props.max_seconds - get_elapsed_seconds(); }
 
     natural_32_bit  get_performed_driver_executions() const { return num_driver_executions; }
     long  get_elapsed_seconds() const { return (long)std::chrono::duration_cast<std::chrono::seconds>(time_point_current - time_point_start).count(); }

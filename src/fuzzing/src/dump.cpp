@@ -23,8 +23,8 @@ void  print_fuzzing_configuration(
     std::string const  shift = "    ";
     ostr << "{\n"
          << shift << "\"benchmark\": \"" << benchmark << "\",\n"
-         << shift << "\"max_executions\": " << terminator.max_driver_executions << ",\n"
-         << shift << "\"max_seconds\": " << terminator.max_fuzzing_seconds << ",\n"
+         << shift << "\"max_executions\": " << terminator.max_executions << ",\n"
+         << shift << "\"max_seconds\": " << terminator.max_seconds << ",\n"
          << shift << "\"max_trace_length\": " << ioconfig.max_trace_length << ",\n"
          << shift << "\"max_stack_size\": " << (int)ioconfig.max_stack_size << ",\n"
          << shift << "\"max_stdin_bytes\": " << ioconfig.max_stdin_bytes << ",\n"
@@ -133,8 +133,8 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << shift << "],\n";
     }
 
-    ostr << shift << "\"executions_performed\": " << results.num_executions << ",\n"
-         << shift << "\"seconds_spent\": " << results.num_elapsed_seconds << ",\n"
+    ostr << shift << "\"num_executions\": " << results.num_executions << ",\n"
+         << shift << "\"num_elapsed_seconds\": " << results.num_elapsed_seconds << ",\n"
          << shift << "\"sensitivity_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.sensitivity_statistics.generated_inputs << ",\n"
          << shift << shift << "\"max_bits\": " << results.sensitivity_statistics.max_bits << ",\n"
@@ -164,12 +164,12 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"num_deletions\": " << results.bitshare_statistics.num_deletions << "\n"
          << shift << "},\n"
          << shift << "\"fuzzer\": {\n"
-         << shift << shift << "\"tree_leaves_created\": " << results.statistics.leaf_nodes_created << ",\n"
-         << shift << shift << "\"tree_leaves_destroyed\": " << results.statistics.leaf_nodes_destroyed << ",\n"
-         << shift << shift << "\"tree_nodes_created\": " << results.statistics.nodes_created << ",\n"
-         << shift << shift << "\"tree_nodes_destroyed\": " << results.statistics.nodes_destroyed << ",\n"
-         << shift << shift << "\"max_tree_leaves\": " << results.statistics.max_leaf_nodes << ",\n"
-         << shift << shift << "\"longest_tree_branch\": " << results.statistics.longest_branch << ",\n"
+         << shift << shift << "\"leaf_nodes_created\": " << results.statistics.leaf_nodes_created << ",\n"
+         << shift << shift << "\"leaf_nodes_destroyed\": " << results.statistics.leaf_nodes_destroyed << ",\n"
+         << shift << shift << "\"nodes_created\": " << results.statistics.nodes_created << ",\n"
+         << shift << shift << "\"nodes_destroyed\": " << results.statistics.nodes_destroyed << ",\n"
+         << shift << shift << "\"max_leaf_nodes\": " << results.statistics.max_leaf_nodes << ",\n"
+         << shift << shift << "\"longest_branch\": " << results.statistics.longest_branch << ",\n"
          << shift << shift << "\"traces_to_crash\": " << results.statistics.traces_to_crash << ",\n"
          << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << "\n"
          << shift << "},\n"
@@ -229,11 +229,11 @@ void  log_analysis_outcomes(analysis_outcomes const&  results)
 
 void  save_analysis_outcomes(
         std::filesystem::path const&  output_dir,
-        std::string const&  test_name_prefix,
+        std::string const&  benchmark,
         analysis_outcomes const&  results
         )
 {
-    std::filesystem::path const  test_file_path = output_dir / (test_name_prefix + "_outcomes.json");
+    std::filesystem::path const  test_file_path = output_dir / (benchmark + "_outcomes.json");
     std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
     print_analysis_outcomes(ostr, results);
 }
@@ -251,6 +251,142 @@ void  save_debug_data_to_directory(
         std::ofstream  ostr(debug_file_path.c_str(), std::ios::binary);
         ostr << suffix_and_value.second;
     }
+}
+
+
+void  print_optimization_configuration(
+        std::ostream&  ostr,
+        std::vector<execution_record> const&  input_test_suite,
+        termination_info const&  terminator
+        )
+{
+    std::string const  shift = "    ";
+    ostr << "{\n"
+         << shift << "\"max_optimizing_seconds\": " << terminator.max_optimizing_seconds << "\n"
+         << "}\n"
+         ;
+}
+
+
+void  log_optimization_configuration(
+        std::vector<execution_record> const&  input_test_suite,
+        termination_info const&  terminator
+        )
+{
+    std::stringstream sstr;
+    print_optimization_configuration(sstr, input_test_suite, terminator);
+    LOG(LSL_INFO, sstr.str());
+}
+
+
+void  save_optimization_configuration(
+        std::filesystem::path const&  output_dir,
+        std::string const&  benchmark,
+        std::vector<execution_record> const&  input_test_suite,
+        termination_info const&  terminator
+        )
+{
+    std::filesystem::path const  test_file_path = output_dir / (benchmark + "_config_opt.json");
+    std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
+    print_optimization_configuration(ostr, input_test_suite, terminator);
+}
+
+
+void  print_optimization_outcomes(std::ostream&  ostr, optimization_outcomes const&  results)
+{
+    std::string const  shift = "    ";
+
+    ostr << "{\n";
+
+    ostr << shift << "\"termination_type\": \"";
+    switch (results.termination_type)
+    {
+    case optimization_outcomes::TERMINATION_TYPE::NORMAL:
+        ostr << "NORMAL";
+        break;
+    case optimization_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR:
+        ostr << "SERVER_INTERNAL_ERROR";
+        break;
+    case optimization_outcomes::TERMINATION_TYPE::CLIENT_COMMUNICATION_ERROR:
+        ostr << "CLIENT_COMMUNICATION_ERROR";
+        break;
+    case optimization_outcomes::TERMINATION_TYPE::UNCLASSIFIED_ERROR:
+        ostr << "UNCLASSIFIED_ERROR";
+        break;
+    default: { UNREACHABLE(); break; }
+    }
+    ostr << "\",\n";
+
+    if (results.termination_type == optimization_outcomes::TERMINATION_TYPE::NORMAL)
+    {
+        ostr << shift << "\"termination_reason\": \"";
+        switch (results.termination_reason)
+        {
+        case optimizer::TERMINATION_REASON::ALL_TESTS_WERE_PROCESSED:
+            ostr << "ALL_TESTS_WERE_PROCESSED";
+            break;
+        case optimizer::TERMINATION_REASON::TIME_BUDGET_DEPLETED:
+            ostr << "TIME_BUDGET_DEPLETED";
+            break;
+        default: { UNREACHABLE(); break; }
+        }
+        ostr << "\",\n";
+    }
+    else
+        ostr << shift << "\"error_message\": \"" << results.error_message << "\",\n";
+
+    ostr << shift << "\"num_executions\": " << results.statistics.num_executions << ",\n"
+         << shift << "\"num_seconds\": " << results.statistics.num_seconds << ",\n"
+         << shift << "\"num_input_tests\": " << results.statistics.num_input_tests << ",\n"
+         << shift << "\"num_extended_tests\": " << results.statistics.num_extended_tests << ",\n"
+         ;
+
+    ostr << shift << "\"num_covered_branchings\": " << results.covered_branchings.size() << ",\n"
+         << shift << "\"covered_branchings\": [";
+    for (std::size_t  i = 0, n = results.covered_branchings.size(); i < n; ++i)
+    {
+        if (i % 4U == 0U) ostr << '\n' << shift << shift;
+        ostr << std::dec << results.covered_branchings.at(i).id << ','
+             << std::dec << results.covered_branchings.at(i).context_hash;
+        if (i + 1 < n)
+            ostr << ',' << shift;
+    }
+    ostr << '\n' << shift << "],\n";
+
+    ostr << shift << "\"num_uncovered_branchings\": " << results.uncovered_branchings.size() << ",\n"
+         << shift << "\"uncovered_branchings\": [";
+    for (std::size_t  i = 0, n = results.uncovered_branchings.size(); i < n; ++i)
+    {
+        if (i % 4U == 0U) ostr << '\n' << shift << shift;
+        ostr << std::dec << results.uncovered_branchings.at(i).first.id << ','
+             << std::dec << results.uncovered_branchings.at(i).first.context_hash << ','
+             << (results.uncovered_branchings.at(i).second ? 1 : 0);
+        if (i + 1 < n)
+            ostr << ',' << shift;
+    }
+    ostr << '\n' << shift << "]\n";
+
+    ostr << "}\n";
+}
+
+
+void  log_optimization_outcomes(optimization_outcomes const&  results)
+{
+    std::stringstream sstr;
+    print_optimization_outcomes(sstr, results);
+    LOG(LSL_INFO, sstr.str());
+}
+
+
+void  save_optimization_outcomes(
+        std::filesystem::path const&  output_dir,
+        std::string const&  benchmark,
+        optimization_outcomes const&  results
+        )
+{
+    std::filesystem::path const  test_file_path = output_dir / (benchmark + "_outcomes_opt.json");
+    std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
+    print_optimization_outcomes(ostr, results);
 }
 
 

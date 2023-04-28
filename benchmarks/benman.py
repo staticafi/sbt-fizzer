@@ -86,7 +86,7 @@ class Benchmark:
         checked_properties_and_comparators = {
             "termination_type": "EQ",
             "termination_reason": "EQ",
-            "executions_performed": "LE",
+            "num_executions": "LE",
             "num_covered_branchings": "GE",
             "covered_branchings": None,
             "num_generated_tests": "GE",
@@ -177,7 +177,8 @@ class Benchmark:
             "max_exec_milliseconds",
             "max_exec_megabytes",
             "stdin_model",
-            "stdout_model"
+            "stdout_model",
+            "max_optimizing_seconds"
             ]), "Benchmark's JSON file does not contain all required options for running the tool.")
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
@@ -197,6 +198,7 @@ class Benchmark:
                 "--max_exec_megabytes " + str(config["args"]["max_exec_megabytes"]) + " " +
                 "--stdin_model " + config["args"]["stdin_model"] + " " +
                 "--stdout_model " + config["args"]["stdout_model"] + " " +
+                "--max_optimizing_seconds "  + str(config["args"]["max_optimizing_seconds"]) + " " +
                 "--test_type " + "native" + " " +
                 ("--silent_mode " if self.verbose is False else "") +
                 "--port " + str(45654)  + " " +

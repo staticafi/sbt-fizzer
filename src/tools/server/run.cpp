@@ -4,6 +4,8 @@
 #include <iomodels/iomanager.hpp>
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzing_loop.hpp>
+#include <fuzzing/optimization_outcomes.hpp>
+#include <fuzzing/optimizer.hpp>
 #include <fuzzing/dump.hpp>
 #include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
@@ -95,8 +97,9 @@ void run(int argc, char* argv[])
     }
 
     fuzzing::termination_info const  terminator{
-            .max_driver_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
-            .max_fuzzing_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds")))
+            .max_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
+            .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds"))),
+            .max_optimizing_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_optimizing_seconds")))
             };
 
     iomodels::iomanager::instance().set_config({
@@ -109,9 +112,18 @@ void run(int argc, char* argv[])
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
 
+    connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
+    try {
+        server.start();
+    }
+    catch (std::exception& e) {
+        std::cerr << "ERROR: starting server\n" << e.what() << "\n";
+        return;
+    }
+
     if (!get_program_options()->has("silent_mode"))
     {
-        std::cout << "Accepted the following configuration:" << std::endl;
+        std::cout << "Configuration for fuzzing:" << std::endl;
         fuzzing::print_fuzzing_configuration(
                 std::cout,
                 client_name,
@@ -131,37 +143,60 @@ void run(int argc, char* argv[])
             terminator
             );
 
-    connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
-    try {
-        server.start();
-    }
-    catch (std::exception& e) {
-        std::cerr << "ERROR: starting server\n" << e.what() << "\n";
-        return;
-    }
-
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Fuzzing was started..." << std::endl << std::flush;
+
     fuzzing::analysis_outcomes const  results = fuzzing::run(
             [&server](){ server.send_input_to_client_and_receive_result(); },
             terminator,
             get_program_options()->has("debug_mode")
             );
 
-    server.stop();
-
     if (!get_program_options()->has("silent_mode"))
     {
         std::cout << "Fuzzing was stopped. Details:" << std::endl;
         fuzzing::print_analysis_outcomes(std::cout, results);
+
+        std::cout << "Configuration for test suite optimization:" << std::endl;
+        fuzzing::print_optimization_configuration(std::cout, results.execution_records, terminator);
     }
+    fuzzing::log_optimization_configuration(results.execution_records, terminator);
+    fuzzing::save_optimization_configuration(output_dir, client_name, results.execution_records, terminator);
+
+    std::unique_ptr<fuzzing::optimization_outcomes>  opt_results_ptr;
+    if (terminator.max_optimizing_seconds > 0)
+    {
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "Optimization was started..." << std::endl << std::flush;
+
+        opt_results_ptr = std::make_unique<fuzzing::optimization_outcomes>();
+        fuzzing::optimizer  opt{ terminator, results, [&server](){ server.send_input_to_client_and_receive_result(); }, *opt_results_ptr };
+        opt.run();
+
+        if (!get_program_options()->has("silent_mode"))
+        {
+            std::cout << "Optimization was stopped. Details:" << std::endl;
+            fuzzing::print_optimization_outcomes(std::cout, *opt_results_ptr);
+        }
+    }
+
+    server.stop();
+
     fuzzing::log_analysis_outcomes(results);
-    fuzzing::save_analysis_outcomes(test_type == "testcomp" ? output_dir / "test-suite": output_dir, client_name, results);
+    fuzzing::save_analysis_outcomes(output_dir, client_name, results);
+    if (opt_results_ptr != nullptr)
+    {
+        fuzzing::log_optimization_outcomes(*opt_results_ptr);
+        fuzzing::save_optimization_outcomes(output_dir, client_name, *opt_results_ptr);
+    }
+
+    std::vector<fuzzing::execution_record> const* const  test_suite_ptr =
+        opt_results_ptr != nullptr ? &opt_results_ptr->execution_records : &results.execution_records;
 
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Saving tests under the output directory...\n";
     if (test_type == "native") {
-        fuzzing::save_native_output(output_dir, results.execution_records, test_name);
+        fuzzing::save_native_output(output_dir, *test_suite_ptr, test_name);
         if (!results.debug_data.empty())
         {
             if (!get_program_options()->has("silent_mode"))
@@ -173,7 +208,7 @@ void run(int argc, char* argv[])
         ASSUMPTION(test_type == "testcomp");
         fuzzing::save_testcomp_output(
             output_dir / "test-suite", 
-            results.execution_records,
+            *test_suite_ptr,
             test_name,
             get_program_version(),
             get_program_options()->value("path_to_client")

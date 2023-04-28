@@ -20,10 +20,14 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/fuzzing/termination_info.hpp
     ./include/fuzzing/analysis_outcomes.hpp
-    ./include/fuzzing/execution_record.hpp
+    ./include/fuzzing/analysis_outcomes.hpp
 
     ./include/fuzzing/fuzzing_loop.hpp
     ./src/fuzzing_loop.cpp
+
+    ./include/fuzzing/optimization_outcomes.hpp
+    ./include/fuzzing/optimizer.hpp
+    ./src/optimizer.cpp
 
     ./include/fuzzing/dump.hpp
     ./src/dump.cpp
