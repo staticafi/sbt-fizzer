@@ -2,7 +2,6 @@
 
 #include <connection/server.hpp>
 #include <connection/client.hpp>
-#include <iomodels/iomanager.hpp>
 #include <utility/timeprof.hpp>
 #include <utility/config.hpp>
 
@@ -18,29 +17,32 @@ namespace  connection {
 
 
 server::server(uint16_t port, std::string path_to_client):
+    client_path_and_port(path_to_client.empty() ? "" :  std::move(path_to_client) + " --port " + std::to_string(port)),
+    iom_config(iomodels::iomanager::instance().get_config()),
     acceptor(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
-    client_executor_(10, 
-                    path_to_client.empty() ? "" : 
-                        std::move(path_to_client) +
-                        " --port " + std::to_string(port) +
-                        " --max_trace_length " + std::to_string(iomodels::iomanager::instance().get_config().max_trace_length) +
-                        " --max_stack_size " + std::to_string(iomodels::iomanager::instance().get_config().max_stack_size) +
-                        " --max_stdin_bytes " + std::to_string(iomodels::iomanager::instance().get_config().max_stdin_bytes) +
-                        " --stdin_model " + iomodels::iomanager::instance().get_config().stdin_model_name +
-                        " --stdout_model " + iomodels::iomanager::instance().get_config().stdout_model_name,
+    client_executor_(
+            std::make_unique<client_executor>(
+                    10, 
+                    client_path_and_port +
+                        " --max_trace_length " + std::to_string(iom_config.max_trace_length) +
+                        " --max_stack_size " + std::to_string(iom_config.max_stack_size) +
+                        " --max_stdin_bytes " + std::to_string(iom_config.max_stdin_bytes) +
+                        " --stdin_model " + iom_config.stdin_model_name +
+                        " --stdout_model " + iom_config.stdout_model_name,
                     connections)
+            )
     {}
 
 
 void server::start() {
     accept_connection();
     thread = std::thread([this]() {io_context.run();});
-    client_executor_.start();
+    client_executor_->start();
 }
 
 
 void server::stop() {
-    client_executor_.stop();
+    client_executor_->stop();
     io_context.stop();
     if (thread.joinable()) {
         thread.join();
@@ -51,9 +53,29 @@ void server::stop() {
 void  server::send_input_to_client_and_receive_result()
 {
     using namespace std::chrono_literals;
-    if (auto excptr = client_executor_.get_exception_ptr()) {
+    if (auto excptr = client_executor_->get_exception_ptr()) {
         std::rethrow_exception(excptr);
     }
+
+    if (iom_config != iomodels::iomanager::instance().get_config())
+    {
+        iom_config = iomodels::iomanager::instance().get_config();
+        client_executor_->stop();
+        std::unique_ptr<client_executor> cl_exec { 
+            std::make_unique<client_executor>(
+                    10, 
+                    client_path_and_port +
+                        " --max_trace_length " + std::to_string(iom_config.max_trace_length) +
+                        " --max_stack_size " + std::to_string(iom_config.max_stack_size) +
+                        " --max_stdin_bytes " + std::to_string(iom_config.max_stdin_bytes) +
+                        " --stdin_model " + iom_config.stdin_model_name +
+                        " --stdout_model " + iom_config.stdout_model_name,
+                    connections)
+            };
+        client_executor_.swap(cl_exec);
+        client_executor_->start();
+    }
+
     if (auto connection = connections.wait_and_pop_or_timeout(2000ms)) {
         send_input_to_client_and_receive_result(*connection);
     }

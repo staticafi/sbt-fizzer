@@ -11,6 +11,19 @@
 namespace  iomodels {
 
 
+bool iomanager::configuration::operator==(configuration const&  other) const
+{
+    return     
+        max_trace_length == other.max_trace_length &&
+        max_stack_size == other.max_stack_size &&
+        max_stdin_bytes == other.max_stdin_bytes &&
+        max_exec_milliseconds == other.max_exec_milliseconds &&
+        max_exec_megabytes == other.max_exec_megabytes &&
+        stdin_model_name == other.stdin_model_name &&
+        stdout_model_name == other.stdout_model_name ;
+}
+
+
 iomanager::iomanager()
     : config{}
     , trace()

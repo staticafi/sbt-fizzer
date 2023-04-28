@@ -29,6 +29,9 @@ struct  iomanager
         natural_16_bit  max_exec_megabytes{ 1024 };
         std::string  stdin_model_name{ "stdin_replay_bytes_then_repeat_85" };
         std::string  stdout_model_name{ "stdout_void" };
+
+        bool operator==(configuration const&  other) const;
+        bool operator!=(configuration const&  other) const { return !(*this == other);}
     };
 
     enum TERMINATION_TYPE
