@@ -98,8 +98,7 @@ void run(int argc, char* argv[])
 
     fuzzing::termination_info const  terminator{
             .max_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
-            .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds"))),
-            .max_optimizing_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_optimizing_seconds")))
+            .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds")))
             };
 
     iomodels::iomanager::instance().set_config({
@@ -111,6 +110,12 @@ void run(int argc, char* argv[])
             .stdin_model_name = get_program_options()->value("stdin_model"),
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
+
+    fuzzing::optimizer::configuration const  optimizer_config{
+            .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_seconds"))),
+            .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_trace_length"))),
+            .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
+            };
 
     connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
     try {
@@ -158,19 +163,24 @@ void run(int argc, char* argv[])
         fuzzing::print_analysis_outcomes(std::cout, results);
 
         std::cout << "Configuration for test suite optimization:" << std::endl;
-        fuzzing::print_optimization_configuration(std::cout, results.execution_records, terminator);
+        fuzzing::print_optimization_configuration(std::cout, optimizer_config);
     }
-    fuzzing::log_optimization_configuration(results.execution_records, terminator);
-    fuzzing::save_optimization_configuration(output_dir, client_name, results.execution_records, terminator);
+    fuzzing::log_optimization_configuration(optimizer_config);
+    fuzzing::save_optimization_configuration(output_dir, client_name, optimizer_config);
 
     std::unique_ptr<fuzzing::optimization_outcomes>  opt_results_ptr;
-    if (terminator.max_optimizing_seconds > 0)
+    if (optimizer_config.max_seconds > 0)
     {
         if (!get_program_options()->has("silent_mode"))
             std::cout << "Optimization was started..." << std::endl << std::flush;
 
         opt_results_ptr = std::make_unique<fuzzing::optimization_outcomes>();
-        fuzzing::optimizer  opt{ terminator, results, [&server](){ server.send_input_to_client_and_receive_result(); }, *opt_results_ptr };
+        fuzzing::optimizer  opt{
+                optimizer_config,
+                results,
+                [&server](){ server.send_input_to_client_and_receive_result(); },
+                *opt_results_ptr
+                };
         opt.run();
 
         if (!get_program_options()->has("silent_mode"))

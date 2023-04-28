@@ -44,20 +44,12 @@ void  save_debug_data_to_directory(
         std::unordered_map<std::string, std::string> const&  data
         );
 
-void  print_optimization_configuration(
-        std::ostream&  ostr,
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
-        );
-void  log_optimization_configuration(
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
-        );
+void  print_optimization_configuration(std::ostream&  ostr, optimizer::configuration const&  config);
+void  log_optimization_configuration(optimizer::configuration const&  config);
 void  save_optimization_configuration(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
+        optimizer::configuration const&  config
         );
 void  print_optimization_outcomes(std::ostream&  ostr, optimization_outcomes const&  results);
 void  log_optimization_outcomes(optimization_outcomes const&  results);

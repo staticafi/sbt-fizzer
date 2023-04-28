@@ -10,7 +10,6 @@ struct termination_info
 {
     natural_32_bit  max_executions{ 1000000 };
     natural_32_bit  max_seconds{ 900 }; // 15min
-    natural_32_bit  max_optimizing_seconds{ 10 };
 };
 
 

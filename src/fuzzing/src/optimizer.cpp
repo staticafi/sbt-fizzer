@@ -11,12 +11,12 @@ namespace  fuzzing {
 
 
 optimizer::optimizer(
-        termination_info const&  info,
+        configuration const&  cfg,
         analysis_outcomes const&  fuzzing_outcomes_,
         std::function<void()> const&  benchmark_executor_,
         optimization_outcomes&  outcomes_
         )
-    : termination_props{ info }
+    : config{ cfg }
     , benchmark_executor{ benchmark_executor_ }
     , fuzzing_outcomes{ fuzzing_outcomes_ }
 
@@ -24,10 +24,6 @@ optimizer::optimizer(
     , time_point_current{}
 
     , outcomes{ outcomes_ }
-{}
-
-
-optimizer::~optimizer()
 {}
 
 
@@ -40,8 +36,6 @@ void  optimizer::run()
     outcomes.termination_type = optimization_outcomes::TERMINATION_TYPE::NORMAL;
     outcomes.termination_reason = TERMINATION_REASON::ALL_TESTS_WERE_PROCESSED;
 
-    statistics.num_input_tests = outcomes.execution_records.size();
-
     std::vector<std::size_t>  test_indices;
     for (std::size_t  i = 0; i < outcomes.execution_records.size(); ++i)
         if ((outcomes.execution_records.at(i).flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
@@ -49,8 +43,8 @@ void  optimizer::run()
     if (!test_indices.empty())
     {
         iomodels::iomanager::configuration  io_cfg = iomodels::iomanager::instance().get_config();
-        io_cfg.max_trace_length = 10000000;
-        io_cfg.max_stdin_bytes = 10000000;
+        io_cfg.max_trace_length = config.max_trace_length;
+        io_cfg.max_stdin_bytes = config.max_stdin_bytes;
         iomodels::iomanager::instance().set_config(io_cfg);
 
         std::unordered_set<location_id>  covered_branchings{

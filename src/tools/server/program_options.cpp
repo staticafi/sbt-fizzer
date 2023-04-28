@@ -2,6 +2,7 @@
 #include <server/program_info.hpp>
 #include <iomodels/iomanager.hpp>
 #include <fuzzing/termination_info.hpp>
+#include <fuzzing/optimizer.hpp>
 #include <utility/assumptions.hpp>
 
 program_options::program_options(int argc, char* argv[])
@@ -44,8 +45,16 @@ program_options::program_options(int argc, char* argv[])
     add_option("stdout_model", "The model of stdout to be used during the analysis.", "1");
     add_value("stdout_model", io_cfg.stdout_model_name);
 
-    add_option("max_optimizing_seconds", "Max number of seconds for optimization of raw tests obtained from fuzzing.", "1");
-    add_value("max_optimizing_seconds", std::to_string(terminator.max_optimizing_seconds));
+    fuzzing::optimizer::configuration const  optimizer_config{};
+
+    add_option("optimizer_max_seconds", "Max number of seconds for optimization of raw tests obtained from fuzzing.", "1");
+    add_value("optimizer_max_seconds", std::to_string(optimizer_config.max_seconds));
+
+    add_option("optimizer_max_trace_length", "Test suite optimizer option. Max number of branchings in a trace.", "1");
+    add_value("optimizer_max_trace_length", std::to_string(optimizer_config.max_trace_length));
+
+    add_option("optimizer_max_stdin_bytes", "Test suite optimizer option. Max number of stdin bits read during benchmark execution.", "1");
+    add_value("optimizer_max_stdin_bytes", std::to_string(optimizer_config.max_stdin_bytes));
 
     add_option("path_to_client", "Path to client binary", "1");
     add_value("path_to_client", "");

@@ -254,27 +254,22 @@ void  save_debug_data_to_directory(
 }
 
 
-void  print_optimization_configuration(
-        std::ostream&  ostr,
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
-        )
+void  print_optimization_configuration(std::ostream&  ostr, optimizer::configuration const&  config)
 {
     std::string const  shift = "    ";
     ostr << "{\n"
-         << shift << "\"max_optimizing_seconds\": " << terminator.max_optimizing_seconds << "\n"
+         << shift << "\"max_seconds\": " << config.max_seconds << ",\n"
+         << shift << "\"max_trace_length\": " << config.max_trace_length << ",\n"
+         << shift << "\"max_stdin_bytes\": " << config.max_stdin_bytes << "\n"
          << "}\n"
          ;
 }
 
 
-void  log_optimization_configuration(
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
-        )
+void  log_optimization_configuration(optimizer::configuration const&  config)
 {
     std::stringstream sstr;
-    print_optimization_configuration(sstr, input_test_suite, terminator);
+    print_optimization_configuration(sstr, config);
     LOG(LSL_INFO, sstr.str());
 }
 
@@ -282,13 +277,12 @@ void  log_optimization_configuration(
 void  save_optimization_configuration(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
-        std::vector<execution_record> const&  input_test_suite,
-        termination_info const&  terminator
+        optimizer::configuration const&  config
         )
 {
     std::filesystem::path const  test_file_path = output_dir / (benchmark + "_config_opt.json");
     std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
-    print_optimization_configuration(ostr, input_test_suite, terminator);
+    print_optimization_configuration(ostr, config);
 }
 
 
@@ -337,7 +331,6 @@ void  print_optimization_outcomes(std::ostream&  ostr, optimization_outcomes con
 
     ostr << shift << "\"num_executions\": " << results.statistics.num_executions << ",\n"
          << shift << "\"num_seconds\": " << results.statistics.num_seconds << ",\n"
-         << shift << "\"num_input_tests\": " << results.statistics.num_input_tests << ",\n"
          << shift << "\"num_extended_tests\": " << results.statistics.num_extended_tests << ",\n"
          ;
 

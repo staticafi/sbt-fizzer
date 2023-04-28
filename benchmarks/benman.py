@@ -178,7 +178,9 @@ class Benchmark:
             "max_exec_megabytes",
             "stdin_model",
             "stdout_model",
-            "max_optimizing_seconds"
+            "optimizer_max_seconds",
+            "optimizer_max_trace_length",
+            "optimizer_max_stdin_bytes"
             ]), "Benchmark's JSON file does not contain all required options for running the tool.")
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
@@ -198,7 +200,9 @@ class Benchmark:
                 "--max_exec_megabytes " + str(config["args"]["max_exec_megabytes"]) + " " +
                 "--stdin_model " + config["args"]["stdin_model"] + " " +
                 "--stdout_model " + config["args"]["stdout_model"] + " " +
-                "--max_optimizing_seconds "  + str(config["args"]["max_optimizing_seconds"]) + " " +
+                "--optimizer_max_seconds " + str(config["args"]["optimizer_max_seconds"]) + " " +
+                "--optimizer_max_trace_length " + str(config["args"]["optimizer_max_trace_length"]) + " " +
+                "--optimizer_max_stdin_bytes " + str(config["args"]["optimizer_max_stdin_bytes"]) + " " +
                 "--test_type " + "native" + " " +
                 ("--silent_mode " if self.verbose is False else "") +
                 "--port " + str(45654)  + " " +

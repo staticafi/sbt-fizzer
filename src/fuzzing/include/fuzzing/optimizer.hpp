@@ -1,7 +1,6 @@
 #ifndef FUZZING_OPTIMIZER_HPP_INCLUDED
 #   define FUZZING_OPTIMIZER_HPP_INCLUDED
 
-#   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
@@ -19,6 +18,13 @@ struct optimization_outcomes;
 
 struct  optimizer final
 {
+    struct  configuration
+    {
+        natural_32_bit  max_seconds{ 10 };
+        natural_32_bit  max_trace_length{ 10000000 };
+        natural_32_bit  max_stdin_bytes{ 18000000 };
+    };
+
     enum struct TERMINATION_REASON
     {
         ALL_TESTS_WERE_PROCESSED,
@@ -29,32 +35,26 @@ struct  optimizer final
     {
         natural_32_bit  num_executions{ 0 };
         natural_32_bit  num_seconds{ 0 };
-        natural_32_bit  num_input_tests{ 0 };
         natural_32_bit  num_extended_tests{ 0 };
     };
 
     optimizer(
-        termination_info const&  info,
+        configuration const&  cfg,
         analysis_outcomes const&  fuzzing_outcomes_,
         std::function<void()> const&  benchmark_executor_,
         optimization_outcomes&  outcomes_
         );
-    ~optimizer();
 
-    void  terminate();
-
-    termination_info const& get_termination_info() const { return termination_props; }
-
-    natural_32_bit  num_remaining_seconds() const { return (natural_32_bit)termination_props.max_optimizing_seconds - get_elapsed_seconds(); }
+    natural_32_bit  num_remaining_seconds() const { return (natural_32_bit)config.max_seconds - get_elapsed_seconds(); }
     natural_32_bit  get_elapsed_seconds() const { return (natural_32_bit)std::chrono::duration_cast<std::chrono::seconds>(time_point_current - time_point_start).count(); }
 
     void  run();
 
-    performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
+    performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
 
-    termination_info termination_props;
+    configuration  config;
     std::function<void()> const&  benchmark_executor;
     analysis_outcomes const&  fuzzing_outcomes;
 
