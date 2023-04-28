@@ -36,6 +36,7 @@ struct  branching_node
             branching_node*  predecessor_,
             stdin_bits_pointer  best_stdin_,
             execution_trace_pointer  best_trace_,
+            br_instr_execution_trace_pointer  best_br_instr_trace_,
             branching_function_value_type  best_coverage_value_,
             branching_function_value_type  best_summary_value_
             )
@@ -47,6 +48,7 @@ struct  branching_node
 
         , best_stdin{ best_stdin_ }
         , best_trace{ best_trace_ }
+        , best_br_instr_trace{ best_br_instr_trace_ }
         , best_coverage_value{ best_coverage_value_ }
         , best_summary_value{ best_summary_value_ }
 
@@ -80,6 +82,7 @@ struct  branching_node
 
     stdin_bits_pointer  best_stdin;
     execution_trace_pointer  best_trace;
+    br_instr_execution_trace_pointer  best_br_instr_trace;
     branching_function_value_type  best_coverage_value;
     branching_function_value_type  best_summary_value;
 

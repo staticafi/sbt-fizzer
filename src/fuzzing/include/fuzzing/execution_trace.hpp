@@ -14,6 +14,9 @@ namespace  fuzzing {
 using  execution_trace = std::vector<branching_coverage_info>;
 using  execution_trace_pointer = std::shared_ptr<execution_trace>;
 
+using  br_instr_execution_trace = std::vector<br_instr_coverage_info>;
+using  br_instr_execution_trace_pointer = std::shared_ptr<br_instr_execution_trace>;
+
 using  trace_index_type = natural_32_bit;
 static natural_32_bit constexpr  invalid_trace_index{ std::numeric_limits<trace_index_type>::max() };
 

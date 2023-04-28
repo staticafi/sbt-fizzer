@@ -237,6 +237,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     bytes_to_bits(iomodels::iomanager::instance().get_stdin()->get_bytes(), stdin_bits);
     stdin_bits_pointer const  bits = std::make_shared<vecb>(stdin_bits);
     execution_trace_pointer const  trace = std::make_shared<execution_trace>(iomodels::iomanager::instance().get_trace());
+    br_instr_execution_trace_pointer const  br_instr_trace = std::make_shared<br_instr_execution_trace>(iomodels::iomanager::instance().get_br_instr_trace());
 
     leaf_branching_construction_props  construction_props;
 
@@ -245,6 +246,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         entry_branching = new branching_node(
                 trace->front().id,
                 0,
+                nullptr,
                 nullptr,
                 nullptr,
                 nullptr,
@@ -295,6 +297,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         {
             construction_props.leaf->best_stdin = bits;
             construction_props.leaf->best_trace = trace;
+            construction_props.leaf->best_br_instr_trace = br_instr_trace;
             construction_props.leaf->best_coverage_value = info.value;
             construction_props.leaf->best_summary_value = summary_value;
         }
@@ -317,6 +320,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     construction_props.leaf,
                     bits,
                     trace,
+                    br_instr_trace,
                     succ_info.value,
                     succ_info.value * succ_info.value
                     )
