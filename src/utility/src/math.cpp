@@ -123,7 +123,7 @@ std::size_t  sample_counts_per_hamming_class(vecu64&  output_counts, std::size_t
 {
     vecu64 const&  row = pascal_triangle_row((natural_8_bit)std::min(num_bits, (std::size_t)std::numeric_limits<natural_8_bit>::max()));
     natural_64_bit const s = sum(row);
-    float_64_bit const c = std::min(s, total_samples_count);
+    float_64_bit const c = (float_64_bit)std::min(s, total_samples_count);
     std::size_t  total_count = 0ULL;
     for (auto x : row)
     {
