@@ -18,7 +18,6 @@ void run() {
     connection::client client(io_context, std::move(executor));
     if (!get_program_options()->has("input")) {
         client.run(get_program_options()->value("address"), get_program_options()->value("port"));
-        io_context.run();
         return;
     }
 
