@@ -17,6 +17,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     instrumentation
     iomodels
     utility
+    Threads::Threads
     )
 
 

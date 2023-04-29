@@ -17,5 +17,4 @@ void run() {
     connection::client client(io_context, std::move(executor));
 
     client.run(get_program_options()->value("address"), get_program_options()->value("port"));
-    io_context.run();
 }
