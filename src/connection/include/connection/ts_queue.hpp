@@ -24,12 +24,12 @@ struct ts_queue {
         push_impl(std::move(value));
     }
 
-    bool empty() {
+    bool empty() const {
         std::scoped_lock lock(deque_mux);
         return deque.empty();
     }
 
-    size_t size() {
+    size_t size() const {
         std::scoped_lock lock(deque_mux);
         return deque.size();
     }
