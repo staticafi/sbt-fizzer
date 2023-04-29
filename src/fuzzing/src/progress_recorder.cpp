@@ -3,6 +3,7 @@
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
+#include <instrumentation/target_termination.hpp>
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -219,9 +220,9 @@ void  progress_recorder::on_execution_results_available()
 
     switch (iomodels::iomanager::instance().get_termination())
     {
-    case iomodels::iomanager::NORMAL: ostr << "NORMAL"; break;
-    case iomodels::iomanager::CRASH: ostr << "CRASH"; break;
-    case iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION: ostr << "BOUNDARY_CONDITION_VIOLATION"; break;
+    case instrumentation::target_termination::normal: ostr << "NORMAL"; break;
+    case instrumentation::target_termination::crash: ostr << "CRASH"; break;
+    case instrumentation::target_termination::boundary_condition_violation: ostr << "BOUNDARY_CONDITION_VIOLATION"; break;
     default: UNREACHABLE(); break;
     }
 

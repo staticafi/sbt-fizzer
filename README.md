@@ -193,9 +193,9 @@ Instrumenting the target program:
 
 `sbt-fizzer_instrument [-h] [--output_dir OUTPUT_DIR] target_file`
 
-Building the client:
+Building the fuzz target:
 
-`sbt-fizzer_build_client [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] target_file`
+`sbt-fizzer_build_target [-h] [--output_dir OUTPUT_DIR] [--no_instrument | --instrument FLAGS] target_file`
 
 Instrumenting, building, and running fuzzing in one:
 

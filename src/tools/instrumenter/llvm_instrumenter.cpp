@@ -41,11 +41,6 @@ bool llvm_instrumenter::doInitialization(Module &M) {
         M.getOrInsertFunction("__sbt_fizzer_process_call_end", VoidTy,
                               Int32Ty);
 
-    fizzerTerminate = M.getOrInsertFunction("__sbt_fizzer_terminate", VoidTy);
-
-    fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
-                                             VoidTy);
-
     basicBlockCounter = 0;
     condCounter = 0;
     callSiteCounter = 0;
@@ -216,10 +211,6 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
     }
 
     DependenciesFPM->run(F);
-    replaceCalls(F, {{"abort", fizzerTerminate}, 
-                     {"exit", fizzerTerminate},
-                     {"reach_error", fizzerReachError}
-                    });
 
     if (F.getName() == "main") {
         F.setName("__sbt_fizzer_method_under_test");

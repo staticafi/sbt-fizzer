@@ -41,8 +41,6 @@ struct llvm_instrumenter {
     llvm::FunctionCallee processCondBrFunc;
     llvm::FunctionCallee processCallBeginFunc;
     llvm::FunctionCallee processCallEndFunc;
-    llvm::FunctionCallee fizzerTerminate;
-    llvm::FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCounter;
     unsigned int condCounter;

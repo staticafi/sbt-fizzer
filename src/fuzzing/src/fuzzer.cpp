@@ -126,8 +126,8 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
         return false;
     }
 
-    iomodels::iomanager::instance().clear_stdin();
-    iomodels::iomanager::instance().clear_stdout();
+    iomodels::iomanager::instance().get_stdin()->clear();
+    iomodels::iomanager::instance().get_stdout()->clear();
 
     vecb  stdin_bits;
     generate_next_input(stdin_bits);
@@ -342,7 +342,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
     construction_props.leaf->set_successor(trace->back().direction, {
         std::max(
-            iomodels::iomanager::instance().get_termination() == iomodels::iomanager::NORMAL ?
+            iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::normal ?
                 branching_node::successor_pointer::END_NORMAL :
                 branching_node::successor_pointer::END_EXCEPTIONAL,
             construction_props.leaf->successor(trace->back().direction).label
@@ -398,7 +398,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     {
         exe_flags = 0;
 
-        if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::CRASH)
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
         {
             ++statistics.traces_to_crash;
 
@@ -407,7 +407,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 exe_flags |= execution_record::EXECUTION_CRASHES;
         }
 
-        if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION)
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
         {
             ++statistics.traces_to_boundary_violation;
             exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;

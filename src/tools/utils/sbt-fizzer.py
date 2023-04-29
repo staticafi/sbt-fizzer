@@ -10,8 +10,8 @@ def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 def add_base_args(parser):
-    parser.add_argument('target_file', 
-                        help='Path to target file.',
+    parser.add_argument('file', 
+                        help='Path to the file you want to fuzz.',
                         type=Path)
     parser.add_argument('--output_dir', 
                         type=Path,
@@ -51,17 +51,18 @@ def add_instr_args(parser):
 
 class FizzerUtils:
     script_dir = Path(__file__).resolve().parent
-    client_libraries = " ".join(map( # type: ignore
+    fuzz_target_libraries = " ".join(map( # type: ignore
         lambda rel_path, script_dir=script_dir: str(script_dir / rel_path), 
-        @CLIENT_LIBRARIES_FILES_LIST@ # type: ignore
+        @FUZZ_TARGET_LIBRARIES_FILES_LIST@ # type: ignore
     ))
     
-    client_cmake_build_flags = (
+    fuzz_target_cmake_build_flags = (
                                 "-flto "
-                                "@CLIENT_NEEDED_COMPILATION_FLAGS@"
+                                "@FUZZ_TARGET_NEEDED_COMPILATION_FLAGS@"
                                 )
     instrumenter_path = script_dir / "@FIZZER_INSTRUMENTER_FILE@"
     server_path = script_dir / "@SERVER_FILE@"
+    client_path = script_dir / "@CLIENT_FILE@"
 
     def __init__(self, file_path, output_dir):
         self.file_path = file_path
@@ -106,29 +107,29 @@ class FizzerUtils:
             sys.exit(1)
         
 
-    def build_client(self, additional_flags="", timeout=None):
-        client_file_name = self.file_name + "_client"
-        self.client_file = self.output_dir / client_file_name
+    def build_fuzz_target(self, additional_flags="", timeout=None):
+        fuzz_target_file_name = self.file_name + "_sbt-fizzer_target"
+        self.fuzz_target_file = self.output_dir / fuzz_target_file_name
 
-        client_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
-            self.client_cmake_build_flags, additional_flags, 
-            self.instrumented_file, self.client_libraries, self.client_file
+        fuzz_target_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
+            self.fuzz_target_cmake_build_flags, additional_flags, 
+            self.instrumented_file, self.fuzz_target_libraries, self.fuzz_target_file
         )
 
         compilation_output = subprocess.run(
-            shlex.split(client_compilation), timeout=timeout
+            shlex.split(fuzz_target_compilation), timeout=timeout
         )
         if compilation_output.returncode:
-            errprint("Compilation of client failed")
+            errprint("Compilation of fuzz_target failed")
             sys.exit(1)
 
         
     def run_fuzzing(self, server_options=""):
         server_invocation = (
-            "{0} {1} --path_to_client {2} --output_dir {3}"
+            "{0} {1} --path_to_target {2} --output_dir {3}"
             ).format(
-                self.server_path, server_options, 
-                self.client_file, self.output_dir
+                self.server_path, server_options,
+                self.fuzz_target_file, self.output_dir
         )
 
         invocation_output = subprocess.run(shlex.split(server_invocation))
@@ -146,7 +147,7 @@ def adjust_timeout_by_elapsed(args, start):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Tool for instrumenting the program, building the client "
+        description="Tool for instrumenting the program, building the fuzz target "
                     "and running fuzzing in one command.",
         epilog="Any additional arguments are passed to the server.")
 
@@ -158,7 +159,7 @@ if __name__ == "__main__":
                         metavar="FLAGS", 
                         help=(
                             'Additional clang++ flags to use ' 
-                            'while compiling the client. ' 
+                            'while compiling the fuzz target. ' 
                             'Use as --clang="FLAGS". Default: %(default)s.'
                         ))
 
@@ -173,7 +174,7 @@ if __name__ == "__main__":
     args, server_args = parser.parse_known_args()
     pass_to_server_args_str = " ".join(server_args)
     
-    utils = FizzerUtils(args.target_file, args.output_dir)
+    utils = FizzerUtils(args.file, args.output_dir)
     starting_time = time.time()
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
@@ -190,9 +191,9 @@ if __name__ == "__main__":
             flush=True
         )
 
-    print("Building client...", flush=True)
+    print("Building fuzz target...", flush=True)
     try:
-        utils.build_client(args.clang, timeout=args.max_seconds)
+        utils.build_fuzz_target(args.clang, timeout=args.max_seconds)
     except subprocess.TimeoutExpired as e:
         errprint(f"Building timed out after {e.timeout:.3f} seconds")
         sys.exit(1)

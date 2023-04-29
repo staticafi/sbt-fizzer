@@ -11,7 +11,7 @@ namespace  connection {
 
 struct message_header {
 
-    uint32_t type = 0;
+    natural_32_bit type = 0;
 private:
     natural_32_bit size = 0;
 
@@ -31,18 +31,22 @@ struct  message
     bool exhausted() const;
 
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    message&  operator<<(const T& v)
+    message&  operator<<(const T& src)
     {
-        load(&v, sizeof(T));
+        load(&src, sizeof(T));
         return *this;
     }
 
+    message& operator<<(const std::string& src);
+
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    message&  operator>>(T& v)
+    message&  operator>>(T& dest)
     {
-        save(&v, sizeof(T));
+        save(&dest, sizeof(T));
         return *this;
     }
+
+    message& operator>>(std::string& dest);
 
 
     message_header header;

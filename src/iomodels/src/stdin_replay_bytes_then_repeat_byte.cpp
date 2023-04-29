@@ -2,7 +2,11 @@
 #include <iomodels/ioexceptions.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
-#include <iostream>
+#include <instrumentation/data_record_id.hpp>
+#include <instrumentation/target_termination.hpp>
+
+using namespace connection;
+using namespace instrumentation;
 
 namespace  iomodels {
 
@@ -23,44 +27,107 @@ void  stdin_replay_bytes_then_repeat_byte::clear()
     counts.clear();
 }
 
-
-void  stdin_replay_bytes_then_repeat_byte::save(connection::message& ostr) const
+template <typename Medium>
+void  stdin_replay_bytes_then_repeat_byte::save_(Medium& dest) const
 {
     INVARIANT(bytes.size() <= max_bytes());
 
-    ostr << (byte_count_type)bytes.size();
-    ostr.load(bytes.data(),(byte_count_type)bytes.size());
+    dest << (byte_count_type)bytes.size();
+    dest.load(bytes.data(),(byte_count_type)bytes.size());
 
-    ostr << (byte_count_type)counts.size();
-    ostr.load(counts.data(), (byte_count_type)counts.size());
+    dest << (byte_count_type)counts.size();
+    dest.load(counts.data(), (byte_count_type)counts.size());
 }
 
+template void stdin_replay_bytes_then_repeat_byte::save_(shared_memory&) const;
+template void stdin_replay_bytes_then_repeat_byte::save_(message&) const;
 
-void  stdin_replay_bytes_then_repeat_byte::load(connection::message&  istr)
+
+void  stdin_replay_bytes_then_repeat_byte::save(message& dest) const
+{
+    save_(dest);
+}
+
+void  stdin_replay_bytes_then_repeat_byte::save(shared_memory& dest) const
+{
+    save_(dest);    
+}
+
+template <typename Medium>
+void  stdin_replay_bytes_then_repeat_byte::load_(Medium&  src)
 {
     byte_count_type  num_bytes;
-    istr >> num_bytes;
+    src >> num_bytes;
     bytes.resize(num_bytes);
-    istr.save(bytes.data(), num_bytes);
+    src.save(bytes.data(), num_bytes);
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
     byte_count_type  num_counts;
-    istr >> num_counts;
+    src >> num_counts;
     counts.resize(num_counts);
-    istr.save(counts.data(), num_counts);
+    src.save(counts.data(), num_counts);
+}
+
+template void stdin_replay_bytes_then_repeat_byte::load_(shared_memory&);
+template void stdin_replay_bytes_then_repeat_byte::load_(message&);
+
+
+void  stdin_replay_bytes_then_repeat_byte::load(message&  src)
+{
+    load_(src);
+}
+
+void  stdin_replay_bytes_then_repeat_byte::load(shared_memory&  src)
+{
+    load_(src);
 }
 
 
-void  stdin_replay_bytes_then_repeat_byte::read(location_id  id, natural_8_bit*  ptr, natural_8_bit  count)
+template <typename Medium>
+void  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
+    natural_8_bit count;
+    src >> count;
+    counts.push_back(count);
+    size_t old_size = bytes.size();
+    bytes.resize(old_size + count);
+    src.save(bytes.data() + old_size, count);
+}
+
+
+template void stdin_replay_bytes_then_repeat_byte::load_record_(shared_memory&);
+template void stdin_replay_bytes_then_repeat_byte::load_record_(message&);
+
+
+void  stdin_replay_bytes_then_repeat_byte::load_record(connection::message&  src) {
+    load_record_(src);
+}
+
+void  stdin_replay_bytes_then_repeat_byte::load_record(connection::shared_memory&  src) {
+    load_record_(src);
+}
+
+
+size_t stdin_replay_bytes_then_repeat_byte::max_flattened_size() const {
+    return sizeof(counts[0]) * max_bytes() + max_bytes();
+}
+
+
+
+void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr, 
+                                                natural_8_bit  count,
+                                                shared_memory& dest)
 {
     if (cursor + count > max_bytes()) {
-        throw boundary_condition_violation("The max stdin bytes exceeded.");
+        dest.set_termination(target_termination::boundary_condition_violation);
+        exit(0);
     }
     if (cursor + count > bytes.size()) {
         bytes.resize(cursor + count, repeat_byte);
     }
     memcpy(ptr, bytes.data() + cursor, count);
+    dest << data_record_id::stdin_bytes << count;
+    dest.load(bytes.data() + cursor, count);
     cursor += count;
     counts.push_back(count);
 }
