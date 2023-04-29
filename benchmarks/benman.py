@@ -4,6 +4,7 @@ import json
 import shutil
 import platform
 import argparse
+from typing import Optional
 
 
 def ASSUMPTION(cond, msg="Unknown."):
@@ -19,14 +20,15 @@ def kill_clients():
     if platform.system() == "Windows":
         pass # TODO!
     else:
-        os.system("pgrep --full \".sbt-client\" | xargs -r kill")
+        os.system("pgrep --full \".sbt-fizzer_client\" | xargs -r kill")
 
 
 class Benchmark:
-    def __init__(self, pathname : str, llvm_instumenter : str, client_builder : str, server : str, verbose : bool) -> None:
+    def __init__(self, pathname : str, llvm_instumenter : str, fuzz_target_builder : str, server : str, client : Optional[str], verbose : bool) -> None:
         self.llvm_instumenter = llvm_instumenter
-        self.client_builder = client_builder
+        self.fuzz_target_builder = fuzz_target_builder
         self.server = server
+        self.client = client
         self.verbose = verbose
 
         self.python_binary = sys.executable
@@ -39,8 +41,7 @@ class Benchmark:
         self.config_file = os.path.join(self.work_dir, self.name + ".json")
         self.ll_file = os.path.join(self.work_dir, self.name + ".ll")
         self.instrumented_ll_file = os.path.join(self.work_dir, self.name + "_instrumented.ll")
-        self.client_file = os.path.join(self.work_dir, self.name + "_client")
-        self.final_file = os.path.join(self.work_dir, self.name + ".sbt-client")
+        self.fuzz_target_file = os.path.join(self.work_dir, self.name + "_sbt-fizzer_target")
 
         self.dir_stack = []
 
@@ -136,8 +137,7 @@ class Benchmark:
         self.log("===")
         self.log("=== Building: " + self.src_file, "building: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
-        self._erase_file_if_exists(self.client_file)
-        self._erase_file_if_exists(self.final_file)
+        self._erase_file_if_exists(self.fuzz_target_file)
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
         self.log("makedirs " + output_dir)
@@ -164,15 +164,13 @@ class Benchmark:
                 output_dir
                 )
         self._execute_and_check_output(
-            quote(self.python_binary) + " " + quote(self.client_builder) + " " +
+            quote(self.python_binary) + " " + quote(self.fuzz_target_builder) + " " +
                 "--no_instrument " +
                 "--output_dir " + quote(self.work_dir) + " " +
                 quote(self.instrumented_ll_file),
-            self.client_file
+            self.fuzz_target_file
             )
-        self.log("rename " + quote(self.client_file) + " " + quote(self.final_file))
-        os.rename(self.client_file, self.final_file)
-        ASSUMPTION(os.path.isfile(self.final_file), "build(): the output is missing: " + self.final_file)
+        ASSUMPTION(os.path.isfile(self.fuzz_target_file), "build(): the output is missing: " + self.fuzz_target_file)
         self.log("Done", "Done\n")
 
     def fuzz(self, benchmarks_root_dir : str, output_root_dir : str) -> bool:
@@ -204,9 +202,8 @@ class Benchmark:
         self.log("makedirs " + output_dir)
         os.makedirs(output_dir, exist_ok=True)
         kill_clients()
-        self._execute(
-            quote(self.server) + " " +
-                "--path_to_client " + quote(self.final_file) + " " +
+        cmdline = (quote(self.server) + " " +
+                "--path_to_target " + quote(self.fuzz_target_file) + " " +
                 "--max_executions " + str(config["args"]["max_executions"]) + " " +
                 "--max_seconds " + str(config["args"]["max_seconds"]) + " " +
                 "--max_trace_length " + str(config["args"]["max_trace_length"]) + " " +
@@ -221,9 +218,10 @@ class Benchmark:
                 "--test_type " + "native" + " " +
                 ("--silent_mode " if self.verbose is False else "") +
                 "--port " + str(45654)  + " " +
-                "--output_dir " + quote(output_dir),
-            output_dir
-            )
+                "--output_dir " + quote(output_dir))
+        if self.client:
+            cmdline += " " + "--path_to_client " + quote(self.client)
+        self._execute(cmdline, output_dir)
 
         try:
             outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")
@@ -244,18 +242,19 @@ class Benchmark:
         self.log("===")
         self._erase_file_if_exists(self.ll_file)
         self._erase_file_if_exists(self.instrumented_ll_file)
-        self._erase_file_if_exists(self.client_file)
-        self._erase_file_if_exists(self.final_file)
+        self._erase_file_if_exists(self.fuzz_target_file)
         self._erase_dir_if_exists(self._compute_output_dir(benchmarks_root_dir, output_root_dir))
         self.log("Done", "Done\n")
 
 
 class Benman:
     def __init__(self) -> None:
-        parser = argparse.ArgumentParser(description="Builds the client for the benchmark(s) or fuzz the benchmark(s).")
+        parser = argparse.ArgumentParser(description="Builds the target for the benchmark(s) or fuzz the benchmark(s).")
         parser.add_argument("--clear", action='store_true', help="Clears the build files and outputs of the input benchmark(s).")
         parser.add_argument("--build", action='store_true', help="Builds the input benchmark(s).")
-        parser.add_argument("--fuzz", action='store_true', help="Applies fuzzing on the input benchmark(s).")
+        fuzzing_group = parser.add_argument_group("fuzzing")
+        fuzzing_group.add_argument("--fuzz", action='store_true', help="Applies fuzzing on the input benchmark(s).")
+        fuzzing_group.add_argument("--client_mode", action='store_true', help="Runs the fuzzer on the benchmark(s) in client mode.")
         parser.add_argument("--input", help="Benchmark(s) to be processed. Possible values: "
                                            "all, fast, medium, slow, pending, fast/..., medium/..., slow/..., pending/...")
         parser.add_argument("--verbose", action='store_true', help="Enables the verbose mode.")
@@ -271,10 +270,12 @@ class Benman:
         ASSUMPTION(os.path.isdir(self.lib_dir), "The lib install directory not found. Build and install the project first.")
         self.llvm_instrumenter = os.path.join(self.tools_dir, "sbt-fizzer_instrument")
         ASSUMPTION(os.path.isfile(self.llvm_instrumenter), "The llvm instrumentation script not found. Build and install the project first.")
-        self.client_builder = os.path.join(self.tools_dir, "sbt-fizzer_build_client")
-        ASSUMPTION(os.path.isfile(self.client_builder), "The client build script not found. Build and install the project first.")
-        self.server_binary = self._find_binary_file(self.tools_dir, "server_")
+        self.fuzz_target_builder = os.path.join(self.tools_dir, "sbt-fizzer_build_target")
+        ASSUMPTION(os.path.isfile(self.fuzz_target_builder), "The target build script not found. Build and install the project first.")
+        self.server_binary = self._find_binary_file(self.tools_dir, "sbt-fizzer_server_")
         ASSUMPTION(self.server_binary is not None, "The server binary not found. Build and install the project first.")
+        self.client_binary = self._find_binary_file(self.tools_dir, "sbt-fizzer_client_")
+        ASSUMPTION(self.client_binary is not None, "The client binary not found. Build and install the project first.")
         self.llvm_pass_binary = self._find_binary_file(self.lib_dir, "sbt-fizzer_pass_")
         ASSUMPTION(self.llvm_pass_binary is not None, "The server binary not found. Build and install the project first.")
 
@@ -320,15 +321,16 @@ class Benman:
 
     def build(self, name : str) -> bool:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, None, self.args.verbose)
             benchmark.build(self.benchmarks_dir, self.output_dir)
         return True
 
-    def fuzz(self, name : str) -> bool:
+    def fuzz(self, name : str, client_mode : bool) -> bool:
         num_failures = 0
         benchmark_paths = self.collect_benchmarks(name)
         for pathname in benchmark_paths:
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
+            client_binary = self.client_binary if client_mode else None
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, client_binary, self.args.verbose)
             if not benchmark.fuzz(self.benchmarks_dir, self.output_dir):
                 num_failures += 1
         kill_clients()
@@ -341,7 +343,7 @@ class Benman:
 
     def clear(self, name : str) -> None:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
+            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, None, self.args.verbose)
             benchmark.clear(self.benchmarks_dir, self.output_dir)
         return True
 
@@ -353,7 +355,7 @@ class Benman:
             if self.build(self.args.input) is False:
                 return False
         if self.args.fuzz:
-            if self.fuzz(self.args.input) is False:
+            if self.fuzz(self.args.input, self.args.client_mode) is False:
                 return False
         return True
 

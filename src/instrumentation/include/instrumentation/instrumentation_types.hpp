@@ -39,6 +39,7 @@ using branching_function_value_type = float_64_bit;
 struct  branching_coverage_info
 {
     explicit branching_coverage_info(location_id const  id_);
+    static size_t flattened_size();
 
     location_id  id;
     bool  direction;
@@ -50,6 +51,7 @@ struct  branching_coverage_info
 struct  br_instr_coverage_info
 {
     explicit br_instr_coverage_info(location_id const  id);
+    static size_t flattened_size();
 
     location_id  br_instr_id;
     bool  covered_branch;

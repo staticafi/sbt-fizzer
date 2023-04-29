@@ -42,10 +42,6 @@ void  optimizer::run()
             test_indices.push_back(i);
     if (!test_indices.empty())
     {
-        iomodels::iomanager::configuration  io_cfg = iomodels::iomanager::instance().get_config();
-        io_cfg.max_trace_length = config.max_trace_length;
-        io_cfg.max_stdin_bytes = config.max_stdin_bytes;
-        iomodels::iomanager::instance().set_config(io_cfg);
 
         std::unordered_set<location_id>  covered_branchings{
                 fuzzing_outcomes.covered_branchings.begin(), fuzzing_outcomes.covered_branchings.end()
@@ -134,10 +130,10 @@ void  optimizer::run()
                 {
                     exe_flags = 0;
 
-                    if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::CRASH)
+                    if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
                         exe_flags |= execution_record::EXECUTION_CRASHES;
 
-                    if (iomodels::iomanager::instance().get_termination() == iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION)
+                    if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
                         exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
 
                     if (trace_any_location_discovered)

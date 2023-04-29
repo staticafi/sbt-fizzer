@@ -1,4 +1,4 @@
-set(THIS_TARGET_NAME server)
+set(THIS_TARGET_NAME sbt-fizzer_server)
 
 add_executable(${THIS_TARGET_NAME}
     program_info.hpp

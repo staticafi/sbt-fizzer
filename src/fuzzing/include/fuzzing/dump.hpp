@@ -15,18 +15,18 @@ namespace  fuzzing {
 void  print_fuzzing_configuration(
         std::ostream&  ostr,
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         );
 void  log_fuzzing_configuration(
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         );
 void  save_fuzzing_configuration(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         );
 

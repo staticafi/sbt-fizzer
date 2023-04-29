@@ -41,8 +41,6 @@ struct FizzerPass : public FunctionPass {
     FunctionCallee processCondBrFunc;
     FunctionCallee processCallBeginFunc;
     FunctionCallee processCallEndFunc;
-    FunctionCallee fizzerTerminate;
-    FunctionCallee fizzerReachError;
 
     unsigned int basicBlockCounter;
     unsigned int condCounter;
@@ -101,11 +99,6 @@ bool FizzerPass::doInitialization(Module &M) {
     processCallEndFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_call_end", VoidTy,
                               Int32Ty);
-
-    fizzerTerminate = M.getOrInsertFunction("__sbt_fizzer_terminate", VoidTy);
-
-    fizzerReachError = M.getOrInsertFunction("__sbt_fizzer_reach_error", 
-                                             VoidTy);
 
     basicBlockCounter = 0;
     condCounter = 0;
@@ -275,10 +268,6 @@ bool FizzerPass::runOnFunction(Function &F) {
     }
 
     DependenciesFPM->run(F);
-    replaceCalls(F, {{"abort", fizzerTerminate}, 
-                     {"exit", fizzerTerminate},
-                     {"reach_error", fizzerReachError}
-                    });
 
     if (F.getName() == "main") {
         F.setName("__sbt_fizzer_method_under_test");

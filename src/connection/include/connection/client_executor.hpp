@@ -1,7 +1,7 @@
 #ifndef CONNECTION_CLIENT_EXECUTOR_HPP_INCLUDED
 #   define CONNECTION_CLIENT_EXECUTOR_HPP_INCLUDED
 
-#   include <boost/process/child.hpp>
+#   include <boost/process.hpp>
 
 #   include <connection/ts_queue.hpp>
 #   include <connection/connection.hpp>
@@ -16,23 +16,24 @@
 #   include <deque>
 #   include <exception>
 
+#   include <connection/server.hpp>
+
 namespace connection {
 
 struct client_executor {
-
-client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared_ptr<connection>>& connections);
-void start();
-void stop();
-const std::exception_ptr& get_exception_ptr() const;
+    client_executor(int keep_alive, std::string client_invocation, server& server);
+    
+    void start();
+    void stop();
 
 private:
     std::size_t keep_alive;
-    std::string path_to_client;
-    ts_queue<std::shared_ptr<connection>>& connections;
+    std::string client_invocation;
+    ts_queue<connection>& connections;
     std::thread thread;
     std::atomic_bool finished;
     std::deque<boost::process::child> clients;
-    std::exception_ptr excptr;
+    std::exception_ptr& main_excptr;
 };
 
 }

@@ -6,6 +6,8 @@ endif()
 
 add_subdirectory(./client)
     message("  client")
+add_subdirectory(./target)
+    message("  target")
 add_subdirectory(./server)
     message("  server")
 add_subdirectory(./instrumenter)
