@@ -5,16 +5,16 @@
 
 #   include <connection/message.hpp>
 #   include <connection/connection.hpp>
+#   include <connection/shared_memory.hpp>
+#   include <connection/target_executor.hpp>
 
 namespace  connection {
 
 
 struct  client
 {
-    client(boost::asio::io_context& io_context);
+    client(boost::asio::io_context& io_context, target_executor executor);
     
-    void execute_program();
-    void run_input_mode(vecu8 input_bytes);
     void run(const std::string& address, const std::string& port);
     void connect(const std::string& address, const std::string& port);
     void receive_input();
@@ -23,6 +23,7 @@ struct  client
 private:
     boost::asio::io_context& io_context;
     std::unique_ptr<connection> connection_to_server;
+    target_executor executor;
 };
 
 

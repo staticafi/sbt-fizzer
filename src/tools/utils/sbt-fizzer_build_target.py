@@ -20,11 +20,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=(
             "Tool for instrumenting the program and " 
-            "building the client in one command."
+            "building the target in one command."
         ),
         epilog=(
             "Any additional arguments are passed to clang/opt "  
-            "as flags to use while compiling the client."
+            "as flags to use while compiling the target."
         ))
     fizzer.add_base_args(parser)
     fizzer.add_instr_args(parser)
@@ -32,9 +32,9 @@ if __name__ == '__main__':
     args, clang_args = parser.parse_known_args()
     pass_to_clang_args_str = " ".join(clang_args)
 
-    utils = fizzer.FizzerUtils(args.target_file, args.output_dir)
+    utils = fizzer.FizzerUtils(args.file, args.output_dir)
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
     else:
         utils.instrument(args.instrument)
-    utils.build_client(pass_to_clang_args_str)
+    utils.build_fuzz_target(pass_to_clang_args_str)

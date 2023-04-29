@@ -5,42 +5,35 @@
 
 #   include <connection/message.hpp>
 #   include <connection/connection.hpp>
-#   include <fuzzing/analysis_outcomes.hpp>
-#   include <fuzzing/termination_info.hpp>
+#   include <connection/client_configuration.hpp>
 #   include <connection/ts_queue.hpp>
-#   include <connection/client_executor.hpp>
 
 #   include <string>
-#   include <atomic>
-#   include <mutex>
-#   include <condition_variable>
 
 namespace  connection {
 
-
-struct client_crash_exception: public std::runtime_error{
-    explicit client_crash_exception(std::string const& msg) : std::runtime_error(msg) {}
-};
-
-
 struct  server
 {
-    server(uint16_t port, std::string path_to_client);
+    server(uint16_t port);
     
     void  start();
     void  stop();
 
-    void  send_input_to_client_and_receive_result();
+    void  send_input_to_client(connection& connection, const client_configuration& config);
+    void  receive_result_from_client(connection& connection);
+    void  send_input_to_client_and_receive_result(const client_configuration& config);
     
 private:
-    void  accept_connection();
-    void  send_input_to_client_and_receive_result(std::shared_ptr<connection> connection);
+    void  accept_connections();
 
     boost::asio::io_context io_context;
-    std::thread thread;
+    std::thread io_context_thread;
     boost::asio::ip::tcp::acceptor acceptor;
-    ts_queue<std::shared_ptr<connection>> connections;
-    client_executor client_executor_;
+    ts_queue<connection> connections;
+    std::exception_ptr client_executor_excptr;
+
+
+friend struct client_executor;
 };
 
 

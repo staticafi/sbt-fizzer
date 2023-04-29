@@ -21,7 +21,7 @@ static void save_crash_report(std::string const& crash_message)
 #endif
 
 int main(int argc, char* argv[]) {
-    #if BUILD_RELEASE() == 1
+#if BUILD_RELEASE() == 1
     try
 #endif
     {

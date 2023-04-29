@@ -21,10 +21,13 @@ program_options::program_options(int argc, char* argv[])
     add_option("max_seconds", "Max number of seconds for fuzzing the benchmark.", "1");
     add_value("max_seconds", std::to_string(terminator.max_fuzzing_seconds));
 
-    iomodels::iomanager::configuration const  io_cfg{};
+    iomodels::configuration const  io_cfg{};
 
     add_option("max_trace_length", "Max number of branchings in a trace.", "1");
     add_value("max_trace_length", std::to_string(io_cfg.max_trace_length));
+
+    add_option("max_br_instr_trace_length", "Max number of branchings in a trace.", "1");
+    add_value("max_br_instr_trace_length", std::to_string(io_cfg.max_br_instr_trace_length));
 
     add_option("max_stack_size", "Max number of stack records during benchmark execution.", "1");
     add_value("max_stack_size", std::to_string(io_cfg.max_stack_size));
@@ -32,14 +35,22 @@ program_options::program_options(int argc, char* argv[])
     add_option("max_stdin_bytes", "Max number of stdin bits read during benchmark execution.", "1");
     add_value("max_stdin_bytes", std::to_string(io_cfg.max_stdin_bytes));
 
+    add_option("timeout", "How long to wait (in miliseconds) for the target to finish before terminating it.", "1");
+    add_value("timeout", "5000");
+
     add_option("stdin_model", "The model of stdin to be used during the analysis.", "1");
     add_value("stdin_model", io_cfg.stdin_model_name);
 
     add_option("stdout_model", "The model of stdout to be used during the analysis.", "1");
     add_value("stdout_model", io_cfg.stdout_model_name);
 
-    add_option("path_to_client", "Path to client binary", "1");
-    add_value("path_to_client", "");
+    add_option(
+        "path_to_client",
+        "Path to client executable. When not specified, the server will "
+        "execute only the fuzzing targets, skipping network communication.",
+        "1");
+
+    add_option("path_to_target", "Path to target executable.", "1");
 
     add_option("test_type", "Output type (native, testcomp)", "1");
     add_value("test_type", "native");

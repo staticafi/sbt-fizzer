@@ -28,5 +28,5 @@ if __name__ == '__main__':
     args, instr_args = parser.parse_known_args()
     pass_to_instr_args_str = " ".join(instr_args)
 
-    utils = fizzer.FizzerUtils(args.target_file, args.output_dir)
+    utils = fizzer.FizzerUtils(args.file, args.output_dir)
     utils.instrument(pass_to_instr_args_str)

@@ -4,10 +4,16 @@ add_library(${THIS_TARGET_NAME}
     ./include/instrumentation/instrumentation_types.hpp
     ./src/instrumentation_types.cpp
 
-    ./src/instrumentation.cpp
-    ./src/verifier_functions.cpp
+    ./include/instrumentation/data_record_id.hpp
 
-    ./include/instrumentation/exceptions.hpp
+    ./include/instrumentation/target_termination.hpp
+
+    ./include/instrumentation/fuzz_target.hpp
+    ./src/fuzz_target.cpp
+
+    ./src/instrumentation.cpp
+
+    ./src/verifier_functions.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

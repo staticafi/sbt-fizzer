@@ -1,6 +1,7 @@
 #include <fuzzing/fuzzing_loop.hpp>
 #include <fuzzing/fuzzer.hpp>
 #include <iomodels/iomanager.hpp>
+#include <connection/client_crash_exception.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/development.hpp>
@@ -37,6 +38,11 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
             if (f.round_end(results.execution_records.back()))
                 results.execution_records.push_back({});
         }
+    }
+    catch (connection::client_crash_exception const&  e)
+    {
+        results.termination_type = analysis_outcomes::TERMINATION_TYPE::CLIENT_COMMUNICATION_ERROR;
+        results.error_message = e.what();
     }
     catch (std::exception const&  e)
     {

@@ -5,33 +5,25 @@
 
 #include <cstdlib>
 #include <chrono>
-#include <iostream>
+
+namespace bp = boost::process;
 
 namespace connection {
 
-client_executor::client_executor(int keep_alive, std::string path_to_client, ts_queue<std::shared_ptr<connection>>& connections):
+client_executor::client_executor(int keep_alive, std::string client_invocation, server& server):
     keep_alive(keep_alive),
-    path_to_client(std::move(path_to_client)),
-    connections(connections),
+    client_invocation(std::move(client_invocation)),
+    connections(server.connections),
     finished(false),
     clients(),
-    excptr(nullptr)
-    {}
-
-
-const std::exception_ptr& client_executor::get_exception_ptr() const {
-    return excptr;
-}
+    main_excptr(server.client_executor_excptr)
+{}
 
 
 void client_executor::start() {
-    if (path_to_client.empty()) {
-        return;
-    }
     using namespace std::chrono_literals;
     thread = std::thread(
         [this]() {
-            int client_connection_failures = 0;
             try {
                 while (!finished) {
                     if (clients.size() > keep_alive) {
@@ -39,22 +31,17 @@ void client_executor::start() {
                         clients.pop_front();
                     }
                     // run the client
-                    clients.emplace_back(path_to_client, boost::process::std_out > boost::process::null);
+                    clients.emplace_back(client_invocation, bp::std_out > bp::null);
 
                     // wait until it connects, or kill it if it doesn't connect in time
                     if (!connections.wait_until_push_or_timeout(2000ms)) {
                         clients.back().terminate();
                         clients.pop_back();
-                        std::cerr << "ERROR: client failed to connect in time during client execution\n";
-                        ++client_connection_failures;
-                    }
-                    if (client_connection_failures >= 5) {
-                        throw client_crash_exception("Too many client connection failures");
                     }
                 }
             }
             catch (...) {
-                excptr = std::current_exception();
+                main_excptr = std::current_exception();
             }
         }
     );
@@ -63,7 +50,7 @@ void client_executor::start() {
 
 void client_executor::stop() {
     finished = true;
-    // drop all connections, so that we don't hang on clients.front().wait()
+    // drop all connections, so that we don't hang on wait()
     connections.clear();
     // make sure the thread has stopped completely
     if (thread.joinable()) {

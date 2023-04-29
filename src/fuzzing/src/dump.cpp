@@ -16,7 +16,7 @@ namespace  fuzzing {
 void  print_fuzzing_configuration(
         std::ostream&  ostr,
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         )
 {
@@ -26,6 +26,7 @@ void  print_fuzzing_configuration(
          << shift << "\"max_executions\": " << terminator.max_driver_executions << ",\n"
          << shift << "\"max_seconds\": " << terminator.max_fuzzing_seconds << ",\n"
          << shift << "\"max_trace_length\": " << ioconfig.max_trace_length << ",\n"
+         << shift << "\"max_br_instr_trace_length\": " << ioconfig.max_br_instr_trace_length << ",\n"
          << shift << "\"max_stack_size\": " << (int)ioconfig.max_stack_size << ",\n"
          << shift << "\"max_stdin_bytes\": " << ioconfig.max_stdin_bytes << ",\n"
          << shift << "\"stdin_model\": \"" << ioconfig.stdin_model_name << "\",\n"
@@ -37,7 +38,7 @@ void  print_fuzzing_configuration(
 
 void  log_fuzzing_configuration(
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         )
 {
@@ -50,7 +51,7 @@ void  log_fuzzing_configuration(
 void  save_fuzzing_configuration(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
-        iomodels::iomanager::configuration const&  ioconfig,
+        iomodels::configuration const&  ioconfig,
         termination_info const&  terminator
         )
 {

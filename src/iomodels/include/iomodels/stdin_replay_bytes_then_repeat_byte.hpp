@@ -12,9 +12,14 @@ struct stdin_replay_bytes_then_repeat_byte : public stdin_base
     stdin_replay_bytes_then_repeat_byte(byte_count_type  max_bytes_, natural_8_bit repeat_byte);
 
     void  clear() override;
-    void  save(connection::message&  ostr) const override;
-    void  load(connection::message&  istr) override;
-    void  read(location_id  id, natural_8_bit*  ptr, natural_8_bit  count) override;
+    void  save(connection::message&  dest) const override;
+    void  save(connection::shared_memory&  dest) const override;
+    void  load(connection::message&  src) override;
+    void  load(connection::shared_memory&  src) override;
+    void  load_record(connection::message&  src) override;
+    void  load_record(connection::shared_memory&  src) override;
+    size_t max_flattened_size() const override;
+    void  read(natural_8_bit*  ptr, natural_8_bit  count, connection::shared_memory& dest) override;
 
     vecu8 const&  get_bytes() const override { return bytes; }
     vecu8 const&  get_counts() const override { return counts; }
@@ -23,10 +28,17 @@ struct stdin_replay_bytes_then_repeat_byte : public stdin_base
     void  set_bytes(vecu8 const&  bytes_) override { bytes = bytes_; }
 
 private:
+    template <typename Medium>
+    void  load_(Medium& src);
+    template <typename Medium>
+    void  save_(Medium& dest) const;
+    template <typename Medium>
+    void  load_record_(Medium& src);
+
     byte_count_type  cursor;
     vecu8  bytes;
     vecu8  counts;
-    natural_8_bit repeat_byte;
+    natural_8_bit  repeat_byte;
 };
 
 
