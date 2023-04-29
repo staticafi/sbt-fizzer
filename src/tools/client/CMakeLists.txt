@@ -18,6 +18,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     iomodels
     utility
     ${Boost_LIBRARIES}
+    Threads::Threads
     )
 
 
