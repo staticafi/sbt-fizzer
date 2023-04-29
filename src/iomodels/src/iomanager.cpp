@@ -103,6 +103,7 @@ void  iomanager::save_trace(connection::message&  ostr) const
         ostr << info.id
              << info.direction
              << info.value
+             << info.idx_to_br_instr
              ;
 }
 
@@ -117,6 +118,7 @@ void  iomanager::load_trace(connection::message&  istr)
         istr >> info.id;
         istr >> info.direction;
         istr >> info.value;
+        istr >> info.idx_to_br_instr;
         trace.push_back(info);
     }
 }
