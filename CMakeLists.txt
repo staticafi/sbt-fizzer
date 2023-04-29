@@ -38,6 +38,9 @@ macro(append_linker_flags FLAGS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAGS}")
 endmacro()
 
+# find rt needed for shared memory, silently ignored on Windows
+find_library(LIBRT rt)
+
 # find and add threads
 message("Searching for threads ...")
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)

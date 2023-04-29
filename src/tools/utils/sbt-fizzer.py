@@ -57,7 +57,6 @@ class FizzerUtils:
     ))
     
     fuzz_target_cmake_build_flags = (
-                                "-flto "
                                 "@FUZZ_TARGET_NEEDED_COMPILATION_FLAGS@"
                                 )
     instrumenter_path = script_dir / "@FIZZER_INSTRUMENTER_FILE@"

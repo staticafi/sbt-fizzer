@@ -24,6 +24,10 @@ target_link_libraries(${THIS_TARGET_NAME}
     ${Boost_LIBRARIES}
     )
 
+if (LIBRT)
+    target_link_libraries(${THIS_TARGET_NAME} ${LIBRT})
+endif()
+
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
     RELEASE_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Release"

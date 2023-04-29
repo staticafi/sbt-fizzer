@@ -46,6 +46,10 @@ if(INSTRUMENTED_LLVM_FILE)
         Threads::Threads
         )
 
+    if (LIBRT)
+        target_link_libraries(${THIS_TARGET_NAME} ${LIBRT})
+    endif()
+
 
     set_target_properties(${THIS_TARGET_NAME} PROPERTIES
         DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
