@@ -66,6 +66,8 @@ static void  dump_subtree_dot(
     {
         std::stringstream  sstr;
         sstr << '"' << node->id;
+        if (node->best_br_instr_trace != nullptr && node->best_trace->at(node->trace_index).idx_to_br_instr < node->best_br_instr_trace->size())
+            sstr << " [" << node->best_br_instr_trace->at(node->best_trace->at(node->trace_index).idx_to_br_instr).br_instr_id << "] ";
         if (node->sensitivity_performed && !node->sensitive_stdin_bits.empty())
             sstr << " | " << node->sensitive_stdin_bits.size();
         sstr << '"';
