@@ -36,15 +36,14 @@ struct measurement
 struct analysis_statistics
 {
 public:
-    void start_minimization(branching_node *node, bool direction);
+    void start_minimization(branching_node *node);
     void stop_minimization();
-    void start_jetklee(branching_node *node, bool direction);
+    void start_jetklee(branching_node *node);
     void stop_jetklee();
     void stop_last_analysis();
     bool performed_minimization(branching_node *node);
     bool performed_jetklee(branching_node *node);
     branching_node *get_last_node();
-    bool get_last_direction();
     void dump(std::ostream &ostr) const;
 private:
     void initialize_measurement(branching_node *node);
@@ -53,7 +52,6 @@ private:
     std::map<branching_node*, measurement> measurements;
     branching_node* last_node = nullptr;
     outcome* last_measurement = nullptr;
-    bool last_direction = false;
 };
 
 

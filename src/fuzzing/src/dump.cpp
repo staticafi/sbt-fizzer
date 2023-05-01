@@ -62,8 +62,7 @@ void  save_fuzzing_configuration(
 }
 
 
-void  print_analysis_outcomes(std::ostream&  ostr,
-    analysis_outcomes const&  results,)
+void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  results)
 {
     std::string const  shift = "    ";
 
@@ -164,6 +163,11 @@ void  print_analysis_outcomes(std::ostream&  ostr,
          << shift << shift << "\"num_insertions\": " << results.bitshare_statistics.num_insertions << ",\n"
          << shift << shift << "\"num_deletions\": " << results.bitshare_statistics.num_deletions << "\n"
          << shift << "},\n"
+         << shift << "\"jetklee_analysis\": {\n"
+         << shift << shift << "\"start_calls\": " << results.jetklee_statistics.start_calls << ",\n"
+         << shift << shift << "\"generated_inputs\": " << results.jetklee_statistics.generated_inputs << ",\n"
+         << shift << shift << "\"covered_branchings\": " << results.jetklee_statistics.covered_branchings << ",\n"
+         << shift << "},\n"
          << shift << "\"fuzzer\": {\n"
          << shift << shift << "\"leaf_nodes_created\": " << results.statistics.leaf_nodes_created << ",\n"
          << shift << shift << "\"leaf_nodes_destroyed\": " << results.statistics.leaf_nodes_destroyed << ",\n"
@@ -175,7 +179,6 @@ void  print_analysis_outcomes(std::ostream&  ostr,
          << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << "\n"
          << shift << "},\n"
          ;
-    // TODO: print jetklee_analysis results
 
     ostr << shift << "\"num_covered_branchings\": " << results.covered_branchings.size() << ",\n"
          << shift << "\"covered_branchings\": [";
@@ -223,27 +226,11 @@ void  print_analysis_outcomes(std::ostream&  ostr,
 }
 
 
-<<<<<<< HEAD
 void  log_analysis_outcomes(analysis_outcomes const&  results)
 {
     std::stringstream sstr;
     print_analysis_outcomes(sstr, results);
     LOG(LSL_INFO, sstr.str());
-=======
-    if (results.termination_type != analysis_outcomes::TERMINATION_TYPE::NORMAL)
-        LOG(LSL_ERROR, "Fuzzing did not terminate normally. Reason: " << results.termination_message);
-    else
-        LOG(LSL_INFO, "Fuzzing terminated normally. Reason: " << results.termination_message);
-    if (!results.uncovered_branchings.empty())
-    {
-        std::stringstream  sstr;
-        for (auto const&  id_and_branching : results.uncovered_branchings)
-            sstr << id_and_branching.first << (id_and_branching.second ? '+' : '-');
-        LOG(LSL_INFO, "Fuzzing did not cover these branchings: " << sstr.str());
-    }
-
-
->>>>>>> Add analysis performance tracking
 }
 
 

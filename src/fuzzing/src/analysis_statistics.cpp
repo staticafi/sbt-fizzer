@@ -6,11 +6,10 @@
 
 namespace fuzzing {
 
-void analysis_statistics::start_minimization(branching_node* node, bool direction) {
+void analysis_statistics::start_minimization(branching_node* node) {
     initialize_measurement(node);
     populate_outcome_start(measurements[node].minimization_outcome);
     last_measurement = &measurements[node].minimization_outcome;
-    last_direction = direction;
     last_node = node;
 }
 
@@ -19,12 +18,11 @@ void analysis_statistics::stop_minimization()
     populate_outcome_stop(measurements[last_node].minimization_outcome);
 }
 
-void analysis_statistics::start_jetklee(branching_node* node, bool direction)
+void analysis_statistics::start_jetklee(branching_node* node)
 {
     initialize_measurement(node);
     populate_outcome_start(measurements[node].jetklee_outcome);
     last_measurement = &measurements[node].jetklee_outcome;
-    last_direction = direction;
     last_node = node;
 }
 
@@ -113,10 +111,6 @@ branching_node* analysis_statistics::get_last_node()
     return last_node;
 }
 
-bool analysis_statistics::get_last_direction()
-{
-    return last_direction;
-}
 
 // durations in milliseconds
 double cpu_duration(clock_t from, clock_t to)

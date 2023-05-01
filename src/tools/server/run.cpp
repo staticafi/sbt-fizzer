@@ -225,15 +225,9 @@ void run(int argc, char* argv[])
     if (klee_thread.joinable())
         klee_thread.join();
 
-<<<<<<< HEAD
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, client_name, results);
     if (opt_results_ptr != nullptr)
-=======
-    fuzzing::print_analysis_outcomes(std::cout, results, false, true);
-
-    if (!get_program_options()->value("output_dir").empty())
->>>>>>> Add analysis performance tracking
     {
         fuzzing::log_optimization_outcomes(*opt_results_ptr);
         fuzzing::save_optimization_outcomes(output_dir, client_name, *opt_results_ptr);

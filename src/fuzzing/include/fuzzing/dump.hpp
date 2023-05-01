@@ -30,8 +30,7 @@ void  save_fuzzing_configuration(
         termination_info const&  terminator);
 
 void  print_analysis_outcomes(std::ostream&  ostr,
-        analysis_outcomes const&  results,
-        );
+        analysis_outcomes const&  results);
 
 void  log_analysis_outcomes(analysis_outcomes const&  results);
 

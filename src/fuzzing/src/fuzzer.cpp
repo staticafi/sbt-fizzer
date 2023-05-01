@@ -800,28 +800,30 @@ void  fuzzer::select_next_state()
         bitshare.start(winner.node);
         state = BITSHARE;
     }
-    else if (jetklee.is_worth_processing(winner_node))
+    else if (use_jetklee(winner.node))
     {
-        INVARIANT(!winner_node->jetklee_queued);
+        INVARIANT(!winner.node->jetklee_queued);
 
         if (capture_analysis_stats)
         {
             analysis_stats.stop_last_analysis();
-            analysis_stats.start_jetklee(winner_node, analysis_stats.get_last_direction());
+            analysis_stats.start_jetklee(winner.node);
         }
-        jetklee.start(winner_node, direction);
+
+        bool direction = winner.node->is_direction_explored(false);
+        jetklee.start(winner.node, direction);
         state = JETKLEE_QUERY;
     }
     else
     {
-        INVARIANT(!winner_node->sensitive_stdin_bits.empty() && !winner_node->minimization_performed);
+        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
 
         if (capture_analysis_stats)
         {
             analysis_stats.stop_last_analysis();
-            analysis_stats.start_minimization(winner_node, analysis_stats.get_last_direction());
+            analysis_stats.start_minimization(winner.node);
         }
-        minimization.start(winner_node, winner_node->best_stdin);
+        minimization.start(winner.node, winner.node->best_stdin);
         state = MINIMIZATION;
     }
 }

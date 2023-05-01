@@ -131,7 +131,6 @@ bool kleeient::receive_input(std::vector<bool>& trace) {
     return true;
 }
 
-// input trace is obtained from iomanager
 std::string kleeient::invoke_klee(const std::vector<bool>& trace)
 {
     std::cout << "Received following trace:" << std::endl;
