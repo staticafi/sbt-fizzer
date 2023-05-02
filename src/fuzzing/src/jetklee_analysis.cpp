@@ -61,6 +61,22 @@ void  jetklee_analysis::stop()
     node_ptr = nullptr;
 }
 
+std::vector<bool> prepare_trace(branching_node *node, bool direction)
+{
+    std::vector<br_instr_coverage_info> const  br_info_trace {
+        node->best_br_instr_trace->begin(),
+        std::next(node->best_br_instr_trace->begin(), node->best_trace->at(node->trace_index).idx_to_br_instr + 1)
+    };
+
+    std::vector<bool> jetklee_trace;
+    for (auto &it : br_info_trace)
+    {
+        jetklee_trace.push_back(it.covered_branch);
+    }
+    jetklee_trace.back() = direction;
+
+    return jetklee_trace;
+}
 
 bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
 {
@@ -75,19 +91,9 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    fuzzing::branching_node *node = node_ptr;
-    std::vector<bool> trace;
-    while (node->predecessor != nullptr)
-    {
-        trace.push_back(node->predecessor->successor_direction(node));
-        node = node->predecessor;
-    }
-    std::reverse(trace.begin(), trace.end());
-
-    trace.push_back(direction);
-
+    std::vector<bool> jetklee_trace = prepare_trace(node_ptr, direction);
     std::vector<uint8_t> bytes;
-    if (!kleeient_connector->get_model(trace, bytes))
+    if (!kleeient_connector->get_model(jetklee_trace, bytes))
         return true; // TODO: Fuzzer now doesn't handle infeasibility.
                      // Once it does, we should return false.
                      // Returning inccorrect input is a current workaround
