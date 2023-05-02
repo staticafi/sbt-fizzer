@@ -30,7 +30,6 @@ void shared_memory::set_size(natural_32_bit size) {
 void shared_memory::clear() {
     cursor = 0;
     *saved = 0;
-    memset(memory, 0, get_size());
 }
 
 
