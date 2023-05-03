@@ -27,10 +27,8 @@ bool  jetklee_analysis::is_worth_processing(branching_node* const  tested_node_p
     if (tested_node_ptr->is_direction_explored(false) && tested_node_ptr->is_direction_explored(true))
         return false;
 
-    // Here should be more advanced heuristic detecting whether JetKlee
-    // should be called for this branching or not. 
-
-    if (tested_node_ptr->sensitive_stdin_bits.size() < 8)
+    // Heuristic obtained via logistic regressio
+    if (tested_node_ptr->sensitive_stdin_bits.size() <= 18)
         return false;
 
     return true;
