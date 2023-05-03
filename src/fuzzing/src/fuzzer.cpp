@@ -213,11 +213,6 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
                     return;
                 break;
 
-            case BITSHARE:
-                if (bitshare.generate_next_input(stdin_bits))
-                    return;
-                break;
-
             case FINISHED:
                 return;
 
@@ -389,15 +384,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
             {
                 minimization.stop();
-                bitshare.bits_available_for_branching(minimization.get_node(), trace, bits);
             }
-            break;
-
-        case BITSHARE:
-            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_busy());
-            bitshare.process_execution_results(trace);
-            if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
-                bitshare.stop();
             break;
 
         case JETKLEE_QUERY:
@@ -794,12 +781,6 @@ void  fuzzer::select_next_state()
         state = SENSITIVITY;
         return;
     }
-    else if (!winner.node->bitshare_performed)
-    {
-        INVARIANT(!winner.node->sensitive_stdin_bits.empty());
-        bitshare.start(winner.node);
-        state = BITSHARE;
-    }
     else if (use_jetklee(winner.node))
     {
         INVARIANT(!winner.node->jetklee_queued);
@@ -810,8 +791,7 @@ void  fuzzer::select_next_state()
             analysis_stats.start_jetklee(winner.node);
         }
 
-        bool direction = winner.node->is_direction_explored(false);
-        jetklee.start(winner.node, direction);
+        jetklee.start(winner.node);
         state = JETKLEE_QUERY;
     }
     else
