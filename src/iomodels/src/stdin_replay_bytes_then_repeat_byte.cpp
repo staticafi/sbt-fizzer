@@ -2,7 +2,6 @@
 #include <iomodels/ioexceptions.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
-#include <instrumentation/data_identifier.hpp>
 #include <iostream>
 
 namespace  iomodels {
