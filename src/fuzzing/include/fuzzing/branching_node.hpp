@@ -91,6 +91,7 @@ struct  branching_node
     bool minimization_performed;
     bool bitshare_performed;
     bool jetklee_queued;
+    bool jetklee_performed;
 
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 };
