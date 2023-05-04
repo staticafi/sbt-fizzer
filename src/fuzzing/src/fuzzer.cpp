@@ -342,7 +342,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 branching_node::successor_pointer::END_EXCEPTIONAL,
             construction_props.leaf->successor(trace->back().direction).label
             ),
-        nullptr
+        construction_props.leaf->successor(trace->back().direction).pointer
     });
 
     if (construction_props.diverging_node != nullptr)
