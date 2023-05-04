@@ -2,6 +2,7 @@
 #include <fuzzing/execution_trace.hpp>
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
+#include <utility/invariants.hpp>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -106,7 +107,17 @@ void  progress_recorder::on_execution_results_available()
 
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
 
-    ostr << "\"num_trace_records\": " << trace.size() << ",\n\"trace_records\": [";
+    ostr << "\"trace_termination\": \"";
+
+    switch (iomodels::iomanager::instance().get_termination())
+    {
+    case iomodels::iomanager::NORMAL: ostr << "NORMAL"; break;
+    case iomodels::iomanager::CRASH: ostr << "CRASH"; break;
+    case iomodels::iomanager::BOUNDARY_CONDITION_VIOLATION: ostr << "BOUNDARY_CONDITION_VIOLATION"; break;
+    default: UNREACHABLE(); break;
+    }
+
+    ostr << "\",\n\"num_trace_records\": " << trace.size() << ",\n\"trace_records\": [";
 
     for (natural_32_bit  i = 0U, n = (natural_32_bit)trace.size(); i < n; ++i)
     {
