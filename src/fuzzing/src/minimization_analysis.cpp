@@ -54,7 +54,7 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bit_translation.size());
 
-    recorder().on_minimization_start();
+    recorder().on_minimization_start(node);
 }
 
 

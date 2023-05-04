@@ -1,6 +1,7 @@
 #ifndef FUZZING_PROGRESS_RECORDER_HPP_INCLUDED
 #   define FUZZING_PROGRESS_RECORDER_HPP_INCLUDED
 
+#   include <fuzzing/branching_node.hpp>
 #   include <utility/basic_numeric_types.hpp>
 #   include <unordered_set>
 #   include <string>
@@ -18,13 +19,13 @@ struct  progress_recorder
 
     bool  is_started() const { return started; }
 
-    void  on_sensitivity_start() { on_analysis_start(SENSITIVITY); }
+    void  on_sensitivity_start(branching_node* const  node_ptr) { on_analysis_start(SENSITIVITY, node_ptr); }
     void  on_sensitivity_stop() { on_analysis_stop(); }
 
-    void  on_minimization_start() { on_analysis_start(MINIMIZATION); }
+    void  on_minimization_start(branching_node* const  node_ptr) { on_analysis_start(MINIMIZATION, node_ptr); }
     void  on_minimization_stop() { on_analysis_stop(); }
 
-    void  on_bitshare_start() { on_analysis_start(BITSHARE); }
+    void  on_bitshare_start(branching_node* const  node_ptr) { on_analysis_start(BITSHARE, node_ptr); }
     void  on_bitshare_stop() { on_analysis_stop(); }
 
     void  on_input_generated();
@@ -47,7 +48,7 @@ private:
     progress_recorder& operator=(progress_recorder const&) const = delete;
     progress_recorder& operator=(progress_recorder&&) const = delete;
 
-    void  on_analysis_start(ANALYSIS a);
+    void  on_analysis_start(ANALYSIS a, branching_node*  node_ptr);
     void  on_analysis_stop();
 
     static std::string const&  analysis_name(ANALYSIS a);
@@ -59,6 +60,7 @@ private:
     natural_32_bit  counter_analysis;
     natural_32_bit  counter_results;
     natural_32_bit  num_bytes;
+    branching_node*  node;
 };
 
 

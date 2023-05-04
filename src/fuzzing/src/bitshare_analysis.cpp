@@ -42,7 +42,7 @@ void  bitshare_analysis::start(branching_node*  node_ptr)
 
     ++statistics.start_calls;
 
-    recorder().on_bitshare_start();
+    recorder().on_bitshare_start(processed_node);
 }
 
 

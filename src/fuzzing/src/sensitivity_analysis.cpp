@@ -27,7 +27,7 @@ void  sensitivity_analysis::start(
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bits->size());
 
-    recorder().on_sensitivity_start();
+    recorder().on_sensitivity_start(leaf_branching);
 }
 
 

@@ -3,6 +3,8 @@
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
+#include <vector>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -24,6 +26,7 @@ progress_recorder::progress_recorder()
     , analysis{ NONE }
     , counter_analysis{ 1 }
     , counter_results{ 0 }
+    , node{ nullptr }
 {}
 
 
@@ -35,6 +38,11 @@ void  progress_recorder::start(std::filesystem::path const&  output_dir_)
     if (!std::filesystem::is_directory(output_dir))
         throw std::runtime_error("Cannot create directory: " + output_dir.string());
     started = true;
+
+    analysis = NONE;
+    counter_analysis = 1;
+    counter_results = 0;
+    node = nullptr;
 }
 
 
@@ -46,18 +54,23 @@ void  progress_recorder::stop()
     analysis = NONE;
     counter_analysis = 1;
     counter_results = 0;
+    node = nullptr;
 }
 
 
-void  progress_recorder::on_analysis_start(ANALYSIS const  a)
+void  progress_recorder::on_analysis_start(ANALYSIS const  a, branching_node* const  node_ptr)
 {
     if (!is_started())
         return;
+
+    ASSUMPTION(node_ptr != nullptr);
+
     analysis = a;
     if (counter_results != 0)
         ++counter_analysis;
     counter_results = 0;
     num_bytes = 0;
+    node = node_ptr;
 }
 
 
@@ -86,6 +99,29 @@ void  progress_recorder::on_execution_results_available()
     std::filesystem::create_directories(record_dir);
     if (!std::filesystem::is_directory(record_dir))
         throw std::runtime_error("Cannot create directory: " + output_dir.string());
+
+    if (node != nullptr)
+    {
+        std::vector<branching_location_and_direction>  path;
+        for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
+            path.push_back({ n->id, n->successor_direction(s) });
+        std::reverse(path.begin(), path.end());
+
+        std::filesystem::path const  node_pathname = record_dir / "node.json";
+        std::ofstream  ostr(node_pathname.c_str(), std::ios::binary);
+        if (!ostr.is_open())
+            throw std::runtime_error("Cannot open file for writing: " + node_pathname.string());
+        ostr << "[\n";
+        for (natural_32_bit  i = 0U, n = (natural_32_bit)path.size(); i < n; ++i)
+        {
+            ostr << path.at(i).first.id << ',' << path.at(i).first.context_hash << ',' << (path.at(i).second ? 1 : 0);
+            if (i + 1 < n) ostr << ',';
+            ostr << '\n';
+        }
+        ostr << "]\n";
+
+        node = nullptr;
+    }
 
     std::filesystem::path const  record_pathname = record_dir / (std::to_string(counter_results) + ".json");
     std::ofstream  ostr(record_pathname.c_str(), std::ios::binary);
