@@ -1,5 +1,6 @@
 #include <fuzzing/fuzzer.hpp>
 #include <fuzzing/dump_tree.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
@@ -134,6 +135,8 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     bits_to_bytes(stdin_bits, stdin_bytes);
     iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
 
+    recorder().on_input_generated();
+
     return true;
 }
 
@@ -232,6 +235,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         state = FINISHED;
         return true; // the analyzed program has exactly 1 trace.
     }
+
+    recorder().on_execution_results_available();
 
     vecb stdin_bits;
     bytes_to_bits(iomodels::iomanager::instance().get_stdin()->get_bytes(), stdin_bits);

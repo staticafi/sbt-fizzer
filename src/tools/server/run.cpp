@@ -6,6 +6,7 @@
 #include <fuzzing/fuzzing_loop.hpp>
 #include <fuzzing/optimization_outcomes.hpp>
 #include <fuzzing/optimizer.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <fuzzing/dump.hpp>
 #include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
@@ -117,6 +118,8 @@ void run(int argc, char* argv[])
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
             };
 
+    fuzzing::recorder().start(output_dir);
+
     connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
     try {
         server.start();
@@ -191,6 +194,8 @@ void run(int argc, char* argv[])
     }
 
     server.stop();
+
+    fuzzing::recorder().stop();
 
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, client_name, results);

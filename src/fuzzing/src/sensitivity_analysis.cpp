@@ -1,4 +1,5 @@
 #include <fuzzing/sensitivity_analysis.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
@@ -25,6 +26,8 @@ void  sensitivity_analysis::start(
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bits->size());
+
+    recorder().on_sensitivity_start();
 }
 
 
@@ -32,6 +35,8 @@ void  sensitivity_analysis::stop()
 {
     if (!is_busy())
         return;
+
+    recorder().on_sensitivity_stop();
 
     if (mutated_bit_index < bits->size())
     {

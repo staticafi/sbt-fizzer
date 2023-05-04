@@ -1,4 +1,5 @@
 #include <fuzzing/minimization_analysis.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
@@ -52,6 +53,8 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bit_translation.size());
+
+    recorder().on_minimization_start();
 }
 
 
@@ -59,6 +62,8 @@ void  minimization_analysis::stop()
 {
     if (!is_busy())
         return;
+
+    recorder().on_minimization_stop();
 
     if (!seeds.empty() || descent.stage != gradient_descent_state::TAKE_NEXT_SEED)
     {

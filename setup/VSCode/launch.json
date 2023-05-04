@@ -68,6 +68,7 @@
                 "--optimizer_max_trace_length", "1000000",
                 "--optimizer_max_stdin_bytes", "1000000",
                 // "--debug_mode",
+                // "--progress_recording",
                 // "--silent_mode",
                 "--test_type",
                     "native",

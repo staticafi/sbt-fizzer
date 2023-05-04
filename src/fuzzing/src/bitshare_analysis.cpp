@@ -1,4 +1,5 @@
 #include <fuzzing/bitshare_analysis.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
@@ -40,6 +41,8 @@ void  bitshare_analysis::start(branching_node*  node_ptr)
     }
 
     ++statistics.start_calls;
+
+    recorder().on_bitshare_start();
 }
 
 
@@ -47,6 +50,8 @@ void  bitshare_analysis::stop()
 {
     if (!is_busy())
         return;
+
+    recorder().on_bitshare_stop();
 
     if (samples_ptr == nullptr)
         ++statistics.stop_calls_instant;
