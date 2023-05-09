@@ -72,6 +72,9 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     case analysis_outcomes::TERMINATION_TYPE::NORMAL:
         ostr << "NORMAL";
         break;
+    case analysis_outcomes::TERMINATION_TYPE::CLIENT_CRASH:
+        ostr << "CLIENT_CRASH";
+        break;
     case analysis_outcomes::TERMINATION_TYPE::SERVER_INTERNAL_ERROR:
         ostr << "SERVER_INTERNAL_ERROR";
         break;

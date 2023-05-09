@@ -19,6 +19,7 @@ struct analysis_outcomes
     {
         NORMAL,
         SERVER_INTERNAL_ERROR,
+        CLIENT_CRASH,
         CLIENT_COMMUNICATION_ERROR,
         UNCLASSIFIED_ERROR
     };
