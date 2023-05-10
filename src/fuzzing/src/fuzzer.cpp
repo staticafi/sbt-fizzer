@@ -497,7 +497,7 @@ void  fuzzer::do_cleanup()
                     }
                     it_node = it_loc->second.erase(it_node);
                 }
-                else if ((*it_node)->is_iid_branching() || (*it_node)->minimization_performed || covered_branchings.contains((*it_node)->id))
+                else if ((*it_node)->is_iid_branching() || (*it_node)->minimization_disabled || covered_branchings.contains((*it_node)->id))
                     it_node = it_loc->second.erase(it_node);
                 else
                     ++it_node;
@@ -509,7 +509,7 @@ void  fuzzer::do_cleanup()
 
         std::vector<branching_node*>  path;
         while (props.frontier_branching != nullptr && (
-                    props.frontier_branching->minimization_performed ||
+                    props.frontier_branching->minimization_disabled ||
                     props.frontier_branching->is_iid_branching() ||
                     iid_regions.contains(props.frontier_branching->id) ||
                     (props.frontier_branching->is_direction_explored(false) && props.frontier_branching->is_direction_explored(true))
@@ -549,7 +549,7 @@ void  fuzzer::do_cleanup()
             }
 
             if (!rec.node->is_direction_explored(false) || !rec.node->is_direction_explored(true))
-                if (!rec.node->sensitivity_performed || (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty()))
+                if (!rec.node->sensitivity_performed || (!rec.node->minimization_disabled && !rec.node->sensitive_stdin_bits.empty()))
                     break;
 
             iid_frontier.erase(iid_frontier.begin());
@@ -572,7 +572,7 @@ void  fuzzer::do_cleanup()
         {
             if (rec.iid_node != rec.node) 
                 if (!rec.node->is_direction_explored(false) || !rec.node->is_direction_explored(true))
-                    if (!rec.node->sensitivity_performed || (!rec.node->minimization_performed && !rec.node->sensitive_stdin_bits.empty()))
+                    if (!rec.node->sensitivity_performed || (!rec.node->minimization_disabled && !rec.node->sensitive_stdin_bits.empty()))
                         break;
 
             iid_frontier.erase(iid_frontier.begin());
@@ -796,7 +796,7 @@ void  fuzzer::select_next_state()
     }
     else
     {
-        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
+        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_disabled);
 
         if (capture_analysis_stats)
         {

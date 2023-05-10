@@ -85,12 +85,12 @@ static void  dump_subtree_dot(
     {
         if (node->sensitivity_performed && node->sensitive_stdin_bits.empty())
             ostr << ", shape=oval";
-        if (node->minimization_performed && node->jetklee_queued)
+        if (node->minimization_disabled && node->jetklee_queued)
         {
             INVARIANT(node->sensitivity_performed);
             ostr << ", style=filled, fillcolor=gold";
         }
-        else if (node->minimization_performed)
+        else if (node->minimization_disabled)
         {
             INVARIANT(node->sensitivity_performed);
             ostr << ", style=filled, fillcolor=orange";

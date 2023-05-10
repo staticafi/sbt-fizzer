@@ -27,7 +27,7 @@ bool  jetklee_analysis::is_worth_processing(branching_node* const  tested_node_p
     if (tested_node_ptr->is_direction_explored(false) && tested_node_ptr->is_direction_explored(true))
         return false;
 
-    // Heuristic obtained via logistic regressio
+    // Heuristic obtained via logistic regression
     if (tested_node_ptr->sensitive_stdin_bits.size() <= 18)
         return false;
 
@@ -96,7 +96,7 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
 
     if (node_ptr->jetklee_queued && flipped_last_branching && kept_last_branching)
     {
-        node_ptr->minimization_performed = true;
+        node_ptr->minimization_disabled = true;
         node_ptr->jetklee_performed = true;
         stop();
         return false;

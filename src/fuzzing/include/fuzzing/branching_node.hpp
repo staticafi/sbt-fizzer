@@ -53,7 +53,7 @@ struct  branching_node
         , best_summary_value{ best_summary_value_ }
 
         , sensitivity_performed{ false }
-        , minimization_performed{ false }
+        , minimization_disabled{ false }
         , bitshare_performed{ false }
         , jetklee_queued{ false }
 
@@ -88,7 +88,7 @@ struct  branching_node
     branching_function_value_type  best_summary_value;
 
     bool sensitivity_performed;
-    bool minimization_performed;
+    bool minimization_disabled;
     bool bitshare_performed;
     bool jetklee_queued;
     bool jetklee_performed;

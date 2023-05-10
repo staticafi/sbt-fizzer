@@ -69,7 +69,7 @@ void  minimization_analysis::stop()
     else
         ++statistics.stop_calls_regular;
 
-    node->minimization_performed = true;
+    node->minimization_disabled = true;
 
     state = READY;
 }
