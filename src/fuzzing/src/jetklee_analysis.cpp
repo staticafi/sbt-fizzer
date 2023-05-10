@@ -15,6 +15,15 @@ jetklee_analysis::jetklee_analysis(std::unique_ptr<connection::kleeient_connecto
 {}
 
 
+size_t  get_trace_length(branching_node *node)
+{
+    size_t length = 0;
+    for (branching_node *it = node; it != nullptr; it = it->predecessor)
+        length++;
+    return length;
+}
+
+
 bool  jetklee_analysis::is_worth_processing(branching_node* const  tested_node_ptr) const
 {
     TMPROF_BLOCK();
@@ -27,11 +36,9 @@ bool  jetklee_analysis::is_worth_processing(branching_node* const  tested_node_p
     if (tested_node_ptr->is_direction_explored(false) && tested_node_ptr->is_direction_explored(true))
         return false;
 
-    // Heuristic obtained via logistic regression
-    if (tested_node_ptr->sensitive_stdin_bits.size() <= 18)
-        return false;
-
-    return true;
+    // Heuristic obtained from data analysis
+    return tested_node_ptr->sensitive_stdin_bits.size() > 19
+        && get_trace_length(tested_node_ptr) <= 1000;
 }
 
 
