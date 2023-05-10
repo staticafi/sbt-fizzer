@@ -222,8 +222,6 @@ void run(int argc, char* argv[])
     }
 
     server.stop();
-    if (klee_thread.joinable())
-        klee_thread.join();
 
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, client_name, results);
@@ -257,6 +255,10 @@ void run(int argc, char* argv[])
             get_program_options()->value("path_to_client")
             );
     }
+
+    if (klee_thread.joinable())
+        klee_thread.join();
+
     
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Done.\n" << std::flush;
