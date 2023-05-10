@@ -6,7 +6,8 @@
 
 namespace fuzzing {
 
-void analysis_statistics::start_minimization(branching_node* node) {
+void analysis_statistics::start_minimization(branching_node* node)
+{
     initialize_measurement(node);
     populate_outcome_start(measurements[node].minimization_outcome);
     last_measurement = &measurements[node].minimization_outcome;
