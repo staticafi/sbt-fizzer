@@ -207,7 +207,7 @@ void FizzerPass::instrumentCond(Instruction *inst) {
 void FizzerPass::instrumentCondBr(BranchInst *brInst) {
     IRBuilder<> builder(brInst);
     
-    Value *location = ConstantInt::get(Int32Ty, ++basicBlockCounter);
+    Value *location = ConstantInt::get(Int32Ty, basicBlockCounter);
     Value *cond = brInst->getCondition();
 
     builder.CreateCall(processCondBrFunc, {location, cond});
