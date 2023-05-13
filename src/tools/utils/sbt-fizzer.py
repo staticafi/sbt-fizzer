@@ -91,6 +91,7 @@ class FizzerUtils:
     def compile_program_ll(self):
         self.program_ll = self.output_dir / (self.file_name + ".ll")
         subprocess.run(["clang", "-o", self.program_ll, "-S", "-emit-llvm", self.file_path])
+        subprocess.run(["opt", "-lowerswitch", "-S", "-o", self.program_ll, self.program_ll])
 
     def build_client(self, additional_flags="", timeout=None):
         client_file_name = self.file_name + "_client"
