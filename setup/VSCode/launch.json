@@ -89,6 +89,20 @@
             //"postDebugTask": "kill clients"
         },
         {
+            "name": "debug instrumenter",
+            "type": "cppvsdbg",
+                // On Linux use this:
+                // "type": "cppdbg", "setupCommands": [{ "description": "Enable pretty-printing for gdb", "text": "-enable-pretty-printing", "ignoreFailures": true }],
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "--input", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs.ll",
+                "--output", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs_instrumented.ll",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist"
+        },
+        {
             "name": "debug client",
             "type": "cppdbg",
             "request": "launch",
