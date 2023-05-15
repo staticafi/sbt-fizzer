@@ -1,5 +1,5 @@
-#ifndef TOOL_FIZZ_PROGRAM_OPTIONS_HPP_INCLUDED
-#   define TOOL_FIZZ_PROGRAM_OPTIONS_HPP_INCLUDED
+#ifndef TOOL_SERVER_PROGRAM_OPTIONS_HPP_INCLUDED
+#   define TOOL_SERVER_PROGRAM_OPTIONS_HPP_INCLUDED
 
 #   include <utility/program_options_base.hpp>
 #   include <memory>
