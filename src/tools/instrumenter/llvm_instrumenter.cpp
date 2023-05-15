@@ -152,7 +152,7 @@ void llvm_instrumenter::instrumentCond(Instruction *inst) {
 void llvm_instrumenter::instrumentCondBr(BranchInst *brInst) {
     IRBuilder<> builder(brInst);
     
-    Value *location = ConstantInt::get(Int32Ty, ++basicBlockCounter);
+    Value *location = ConstantInt::get(Int32Ty, basicBlockCounter);
     Value *cond = brInst->getCondition();
 
     builder.CreateCall(processCondBrFunc, {location, cond});
