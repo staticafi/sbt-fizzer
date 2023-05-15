@@ -20,7 +20,7 @@ struct  progress_recorder
     bool  is_started() const { return started; }
 
     void  on_sensitivity_start(branching_node* const  node_ptr) { on_analysis_start(SENSITIVITY, node_ptr); }
-    void  on_sensitivity_stop() { on_analysis_stop(); }
+    void  on_sensitivity_stop() { save_sensitive_bits(); on_analysis_stop(); }
 
     void  on_minimization_start(branching_node* const  node_ptr) { on_analysis_start(MINIMIZATION, node_ptr); }
     void  on_minimization_stop() { on_analysis_stop(); }
@@ -51,6 +51,8 @@ private:
     void  on_analysis_start(ANALYSIS a, branching_node*  node_ptr);
     void  on_analysis_stop();
 
+    void  save_sensitive_bits();
+
     static std::string const&  analysis_name(ANALYSIS a);
 
     bool  started;
@@ -61,6 +63,7 @@ private:
     natural_32_bit  counter_results;
     natural_32_bit  num_bytes;
     branching_node*  node;
+    bool  node_saved;
 };
 
 

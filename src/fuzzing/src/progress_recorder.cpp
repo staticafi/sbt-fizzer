@@ -27,6 +27,7 @@ progress_recorder::progress_recorder()
     , counter_analysis{ 1 }
     , counter_results{ 0 }
     , node{ nullptr }
+    , node_saved{ false }
 {}
 
 
@@ -43,6 +44,7 @@ void  progress_recorder::start(std::filesystem::path const&  output_dir_)
     counter_analysis = 1;
     counter_results = 0;
     node = nullptr;
+    node_saved = false;
 }
 
 
@@ -77,6 +79,41 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, branching_node* co
 void  progress_recorder::on_analysis_stop()
 {
     analysis = NONE;
+    node = nullptr;
+    node_saved = false;
+}
+
+
+void  progress_recorder::save_sensitive_bits()
+{
+    if (!is_started())
+        return;
+
+    ASSUMPTION(analysis == SENSITIVITY && node != nullptr);
+
+    std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
+    if (!std::filesystem::is_directory(record_dir))
+        throw std::runtime_error("The directory of the analysis does not exist: " + record_dir.string());
+
+    std::filesystem::path const  bits_pathname = record_dir / "sensitive_bits.json";
+    std::ofstream  ostr(bits_pathname.c_str(), std::ios::binary);
+    if (!ostr.is_open())
+        throw std::runtime_error("Cannot open file for writing: " + bits_pathname.string());
+
+    std::vector<branching_node*>  nodes;
+    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
+        nodes.push_back(n);
+    std::reverse(nodes.begin(), nodes.end());
+
+    ostr << "[\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)nodes.size(); i < end; ++i)
+    {
+        branching_node* const  n = nodes.at(i);
+        ostr << n->sensitive_stdin_bits.size();
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "]\n";
 }
 
 
@@ -98,9 +135,9 @@ void  progress_recorder::on_execution_results_available()
     std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
     std::filesystem::create_directories(record_dir);
     if (!std::filesystem::is_directory(record_dir))
-        throw std::runtime_error("Cannot create directory: " + output_dir.string());
+        throw std::runtime_error("Cannot create directory: " + record_dir.string());
 
-    if (node != nullptr)
+    if (node != nullptr && !node_saved)
     {
         std::vector<branching_location_and_direction>  path;
         for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
@@ -120,7 +157,7 @@ void  progress_recorder::on_execution_results_available()
         }
         ostr << "]\n";
 
-        node = nullptr;
+        node_saved = true;
     }
 
     std::filesystem::path const  record_pathname = record_dir / (std::to_string(counter_results) + ".json");
