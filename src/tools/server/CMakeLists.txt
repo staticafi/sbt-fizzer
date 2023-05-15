@@ -21,6 +21,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     fuzzing     # Duplicating because of Mingw (otherwise linking errors)
     utility
     Threads::Threads
+    ${Boost_LIBRARIES}
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

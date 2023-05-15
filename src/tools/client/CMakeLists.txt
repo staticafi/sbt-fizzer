@@ -17,6 +17,7 @@ set(CLIENT_LIBS
     instrumentation
     iomodels
     utility
+    ${Boost_LIBRARIES}
     )
 
 add_library(client_lib
