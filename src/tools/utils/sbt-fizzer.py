@@ -47,7 +47,7 @@ class FizzerUtils:
                                 "-flto "
                                 "@CLIENT_NEEDED_COMPILATION_FLAGS@"
                                 )
-    pass_path = script_dir / "@FIZZER_PASS_FILE@"
+    instrumenter_path = script_dir / "@FIZZER_INSTRUMENTER_FILE@"
     server_path = script_dir / "@SERVER_FILE@"
 
     def __init__(self, file_path, output_dir):
@@ -62,24 +62,26 @@ class FizzerUtils:
 
 
     def instrument(self, additional_flags="", timeout=None):
+        if self.file_suffix.lower() == ".c":
+            self.file_suffix = ".ll"
+            out_path = Path(str(self.file_path)[:-2] + self.file_suffix)
+            compile_output = subprocess.run(
+                shlex.split("clang -g -S -emit-llvm " + str(self.file_path) + " -o " + str(out_path)), timeout=timeout
+            )
+            if compile_output.returncode:
+                errprint("Compilation of the C file has failed")
+                sys.exit(1)
+            self.file_path = out_path
+    
         instrumented_file_name = self.file_name + "_instrumented.ll"
         self.instrumented_file = self.output_dir / instrumented_file_name
     
-        if self.file_suffix == ".ll" or self.file_suffix == ".bc":
-            instrumentation = (
-                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass " 
-                "{1} -S -o {2}"
-            ).format(self.pass_path, self.file_path, self.instrumented_file)
-        else:
-            instrumentation = (
-                "clang {0} -flto @CLANG_USE_LEGACY_PM@ " 
-                "-Xclang -load -Xclang {1} "
-                "-Xclang -disable-O0-optnone -fno-discard-value-names {2} "
-                "-S -o {3}"
-            ).format(
-                additional_flags, self.pass_path, 
-                self.file_path, self.instrumented_file
-                )
+        assert self.file_suffix == ".ll" or self.file_suffix == ".bc", "A LLVM file is required for the instrumentation."
+
+        instrumentation = (str(self.instrumenter_path) +
+            " --input " + str(self.file_path) +
+            " --output " + str(self.instrumented_file)
+            )
 
         instrumentation_output = subprocess.run(
             shlex.split(instrumentation), timeout=timeout

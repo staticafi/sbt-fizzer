@@ -78,8 +78,8 @@ class Benchmark:
         os.system(cmdline)
         self.popd()
 
-    def _execute_and_check_output(self, cmdline : str, desired_output : str) -> None:
-        self._execute(cmdline, os.path.dirname(desired_output))
+    def _execute_and_check_output(self, cmdline : str, desired_output : str, work_dir : str = None) -> None:
+        self._execute(cmdline, os.path.dirname(desired_output) if work_dir is None else work_dir)
         ASSUMPTION(os.path.isfile(desired_output), "_execute_and_check_output(): the output is missing: " + desired_output)
 
     def _check_outcomes(self, config : dict, outcomes : dict):
@@ -132,20 +132,33 @@ class Benchmark:
                         return False
         return True
 
-    def build(self) -> None:
+    def build(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
         self.log("===")
         self.log("=== Building: " + self.src_file, "building: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
         self._erase_file_if_exists(self.client_file)
         self._erase_file_if_exists(self.final_file)
+
+        output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
+        self.log("makedirs " + output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
         if not os.path.exists(self.ll_file):
-            self._execute_and_check_output("clang -g -S -emit-llvm " + quote(self.src_file), self.ll_file)
+            # self._execute_and_check_output("clang -g -S -emit-llvm " + quote(self.src_file), self.ll_file)
+            self._execute_and_check_output(
+                quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
+                    "--output_dir " + quote(self.work_dir) + " " +
+                    quote(self.src_file),
+                self.ll_file,
+                output_dir
+                )
         if not os.path.exists(self.instrumented_ll_file):
             self._execute_and_check_output(
                 quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
                     "--output_dir " + quote(self.work_dir) + " " +
                     quote(self.ll_file),
                 self.instrumented_ll_file,
+                output_dir
                 )
         self._execute_and_check_output(
             quote(self.python_binary) + " " + quote(self.client_builder) + " " +
@@ -185,9 +198,8 @@ class Benchmark:
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
 
-        self._erase_dir_if_exists(output_dir)
         self.log("makedirs " + output_dir)
-        os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
         kill_clients()
         self._execute(
             quote(self.server) + " " +
@@ -306,7 +318,7 @@ class Benman:
     def build(self, name : str) -> bool:
         for pathname in self.collect_benchmarks(name):
             benchmark = Benchmark(pathname, self.llvm_instrumenter, self.client_builder, self.server_binary, self.args.verbose)
-            benchmark.build()
+            benchmark.build(self.benchmarks_dir, self.output_dir)
         return True
 
     def fuzz(self, name : str) -> bool:

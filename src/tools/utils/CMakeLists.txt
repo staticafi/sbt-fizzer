@@ -26,7 +26,7 @@ list(JOIN CLIENT_NEEDED_COMPILATION_FLAGS " " CLIENT_NEEDED_COMPILATION_FLAGS)
 
 set(SERVER_FILE "../tools/$<TARGET_FILE_NAME:server>")
 
-set(FIZZER_PASS_FILE "../lib/$<TARGET_FILE_NAME:sbt-fizzer_pass>")
+set(FIZZER_INSTRUMENTER_FILE "../tools/$<TARGET_FILE_NAME:instrumenter>")
 
 
 set(FIZZER_TARGET_NAME sbt-fizzer)

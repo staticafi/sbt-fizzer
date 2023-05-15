@@ -21,7 +21,7 @@ if __name__ == '__main__':
         description="Tool for instrumenting the program.",
         epilog=(
             "Any additional arguments are " 
-            "passed to clang/opt as flags to use."
+            "passed to clang as flags to use."
         ))
     fizzer.add_base_args(parser)
 
