@@ -62,7 +62,7 @@ class FizzerUtils:
 
 
     def instrument(self, additional_flags="", timeout=None):
-        if self.file_suffix.lower() == ".c":
+        if self.file_suffix.lower() == ".c" or self.file_suffix.lower() == ".i":
             self.file_suffix = ".ll"
             out_path = Path(str(self.file_path)[:-2] + self.file_suffix)
             compile_output = subprocess.run(
