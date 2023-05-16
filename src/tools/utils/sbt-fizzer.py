@@ -67,12 +67,12 @@ class FizzerUtils:
     
         if self.file_suffix == ".ll" or self.file_suffix == ".bc":
             instrumentation = (
-                "opt @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass " 
+                "opt-10 @OPT_USE_LEGACY_PM@ -load {0} -legacy-sbt-fizzer-pass "
                 "{1} -S -o {2}"
             ).format(self.pass_path, self.file_path, self.instrumented_file)
         else:
             instrumentation = (
-                "clang {0} -flto @CLANG_USE_LEGACY_PM@ " 
+                "clang-10 {0} -flto @CLANG_USE_LEGACY_PM@ "
                 "-Xclang -load -Xclang {1} "
                 "-Xclang -disable-O0-optnone -fno-discard-value-names {2} "
                 "-S -o {3}"
@@ -90,14 +90,14 @@ class FizzerUtils:
 
     def compile_program_ll(self):
         self.program_ll = self.output_dir / (self.file_name + ".ll")
-        subprocess.run(["clang", "-o", self.program_ll, "-S", "-emit-llvm", self.file_path])
-        subprocess.run(["opt", "-lowerswitch", "-S", "-o", self.program_ll, self.program_ll])
+        subprocess.run(["clang-10", "-o", self.program_ll, "-S", "-emit-llvm", self.file_path])
+        subprocess.run(["opt-10", "-lowerswitch", "-S", "-o", self.program_ll, self.program_ll])
 
     def build_client(self, additional_flags="", timeout=None):
         client_file_name = self.file_name + "_client"
         self.client_file = self.output_dir / client_file_name
 
-        client_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
+        client_compilation = "clang++-10 {0} {1} {2} {3} -o {4}".format(
             self.client_cmake_build_flags, additional_flags, 
             self.instrumented_file, self.client_libraries, self.client_file
         )
