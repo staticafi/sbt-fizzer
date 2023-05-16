@@ -14,7 +14,7 @@ struct  progress_recorder
 {
     static progress_recorder& instance();
 
-    void  start(std::filesystem::path const&  output_dir_);
+    void  start(std::filesystem::path const&  path_to_client_, std::filesystem::path const&  output_dir_);
     void  stop();
 
     bool  is_started() const { return started; }

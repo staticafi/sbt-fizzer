@@ -118,7 +118,8 @@ void run(int argc, char* argv[])
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
             };
 
-    fuzzing::recorder().start(output_dir);
+    if (get_program_options()->has("progress_recording"))
+        fuzzing::recorder().start(get_program_options()->value("path_to_client"), output_dir);
 
     connection::server server(get_program_options()->value_as_int("port"), get_program_options()->value("path_to_client"));
     try {

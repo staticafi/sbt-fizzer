@@ -9,6 +9,29 @@
 #include <fstream>
 #include <iomanip>
 
+
+static bool  copy_file(
+        std::filesystem::path const&  input_dir,
+        std::string const&  src_file_name,
+        std::string const&  dst_file_name,
+        std::filesystem::path const&  output_dir,
+        bool const  throw_on_failure = true
+        )
+{
+    if (!std::filesystem::is_regular_file(input_dir / src_file_name))
+    {
+        if (throw_on_failure)
+            throw std::runtime_error(
+                        "Cannot copy file '" + (input_dir / src_file_name).string() +
+                        "' to file '" + (output_dir / dst_file_name).string() + "'."
+                        );
+        return false;
+    }
+    std::filesystem::copy_file(input_dir / src_file_name, output_dir / dst_file_name);
+    return true;
+}
+
+
 namespace fuzzing {
 
 
@@ -31,13 +54,25 @@ progress_recorder::progress_recorder()
 {}
 
 
-void  progress_recorder::start(std::filesystem::path const&  output_dir_)
+void  progress_recorder::start(std::filesystem::path const&  path_to_client_, std::filesystem::path const&  output_dir_)
 {
     output_dir = output_dir_ / "progress_recording";
     std::filesystem::remove_all(output_dir);
     std::filesystem::create_directories(output_dir);
     if (!std::filesystem::is_directory(output_dir))
         throw std::runtime_error("Cannot create directory: " + output_dir.string());
+
+    {
+        std::filesystem::path  input_dir{ path_to_client_.parent_path() };
+        std::string  program_name{ path_to_client_.filename().replace_extension("") };
+
+        if (!copy_file(input_dir, program_name + ".i", "source.c", output_dir, false))
+            copy_file(input_dir, program_name + ".c", "source.c", output_dir);
+        copy_file(input_dir, program_name + ".ll", "source.ll", output_dir);
+        copy_file(input_dir, program_name + "_dbg_cond_map.json", "cond_map.json", output_dir);
+        copy_file(input_dir, program_name + "_dbg_br_map.json", "br_map.json", output_dir);
+    }
+
     started = true;
 
     analysis = NONE;
