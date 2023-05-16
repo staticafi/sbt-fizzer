@@ -36,5 +36,5 @@ if __name__ == '__main__':
     if args.no_instrument:
         utils.instrumented_file = utils.file_path
     else:
-        utils.instrument(args.instrument)
+        utils.instrument(args.instrument, save_mapping=args.save_mapping)
     utils.build_client(pass_to_clang_args_str)

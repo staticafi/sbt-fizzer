@@ -148,7 +148,8 @@ class Benchmark:
             self._execute_and_check_output(
                 quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
                     "--output_dir " + quote(self.work_dir) + " " +
-                    quote(self.src_file),
+                    quote(self.src_file) + " "
+                    "--save_mapping",
                 self.ll_file,
                 output_dir
                 )
@@ -156,7 +157,8 @@ class Benchmark:
             self._execute_and_check_output(
                 quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
                     "--output_dir " + quote(self.work_dir) + " " +
-                    quote(self.ll_file),
+                    quote(self.ll_file) + " "
+                    "--save_mapping",
                 self.instrumented_ll_file,
                 output_dir
                 )

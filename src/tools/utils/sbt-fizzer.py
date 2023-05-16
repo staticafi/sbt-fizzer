@@ -17,6 +17,13 @@ def add_base_args(parser):
                         type=Path,
                         default=Path(), 
                         help="Output directory.")
+    parser.add_argument('--save_mapping',
+                        action="store_true", 
+                        help=(
+                        "When specified, then there is also saved "
+                        "mapping of instrumented instruction to the "
+                        "original C code."
+                        ))
 
 def add_instr_args(parser):
     instr_group = parser.add_mutually_exclusive_group()
@@ -61,7 +68,7 @@ class FizzerUtils:
         self.output_dir = output_dir.absolute()
 
 
-    def instrument(self, additional_flags="", timeout=None):
+    def instrument(self, additional_flags="", timeout=None, save_mapping=False):
         if self.file_suffix.lower() == ".c" or self.file_suffix.lower() == ".i":
             self.file_suffix = ".ll"
             out_path = Path(str(self.file_path)[:-2] + self.file_suffix)
@@ -80,7 +87,8 @@ class FizzerUtils:
 
         instrumentation = (str(self.instrumenter_path) +
             " --input " + str(self.file_path) +
-            " --output " + str(self.instrumented_file)
+            " --output " + str(self.instrumented_file) +
+            (" --save_mapping" if save_mapping else "")
             )
 
         instrumentation_output = subprocess.run(
@@ -165,7 +173,7 @@ if __name__ == "__main__":
     else:
         print("Instrumenting target...", flush=True)
         try:
-            utils.instrument(args.instrument, timeout=args.max_seconds)
+            utils.instrument(args.instrument, timeout=args.max_seconds, save_mapping=args.save_mapping)
         except subprocess.TimeoutExpired as e:
             errprint(f"Instrumentation timed out after {e.timeout:.3f} seconds")
             sys.exit(1)
