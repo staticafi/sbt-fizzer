@@ -27,6 +27,29 @@
 #include <fstream>
 
 
+void dump_dbg_mapping(std::map<unsigned int, llvm_instrumenter::instruction_dbg_info> const& mapping, std::string const& type)
+{
+    std::filesystem::path const output_dir{ std::filesystem::path(get_program_options()->value("output")).parent_path() };
+    std::filesystem::path const input_file_name { std::filesystem::path(get_program_options()->value("input")).filename().replace_extension("") };
+    std::filesystem::path pathname = output_dir / (input_file_name.string() + "_dbg_" + type + "_map.json");
+    std::ofstream  ostr(pathname.c_str(), std::ios::binary);
+    ostr << "{";
+    bool started { false }; 
+    for (auto const&  info : mapping) {
+        if (started) ostr << ','; else started = true;
+        ostr << '\n'
+                << '"' << info.first << "\": [ "
+                << info.second.c_line << ", "
+                << info.second.c_column << ", "
+                << info.second.basic_block_id << ", "
+                << info.second.basic_block_shift
+            << " ]"
+                ;
+    }
+    ostr << "\n}\n";
+};
+
+
 void run(int argc, char* argv[])
 {
     if (get_program_options()->has("help"))
@@ -71,8 +94,16 @@ void run(int argc, char* argv[])
     for (auto it = M->begin(); it != M->end(); ++it)
         instrumenter.runOnFunction(*it);
 
-    std::ofstream  ostr(get_program_options()->value("output").c_str(), std::ios::binary);
-    llvm::raw_os_ostream ros(ostr);
-    M->print(ros, 0);
-    ros.flush();
+    {
+        std::ofstream  ostr(get_program_options()->value("output").c_str(), std::ios::binary);
+        llvm::raw_os_ostream ros(ostr);
+        M->print(ros, 0);
+        ros.flush();
+    }
+
+    if (get_program_options()->has("save_mapping"))
+    {
+        dump_dbg_mapping(instrumenter.cond_dbg_info, "cond");
+        dump_dbg_mapping(instrumenter.br_dbg_info, "br");
+    }
 }

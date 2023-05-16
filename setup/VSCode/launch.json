@@ -98,6 +98,7 @@
             "args": [
                 "--input", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs.ll",
                 "--output", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs_instrumented.ll",
+                "--save_mapping"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/dist"

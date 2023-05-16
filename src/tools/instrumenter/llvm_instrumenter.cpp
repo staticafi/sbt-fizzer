@@ -123,7 +123,7 @@ Value *llvm_instrumenter::instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder) 
 }
 
 
-void llvm_instrumenter::instrumentCond(Instruction *inst) {
+void llvm_instrumenter::instrumentCond(Instruction *inst, unsigned int const bb_shift) {
     if (!inst->getNextNode()) {
         return;
     }
@@ -141,21 +141,45 @@ void llvm_instrumenter::instrumentCond(Instruction *inst) {
     } else {
         return;
     }
-    
+
     Value *location = ConstantInt::get(Int32Ty, ++condCounter);
     Value *cond = inst;
 
     builder.CreateCall(processCondFunc,
                 {location, cond, distance});
+
+    DILocation const * const dbg_location = inst->getDebugLoc();
+    if (dbg_location != nullptr)
+        cond_dbg_info.insert({
+            condCounter,
+            {
+                dbg_location->getLine(),
+                dbg_location->getColumn(),
+                basicBlockCounter,
+                bb_shift
+            }
+        });
 }
 
-void llvm_instrumenter::instrumentCondBr(BranchInst *brInst) {
+void llvm_instrumenter::instrumentCondBr(BranchInst *brInst, unsigned int const bb_shift) {
     IRBuilder<> builder(brInst);
     
     Value *location = ConstantInt::get(Int32Ty, basicBlockCounter);
     Value *cond = brInst->getCondition();
 
     builder.CreateCall(processCondBrFunc, {location, cond});
+
+    DILocation const * const dbg_location = brInst->getDebugLoc();
+    if (dbg_location != nullptr)
+        br_dbg_info.insert({
+            condCounter,
+            {
+                dbg_location->getLine(),
+                dbg_location->getColumn(),
+                basicBlockCounter,
+                bb_shift
+            }
+        });
 }
 
 void llvm_instrumenter::replaceCalls(
@@ -228,9 +252,12 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         ++basicBlockCounter;
         BB.setName("bb" + std::to_string(basicBlockCounter));
 
+        unsigned int shift = 0U;
+
         for (Instruction &I: BB) {
+            ++shift;
             if (I.getType() == Int1Ty) {
-                instrumentCond(&I);
+                instrumentCond(&I, shift);
             }
         }
 
@@ -238,7 +265,7 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-        instrumentCondBr(brInst);
+        instrumentCondBr(brInst, shift);
     }
     return true;
 }

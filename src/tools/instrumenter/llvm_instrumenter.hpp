@@ -18,6 +18,7 @@
 #   include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #   include <llvm/Pass.h>
 #   include <algorithm>
+#   include <map>
 
 
 struct llvm_instrumenter {
@@ -46,6 +47,16 @@ struct llvm_instrumenter {
     unsigned int condCounter;
     unsigned int callSiteCounter;
 
+    struct instruction_dbg_info {
+        unsigned int  c_line { 0U };
+        unsigned int  c_column { 0U };
+        unsigned int  basic_block_id { 0U };
+        unsigned int  basic_block_shift { 0U };
+    };
+
+    std::map<unsigned int, instruction_dbg_info>  cond_dbg_info;
+    std::map<unsigned int, instruction_dbg_info>  br_dbg_info;
+
     void replaceCalls(
         llvm::Function &F, 
         std::unordered_map<std::string, llvm::FunctionCallee> replacements
@@ -57,8 +68,8 @@ struct llvm_instrumenter {
 
     void printErrCond(llvm::Value *cond);
 
-    void instrumentCondBr(llvm::BranchInst *brInst);
-    void instrumentCond(llvm::Instruction *inst);
+    void instrumentCondBr(llvm::BranchInst *brInst, unsigned int bb_shift);
+    void instrumentCond(llvm::Instruction *inst, unsigned int bb_shift);
     llvm::Value *instrumentCmp(llvm::CmpInst *cmpInst, llvm::IRBuilder<> &builder);
     llvm::Value *instrumentIcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
                           llvm::IRBuilder<> &builder);
