@@ -253,6 +253,7 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         BB.setName("bb" + std::to_string(basicBlockCounter));
 
         unsigned int shift = 0U;
+        unsigned int const  bb_orig_size = (unsigned int)BB.size();
 
         for (Instruction &I: BB) {
             ++shift;
@@ -265,7 +266,7 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-        instrumentCondBr(brInst, shift);
+        instrumentCondBr(brInst, bb_orig_size);
     }
     return true;
 }
