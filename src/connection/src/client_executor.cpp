@@ -19,7 +19,14 @@ client_executor::client_executor(int keep_alive, std::string client_invocation, 
     main_excptr(server.client_executor_excptr)
 {}
 
-
+/* The implementation of the client executor is not optimal, as it waits for
+the client to connect before executing another one (wasting a lot of precious
+time). There is a better solution using boost process in combination with 
+boost asio. It includes using exit handlers with the boost::process::child class
+to re-execute the process whenever it finishes. Unfortunately, there are issues
+with invalid writes using the exit handlers, as described here:
+https://github.com/boostorg/process/pull/175 
+The implementation will be improved once we upgrade to Boost 1.82.*/
 void client_executor::start() {
     using namespace std::chrono_literals;
     thread = std::thread(

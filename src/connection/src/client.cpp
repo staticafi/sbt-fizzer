@@ -43,7 +43,6 @@ void client::receive_input() {
     connection_to_server->receive_message(input);
     client_configuration config;
     config.load(input);
-    executor.shared_memory.remove();
     executor.timeout_ms = config.timeout_ms;
     executor.init_shared_memory(config.required_shared_memory_size);
 
@@ -56,6 +55,8 @@ void client::execute_program_and_send_results() {
 
     message results;
     executor.shared_memory.save(results);
+    /* Clean up the shared memory segment. Does not really make sense when 
+    fuzzing on the same computer, but that is what the direct mode is for. */
     executor.shared_memory.remove();
     connection_to_server->send_message(results);
 }
