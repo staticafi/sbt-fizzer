@@ -15,7 +15,6 @@ the wrapper is a workaround for this issue */
 template <typename Rep, typename Period>
 static bool wait_for_wrapper(bp::child& process, const std::chrono::duration<Rep, Period>& rel_time) {
     if (process.running()) {
-        // it is possible the process finishes in this instant, but unlikely
         return process.wait_for(rel_time);
     }
     return true;
