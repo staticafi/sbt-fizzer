@@ -29,4 +29,8 @@ if __name__ == '__main__':
     pass_to_instr_args_str = " ".join(instr_args)
 
     utils = fizzer.FizzerUtils(args.target_file, args.output_dir)
-    utils.instrument(pass_to_instr_args_str, save_mapping=args.save_mapping)
+    utils.instrument(
+        pass_to_instr_args_str,
+        save_mapping=args.save_mapping,
+        suppress_all_warnings=args.suppress_all_warnings
+        )

@@ -24,6 +24,12 @@ def add_base_args(parser):
                         "mapping of instrumented instruction to the "
                         "original C code."
                         ))
+    parser.add_argument('--suppress_all_warnings',
+                        action="store_true", 
+                        help=(
+                        "When specified, then Clang compiler won't "
+                        "generate any warning for the compiled C code."
+                        ))
 
 def add_instr_args(parser):
     instr_group = parser.add_mutually_exclusive_group()
@@ -68,12 +74,13 @@ class FizzerUtils:
         self.output_dir = output_dir.absolute()
 
 
-    def instrument(self, additional_flags="", timeout=None, save_mapping=False):
+    def instrument(self, additional_flags="", timeout=None, save_mapping=False, suppress_all_warnings=False):
         if self.file_suffix.lower() == ".c" or self.file_suffix.lower() == ".i":
             self.file_suffix = ".ll"
             out_path = Path(str(self.file_path)[:-2] + self.file_suffix)
+            warning_suppression = "-Wno-everything " if suppress_all_warnings is True else ""
             compile_output = subprocess.run(
-                shlex.split("clang -g -S -emit-llvm " + str(self.file_path) + " -o " + str(out_path)), timeout=timeout
+                shlex.split("clang -g -S -emit-llvm " + warning_suppression + str(self.file_path) + " -o " + str(out_path)), timeout=timeout
             )
             if compile_output.returncode:
                 errprint("Compilation of the C file has failed")

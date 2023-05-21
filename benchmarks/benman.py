@@ -149,7 +149,8 @@ class Benchmark:
                 quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
                     "--output_dir " + quote(self.work_dir) + " " +
                     quote(self.src_file) + " "
-                    "--save_mapping",
+                    "--save_mapping " +
+                    "--suppress_all_warnings",
                 self.ll_file,
                 output_dir
                 )
