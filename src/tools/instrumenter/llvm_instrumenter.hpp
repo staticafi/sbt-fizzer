@@ -18,7 +18,8 @@
 #   include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #   include <llvm/Pass.h>
 #   include <algorithm>
-#   include <map>
+#   include <unordered_map>
+#   include <vector>
 
 
 struct llvm_instrumenter {
@@ -47,15 +48,27 @@ struct llvm_instrumenter {
     unsigned int condCounter;
     unsigned int callSiteCounter;
 
-    struct instruction_dbg_info {
-        unsigned int  c_line { 0U };
-        unsigned int  c_column { 0U };
-        unsigned int  basic_block_id { 0U };
-        unsigned int  basic_block_shift { 0U };
+    struct basic_block_dbg_info {
+        static int constexpr invalid_depth = std::numeric_limits<int>::max();
+        unsigned int id { 0U };
+        llvm::DILocation const *info { nullptr };
+        int depth { invalid_depth };
     };
 
-    std::map<unsigned int, instruction_dbg_info>  cond_dbg_info;
-    std::map<unsigned int, instruction_dbg_info>  br_dbg_info;
+    using basic_block_dbg_info_map = std::unordered_map<llvm::BasicBlock const*, basic_block_dbg_info>;
+
+    basic_block_dbg_info_map basicBlockDbgInfo;
+
+    struct instruction_dbg_info {
+        llvm::Instruction const *instruction { nullptr };
+        unsigned int id { 0U };
+        unsigned int shift { 0U };
+    };
+
+    using instruction_dbg_info_vector = std::vector<instruction_dbg_info>;
+
+    instruction_dbg_info_vector condInstrDbgInfo;
+    instruction_dbg_info_vector brInstrDbgInfo;
 
     void replaceCalls(
         llvm::Function &F, 
@@ -68,13 +81,15 @@ struct llvm_instrumenter {
 
     void printErrCond(llvm::Value *cond);
 
-    void instrumentCondBr(llvm::BranchInst *brInst, unsigned int bb_shift);
-    void instrumentCond(llvm::Instruction *inst, unsigned int bb_shift);
+    void instrumentCondBr(llvm::BranchInst *brInst);
+    bool instrumentCond(llvm::Instruction *inst);
     llvm::Value *instrumentCmp(llvm::CmpInst *cmpInst, llvm::IRBuilder<> &builder);
     llvm::Value *instrumentIcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
                           llvm::IRBuilder<> &builder);
     llvm::Value *instrumentFcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
                           llvm::IRBuilder<> &builder);
+
+    void propagateMissingBasicBlockDbgInfo();
 };
 
 

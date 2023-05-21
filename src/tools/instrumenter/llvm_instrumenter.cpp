@@ -6,6 +6,7 @@
 #   pragma warning(disable:4146) // LLVM: warning C4146: unary minus operator applied to unsigned type, result still unsigned
 #endif
 #include <algorithm>
+#include <unordered_set>
 
 using namespace llvm;
 
@@ -123,9 +124,9 @@ Value *llvm_instrumenter::instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder) 
 }
 
 
-void llvm_instrumenter::instrumentCond(Instruction *inst, unsigned int const bb_shift) {
+bool llvm_instrumenter::instrumentCond(Instruction *inst) {
     if (!inst->getNextNode()) {
-        return;
+        return false;
     }
     IRBuilder<> builder(inst->getNextNode());
 
@@ -139,7 +140,7 @@ void llvm_instrumenter::instrumentCond(Instruction *inst, unsigned int const bb_
     } else if (dyn_cast<CallInst>(inst)) {
         distance = ConstantFP::get(DoubleTy, 1);
     } else {
-        return;
+        return false;
     }
 
     Value *location = ConstantInt::get(Int32Ty, ++condCounter);
@@ -148,38 +149,16 @@ void llvm_instrumenter::instrumentCond(Instruction *inst, unsigned int const bb_
     builder.CreateCall(processCondFunc,
                 {location, cond, distance});
 
-    DILocation const * const dbg_location = inst->getDebugLoc();
-    if (dbg_location != nullptr)
-        cond_dbg_info.insert({
-            condCounter,
-            {
-                dbg_location->getLine(),
-                dbg_location->getColumn(),
-                basicBlockCounter,
-                bb_shift
-            }
-        });
+    return true;
 }
 
-void llvm_instrumenter::instrumentCondBr(BranchInst *brInst, unsigned int const bb_shift) {
+void llvm_instrumenter::instrumentCondBr(BranchInst *brInst) {
     IRBuilder<> builder(brInst);
     
     Value *location = ConstantInt::get(Int32Ty, basicBlockCounter);
     Value *cond = brInst->getCondition();
 
     builder.CreateCall(processCondBrFunc, {location, cond});
-
-    DILocation const * const dbg_location = brInst->getDebugLoc();
-    if (dbg_location != nullptr)
-        br_dbg_info.insert({
-            condCounter,
-            {
-                dbg_location->getLine(),
-                dbg_location->getColumn(),
-                basicBlockCounter,
-                bb_shift
-            }
-        });
 }
 
 void llvm_instrumenter::replaceCalls(
@@ -252,13 +231,21 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         ++basicBlockCounter;
         BB.setName("bb" + std::to_string(basicBlockCounter));
 
-        unsigned int shift = 0U;
-        unsigned int const  bb_orig_size = (unsigned int)BB.size();
+        basic_block_dbg_info& bbDbgInfo = basicBlockDbgInfo[&BB];
+        bbDbgInfo.id = basicBlockCounter;
+
+        unsigned int dbgShift = 0U;
 
         for (Instruction &I: BB) {
-            ++shift;
+            if (bbDbgInfo.info == nullptr) {
+                bbDbgInfo.info = I.getDebugLoc();
+                if (bbDbgInfo.info != nullptr)
+                    bbDbgInfo.depth = 0;
+            }
+            ++dbgShift;
             if (I.getType() == Int1Ty) {
-                instrumentCond(&I, shift);
+                if (instrumentCond(&I))
+                    condInstrDbgInfo.push_back({ &I, condCounter, dbgShift });
             }
         }
 
@@ -266,7 +253,87 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         if (!brInst || !brInst->isConditional()) {
             continue;
         }
-        instrumentCondBr(brInst, bb_orig_size);
+        instrumentCondBr(brInst);
+        brInstrDbgInfo.push_back({ brInst, basicBlockCounter, (unsigned int)BB.size() });
     }
     return true;
 }
+
+
+void llvm_instrumenter::propagateMissingBasicBlockDbgInfo()
+{
+    struct local
+    {
+        using key_type = std::pair<llvm::DILocation const*, int>;
+
+        static bool less_than(key_type const& key0, key_type const& key1)
+        {
+            if (key0.first != nullptr && key1.first == nullptr)
+                return true;
+            if (key0.first == nullptr)
+                return false;
+
+            if (key0.second < key1.second)
+                return true;
+            if (key0.second != key1.second)
+                return false;
+
+            if (key0.first->getLine() < key1.first->getLine())
+                return true;
+            if (key0.first->getLine() != key1.first->getLine())
+                return false;
+
+            if (key0.first->getColumn() < key1.first->getColumn())
+                return true;
+            return false;
+        }
+
+        static void compute_basic_block_dbg_info(
+            llvm::BasicBlock const* const bb,
+            llvm_instrumenter::basic_block_dbg_info_map& bbInfo,
+            std::unordered_set<llvm::BasicBlock const*>& visited
+            )
+        {
+            llvm_instrumenter::basic_block_dbg_info& info = bbInfo.at(bb); 
+            if (info.depth != basic_block_dbg_info::invalid_depth)
+                return;
+
+            if (visited.contains(bb))
+            {
+                info.depth = 0;
+                return;
+            }
+
+            visited.insert(bb);
+
+            llvm::BranchInst const* const brInstr = llvm::dyn_cast<llvm::BranchInst>(bb->getTerminator());
+            if (brInstr == nullptr)
+            {
+                info.depth = 0;
+                return;
+            }
+
+            local::key_type best { info.info, info.depth };
+            for (unsigned int i = 0; i < brInstr->getNumSuccessors(); ++i) {
+                compute_basic_block_dbg_info(brInstr->getSuccessor(i), bbInfo, visited);
+                llvm_instrumenter::basic_block_dbg_info& succ_info = bbInfo.at(brInstr->getSuccessor(i)); 
+                local::key_type const succ_key{ succ_info.info, succ_info.depth + 1 };
+                if (local::less_than(succ_key, best))
+                    best = succ_key;
+            }
+
+            info.info = best.first;
+            info.depth = best.second;
+        }
+    };
+
+    std::unordered_set<llvm::BasicBlock const*> visited{};
+
+    for (auto const&  info : condInstrDbgInfo)
+        if (info.instruction->getDebugLoc().get() == nullptr)
+            local::compute_basic_block_dbg_info(info.instruction->getParent(), basicBlockDbgInfo, visited);
+    for (auto const&  info : brInstrDbgInfo)
+        if (info.instruction->getDebugLoc().get() == nullptr)
+            local::compute_basic_block_dbg_info(info.instruction->getParent(), basicBlockDbgInfo, visited);
+}
+

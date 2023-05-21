@@ -27,7 +27,11 @@
 #include <fstream>
 
 
-void dump_dbg_mapping(std::map<unsigned int, llvm_instrumenter::instruction_dbg_info> const& mapping, std::string const& type)
+void dump_dbg_mapping(
+        llvm_instrumenter::instruction_dbg_info_vector const& mapping,
+        llvm_instrumenter::basic_block_dbg_info_map const& bbInfo,
+        std::string const& type
+        )
 {
     std::filesystem::path const output_dir{ std::filesystem::path(get_program_options()->value("output")).parent_path() };
     std::filesystem::path const input_file_name { std::filesystem::path(get_program_options()->value("input")).filename().replace_extension("") };
@@ -37,17 +41,25 @@ void dump_dbg_mapping(std::map<unsigned int, llvm_instrumenter::instruction_dbg_
     bool started { false }; 
     for (auto const&  info : mapping) {
         if (started) ostr << ','; else started = true;
+        llvm::DILocation const *dbgLoc = info.instruction->getDebugLoc();
+        if (dbgLoc == nullptr)
+            dbgLoc = bbInfo.at(info.instruction->getParent()).info;
+        if (dbgLoc == nullptr)
+        {
+            std::cerr << "Retrieval of debug information for the instruction #" << info.id << "has FAILED!\n";
+            continue;
+        }
         ostr << '\n'
-                << '"' << info.first << "\": [ "
-                << info.second.c_line << ", "
-                << info.second.c_column << ", "
-                << info.second.basic_block_id << ", "
-                << info.second.basic_block_shift
+                << '"' << info.id << "\": [ "
+                << dbgLoc->getLine() << ", "
+                << dbgLoc->getColumn() << ", "
+                << bbInfo.at(info.instruction->getParent()).id << ", "
+                << info.shift
             << " ]"
                 ;
     }
     ostr << "\n}\n";
-};
+}
 
 
 void run(int argc, char* argv[])
@@ -103,7 +115,8 @@ void run(int argc, char* argv[])
 
     if (get_program_options()->has("save_mapping"))
     {
-        dump_dbg_mapping(instrumenter.cond_dbg_info, "cond");
-        dump_dbg_mapping(instrumenter.br_dbg_info, "br");
+        instrumenter.propagateMissingBasicBlockDbgInfo();
+        dump_dbg_mapping(instrumenter.condInstrDbgInfo, instrumenter.basicBlockDbgInfo, "cond");
+        dump_dbg_mapping(instrumenter.brInstrDbgInfo, instrumenter.basicBlockDbgInfo, "br");
     }
 }

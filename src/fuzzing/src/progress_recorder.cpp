@@ -68,7 +68,7 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
 
         if (!copy_file(input_dir, program_name + ".i", "source.c", output_dir, false))
             copy_file(input_dir, program_name + ".c", "source.c", output_dir);
-        copy_file(input_dir, program_name + ".ll", "source.ll", output_dir);
+        copy_file(input_dir, program_name + "_instrumented.ll", "source.ll", output_dir);
         copy_file(input_dir, program_name + "_dbg_cond_map.json", "cond_map.json", output_dir);
         copy_file(input_dir, program_name + "_dbg_br_map.json", "br_map.json", output_dir);
     }
