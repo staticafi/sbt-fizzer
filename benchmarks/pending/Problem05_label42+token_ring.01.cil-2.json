@@ -17,7 +17,6 @@
         "termination_type": "NORMAL",
         "termination_reason": "TIME_BUDGET_DEPLETED",
         "num_executions": 1553,
-        "num_elapsed_seconds": 30,
         "num_covered_branchings": 6,
         "covered_branchings": [
             17647,2027815770,    17650,3668346392,    17651,3668346392,    17652,3668346392,    
