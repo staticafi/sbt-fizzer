@@ -25,7 +25,7 @@ program_options::program_options(int argc, char* argv[])
     add_value("max_stdin_bytes", std::to_string(io_cfg.max_stdin_bytes));
 
     add_option("max_exec_milliseconds", "Max number of milliseconds for benchmark execution.", "1");
-    add_value("max_exec_milliseconds", "500");
+    add_value("max_exec_milliseconds", std::to_string(io_cfg.max_exec_milliseconds));
 
     add_option("max_exec_megabytes", "Max number of mega bytes which can be allocated during benchmark execution.", "1");
     add_value("max_exec_megabytes", std::to_string(io_cfg.max_exec_megabytes));
