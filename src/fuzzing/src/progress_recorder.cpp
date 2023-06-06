@@ -65,7 +65,7 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
 
     {
         std::filesystem::path  input_dir{ path_to_client_.parent_path() };
-        std::string  program_name{ path_to_client_.filename().replace_extension("") };
+        std::string  program_name{ path_to_client_.filename().replace_extension("").string() };
 
         if (!copy_file(input_dir, program_name + ".i", "source.c", output_dir, false))
             copy_file(input_dir, program_name + ".c", "source.c", output_dir);
