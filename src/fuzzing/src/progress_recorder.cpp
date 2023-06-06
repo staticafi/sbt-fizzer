@@ -258,7 +258,7 @@ void  progress_recorder::on_execution_results_available()
         ostr << '\n';
         ostr << trace.at(i).id.id << ',' << trace.at(i).id.context_hash << ','
              << (trace.at(i).direction ? 1 : 0) << ','
-             << trace.at(i).value;
+             << std::setprecision(std::numeric_limits<double>::digits10 + 1) << trace.at(i).value;
         if (i + 1 < n) ostr << ',';
     }
 
