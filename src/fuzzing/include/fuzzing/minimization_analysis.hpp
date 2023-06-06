@@ -7,7 +7,7 @@
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <vector>
-#   include <unordered_set>
+#   include <unordered_map>
 
 namespace  fuzzing {
 
@@ -59,6 +59,7 @@ struct  minimization_analysis
         , bit_translation{}
         , seeds{}
         , descent{}
+        , computed_input_stdin{}
         , hashes_of_generated_bits{}
         , random_generator{}
         , stoped_early{ false }
@@ -80,6 +81,8 @@ struct  minimization_analysis
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
+    void  process_execution_results(branching_function_value_type  last_stdin_value);
+    bool  apply_fast_execution_using_cache();
 
     STATE  state;
     branching_node*  node;
@@ -88,7 +91,8 @@ private:
     vecu32  bit_translation;
     std::vector<vecb>  seeds;
     gradient_descent_state  descent;
-    std::unordered_set<std::size_t> hashes_of_generated_bits;
+    vecb  computed_input_stdin;
+    std::unordered_map<std::size_t, branching_function_value_type> hashes_of_generated_bits;
     random_generator_for_natural_32_bit  random_generator;
     bool stoped_early;
 

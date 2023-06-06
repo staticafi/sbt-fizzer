@@ -50,6 +50,7 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
 
     stoped_early = false;
     descent = {};
+    computed_input_stdin.clear();
     hashes_of_generated_bits.clear();
 
     ++statistics.start_calls;
@@ -88,7 +89,7 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    vecb  computed_input_stdin;
+    computed_input_stdin.clear();
 
     while (true)
     {
@@ -101,17 +102,6 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
             }
 
             INVARIANT(seeds.back().size() == bit_translation.size());
-
-            if (hashes_of_generated_bits.contains(make_hash(seeds.back())))
-            {
-                seeds.pop_back();
-
-                ++statistics.seeds_processed;
-                ++statistics.suppressed_repetitions;
-
-                continue;
-            }
-            hashes_of_generated_bits.insert(make_hash(seeds.back()));
 
             recorder().on_minimization_stage_changed(descent.stage);
 
@@ -129,7 +119,8 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
 
             ++statistics.seeds_processed;
 
-            break;
+            if (!apply_fast_execution_using_cache())
+                break;
         }
         else if (descent.stage == gradient_descent_state::EXECUTE_SEED)
         {
@@ -137,16 +128,6 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else if (descent.stage == gradient_descent_state::STEP)
         {
-            if (hashes_of_generated_bits.contains(make_hash(descent.bits)))
-            {
-                descent.stage = gradient_descent_state::TAKE_NEXT_SEED;
-
-                ++statistics.suppressed_repetitions;
-
-                continue;
-            }
-            hashes_of_generated_bits.insert(make_hash(descent.bits));
-
             recorder().on_minimization_stage_changed(descent.stage);
 
             descent.stage = gradient_descent_state::PARTIALS;
@@ -161,7 +142,9 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
             {
                 computed_input_stdin = descent.bits;
                 computed_input_stdin.at(descent.partials.size()) = !computed_input_stdin.at(descent.partials.size());
-                break;
+
+                if (!apply_fast_execution_using_cache())
+                    break;
             }
             else
             {
@@ -196,7 +179,9 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
                     natural_16_bit const  k = at(descent.bit_order, i);
                     computed_input_stdin.at(k) = !computed_input_stdin.at(k);
                 }
-                break;
+    
+                if (!apply_fast_execution_using_cache())
+                    break;
             }
             else
             {
@@ -249,6 +234,14 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
             last_stdin_value = std::fabs(it->value);
     }
 
+    hashes_of_generated_bits.insert({ make_hash(computed_input_stdin), last_stdin_value });
+
+    process_execution_results(last_stdin_value);
+}
+
+
+void  minimization_analysis::process_execution_results(branching_function_value_type const  last_stdin_value)
+{
     if (descent.stage == gradient_descent_state::EXECUTE_SEED)
     {
         descent.value = last_stdin_value;
@@ -268,6 +261,21 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
         descent.partials_extended.push_back(last_stdin_value);
     }
     else { UNREACHABLE(); }
+}
+
+
+bool  minimization_analysis::apply_fast_execution_using_cache()
+{
+    auto const  hash_it = hashes_of_generated_bits.find(make_hash(computed_input_stdin));
+    if (hash_it == hashes_of_generated_bits.end())
+        return false;
+
+    process_execution_results(hash_it->second);
+    computed_input_stdin.clear();
+
+    ++statistics.suppressed_repetitions;
+
+    return true;
 }
 
 
