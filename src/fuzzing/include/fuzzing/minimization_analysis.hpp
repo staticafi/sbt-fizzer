@@ -20,6 +20,25 @@ struct  minimization_analysis
         BUSY
     };
 
+    struct  gradient_descent_state
+    {
+        enum STAGE {
+            TAKE_NEXT_SEED,
+            EXECUTE_SEED,
+            STEP,
+            PARTIALS,
+            PARTIALS_EXTENDED,
+        };
+        
+        STAGE  stage { TAKE_NEXT_SEED };
+        vecb  bits;
+        branching_function_value_type  value;
+        vecf64  partials;
+        vecf64  partials_extended;
+        vecf64  bit_max_changes;
+        vecu16  bit_order;
+    };
+
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
@@ -61,25 +80,6 @@ struct  minimization_analysis
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
-
-    struct  gradient_descent_state
-    {
-        enum STAGE {
-            TAKE_NEXT_SEED,
-            EXECUTE_SEED,
-            STEP,
-            PARTIALS,
-            PARTIALS_EXTENDED,
-        };
-        
-        STAGE  stage { TAKE_NEXT_SEED };
-        vecb  bits;
-        branching_function_value_type  value;
-        vecf64  partials;
-        vecf64  partials_extended;
-        vecf64  bit_max_changes;
-        vecu16  bit_order;
-    };
 
     STATE  state;
     branching_node*  node;

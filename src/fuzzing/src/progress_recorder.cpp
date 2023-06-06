@@ -48,15 +48,18 @@ progress_recorder::progress_recorder()
     , output_dir{}
 
     , analysis{ NONE }
+    , sensitivity{}
+    , minimization{}
+    , bitshare{}
     , counter_analysis{ 1 }
     , counter_results{ 0 }
-    , node{ nullptr }
-    , node_saved{ false }
 {}
 
 
 void  progress_recorder::start(std::filesystem::path const&  path_to_client_, std::filesystem::path const&  output_dir_)
 {
+    ASSUMPTION(!is_started());
+
     output_dir = output_dir_ / "progress_recording";
     std::filesystem::remove_all(output_dir);
     std::filesystem::create_directories(output_dir);
@@ -77,10 +80,12 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     started = true;
 
     analysis = NONE;
+    sensitivity = {};
+    minimization = {};
+    bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
-    node = nullptr;
-    node_saved = false;
+    num_bytes = 0;
 }
 
 
@@ -90,13 +95,83 @@ void  progress_recorder::stop()
     output_dir.clear();
  
     analysis = NONE;
+    sensitivity = {};
+    minimization = {};
+    bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
-    node = nullptr;
+    num_bytes = 0;
 }
 
 
-void  progress_recorder::on_analysis_start(ANALYSIS const  a, branching_node* const  node_ptr)
+void  progress_recorder::on_sensitivity_start(branching_node* const  node_ptr)
+{
+    if (!is_started())
+        return;
+
+    on_analysis_start(SENSITIVITY, sensitivity, node_ptr);
+}
+
+
+void  progress_recorder::on_sensitivity_stop()
+{
+    if (!is_started())
+        return;
+
+    //save_sensitive_bits();
+    sensitivity.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation)
+{
+    if (!is_started())
+        return;
+
+    on_analysis_start(MINIMIZATION, minimization, node_ptr);
+    minimization.bit_translation = bit_translation;
+}
+
+void  progress_recorder::on_minimization_stage_changed(minimization_analysis::gradient_descent_state::STAGE  stage)
+{
+    if (!is_started())
+        return;
+
+    minimization.stage_changes.push_back({ counter_results, stage });
+}
+
+
+void  progress_recorder::on_minimization_stop()
+{
+    if (!is_started())
+        return;
+
+    minimization.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_bitshare_start(branching_node* const  node_ptr)
+{
+    if (!is_started())
+        return;
+
+    on_analysis_start(BITSHARE, bitshare, node_ptr);
+}
+
+
+void  progress_recorder::on_bitshare_stop()
+{
+    if (!is_started())
+        return;
+
+    bitshare.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_info&  info, branching_node* const  node_ptr)
 {
     if (!is_started())
         return;
@@ -108,48 +183,21 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, branching_node* co
         ++counter_analysis;
     counter_results = 0;
     num_bytes = 0;
-    node = node_ptr;
+
+    info.node = node_ptr;
+    info.analysis_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
 }
 
 
 void  progress_recorder::on_analysis_stop()
 {
-    analysis = NONE;
-    node = nullptr;
-    node_saved = false;
-}
-
-
-void  progress_recorder::save_sensitive_bits()
-{
-    if (!is_started())
+    if (!is_started() || analysis == NONE)
         return;
 
-    ASSUMPTION(analysis == SENSITIVITY && node != nullptr);
-
-    std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
-    if (!std::filesystem::is_directory(record_dir))
-        throw std::runtime_error("The directory of the analysis does not exist: " + record_dir.string());
-
-    std::filesystem::path const  bits_pathname = record_dir / "sensitive_bits.json";
-    std::ofstream  ostr(bits_pathname.c_str(), std::ios::binary);
-    if (!ostr.is_open())
-        throw std::runtime_error("Cannot open file for writing: " + bits_pathname.string());
-
-    std::vector<branching_node*>  nodes;
-    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
-        nodes.push_back(n);
-    std::reverse(nodes.begin(), nodes.end());
-
-    ostr << "[\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)nodes.size(); i < end; ++i)
-    {
-        branching_node* const  n = nodes.at(i);
-        ostr << n->sensitive_stdin_bits.size();
-        if (i + 1 < end) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "]\n";
+    analysis = NONE;
+    sensitivity = {};
+    minimization = {};
+    bitshare = {};
 }
 
 
@@ -172,29 +220,6 @@ void  progress_recorder::on_execution_results_available()
     std::filesystem::create_directories(record_dir);
     if (!std::filesystem::is_directory(record_dir))
         throw std::runtime_error("Cannot create directory: " + record_dir.string());
-
-    if (node != nullptr && !node_saved)
-    {
-        std::vector<branching_location_and_direction>  path;
-        for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
-            path.push_back({ n->id, n->successor_direction(s) });
-        std::reverse(path.begin(), path.end());
-
-        std::filesystem::path const  node_pathname = record_dir / "node.json";
-        std::ofstream  ostr(node_pathname.c_str(), std::ios::binary);
-        if (!ostr.is_open())
-            throw std::runtime_error("Cannot open file for writing: " + node_pathname.string());
-        ostr << "[\n";
-        for (natural_32_bit  i = 0U, n = (natural_32_bit)path.size(); i < n; ++i)
-        {
-            ostr << path.at(i).first.id << ',' << path.at(i).first.context_hash << ',' << (path.at(i).second ? 1 : 0);
-            if (i + 1 < n) ostr << ',';
-            ostr << '\n';
-        }
-        ostr << "]\n";
-
-        node_saved = true;
-    }
 
     std::filesystem::path const  record_pathname = record_dir / (std::to_string(counter_results) + ".json");
     std::ofstream  ostr(record_pathname.c_str(), std::ios::binary);
@@ -246,6 +271,107 @@ std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
     static std::string const  names[] { "NONE","SENSITIVITY","MINIMIZATION","BITSHARE" };
     ASSUMPTION((int)a < sizeof(names)/sizeof(names[0]));
     return names[(int)a];
+}
+
+
+void  progress_recorder::analysis_common_info::save() const
+{
+    if (!std::filesystem::is_directory(analysis_dir))
+        return; // No input was generated => the analysis did nothing => no need to save any data.
+
+    std::vector<branching_location_and_direction>  path;
+    for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
+        path.push_back({ n->id, n->successor_direction(s) });
+    std::reverse(path.begin(), path.end());
+
+    std::filesystem::path const  pathname = analysis_dir / "info.json";
+    std::ofstream  ostr(pathname.c_str(), std::ios::binary);
+    if (!ostr.is_open())
+        throw std::runtime_error("Cannot open file for writing: " + pathname.string());
+ 
+    ostr << "{\n";
+
+    {
+        auto const pos_old = ostr.tellp();
+        save_info(ostr);
+        auto const pos_new = ostr.tellp();
+        if (pos_new != pos_old)
+            ostr << ",\n";
+    }
+
+    ostr << "\"node\": [\n";
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)path.size(); i < n; ++i)
+    {
+        ostr << path.at(i).first.id << ',' << path.at(i).first.context_hash << ',' << (path.at(i).second ? 1 : 0);
+        if (i + 1 < n) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "]\n";
+
+    ostr << "}\n";
+}
+
+
+void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ostr) const
+{
+    std::vector<branching_node*>  nodes;
+    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
+        nodes.push_back(n);
+    std::reverse(nodes.begin(), nodes.end());
+
+    ostr << "\"sensitive_bits\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)nodes.size(); i < end; ++i)
+    {
+        branching_node* const  n = nodes.at(i);
+        ostr << '[';
+        bool first = true;
+        std::vector<natural_32_bit>  indices(n->sensitive_stdin_bits.begin(), n->sensitive_stdin_bits.end());
+        std::sort(indices.begin(), indices.end());
+        for (natural_32_bit idx : indices)
+        {
+            if (!first) ostr << ',';
+            ostr << idx;
+            first = false;
+        }
+        ostr << ']';
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "]";
+}
+
+
+void  progress_recorder::minimization_progress_info::save_info(std::ostream&  ostr) const
+{
+    ostr << "\"bit_translation\": [";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)bit_translation.size(); i < end; ++i)
+    {
+        ostr << bit_translation.at(i);
+        if (i + 1 < end) ostr << ',';
+    }
+    ostr << "],\n\"stage_changes\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)stage_changes.size(); i < end; ++i)
+    {
+        ostr << stage_changes.at(i).first << ",\"";
+        switch (stage_changes.at(i).second)
+        {
+            case STAGE::TAKE_NEXT_SEED: ostr << "TAKE_NEXT_SEED"; break;
+            case STAGE::EXECUTE_SEED: ostr << "EXECUTE_SEED"; break;
+            case STAGE::STEP: ostr << "STEP"; break;
+            case STAGE::PARTIALS: ostr << "PARTIALS"; break;
+            case STAGE::PARTIALS_EXTENDED: ostr << "PARTIALS_EXTENDED"; break;
+            default: ostr << "UNKNOWN"; break;
+        }
+        ostr << '"';
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "]";
+}
+
+
+void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) const
+{
 }
 
 
