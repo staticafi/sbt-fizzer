@@ -50,6 +50,7 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
 
     stoped_early = false;
     descent = {};
+    hashes_of_generated_bits.clear();
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bit_translation.size());
@@ -101,6 +102,17 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
 
             INVARIANT(seeds.back().size() == bit_translation.size());
 
+            if (hashes_of_generated_bits.contains(make_hash(seeds.back())))
+            {
+                seeds.pop_back();
+
+                ++statistics.seeds_processed;
+                ++statistics.suppressed_repetitions;
+
+                continue;
+            }
+            hashes_of_generated_bits.insert(make_hash(seeds.back()));
+
             descent.stage = gradient_descent_state::EXECUTE_SEED;
             descent.bits = seeds.back();
             descent.value = std::numeric_limits<branching_function_value_type>::max();
@@ -123,6 +135,16 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else if (descent.stage == gradient_descent_state::STEP)
         {
+            if (hashes_of_generated_bits.contains(make_hash(descent.bits)))
+            {
+                descent.stage = gradient_descent_state::TAKE_NEXT_SEED;
+
+                ++statistics.suppressed_repetitions;
+
+                continue;
+            }
+            hashes_of_generated_bits.insert(make_hash(descent.bits));
+
             descent.stage = gradient_descent_state::PARTIALS;
             descent.partials.clear();
             descent.partials_extended.clear();

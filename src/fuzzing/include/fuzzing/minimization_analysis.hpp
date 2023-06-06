@@ -7,6 +7,7 @@
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <vector>
+#   include <unordered_set>
 
 namespace  fuzzing {
 
@@ -22,6 +23,7 @@ struct  minimization_analysis
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
+        std::size_t  suppressed_repetitions{ 0 };
         std::size_t  max_bits{ 0 };
         std::size_t  seeds_processed{ 0 };
         std::size_t  gradient_steps{ 0 };
@@ -38,6 +40,7 @@ struct  minimization_analysis
         , bit_translation{}
         , seeds{}
         , descent{}
+        , hashes_of_generated_bits{}
         , random_generator{}
         , stoped_early{ false }
         , statistics{}
@@ -85,6 +88,7 @@ private:
     vecu32  bit_translation;
     std::vector<vecb>  seeds;
     gradient_descent_state  descent;
+    std::unordered_set<std::size_t> hashes_of_generated_bits;
     random_generator_for_natural_32_bit  random_generator;
     bool stoped_early;
 
