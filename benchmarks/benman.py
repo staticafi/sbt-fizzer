@@ -5,6 +5,7 @@ import shutil
 import platform
 import argparse
 from typing import Optional
+import subprocess
 
 
 def ASSUMPTION(cond, msg="Unknown."):
@@ -75,8 +76,9 @@ class Benchmark:
 
     def _execute(self, cmdline : str, output_dir : str) -> None:
         self.pushd(output_dir)
-        self.log(cmdline)
-        os.system(cmdline)
+        cmd = [x for x in cmdline if len(x) > 0]
+        self.log(" ".join(cmd))
+        subprocess.run(cmd)
         self.popd()
 
     def _execute_and_check_output(self, cmdline : str, desired_output : str, work_dir : str = None) -> None:
@@ -144,30 +146,38 @@ class Benchmark:
         os.makedirs(output_dir, exist_ok=True)
 
         if not os.path.exists(self.ll_file):
-            # self._execute_and_check_output("clang -g -S -emit-llvm " + quote(self.src_file), self.ll_file)
             self._execute_and_check_output(
-                quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
-                    "--output_dir " + quote(self.work_dir) + " " +
-                    quote(self.src_file) + " "
-                    "--save_mapping " +
-                    "--suppress_all_warnings",
+                [
+                    self.python_binary,
+                    self.llvm_instumenter,
+                    "--output_dir",  self.work_dir,
+                    self.src_file,
+                    "--save_mapping",
+                    "--suppress_all_warnings"
+                ],
                 self.ll_file,
                 output_dir
                 )
         if not os.path.exists(self.instrumented_ll_file):
             self._execute_and_check_output(
-                quote(self.python_binary) + " " + quote(self.llvm_instumenter) + " " +
-                    "--output_dir " + quote(self.work_dir) + " " +
-                    quote(self.ll_file) + " "
-                    "--save_mapping",
+                [
+                    self.python_binary,
+                    self.llvm_instumenter,
+                    "--output_dir", self.work_dir,
+                    self.ll_file,
+                    "--save_mapping"
+                ],
                 self.instrumented_ll_file,
                 output_dir
                 )
         self._execute_and_check_output(
-            quote(self.python_binary) + " " + quote(self.fuzz_target_builder) + " " +
-                "--no_instrument " +
-                "--output_dir " + quote(self.work_dir) + " " +
-                quote(self.instrumented_ll_file),
+            [
+                self.python_binary,
+                self.fuzz_target_builder,
+                "--no_instrument",
+                "--output_dir", self.work_dir,
+                self.instrumented_ll_file
+            ],
             self.fuzz_target_file
             )
         ASSUMPTION(os.path.isfile(self.fuzz_target_file), "build(): the output is missing: " + self.fuzz_target_file)
@@ -202,26 +212,28 @@ class Benchmark:
         self.log("makedirs " + output_dir)
         os.makedirs(output_dir, exist_ok=True)
         kill_clients()
-        cmdline = (quote(self.server) + " " +
-                "--path_to_target " + quote(self.fuzz_target_file) + " " +
-                "--max_executions " + str(config["args"]["max_executions"]) + " " +
-                "--max_seconds " + str(config["args"]["max_seconds"]) + " " +
-                "--max_trace_length " + str(config["args"]["max_trace_length"]) + " " +
-                "--max_stdin_bytes " + str(config["args"]["max_stdin_bytes"]) + " " +
-                "--max_exec_milliseconds " + str(config["args"]["max_exec_milliseconds"]) + " " +
-                "--max_exec_megabytes " + str(config["args"]["max_exec_megabytes"]) + " " +
-                "--stdin_model " + config["args"]["stdin_model"] + " " +
-                "--stdout_model " + config["args"]["stdout_model"] + " " +
-                "--optimizer_max_seconds " + str(config["args"]["optimizer_max_seconds"]) + " " +
-                "--optimizer_max_trace_length " + str(config["args"]["optimizer_max_trace_length"]) + " " +
-                "--optimizer_max_stdin_bytes " + str(config["args"]["optimizer_max_stdin_bytes"]) + " " +
-                "--test_type " + "native" + " " +
-                ("--silent_mode " if self.verbose is False else "") +
+        self._execute(
+            [
+                self.server,
+                "--path_to_target", self.fuzz_target_file,
+                "--max_executions", str(config["args"]["max_executions"]),
+                "--max_seconds", str(config["args"]["max_seconds"]),
+                "--max_trace_length", str(config["args"]["max_trace_length"]),
+                "--max_stdin_bytes", str(config["args"]["max_stdin_bytes"]),
+                "--max_exec_milliseconds", str(config["args"]["max_exec_milliseconds"]),
+                "--max_exec_megabytes", str(config["args"]["max_exec_megabytes"]),
+                "--stdin_model", config["args"]["stdin_model"],
+                "--stdout_model", config["args"]["stdout_model"],
+                "--optimizer_max_seconds", str(config["args"]["optimizer_max_seconds"]),
+                "--optimizer_max_trace_length", str(config["args"]["optimizer_max_trace_length"]),
+                "--optimizer_max_stdin_bytes", str(config["args"]["optimizer_max_stdin_bytes"]),
+                "--test_type", "native",
+                ("--silent_mode" if self.verbose is False else ""),
                 "--port " + str(45654)  + " " +
-                "--output_dir " + quote(output_dir))
-        if self.client:
-            cmdline += " " + "--path_to_client " + quote(self.client)
-        self._execute(cmdline, output_dir)
+                "--output_dir " + quote(output_dir)
+            ],
+            output_dir
+            )
 
         try:
             outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")

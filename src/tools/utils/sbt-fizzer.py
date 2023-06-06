@@ -51,36 +51,43 @@ def add_instr_args(parser):
 
 class FizzerUtils:
     script_dir = Path(__file__).resolve().parent
-    fuzz_target_libraries = " ".join(map( # type: ignore
-        lambda rel_path, script_dir=script_dir: str(script_dir / rel_path), 
+    fuzz_target_libraries = list(map( # type: ignore
+        lambda rel_path, script_dir=script_dir: str((script_dir / rel_path).absolute()).replace("\\", "/"), 
         @FUZZ_TARGET_LIBRARIES_FILES_LIST@ # type: ignore
     ))
     
     fuzz_target_cmake_build_flags = (
                                 "@FUZZ_TARGET_NEEDED_COMPILATION_FLAGS@"
                                 )
-    instrumenter_path = script_dir / "@FIZZER_INSTRUMENTER_FILE@"
-    server_path = script_dir / "@SERVER_FILE@"
-    client_path = script_dir / "@CLIENT_FILE@"
+    instrumenter_path = str((script_dir / "@FIZZER_INSTRUMENTER_FILE@").absolute()).replace("\\", "/")
+    server_path = str((script_dir / "@SERVER_FILE@").absolute()).replace("\\", "/")
+    client_path = str((script_dir / "@CLIENT_FILE@").absolute()).replace("\\", "/")
+
+    def _execute(self, cmdline : list[str], timeout_ : float|None = None) -> subprocess.CompletedProcess[bytes]:
+        cmd = [x for x in cmdline if len(x) > 0]
+        # print("*** CALLING ***\n" + " ".join(cmd) + "\n************\n")
+        return subprocess.run(cmd, timeout=timeout_)
+
 
     def __init__(self, file_path, output_dir):
-        self.file_path = file_path
+        self.file_path = str(file_path).replace("\\", "/")
         file_name = file_path.stem
         if file_name.endswith("_instrumented"):
             self.file_name = file_name[:-len("_instrumented")]
         else:
             self.file_name = file_name
-        self.file_suffix = self.file_path.suffix
-        self.output_dir = output_dir.absolute()
+        self.file_suffix = str(file_path.suffix)
+        self.output_dir = str(output_dir.absolute()).replace("\\", "/")
 
 
     def instrument(self, additional_flags="", timeout=None, save_mapping=False, suppress_all_warnings=False):
         if self.file_suffix.lower() == ".c" or self.file_suffix.lower() == ".i":
             self.file_suffix = ".ll"
-            out_path = Path(str(self.file_path)[:-2] + self.file_suffix)
-            warning_suppression = "-Wno-everything " if suppress_all_warnings is True else ""
-            compile_output = subprocess.run(
-                shlex.split("clang -g -S -emit-llvm " + warning_suppression + str(self.file_path) + " -o " + str(out_path)), timeout=timeout
+            out_path = self.file_path[:-2] + self.file_suffix
+            warning_suppression = "-Wno-everything" if suppress_all_warnings is True else ""
+            compile_output = self._execute(
+                [ "clang", "-g", "-S", "-emit-llvm", warning_suppression, self.file_path, "-o", out_path],
+                timeout
             )
             if compile_output.returncode:
                 errprint("Compilation of the C file has failed")
@@ -88,19 +95,19 @@ class FizzerUtils:
             self.file_path = out_path
     
         instrumented_file_name = self.file_name + "_instrumented.ll"
-        self.instrumented_file = self.output_dir / instrumented_file_name
+        self.instrumented_file = self.output_dir + '/' + instrumented_file_name
     
         assert self.file_suffix == ".ll" or self.file_suffix == ".bc", "A LLVM file is required for the instrumentation."
 
-        instrumentation = (str(self.instrumenter_path) +
-            " --input " + str(self.file_path) +
-            " --output " + str(self.instrumented_file) +
-            (" --save_mapping" if save_mapping else "")
-            )
+        instrumentation = [
+            str(self.instrumenter_path),
+            "--input", str(self.file_path),
+            "--output", str(self.instrumented_file)
+        ]
+        if save_mapping:
+            instrumentation.append("--save_mapping")
 
-        instrumentation_output = subprocess.run(
-            shlex.split(instrumentation), timeout=timeout
-        )
+        instrumentation_output = self._execute(instrumentation, timeout)
         if instrumentation_output.returncode:
             errprint("Instrumentation of file failed")
             sys.exit(1)
@@ -108,16 +115,17 @@ class FizzerUtils:
 
     def build_fuzz_target(self, additional_flags="", timeout=None):
         fuzz_target_file_name = self.file_name + "_sbt-fizzer_target"
-        self.fuzz_target_file = self.output_dir / fuzz_target_file_name
+        self.fuzz_target_file = self.output_dir + '/' + fuzz_target_file_name
 
-        fuzz_target_compilation = "clang++ {0} {1} {2} {3} -o {4}".format(
-            self.fuzz_target_cmake_build_flags, additional_flags, 
-            self.instrumented_file, self.fuzz_target_libraries, self.fuzz_target_file
+        fuzz_target_compilation = (
+            [ "clang++" ] +
+            self.fuzz_target_cmake_build_flags.split() +
+            additional_flags.split() +
+            [ self.instrumented_file ] +
+            self.fuzz_target_libraries +
+            [ "-o", self.fuzz_target_file ]
         )
-
-        compilation_output = subprocess.run(
-            shlex.split(fuzz_target_compilation), timeout=timeout
-        )
+        compilation_output = self._execute(fuzz_target_compilation, timeout)
         if compilation_output.returncode:
             errprint("Compilation of fuzz_target failed")
             sys.exit(1)
@@ -131,7 +139,7 @@ class FizzerUtils:
                 self.fuzz_target_file, self.output_dir
         )
 
-        invocation_output = subprocess.run(shlex.split(server_invocation))
+        invocation_output = self._execute(shlex.split(server_invocation))
         if invocation_output.returncode:
             errprint("Running fuzzing failed")
             sys.exit(1)
