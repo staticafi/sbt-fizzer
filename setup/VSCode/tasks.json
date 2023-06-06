@@ -5,7 +5,10 @@
             "label": "Benman",
             "type": "shell",
             "command": "${command:python.interpreterPath}",
-            "args": [ "${workspaceFolder}/dist/benchmarks/benman.py",
+            "options": {
+                "cwd": "${workspaceFolder}/dist/benchmarks"
+            },
+            "args": [ "${workspaceFolder}/benchmarks/benman.py",
                 // "--verbose",
                 "--clear",
                 "--build",
