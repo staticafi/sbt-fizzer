@@ -64,8 +64,8 @@ void  optimizer::run()
 
             execution_record&  record = outcomes.execution_records.at(i);
 
-            iomodels::iomanager::instance().clear_stdin();
-            iomodels::iomanager::instance().clear_stdout();
+            iomodels::iomanager::instance().get_stdin()->clear();
+            iomodels::iomanager::instance().get_stdout()->clear();
             iomodels::iomanager::instance().get_stdin()->set_bytes(record.stdin_bytes);
 
             try
