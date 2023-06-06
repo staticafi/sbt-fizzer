@@ -58,8 +58,10 @@ class Benchmark:
     def log(self, message : str, brief_message: str = None) -> None:
         if self.verbose:
             print(">>> " + message)
+            sys.stdout.flush()
         elif brief_message is not None:
             print(brief_message, end="")
+            sys.stdout.flush()
 
     def _erase_file_if_exists(self, pathname : str) -> None:
         if os.path.exists(pathname):
@@ -229,8 +231,8 @@ class Benchmark:
                 "--optimizer_max_stdin_bytes", str(config["args"]["optimizer_max_stdin_bytes"]),
                 "--test_type", "native",
                 ("--silent_mode" if self.verbose is False else ""),
-                "--port " + str(45654)  + " " +
-                "--output_dir " + quote(output_dir)
+                "--port", str(45654),
+                "--output_dir", output_dir
             ],
             output_dir
             )
