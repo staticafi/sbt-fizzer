@@ -125,21 +125,67 @@ void  progress_recorder::on_sensitivity_stop()
 }
 
 
-void  progress_recorder::on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation)
+void  progress_recorder::on_minimization_start(
+        branching_node* const  node_ptr,
+        vecu32 const&  bit_translation,
+        stdin_bits_pointer const  bits_ptr
+        )
 {
     if (!is_started())
         return;
 
     on_analysis_start(MINIMIZATION, minimization, node_ptr);
+    minimization.bits_ptr = bits_ptr;
     minimization.bit_translation = bit_translation;
 }
 
-void  progress_recorder::on_minimization_stage_changed(minimization_analysis::gradient_descent_state::STAGE  stage)
+
+void  progress_recorder::on_minimization_execution_results_available(
+        minimization_analysis::gradient_descent_state::STAGE const stage,
+        vecb const&  bits,
+        std::size_t const  bits_hash
+        )
 {
     if (!is_started())
         return;
 
-    minimization.stage_changes.push_back({ counter_results, stage });
+    if (minimization.stage_changes.empty()
+            || stage != minimization.stage_changes.back().stage
+            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
+                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
+        minimization.stage_changes.push_back({ counter_results, 0, stage });
+
+    auto const  ostr_ptr{ save_default_execution_results() };
+    std::ofstream&  ostr{ *ostr_ptr };
+
+    ostr << "\"bits_hash\": " << bits_hash << ",\n"
+         << "\"bits\": [";
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)bits.size(); i < n; ++i)
+    {
+        if (i % 8U == 0U) ostr << '\n';
+        ostr << (bits.at(i) ? 1 : 0);
+        if (i + 1 < n) ostr << ',';
+    }
+
+    ostr << "]\n}\n";
+}
+
+
+void  progress_recorder::on_minimization_execution_results_cache_hit(
+        minimization_analysis::gradient_descent_state::STAGE stage,
+        std::size_t const  bits_hash
+        )
+{
+    if (!is_started())
+        return;
+
+    minimization.execution_cache_hits.push_back({ counter_results, bits_hash });
+
+    if (minimization.stage_changes.empty()
+            || stage != minimization.stage_changes.back().stage
+            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
+                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
+        minimization.stage_changes.push_back({ counter_results, (natural_32_bit)minimization.execution_cache_hits.size(), stage });
 }
 
 
@@ -215,6 +261,26 @@ void  progress_recorder::on_execution_results_available()
     if (!is_started())
         return;
 
+    auto const  ostr_ptr{ save_default_execution_results() };
+    std::ofstream&  ostr{ *ostr_ptr };
+
+    vecu8 const&  bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
+
+    ostr << "\"num_generated_input_bytes\": " << num_bytes << ",\n\"num_obtained_input_bytes\": " << bytes.size() << ",\n"
+         << "\"obtained_input_bytes\": [";
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)bytes.size(); i < n; ++i)
+    {
+        if (i % 16U == 0U) ostr << '\n';
+        ostr << (natural_32_bit)bytes.at(i);
+        if (i + 1 < n) ostr << ',';
+    }
+
+    ostr << "]\n}\n";
+}
+
+
+std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_results()
+{
     ++counter_results;
 
     std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
@@ -223,24 +289,15 @@ void  progress_recorder::on_execution_results_available()
         throw std::runtime_error("Cannot create directory: " + record_dir.string());
 
     std::filesystem::path const  record_pathname = record_dir / (std::to_string(counter_results) + ".json");
-    std::ofstream  ostr(record_pathname.c_str(), std::ios::binary);
-    if (!ostr.is_open())
+    auto  ostr_ptr{ std::make_unique<std::ofstream>(record_pathname.c_str(), std::ios::binary) };
+    if (!ostr_ptr->is_open())
         throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
 
-    vecu8 const&  bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
-
-    ostr << "{\n\"num_generated_input_bytes\": " << num_bytes << ",\n\"num_obtained_input_bytes\": " << bytes.size() << ",\n"
-         << "\"obtained_input_bytes\": [";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)bytes.size(); i < n; ++i)
-    {
-        if (i % 16U == 0U) ostr << '\n';
-        ostr << (natural_32_bit)bytes.at(i);
-        if (i + 1 < n) ostr << ", ";
-    }
-
-    ostr << "],\n";
+    std::ofstream&  ostr{ *ostr_ptr }; 
 
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
+
+    ostr << "{\n";
 
     ostr << "\"trace_termination\": \"";
 
@@ -259,11 +316,13 @@ void  progress_recorder::on_execution_results_available()
         ostr << '\n';
         ostr << trace.at(i).id.id << ',' << trace.at(i).id.context_hash << ','
              << (trace.at(i).direction ? 1 : 0) << ','
-             << std::setprecision(std::numeric_limits<double>::digits10 + 1) << trace.at(i).value;
+             << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << trace.at(i).value;
         if (i + 1 < n) ostr << ',';
     }
 
-    ostr << "]\n}\n";
+    ostr << "],\n";
+
+    return ostr_ptr;
 }
 
 
@@ -350,11 +409,18 @@ void  progress_recorder::minimization_progress_info::save_info(std::ostream&  os
         ostr << bit_translation.at(i);
         if (i + 1 < end) ostr << ',';
     }
+    ostr << "],\n\"all_input_bits\": [";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_ptr->size(); i < end; ++i)
+    {
+        if (i % 8U == 0U) ostr << '\n';
+        ostr << (bits_ptr->at(i) ? '1' : '0');
+        if (i + 1 < end) ostr << ',';
+    }
     ostr << "],\n\"stage_changes\": [\n";
     for (natural_32_bit  i = 0U, end = (natural_32_bit)stage_changes.size(); i < end; ++i)
     {
-        ostr << stage_changes.at(i).first << ",\"";
-        switch (stage_changes.at(i).second)
+        ostr << stage_changes.at(i).trace_index << ',' << stage_changes.at(i).cache_hit_index << ",\"";
+        switch (stage_changes.at(i).stage)
         {
             case STAGE::TAKE_NEXT_SEED: ostr << "TAKE_NEXT_SEED"; break;
             case STAGE::EXECUTE_SEED: ostr << "EXECUTE_SEED"; break;
@@ -364,6 +430,13 @@ void  progress_recorder::minimization_progress_info::save_info(std::ostream&  os
             default: ostr << "UNKNOWN"; break;
         }
         ostr << '"';
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "],\n\"execution_cache_hits\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)execution_cache_hits.size(); i < end; ++i)
+    {
+        ostr << execution_cache_hits.at(i).trace_index << ',' << execution_cache_hits.at(i).bits_hash;
         if (i + 1 < end) ostr << ',';
         ostr << '\n';
     }

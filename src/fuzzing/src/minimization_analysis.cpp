@@ -56,7 +56,7 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bit_translation.size());
 
-    recorder().on_minimization_start(node, bit_translation);
+    recorder().on_minimization_start(node, bit_translation, bits);
 }
 
 
@@ -103,8 +103,6 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
 
             INVARIANT(seeds.back().size() == bit_translation.size());
 
-            recorder().on_minimization_stage_changed(descent.stage);
-
             descent.stage = gradient_descent_state::EXECUTE_SEED;
             descent.bits = seeds.back();
             descent.value = std::numeric_limits<branching_function_value_type>::max();
@@ -128,8 +126,6 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else if (descent.stage == gradient_descent_state::STEP)
         {
-            recorder().on_minimization_stage_changed(descent.stage);
-
             descent.stage = gradient_descent_state::PARTIALS;
             descent.partials.clear();
             descent.partials_extended.clear();
@@ -234,9 +230,12 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
             last_stdin_value = std::fabs(it->value);
     }
 
-    hashes_of_generated_bits.insert({ make_hash(computed_input_stdin), last_stdin_value });
+    std::size_t const  bits_hash{ make_hash(computed_input_stdin) };
+    hashes_of_generated_bits.insert({ bits_hash, last_stdin_value });
 
     process_execution_results(last_stdin_value);
+
+    recorder().on_minimization_execution_results_available(descent.stage, computed_input_stdin, bits_hash);
 }
 
 
@@ -274,6 +273,8 @@ bool  minimization_analysis::apply_fast_execution_using_cache()
     computed_input_stdin.clear();
 
     ++statistics.suppressed_repetitions;
+
+    recorder().on_minimization_execution_results_cache_hit(descent.stage, hash_it->first);
 
     return true;
 }

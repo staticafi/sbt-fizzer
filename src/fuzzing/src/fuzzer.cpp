@@ -236,8 +236,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         return true; // the analyzed program has exactly 1 trace.
     }
 
-    recorder().on_execution_results_available();
-
     vecb stdin_bits;
     bytes_to_bits(iomodels::iomanager::instance().get_stdin()->get_bytes(), stdin_bits);
     stdin_bits_pointer const  bits = std::make_shared<vecb>(stdin_bits);
@@ -367,10 +365,12 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     {
         case STARTUP:
             INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            recorder().on_execution_results_available();
             break;
 
         case SENSITIVITY:
             INVARIANT(sensitivity.is_busy() && minimization.is_ready() && bitshare.is_ready());
+            recorder().on_execution_results_available();
             sensitivity.process_execution_results(trace, entry_branching);
             break;
 
@@ -386,6 +386,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
         case BITSHARE:
             INVARIANT(sensitivity.is_ready() && minimization.is_ready() && bitshare.is_busy());
+            recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
             if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
                 bitshare.stop();

@@ -7,6 +7,7 @@
 #   include <unordered_set>
 #   include <string>
 #   include <filesystem>
+#   include <memory>
 #   include <iosfwd>
 
 namespace  fuzzing {
@@ -24,8 +25,16 @@ struct  progress_recorder
     void  on_sensitivity_start(branching_node* const  node_ptr);
     void  on_sensitivity_stop();
 
-    void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation);
-    void  on_minimization_stage_changed(minimization_analysis::gradient_descent_state::STAGE  stage);
+    void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_pointer  bits_ptr);
+    void  on_minimization_execution_results_available(
+            minimization_analysis::gradient_descent_state::STAGE stage,
+            vecb const&  bits,
+            std::size_t  bits_hash
+            );
+    void  on_minimization_execution_results_cache_hit(
+            minimization_analysis::gradient_descent_state::STAGE stage,
+            std::size_t  bits_hash
+            );
     void  on_minimization_stop();
 
     void  on_bitshare_start(branching_node* const  node_ptr);
@@ -63,10 +72,25 @@ private:
     {
         using STAGE = minimization_analysis::gradient_descent_state::STAGE;
 
+        struct  stage_change_info
+        {
+            natural_32_bit  trace_index;
+            natural_32_bit  cache_hit_index;
+            STAGE stage;
+        };
+
+        struct  execution_cache_hits_info
+        {
+            natural_32_bit  trace_index;
+            std::size_t  bits_hash;
+        };
+
         void  save_info(std::ostream&  ostr) const override;
 
+        stdin_bits_pointer  bits_ptr{ nullptr };
         vecu32  bit_translation{};
-        std::vector<std::pair<natural_32_bit,STAGE> > stage_changes{};
+        std::vector<stage_change_info>  stage_changes{};
+        std::vector<execution_cache_hits_info>  execution_cache_hits{};
     };
 
     struct  bitshare_progress_info : public analysis_common_info
@@ -83,6 +107,8 @@ private:
 
     void  on_analysis_start(ANALYSIS a, analysis_common_info&  info, branching_node*  node_ptr);
     void  on_analysis_stop();
+
+    std::unique_ptr<std::ofstream>  save_default_execution_results();
 
     static std::string const&  analysis_name(ANALYSIS a);
 
