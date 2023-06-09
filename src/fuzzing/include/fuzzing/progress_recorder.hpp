@@ -26,6 +26,7 @@ struct  progress_recorder
     void  on_sensitivity_stop();
 
     void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_pointer  bits_ptr);
+    void  on_minimization_gradient_step();
     void  on_minimization_execution_results_available(
             minimization_analysis::gradient_descent_state::STAGE stage,
             vecb const&  bits,

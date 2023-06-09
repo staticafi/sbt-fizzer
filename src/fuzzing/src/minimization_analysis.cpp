@@ -126,6 +126,8 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else if (descent.stage == gradient_descent_state::STEP)
         {
+            recorder().on_minimization_gradient_step();
+
             descent.stage = gradient_descent_state::PARTIALS;
             descent.partials.clear();
             descent.partials_extended.clear();

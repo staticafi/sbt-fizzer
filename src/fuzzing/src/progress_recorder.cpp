@@ -140,6 +140,16 @@ void  progress_recorder::on_minimization_start(
 }
 
 
+void  progress_recorder::on_minimization_gradient_step()
+{
+    minimization.stage_changes.push_back({
+            counter_results,
+            (natural_32_bit)minimization.execution_cache_hits.size(),
+            minimization_analysis::gradient_descent_state::STEP
+            });
+}
+
+
 void  progress_recorder::on_minimization_execution_results_available(
         minimization_analysis::gradient_descent_state::STAGE const stage,
         vecb const&  bits,
@@ -148,12 +158,6 @@ void  progress_recorder::on_minimization_execution_results_available(
 {
     if (!is_started())
         return;
-
-    if (minimization.stage_changes.empty()
-            || stage != minimization.stage_changes.back().stage
-            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
-                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
-        minimization.stage_changes.push_back({ counter_results, 0, stage });
 
     auto const  ostr_ptr{ save_default_execution_results() };
     std::ofstream&  ostr{ *ostr_ptr };
@@ -168,6 +172,12 @@ void  progress_recorder::on_minimization_execution_results_available(
     }
 
     ostr << "]\n}\n";
+
+    if (minimization.stage_changes.empty()
+            || stage != minimization.stage_changes.back().stage
+            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
+                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
+        minimization.stage_changes.push_back({ counter_results, 0, stage });
 }
 
 
