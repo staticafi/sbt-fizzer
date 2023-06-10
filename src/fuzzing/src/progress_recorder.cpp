@@ -143,8 +143,7 @@ void  progress_recorder::on_minimization_start(
 void  progress_recorder::on_minimization_gradient_step()
 {
     minimization.stage_changes.push_back({
-            counter_results,
-            (natural_32_bit)minimization.execution_cache_hits.size(),
+            std::numeric_limits<integer_32_bit>::max(),
             minimization_analysis::gradient_descent_state::STEP
             });
 }
@@ -173,11 +172,15 @@ void  progress_recorder::on_minimization_execution_results_available(
 
     ostr << "]\n}\n";
 
+    for (auto  it = minimization.stage_changes.rbegin();
+            it != minimization.stage_changes.rend() && it->index == std::numeric_limits<integer_32_bit>::max();
+            ++it)
+        it->index = (integer_32_bit)counter_results;
     if (minimization.stage_changes.empty()
             || stage != minimization.stage_changes.back().stage
             || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
                 stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
-        minimization.stage_changes.push_back({ counter_results, 0, stage });
+        minimization.stage_changes.push_back({ (integer_32_bit)counter_results, stage });
 }
 
 
@@ -189,13 +192,17 @@ void  progress_recorder::on_minimization_execution_results_cache_hit(
     if (!is_started())
         return;
 
-    minimization.execution_cache_hits.push_back({ counter_results, bits_hash });
-
+    for (auto  it = minimization.stage_changes.rbegin();
+            it != minimization.stage_changes.rend() && it->index == std::numeric_limits<integer_32_bit>::max();
+            ++it)
+        it->index = -(integer_32_bit)minimization.execution_cache_hits.size();
     if (minimization.stage_changes.empty()
             || stage != minimization.stage_changes.back().stage
             || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
                 stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
-        minimization.stage_changes.push_back({ counter_results, (natural_32_bit)minimization.execution_cache_hits.size(), stage });
+        minimization.stage_changes.push_back({ -(integer_32_bit)minimization.execution_cache_hits.size(), stage });
+
+    minimization.execution_cache_hits.push_back({ counter_results, bits_hash });
 }
 
 
@@ -429,7 +436,7 @@ void  progress_recorder::minimization_progress_info::save_info(std::ostream&  os
     ostr << "],\n\"stage_changes\": [\n";
     for (natural_32_bit  i = 0U, end = (natural_32_bit)stage_changes.size(); i < end; ++i)
     {
-        ostr << stage_changes.at(i).trace_index << ',' << stage_changes.at(i).cache_hit_index << ",\"";
+        ostr << stage_changes.at(i).index << ",\"";
         switch (stage_changes.at(i).stage)
         {
             case STAGE::TAKE_NEXT_SEED: ostr << "TAKE_NEXT_SEED"; break;

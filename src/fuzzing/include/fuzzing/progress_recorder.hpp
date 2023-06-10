@@ -75,8 +75,7 @@ private:
 
         struct  stage_change_info
         {
-            natural_32_bit  trace_index;
-            natural_32_bit  cache_hit_index;
+            integer_32_bit  index;
             STAGE stage;
         };
 
