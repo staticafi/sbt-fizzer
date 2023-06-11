@@ -99,11 +99,11 @@ template void stdin_replay_bytes_then_repeat_byte::load_record_(shared_memory&);
 template void stdin_replay_bytes_then_repeat_byte::load_record_(message&);
 
 
-void  stdin_replay_bytes_then_repeat_byte::load_record(connection::message&  src) {
+void  stdin_replay_bytes_then_repeat_byte::load_record(message&  src) {
     load_record_(src);
 }
 
-void  stdin_replay_bytes_then_repeat_byte::load_record(connection::shared_memory&  src) {
+void  stdin_replay_bytes_then_repeat_byte::load_record(shared_memory&  src) {
     load_record_(src);
 }
 

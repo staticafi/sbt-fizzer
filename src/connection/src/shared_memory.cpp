@@ -17,9 +17,9 @@ void shared_memory::open_or_create() {
 natural_32_bit shared_memory::get_size() const {
     size_t size = region.get_size();
     if (size != 0) {
-        return size - sizeof(*saved);
+        return (natural_32_bit)(size - sizeof(*saved));
     }
-    return size;
+    return (natural_32_bit)size;
 }
 
 
@@ -48,14 +48,14 @@ void shared_memory::load(const void* src, size_t n) {
     ASSUMPTION(memory != nullptr);
     ASSUMPTION(*saved + n <= get_size());
     memcpy(memory + *saved, src, n);
-    *saved += n;
+    *saved += (natural_32_bit)n;
 }
 
 void shared_memory::save(void* dest, size_t n) {
     ASSUMPTION(memory != nullptr);
     ASSUMPTION(cursor + n <= *saved);
     memcpy(dest, memory + cursor, n);
-    cursor += n;
+    cursor += (natural_32_bit)n;
 }
 
 shared_memory& shared_memory::operator<<(const std::string& src) {
@@ -101,7 +101,7 @@ void shared_memory::save(message& dest) {
 void shared_memory::load(message& src) {
     size_t src_size = src.size();
     src.save(memory, src_size);
-    *saved += src_size;
+    *saved += (natural_32_bit)src_size;
 }
 
 

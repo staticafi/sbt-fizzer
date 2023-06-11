@@ -27,7 +27,7 @@ target_executor::target_executor(std::string target_invocation):
 
 void target_executor::init_shared_memory(std::size_t size) {
     shared_memory.open_or_create();
-    shared_memory.set_size(size);
+    shared_memory.set_size((natural_32_bit)size);
     shared_memory.map_region();
 }
 

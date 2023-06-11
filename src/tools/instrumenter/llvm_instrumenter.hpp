@@ -2,11 +2,14 @@
 #   define TOOL_INSTRUMENTER_LLVM_INSTRUMENTER_HPP_INCLUDED
 
 #   include <utility/config.hpp>
+
 #   if COMPILER() == COMPILER_VC()
+#       pragma warning(push)
 #      pragma warning(disable:4244) // LLVM: warning C4244: 'return': conversion from 'uint64_t' to 'unsigned long', possible loss of data
 #      pragma warning(disable:4267) // LLVM: warning C4267: '+=': conversion from 'size_t' to 'unsigned int', possible loss of data 
 #      pragma warning(disable:4624) // LLVM: warning C4624: 'llvm::detail::copy_construction_triviality_helper<T>': destructor was implicitly defined
 #      pragma warning(disable:4146) // LLVM: warning C4146: unary minus operator applied to unsigned type, result still unsigned
+#      pragma warning(disable:4996) // LLVM: warning C4996: '_Header_ciso646': warning STL4036: <ciso646> is removed in C++20.
 #   endif
 #   include <llvm/IR/IRBuilder.h>
 #   include <llvm/IR/LegacyPassManager.h>
@@ -17,6 +20,9 @@
 #   include <llvm/Transforms/Utils.h>
 #   include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #   include <llvm/Pass.h>
+#   if COMPILER() == COMPILER_VC()
+#       pragma warning(pop)
+#   endif
 #   include <algorithm>
 #   include <unordered_map>
 #   include <vector>
