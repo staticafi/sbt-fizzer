@@ -228,7 +228,7 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
             ++it;
             ++it_path;
         }
-        if (it_path == path.end() && it != trace_ptr->end() && it->id == node->id)
+        if (it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value))
             last_stdin_value = std::fabs(it->value);
     }
 
@@ -250,7 +250,7 @@ void  minimization_analysis::process_execution_results(branching_function_value_
     else if (descent.stage == gradient_descent_state::PARTIALS)
     {
         branching_function_value_type const  abs_delta = std::fabs(last_stdin_value - descent.value);
-        if (abs_delta > descent.bit_max_changes.at(descent.partials.size()))
+        if (std::isfinite(abs_delta) && abs_delta > descent.bit_max_changes.at(descent.partials.size()))
         {
             descent.bit_max_changes.at(descent.partials.size()) = abs_delta;
             descent.bit_order.clear();

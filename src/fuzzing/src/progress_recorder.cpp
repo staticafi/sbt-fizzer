@@ -330,10 +330,12 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
     for (natural_32_bit  i = 0U, n = (natural_32_bit)trace.size(); i < n; ++i)
     {
+        branching_function_value_type const  value =
+                std::isfinite(trace.at(i).value) ? trace.at(i).value : std::numeric_limits<branching_function_value_type>::max();
         ostr << '\n';
         ostr << trace.at(i).id.id << ',' << trace.at(i).id.context_hash << ','
              << (trace.at(i).direction ? 1 : 0) << ','
-             << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << trace.at(i).value;
+             << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << value;
         if (i + 1 < n) ostr << ',';
     }
 

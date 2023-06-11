@@ -296,13 +296,16 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         }
 
         summary_value += info.value * info.value;
-        if (construction_props.leaf->best_stdin == nullptr || construction_props.leaf->best_summary_value > summary_value)
+        bool const  value_ok = std::isfinite(summary_value);
+        if (construction_props.leaf->best_stdin == nullptr || (value_ok && construction_props.leaf->best_summary_value > summary_value))
         {
             construction_props.leaf->best_stdin = bits;
             construction_props.leaf->best_trace = trace;
             construction_props.leaf->best_br_instr_trace = br_instr_trace;
-            construction_props.leaf->best_coverage_value = info.value;
-            construction_props.leaf->best_summary_value = summary_value;
+            construction_props.leaf->best_coverage_value =
+                    value_ok ? info.value : std::numeric_limits<branching_function_value_type>::max();
+            construction_props.leaf->best_summary_value =
+                    value_ok ? summary_value : std::numeric_limits<branching_function_value_type>::max();
         }
 
         if (construction_props.frontier_node == nullptr
