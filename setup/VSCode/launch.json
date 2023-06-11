@@ -15,7 +15,14 @@
                     // "fast/c_string_parse_two_ints_sbt-fizzer_target",
                     // "fast/call_bool_arg_sbt-fizzer_target",
                     // "fast/ex2-alloca_sbt-fizzer_target",
+                    // "fast/float_if_deg_to_rad_inline_sbt-fizzer_target",
+                    // "fast/float_if_deg_to_rad_sbt-fizzer_target",
+                    // "fast/float_if_parabola_sbt-fizzer_target",
+                    // "fast/float_if_parabola2_sbt-fizzer_target",
                     // "fast/float_if_x_eq_c_sbt-fizzer_target",
+                    // "fast/float_if_x_eq_cos_x_sbt-fizzer_target",
+                    // "fast/float_if_x_lt_c_sbt-fizzer_target",
+                    // "fast/float_if_xy_level_ring_sbt-fizzer_target",
                     // "fast/int16_equal_sbt-fizzer_target",
                     // "fast/int16_if_parabola_sbt-fizzer_target",
                     // "fast/int16_if_x_equal_c_sbt-fizzer_target",
@@ -77,7 +84,7 @@
                 "--optimizer_max_trace_length", "1000000",
                 "--optimizer_max_stdin_bytes", "1000000",
                 // "--debug_mode",
-                // "--progress_recording",
+                "--progress_recording",
                 // "--silent_mode",
                 "--test_type",
                     "native",
@@ -106,8 +113,8 @@
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "--input", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs.ll",
-                "--output", "${workspaceFolder}/dist/benchmarks/fast/nested_ifs_instrumented.ll",
+                "--input", "${workspaceFolder}/dist/benchmarks/fast/switch.ll",
+                "--output", "${workspaceFolder}/dist/benchmarks/fast/switch_instrumented.ll",
                 "--save_mapping"
             ],
             "stopAtEntry": false,
@@ -117,12 +124,12 @@
             "name": "debug client",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/dist/benchmarks/fast/int8_if_x_equal_c.sbt-client",
+            "program": "${workspaceFolder}/dist/benchmarks/pending/standard_vector_difference_ground_sbt-fizzer_target",
             "args": [
                 "--input", "00",
-                "--max_trace_length", "10000",
+                "--max_trace_length", "10000000",
                 "--max_stack_size", "25",
-                "--max_stdin_bytes", "6400",
+                "--max_stdin_bytes", "6400000",
                 "--max_exec_milliseconds", "250",
                 "--max_exec_megabytes", "1024",
                 "--stdin_model", "stdin_replay_bytes_then_repeat_85",
@@ -159,61 +166,68 @@
                     // "slow"
                     // "pending"
 
-                    // "fast/array-1.c",
-                    // "fast/array1_pattern.c",
-                    // "fast/bool_flag_one_and_two.c",
-                    // "fast/c_string_count_chars.c",
-                    // "fast/c_string_parse_two_ints.c",
-                    // "fast/call_bool_arg.c",
-                    // "fast/ex2-alloca.c",
-                    // "fast/float_if_x_eq_c.c",
-                    // "fast/int16_equal.c",
-                    // "fast/int16_if_parabola.c",
-                    // "fast/int16_if_x_equal_c.c",
-                    // "fast/int16_if_x_equal_y_c.c",
-                    // "fast/int16_if_x_ge_c.c",
-                    // "fast/int16_if_x_lt_c.c",
-                    // "fast/int16_if_x_xor_a_eq_b.c",
-                    // "fast/int16_less.c",
-                    // "fast/int32_ackermann.c",
-                    // "fast/int32_if_parabola.c",
-                    // "fast/int32_if_x_equal_c.c",
-                    // "fast/int32_if_x_equal_y_c.c",
-                    // "fast/int32_if_x_ge_c.c",
-                    // "fast/int32_if_x_lt_c.c",
-                    // "fast/int32_if_x_xor_a_eq_b.c",
-                    // "fast/int32_logical_or_two_vars.c",
-                    // "fast/log_and.c",
-                    // "fast/log_cond.c",
-                    // "fast/int8_if_hash_x_y_z_eq_c.c",
-                    // "fast/int8_if_x_equal_c.c",
-                    // "fast/int8_if_x_equal_y_c.c",
-                    // "fast/int8_if_x_ge_c.c",
-                    // "fast/int8_if_x_lt_c.c",
-                    // "fast/int8_if_x_xor_a_eq_b.c",
-                    // "fast/mul_two_int16.c,
-                    // "fast/switch.c",
-                    // "fast/nested_ifs.c",
-                    // "fast/uint16_if_parabola.c",
-                    // "fast/uint32_if_parabola.c",
+                    // "fast/array-1.c"
+                    // "fast/array1_pattern.c"
+                    // "fast/bool_flag_one_and_two.c"
+                    // "fast/c_string_count_chars.c"
+                    // "fast/c_string_parse_two_ints.c"
+                    // "fast/call_bool_arg.c"
+                    // "fast/ex2-alloca.c"
+                    // "fast/float_if_deg_to_rad_inline.c"
+                    // "fast/float_if_deg_to_rad.c"
+                    // "fast/float_if_parabola.c"
+                    // "fast/float_if_parabola2.c"
+                    // "fast/float_if_x_eq_c.c"
+                    // "fast/float_if_x_eq_cos_x.c"
+                    // "fast/float_if_x_lt_c.c"
+                    // "fast/float_if_xy_level_ring.c"
+                    // "fast/int16_equal.c"
+                    // "fast/int16_if_parabola.c"
+                    // "fast/int16_if_x_equal_c.c"
+                    // "fast/int16_if_x_equal_y_c.c"
+                    // "fast/int16_if_x_ge_c.c"
+                    // "fast/int16_if_x_lt_c.c"
+                    // "fast/int16_if_x_xor_a_eq_b.c"
+                    // "fast/int16_less.c"
+                    // "fast/int32_ackermann.c"
+                    // "fast/int32_if_parabola.c"
+                    // "fast/int32_if_x_equal_c.c"
+                    // "fast/int32_if_x_equal_y_c.c"
+                    // "fast/int32_if_x_ge_c.c"
+                    // "fast/int32_if_x_lt_c.c"
+                    // "fast/int32_if_x_xor_a_eq_b.c"
+                    // "fast/int32_logical_or_two_vars.c"
+                    // "fast/log_and.c"
+                    // "fast/log_cond.c"
+                    // "fast/int8_if_hash_x_y_z_eq_c.c"
+                    // "fast/int8_if_x_equal_c.c"
+                    // "fast/int8_if_x_equal_y_c.c"
+                    // "fast/int8_if_x_ge_c.c"
+                    // "fast/int8_if_x_lt_c.c"
+                    // "fast/int8_if_x_xor_a_eq_b.c"
+                    // "fast/mul_two_int16.c
+                    // "fast/switch.c"
+                    // "fast/nested_ifs.c"
+                    // "fast/uint16_if_parabola.c"
+                    // "fast/uint32_if_parabola.c"
 
-                    // "pending/array_2-1.i",
-                    // "pending/double_req_bl_0660a.c",
-                    // "pending/floppy.i.cil-2.c",
-                    // "pending/linux-43_1a-drivers.i",
-                    // "pending/loop1-1.c",
-                    // "pending/newton_1_1.i",
-                    // "pending/pnr3.c",
-                    // "pending/TelAviv-Amir-Minimum-alloca.c",
-                    // "pending/benchmark08_conjunctive.i",
-                    // "pending/cs_stack-1.c",
-                    // "pending/count_by_nondet.i",
-                    // "pending/printf-1.i",
-                    // "pending/Problem05_label42+token_ring.01.cil-2.c",
-                    // "pending/Problem08_label00.c",
-                    // "pending/tree_del_iter.c",
-                    // "pending/standard_vector_difference_ground.i",
-                    // "pending/avg.i",
+                    // "pending/array_2-1.i"
+                    // "pending/double_req_bl_0660a.c"
+                    // "pending/floppy.i.cil-2.c"
+                    // "pending/linux-43_1a-drivers.i"
+                    // "pending/loop1-1.c"
+                    // "pending/newton_1_1.i"
+                    // "pending/pnr3.c"
+                    // "pending/TelAviv-Amir-Minimum-alloca.c"
+                    // "pending/benchmark08_conjunctive.i"
+                    // "pending/cs_stack-1.c"
+                    // "pending/count_by_nondet.i"
+                    // "pending/printf-1.i"
+                    // "pending/Problem05_label42+token_ring.01.cil-2.c"
+                    // "pending/Problem08_label00.c"
+                    // "pending/tree_del_iter.c"
+                    // "pending/standard_vector_difference_ground.i"
+                    // "pending/avg.i"
                 ],
             "cwd": "${workspaceFolder}/dist/benchmarks",
             "justMyCode": true
