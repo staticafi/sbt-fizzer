@@ -55,6 +55,7 @@ struct  minimization_analysis
         : state{ READY }
         , node{ nullptr }
         , bits{ nullptr }
+        , execution_id{ 0 }
         , path{}
         , bit_translation{}
         , seeds{}
@@ -69,7 +70,7 @@ struct  minimization_analysis
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
-    void  start(branching_node*  node_ptr, stdin_bits_pointer  bits_ptr);
+    void  start(branching_node*  node_ptr, stdin_bits_pointer  bits_ptr, natural_32_bit  execution_id_);
     void  stop();
 
     bool  generate_next_input(vecb&  bits_ref);
@@ -87,6 +88,7 @@ private:
     STATE  state;
     branching_node*  node;
     stdin_bits_pointer  bits;
+    natural_32_bit  execution_id;
     execution_path  path;
     vecu32  bit_translation;
     std::vector<vecb>  seeds;

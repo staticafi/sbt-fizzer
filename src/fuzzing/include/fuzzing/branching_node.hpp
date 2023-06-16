@@ -38,7 +38,8 @@ struct  branching_node
             execution_trace_pointer  best_trace_,
             br_instr_execution_trace_pointer  best_br_instr_trace_,
             branching_function_value_type  best_coverage_value_,
-            branching_function_value_type  best_summary_value_
+            branching_function_value_type  best_summary_value_,
+            natural_32_bit  execution_number
             )
         : id{ id_ }
         , trace_index{ trace_index_ }
@@ -55,6 +56,11 @@ struct  branching_node
         , sensitivity_performed{ false }
         , minimization_performed{ false }
         , bitshare_performed{ false }
+
+        , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+        , minimization_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+        , bitshare_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+        , best_value_execution{ execution_number }
 
         , sensitive_stdin_bits{}
     {}
@@ -89,6 +95,11 @@ struct  branching_node
     bool sensitivity_performed;
     bool minimization_performed;
     bool bitshare_performed;
+
+    natural_32_bit  sensitivity_start_execution;
+    natural_32_bit  minimization_start_execution;
+    natural_32_bit  bitshare_start_execution;
+    natural_32_bit  best_value_execution;
 
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 };

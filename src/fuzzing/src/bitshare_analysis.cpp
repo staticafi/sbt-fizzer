@@ -16,7 +16,7 @@ bitshare_analysis::bitshare_analysis()
     , statistics{}
 {}
 
-void  bitshare_analysis::start(branching_node*  node_ptr)
+void  bitshare_analysis::start(branching_node*  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
     ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin != nullptr && !node_ptr->sensitive_stdin_bits.empty());
@@ -25,6 +25,7 @@ void  bitshare_analysis::start(branching_node*  node_ptr)
     processed_node = node_ptr;
     samples_ptr = nullptr;
     sample_index = 0;
+    execution_id = execution_id_;
 
     auto const  cache_it = cache.find(processed_node->id.id);
     if (cache_it != cache.end())
@@ -61,6 +62,7 @@ void  bitshare_analysis::stop()
         ++statistics.stop_calls_regular;
 
     processed_node->bitshare_performed = true;
+    processed_node->bitshare_start_execution = execution_id;
 
     state = READY;
     processed_node = nullptr;

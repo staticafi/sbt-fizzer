@@ -43,6 +43,7 @@ struct  fuzzer final
         std::size_t  longest_branch{ 0 };
         std::size_t  traces_to_crash{ 0 };
         std::size_t  traces_to_boundary_violation{ 0 };
+        std::size_t  coverage_failure_resets{ 0 };
     };
 
     explicit fuzzer(termination_info const&  info, bool  debug_mode_ = false);
@@ -117,6 +118,7 @@ private:
 
     void  do_cleanup();
     void  remove_leaf_branching_node(branching_node*  node);
+    void  apply_coverage_failures_with_hope();
 
     void  select_next_state();
 
@@ -137,6 +139,8 @@ private:
     std::unordered_map<location_id, std::unordered_map<location_id, natural_32_bit> >  iid_regions;
     std::unordered_set<branching_node*>  iid_frontier_sources;
     std::multiset<iid_frontier_record>  iid_frontier;
+
+    std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     STATE  state;
     sensitivity_analysis  sensitivity;

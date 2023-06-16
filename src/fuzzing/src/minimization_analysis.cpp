@@ -9,7 +9,7 @@
 namespace  fuzzing {
 
 
-void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_pointer const  bits_ptr)
+void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_pointer const  bits_ptr, natural_32_bit const  execution_id_)
 {
     TMPROF_BLOCK();
 
@@ -19,6 +19,7 @@ void  minimization_analysis::start(branching_node* const  node_ptr, stdin_bits_p
     state = BUSY;
     node = node_ptr;
     bits = bits_ptr;
+    execution_id = execution_id_;
 
     path.clear();
     for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
@@ -77,6 +78,7 @@ void  minimization_analysis::stop()
         ++statistics.stop_calls_regular;
 
     node->minimization_performed = true;
+    node->minimization_start_execution = execution_id;
 
     state = READY;
 }

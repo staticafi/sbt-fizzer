@@ -40,7 +40,7 @@ struct  bitshare_analysis
 
     branching_node*  get_node() const { return processed_node; }
 
-    void  start(branching_node*  node_ptr);
+    void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
     void  stop();
 
     bool  generate_next_input(vecb&  bits_ref);
@@ -59,6 +59,7 @@ private:
     branching_node*  processed_node;
     std::deque<vecb>*  samples_ptr;
     std::size_t  sample_index;
+    natural_32_bit  execution_id;
     performance_statistics  statistics;
 };
 

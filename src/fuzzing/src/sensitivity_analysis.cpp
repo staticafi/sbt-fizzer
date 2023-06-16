@@ -10,7 +10,8 @@ namespace  fuzzing {
 void  sensitivity_analysis::start(
         stdin_bits_pointer const  bits_ptr,
         execution_trace_pointer const trace_ptr,
-        branching_node* const  leaf_branching_ptr
+        branching_node* const  leaf_branching_ptr,
+        natural_32_bit const  execution_id_
         )
 {
     ASSUMPTION(is_ready());
@@ -21,6 +22,7 @@ void  sensitivity_analysis::start(
     trace = trace_ptr;
     mutated_bit_index = 0;
     leaf_branching = leaf_branching_ptr;
+    execution_id = execution_id_;
     nodes.clear();
     stoped_early = false;
 
@@ -69,6 +71,7 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
                 (node->predecessor == nullptr || node->predecessor->successor_direction(node) == std::next(rit)->direction)
                 );
             node->sensitivity_performed = true;
+            node->sensitivity_start_execution = execution_id;
             node = node->predecessor;
             ++rit;
         }

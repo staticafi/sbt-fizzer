@@ -52,6 +52,8 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , iid_frontier_sources{}
     , iid_frontier{}
 
+    , coverage_failures_with_hope{}
+
     , state{ STARTUP }
     , sensitivity{}
     , minimization{}
@@ -215,6 +217,11 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
         do_cleanup();
         select_next_state();
+        if (state == FINISHED && !coverage_failures_with_hope.empty())
+        {
+            apply_coverage_failures_with_hope();
+            select_next_state();
+        }
 
         stdin_bits.clear();
     }
@@ -254,7 +261,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 nullptr,
                 nullptr,
                 std::numeric_limits<branching_function_value_type>::max(),
-                std::numeric_limits<branching_function_value_type>::max()
+                std::numeric_limits<branching_function_value_type>::max(),
+                num_driver_executions
                 );
         construction_props.diverging_node = entry_branching;
 
@@ -306,6 +314,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     value_ok ? info.value : std::numeric_limits<branching_function_value_type>::max();
             construction_props.leaf->best_summary_value =
                     value_ok ? summary_value : std::numeric_limits<branching_function_value_type>::max();
+            construction_props.leaf->best_value_execution = num_driver_executions;
         }
 
         if (construction_props.frontier_node == nullptr
@@ -328,7 +337,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     trace,
                     br_instr_trace,
                     succ_info.value,
-                    succ_info.value * succ_info.value
+                    succ_info.value * succ_info.value,
+                    num_driver_executions
                     )
             });
 
@@ -472,6 +482,17 @@ void  fuzzer::do_cleanup()
                 }
             }
     }
+    else if (state == MINIMIZATION && !covered_branchings.contains(minimization.get_node()->id))
+    {
+        INVARIANT(minimization.is_ready());
+        coverage_failures_with_hope.insert(minimization.get_node());
+    }
+
+    for (auto  it = coverage_failures_with_hope.begin(); it != coverage_failures_with_hope.begin(); )
+        if (covered_branchings.contains((*it)->id))
+            it = coverage_failures_with_hope.erase(it);
+        else
+            ++it;
 
     std::vector<branching_node*> leaves_to_remove;
     for (auto& leaf_and_props : leaf_branchings)
@@ -639,6 +660,8 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
         INVARIANT(sensitivity.is_ready() || sensitivity.get_leaf_branching() != node);
         INVARIANT(minimization.is_ready() || minimization.get_node() != node);
 
+        coverage_failures_with_hope.erase(node);
+
         delete node;
 
         ++statistics.nodes_destroyed;
@@ -657,11 +680,44 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 }
 
 
+void  fuzzer::apply_coverage_failures_with_hope()
+{
+    for (auto&  leaf_and_props : leaf_branchings)
+        for (auto  node = leaf_and_props.first; node != nullptr; node = node->predecessor)
+        {
+            auto  it = coverage_failures_with_hope.find(node);
+            if (it == coverage_failures_with_hope.end())
+                continue;
+
+            INVARIANT(node->minimization_performed);
+
+            if (!leaf_and_props.first->sensitivity_performed
+                    || node->minimization_start_execution < leaf_and_props.first->best_value_execution)
+            {
+                leaf_and_props.second.uncovered_branchings[node->id].insert(node);
+
+                node->sensitivity_performed = false;
+                node->minimization_performed = false;
+                node->bitshare_performed = false;
+                node->sensitivity_start_execution = std::numeric_limits<natural_32_bit>::max();
+                node->minimization_start_execution = std::numeric_limits<natural_32_bit>::max();
+                node->bitshare_start_execution = std::numeric_limits<natural_32_bit>::max();
+
+                ++statistics.coverage_failure_resets;
+
+                coverage_failures_with_hope.erase(node);
+                if (coverage_failures_with_hope.empty())
+                    return;
+            }
+        }
+}
+
+
 void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && minimization.is_ready() && state != FINISHED);
+    INVARIANT(sensitivity.is_ready() && minimization.is_ready());
 
     struct  selection_winner
     {
@@ -775,19 +831,19 @@ void  fuzzer::select_next_state()
     if (!winner.node->sensitivity_performed)
     {
         INVARIANT(winner.leaf != nullptr && !winner.leaf->sensitivity_performed);
-        sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf);
+        sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf, num_driver_executions);
         state = SENSITIVITY;
     }
     else if (!winner.node->bitshare_performed)
     {
         INVARIANT(!winner.node->sensitive_stdin_bits.empty());
-        bitshare.start(winner.node);
+        bitshare.start(winner.node, num_driver_executions);
         state = BITSHARE;
     }
     else
     {
         INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
-        minimization.start(winner.node, winner.node->best_stdin);
+        minimization.start(winner.node, winner.node->best_stdin, num_driver_executions);
         state = MINIMIZATION;
     }
 }
