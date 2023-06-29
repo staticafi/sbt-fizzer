@@ -27,7 +27,7 @@ struct  sensitivity_analysis
 
     sensitivity_analysis()
         : state{ READY }
-        , bits{ nullptr }
+        , bits_and_types{ nullptr }
         , trace{ nullptr }
         , mutated_bit_index{ invalid_stdin_bit_index }
         , leaf_branching{ nullptr }
@@ -40,7 +40,7 @@ struct  sensitivity_analysis
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
-    void  start(stdin_bits_pointer  bits_ptr, execution_trace_pointer  trace_ptr,
+    void  start(stdin_bits_and_types_pointer  bits_and_types_ptr, execution_trace_pointer  trace_ptr,
                 branching_node*  leaf_branching_ptr, natural_32_bit  execution_id_);
     void  stop();
 
@@ -56,7 +56,7 @@ struct  sensitivity_analysis
 private:
 
     STATE  state;
-    stdin_bits_pointer  bits;
+    stdin_bits_and_types_pointer  bits_and_types;
     execution_trace_pointer  trace;
     stdin_bit_index  mutated_bit_index;
     branching_node*  leaf_branching;

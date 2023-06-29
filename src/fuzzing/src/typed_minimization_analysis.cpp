@@ -1,4 +1,4 @@
-#include <fuzzing/minimization_analysis.hpp>
+#include <fuzzing/typed_minimization_analysis.hpp>
 #include <fuzzing/progress_recorder.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
@@ -9,7 +9,7 @@
 namespace  fuzzing {
 
 
-void  minimization_analysis::start(
+void  typed_minimization_analysis::start(
         branching_node* const  node_ptr,
         stdin_bits_and_types_pointer const  bits_and_types_ptr,
         natural_32_bit const  execution_id_
@@ -61,16 +61,16 @@ void  minimization_analysis::start(
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bit_translation.size());
 
-    recorder().on_minimization_start(node, bit_translation, bits_and_types);
+    recorder().on_typed_minimization_start(node, bit_translation, bits_and_types);
 }
 
 
-void  minimization_analysis::stop()
+void  typed_minimization_analysis::stop()
 {
     if (!is_busy())
         return;
 
-    recorder().on_minimization_stop();
+    recorder().on_typed_minimization_stop();
 
     if (!seeds.empty() || descent.stage != gradient_descent_state::TAKE_NEXT_SEED)
     {
@@ -88,7 +88,7 @@ void  minimization_analysis::stop()
 }
 
 
-bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
+bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
 {
     TMPROF_BLOCK();
 
@@ -132,7 +132,7 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else if (descent.stage == gradient_descent_state::STEP)
         {
-            recorder().on_minimization_gradient_step();
+            recorder().on_typed_minimization_gradient_step();
 
             descent.stage = gradient_descent_state::PARTIALS;
             descent.partials.clear();
@@ -217,7 +217,7 @@ bool  minimization_analysis::generate_next_input(vecb&  bits_ref)
 }
 
 
-void  minimization_analysis::process_execution_results(execution_trace_pointer const  trace_ptr)
+void  typed_minimization_analysis::process_execution_results(execution_trace_pointer const  trace_ptr)
 {
     TMPROF_BLOCK();
 
@@ -243,11 +243,11 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
 
     process_execution_results(last_stdin_value);
 
-    recorder().on_minimization_execution_results_available(descent.stage, computed_input_stdin, bits_hash);
+    recorder().on_typed_minimization_execution_results_available(descent.stage, computed_input_stdin, bits_hash);
 }
 
 
-void  minimization_analysis::process_execution_results(branching_function_value_type const  last_stdin_value)
+void  typed_minimization_analysis::process_execution_results(branching_function_value_type const  last_stdin_value)
 {
     if (descent.stage == gradient_descent_state::EXECUTE_SEED)
     {
@@ -271,7 +271,7 @@ void  minimization_analysis::process_execution_results(branching_function_value_
 }
 
 
-bool  minimization_analysis::apply_fast_execution_using_cache()
+bool  typed_minimization_analysis::apply_fast_execution_using_cache()
 {
     auto const  hash_it = hashes_of_generated_bits.find(make_hash(computed_input_stdin));
     if (hash_it == hashes_of_generated_bits.end())
@@ -282,7 +282,7 @@ bool  minimization_analysis::apply_fast_execution_using_cache()
 
     ++statistics.suppressed_repetitions;
 
-    recorder().on_minimization_execution_results_cache_hit(descent.stage, hash_it->first);
+    recorder().on_typed_minimization_execution_results_cache_hit(descent.stage, hash_it->first);
 
     return true;
 }

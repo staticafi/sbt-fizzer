@@ -46,7 +46,7 @@ struct  bitshare_analysis
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr);
 
-    void  bits_available_for_branching(branching_node*  node_ptr, execution_trace_pointer  trace, stdin_bits_pointer  stdin_bits);
+    void  bits_available_for_branching(branching_node*  node_ptr, execution_trace_pointer  trace, stdin_bits_and_types_pointer  bits_and_types);
 
     performance_statistics const&  get_statistics() const { return statistics; }
 

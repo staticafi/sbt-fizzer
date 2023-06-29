@@ -34,7 +34,7 @@ struct  branching_node
             location_id  id_,
             trace_index_type  trace_index_,
             branching_node*  predecessor_,
-            stdin_bits_pointer  best_stdin_,
+            stdin_bits_and_types_pointer  best_stdin_,
             execution_trace_pointer  best_trace_,
             br_instr_execution_trace_pointer  best_br_instr_trace_,
             branching_function_value_type  best_coverage_value_,
@@ -86,7 +86,7 @@ struct  branching_node
     branching_node*  predecessor;
     std::array<successor_pointer, 2>  successors;
 
-    stdin_bits_pointer  best_stdin;
+    stdin_bits_and_types_pointer  best_stdin;
     execution_trace_pointer  best_trace;
     br_instr_execution_trace_pointer  best_br_instr_trace;
     branching_function_value_type  best_coverage_value;

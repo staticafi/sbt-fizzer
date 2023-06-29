@@ -2,6 +2,7 @@
 #   define FUZZING_PROGRESS_RECORDER_HPP_INCLUDED
 
 #   include <fuzzing/branching_node.hpp>
+#   include <fuzzing/typed_minimization_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <utility/basic_numeric_types.hpp>
 #   include <unordered_set>
@@ -25,7 +26,20 @@ struct  progress_recorder
     void  on_sensitivity_start(branching_node* const  node_ptr);
     void  on_sensitivity_stop();
 
-    void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_pointer  bits_ptr);
+    void  on_typed_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
+    void  on_typed_minimization_gradient_step();
+    void  on_typed_minimization_execution_results_available(
+            typed_minimization_analysis::gradient_descent_state::STAGE stage,
+            vecb const&  bits,
+            std::size_t  bits_hash
+            );
+    void  on_typed_minimization_execution_results_cache_hit(
+            typed_minimization_analysis::gradient_descent_state::STAGE stage,
+            std::size_t  bits_hash
+            );
+    void  on_typed_minimization_stop();
+
+    void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
     void  on_minimization_gradient_step();
     void  on_minimization_execution_results_available(
             minimization_analysis::gradient_descent_state::STAGE stage,
@@ -48,10 +62,11 @@ private:
 
     enum ANALYSIS
     {
-        NONE            = 0,
-        SENSITIVITY     = 1,
-        MINIMIZATION    = 2,
-        BITSHARE        = 3
+        NONE                = 0,
+        SENSITIVITY         = 1,
+        TYPED_MINIMIZATION  = 2,
+        MINIMIZATION        = 3,
+        BITSHARE            = 4
     };
 
     struct  analysis_common_info
@@ -67,6 +82,30 @@ private:
     struct  sensitivity_progress_info : public analysis_common_info
     {
         void  save_info(std::ostream&  ostr) const override;
+    };
+
+    struct  typed_minimization_progress_info : public analysis_common_info
+    {
+        using STAGE = typed_minimization_analysis::gradient_descent_state::STAGE;
+
+        struct  stage_change_info
+        {
+            integer_32_bit  index;
+            STAGE stage;
+        };
+
+        struct  execution_cache_hits_info
+        {
+            natural_32_bit  trace_index;
+            std::size_t  bits_hash;
+        };
+
+        void  save_info(std::ostream&  ostr) const override;
+
+        stdin_bits_and_types_pointer  bits_and_types{ nullptr };
+        vecu32  bit_translation{};
+        std::vector<stage_change_info>  stage_changes{};
+        std::vector<execution_cache_hits_info>  execution_cache_hits{};
     };
 
     struct  minimization_progress_info : public analysis_common_info
@@ -87,7 +126,7 @@ private:
 
         void  save_info(std::ostream&  ostr) const override;
 
-        stdin_bits_pointer  bits_ptr{ nullptr };
+        stdin_bits_and_types_pointer  bits_and_types{ nullptr };
         vecu32  bit_translation{};
         std::vector<stage_change_info>  stage_changes{};
         std::vector<execution_cache_hits_info>  execution_cache_hits{};
@@ -117,6 +156,7 @@ private:
 
     ANALYSIS  analysis;
     sensitivity_progress_info  sensitivity;
+    typed_minimization_progress_info  typed_minimization;
     minimization_progress_info  minimization;
     bitshare_progress_info  bitshare;
     natural_32_bit  counter_analysis;

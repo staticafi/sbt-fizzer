@@ -9,6 +9,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/sensitivity_analysis.hpp
     ./src/sensitivity_analysis.cpp
 
+    ./include/fuzzing/typed_minimization_analysis.hpp
+    ./src/typed_minimization_analysis.cpp
+
     ./include/fuzzing/minimization_analysis.hpp
     ./src/minimization_analysis.cpp
 

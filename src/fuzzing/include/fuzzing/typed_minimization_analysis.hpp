@@ -1,5 +1,5 @@
-#ifndef FUZZING_MINIMIZATION_ANALYSIS_HPP_INCLUDED
-#   define FUZZING_MINIMIZATION_ANALYSIS_HPP_INCLUDED
+#ifndef FUZZING_TYPED_MINIMIZATION_ANALYSIS_HPP_INCLUDED
+#   define FUZZING_TYPED_MINIMIZATION_ANALYSIS_HPP_INCLUDED
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
@@ -12,7 +12,7 @@
 namespace  fuzzing {
 
 
-struct  minimization_analysis
+struct  typed_minimization_analysis
 {
     enum  STATE
     {
@@ -22,7 +22,8 @@ struct  minimization_analysis
 
     struct  gradient_descent_state
     {
-        enum STAGE {
+        enum STAGE
+        {
             TAKE_NEXT_SEED,
             EXECUTE_SEED,
             STEP,
@@ -51,7 +52,7 @@ struct  minimization_analysis
         std::size_t  stop_calls_early{ 0 };
     };
 
-    minimization_analysis()
+    typed_minimization_analysis()
         : state{ READY }
         , node{ nullptr }
         , bits_and_types{ nullptr }
@@ -70,7 +71,7 @@ struct  minimization_analysis
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
-    void  start(branching_node*  node_ptr, stdin_bits_and_types_pointer  bits_ptr, natural_32_bit  execution_id_);
+    void  start(branching_node*  node_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr, natural_32_bit  execution_id_);
     void  stop();
 
     bool  generate_next_input(vecb&  bits_ref);

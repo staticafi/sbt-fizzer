@@ -31,6 +31,7 @@ struct analysis_outcomes
     std::vector<branching_location_and_direction>  uncovered_branchings;
     std::vector<execution_record>  execution_records;
     sensitivity_analysis::performance_statistics   sensitivity_statistics;
+    typed_minimization_analysis::performance_statistics   typed_minimization_statistics;
     minimization_analysis::performance_statistics   minimization_statistics;
     bitshare_analysis::performance_statistics   bitshare_statistics;
     fuzzer::performance_statistics  statistics;

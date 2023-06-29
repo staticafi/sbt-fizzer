@@ -8,17 +8,17 @@ namespace  fuzzing {
 
 
 void  sensitivity_analysis::start(
-        stdin_bits_pointer const  bits_ptr,
+        stdin_bits_and_types_pointer const  bits_and_types_ptr,
         execution_trace_pointer const trace_ptr,
         branching_node* const  leaf_branching_ptr,
         natural_32_bit const  execution_id_
         )
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(bits_ptr != nullptr && trace_ptr != nullptr && leaf_branching_ptr != nullptr);
+    ASSUMPTION(bits_and_types_ptr != nullptr && trace_ptr != nullptr && leaf_branching_ptr != nullptr);
 
     state = BUSY;
-    bits = bits_ptr;
+    bits_and_types = bits_and_types_ptr;
     trace = trace_ptr;
     mutated_bit_index = 0;
     leaf_branching = leaf_branching_ptr;
@@ -27,7 +27,7 @@ void  sensitivity_analysis::start(
     stoped_early = false;
 
     ++statistics.start_calls;
-    statistics.max_bits = std::max(statistics.max_bits, bits->size());
+    statistics.max_bits = std::max(statistics.max_bits, bits_and_types->bits.size());
 
     recorder().on_sensitivity_start(leaf_branching);
 }
@@ -40,7 +40,7 @@ void  sensitivity_analysis::stop()
 
     recorder().on_sensitivity_stop();
 
-    if (mutated_bit_index < bits->size())
+    if (mutated_bit_index < bits_and_types->bits.size())
     {
         stoped_early = true;
 
@@ -60,7 +60,7 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    if (mutated_bit_index == bits->size())
+    if (mutated_bit_index == bits_and_types->bits.size())
     {
         auto  rit = trace->rbegin();
         branching_node* node = leaf_branching;
@@ -80,7 +80,7 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    bits_ref = *bits;
+    bits_ref = bits_and_types->bits;
     bits_ref.at(mutated_bit_index) = !bits_ref.at(mutated_bit_index);
 
     ++mutated_bit_index;
