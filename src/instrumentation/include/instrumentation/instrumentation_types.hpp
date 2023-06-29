@@ -63,6 +63,8 @@ bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_in
 
 enum struct  type_of_input_bits : natural_8_bit
 {
+    // Known types:
+
     BOOLEAN = 0U,
 
     UINT8 = 1U,
@@ -78,7 +80,14 @@ enum struct  type_of_input_bits : natural_8_bit
     SINT64 = 8U,
 
     FLOAT32 = 9U,
-    FLOAT64 = 10U
+    FLOAT64 = 10U,
+
+    // Unknown types:
+
+    UNTYPED8 = 11U,
+    UNTYPED16 = 12U,
+    UNTYPED32 = 13U,
+    UNTYPED64 = 14U
 };
 
 inline natural_8_bit  to_id(type_of_input_bits const  type) { return (natural_8_bit)type; }

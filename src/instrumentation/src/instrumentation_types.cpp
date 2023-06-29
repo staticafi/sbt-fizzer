@@ -60,6 +60,11 @@ type_of_input_bits  from_id(natural_8_bit const  id)
         case  9U: return type_of_input_bits::FLOAT32;
         case 10U: return type_of_input_bits::FLOAT64;
 
+        case 11U: return type_of_input_bits::UNTYPED8;
+        case 12U: return type_of_input_bits::UNTYPED16;
+        case 13U: return type_of_input_bits::UNTYPED32;
+        case 14U: return type_of_input_bits::UNTYPED64;
+
         default: { UNREACHABLE(); return type_of_input_bits::UINT8; }
     }
 }
@@ -80,6 +85,10 @@ std::string  to_string(type_of_input_bits  type)
         case type_of_input_bits::UINT64: return "UINT64";
         case type_of_input_bits::SINT64: return "SINT64";
         case type_of_input_bits::FLOAT64: return "FLOAT64";
+        case type_of_input_bits::UNTYPED8: return "UNTYPED8";
+        case type_of_input_bits::UNTYPED16: return "UNTYPED16";
+        case type_of_input_bits::UNTYPED32: return "UNTYPED32";
+        case type_of_input_bits::UNTYPED64: return "UNTYPED64";
         default: { UNREACHABLE(); return "ERROR"; }
     }
 }
@@ -92,17 +101,21 @@ natural_8_bit  num_bytes(type_of_input_bits const  type)
         case type_of_input_bits::BOOLEAN:
         case type_of_input_bits::UINT8:
         case type_of_input_bits::SINT8:
+        case type_of_input_bits::UNTYPED8:
             return 1U;
         case type_of_input_bits::UINT16:
         case type_of_input_bits::SINT16:
+        case type_of_input_bits::UNTYPED16:
             return 2U;
         case type_of_input_bits::UINT32:
         case type_of_input_bits::SINT32:
         case type_of_input_bits::FLOAT32:
+        case type_of_input_bits::UNTYPED32:
             return 4U;
         case type_of_input_bits::UINT64:
         case type_of_input_bits::SINT64:
         case type_of_input_bits::FLOAT64:
+        case type_of_input_bits::UNTYPED64:
             return 8U;
         default: { UNREACHABLE(); return 0U; }
     }
@@ -130,6 +143,11 @@ std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, v
 
         case type_of_input_bits::FLOAT32: ostr << *(float_32_bit const*)value_ptr; break;
         case type_of_input_bits::FLOAT64: ostr << *(float_64_bit const*)value_ptr; break;
+
+        case type_of_input_bits::UNTYPED8: ostr << *(natural_8_bit const*)value_ptr; break;
+        case type_of_input_bits::UNTYPED16: ostr << *(natural_16_bit const*)value_ptr; break;
+        case type_of_input_bits::UNTYPED32: ostr << *(natural_32_bit const*)value_ptr; break;
+        case type_of_input_bits::UNTYPED64: ostr << *(natural_64_bit const*)value_ptr; break;
 
         default: { UNREACHABLE(); }
     }
