@@ -52,21 +52,12 @@ struct  typed_minimization_analysis
         std::size_t  stop_calls_early{ 0 };
     };
 
-    typed_minimization_analysis()
-        : state{ READY }
-        , node{ nullptr }
-        , bits_and_types{ nullptr }
-        , execution_id{ 0 }
-        , path{}
-        , bit_translation{}
-        , seeds{}
-        , descent{}
-        , computed_input_stdin{}
-        , hashes_of_generated_bits{}
-        , random_generator{}
-        , stoped_early{ false }
-        , statistics{}
-    {}
+    static bool  are_types_of_sensitive_bits_available(
+            stdin_bits_and_types_pointer  bits_and_types,
+            std::unordered_set<stdin_bit_index> const&  sensitive_bits
+            );
+
+    typed_minimization_analysis();
 
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }

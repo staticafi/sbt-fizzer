@@ -9,6 +9,35 @@
 namespace  fuzzing {
 
 
+bool  typed_minimization_analysis::are_types_of_sensitive_bits_available(
+        stdin_bits_and_types_pointer  bits_and_types,
+        std::unordered_set<stdin_bit_index> const&  sensitive_bits
+        )
+{
+    for (stdin_bit_index  idx : sensitive_bits)
+        if (!is_known_type(bits_and_types->type_of_bit(idx)))
+            return false;
+    return true;
+}
+
+
+typed_minimization_analysis::typed_minimization_analysis()
+    : state{ READY }
+    , node{ nullptr }
+    , bits_and_types{ nullptr }
+    , execution_id{ 0 }
+    , path{}
+    , bit_translation{}
+    , seeds{}
+    , descent{}
+    , computed_input_stdin{}
+    , hashes_of_generated_bits{}
+    , random_generator{}
+    , stoped_early{ false }
+    , statistics{}
+{}
+
+
 void  typed_minimization_analysis::start(
         branching_node* const  node_ptr,
         stdin_bits_and_types_pointer const  bits_and_types_ptr,

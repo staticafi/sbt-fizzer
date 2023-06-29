@@ -2,6 +2,8 @@ set(THIS_TARGET_NAME fuzzing)
 
 add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/stdin_bits.hpp
+    ./src/stdin_bits.cpp
+
     ./include/fuzzing/branching_node.hpp
     ./include/fuzzing/fuzzer.hpp
     ./src/fuzzer.cpp

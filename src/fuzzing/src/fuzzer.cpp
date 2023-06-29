@@ -250,10 +250,10 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         return true; // the analyzed program has exactly 1 trace.
     }
 
-    stdin_bits_and_types_pointer const  bits_and_types{ std::make_shared<stdin_bits_and_types>() };
-    bytes_to_bits(iomodels::iomanager::instance().get_stdin()->get_bytes(), bits_and_types->bits);
-    bits_and_types->types = iomodels::iomanager::instance().get_stdin()->get_types();
-
+    stdin_bits_and_types_pointer const  bits_and_types{ std::make_shared<stdin_bits_and_types>(
+            iomodels::iomanager::instance().get_stdin()->get_bytes(),
+            iomodels::iomanager::instance().get_stdin()->get_types()
+            ) };
     execution_trace_pointer const  trace = std::make_shared<execution_trace>(iomodels::iomanager::instance().get_trace());
     br_instr_execution_trace_pointer const  br_instr_trace = std::make_shared<br_instr_execution_trace>(iomodels::iomanager::instance().get_br_instr_trace());
 
@@ -867,7 +867,7 @@ void  fuzzer::select_next_state()
         bitshare.start(winner.node, num_driver_executions);
         state = BITSHARE;
     }
-    else if (false)
+    else if (typed_minimization_analysis::are_types_of_sensitive_bits_available(winner.node->best_stdin, winner.node->sensitive_stdin_bits))
     {
         INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
         typed_minimization.start(winner.node, winner.node->best_stdin, num_driver_executions);
