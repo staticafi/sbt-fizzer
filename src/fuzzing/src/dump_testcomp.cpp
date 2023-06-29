@@ -47,13 +47,13 @@ void save_testcomp_test(std::ostream& ostr, const execution_record& trace) {
 
 void save_testcomp_test_inputs(std::ostream& ostr, const execution_record& trace) {
     natural_32_bit offset = 0;
-    for (natural_8_bit input_chunk: trace.stdin_byte_counts) {
+    for (type_of_input_bits input_chunk_type: trace.stdin_types) {
         ostr << "  <input>0x";
-        for (natural_8_bit i = input_chunk; i-- > 0;) {
+        for (natural_8_bit i = num_bytes(input_chunk_type); i-- > 0;) {
             ostr << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)trace.stdin_bytes.at(offset + i);
         }
         ostr << "</input>\n";
-        offset += input_chunk;
+        offset += num_bytes(input_chunk_type);
     }
 }
 

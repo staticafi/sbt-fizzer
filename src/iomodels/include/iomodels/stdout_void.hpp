@@ -13,7 +13,7 @@ struct stdout_void : public stdout_base
     void  save(connection::shared_memory&  dest) const override;
     void  load(connection::message&  src) override;
     void  load(connection::shared_memory&  src) override;
-    void  write(natural_8_bit const*  ptr, natural_8_bit  count, connection::shared_memory&  dest) override;
+    void  write(natural_8_bit const*  ptr, type_of_input_bits  type, connection::shared_memory&  dest) override;
 };
 
 

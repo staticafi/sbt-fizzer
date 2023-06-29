@@ -11,6 +11,8 @@ namespace  iomodels {
 
 struct  stdout_base
 {
+    using  type_of_input_bits = instrumentation::type_of_input_bits;
+
     virtual ~stdout_base() = default;
 
     virtual void  clear() = 0;
@@ -19,7 +21,7 @@ struct  stdout_base
     virtual void  load(connection::message&  src) = 0;
     virtual void  load(connection::shared_memory&  src) = 0;
 
-    virtual void  write(natural_8_bit const*  ptr, natural_8_bit  count, connection::shared_memory&  dest) = 0;
+    virtual void  write(natural_8_bit const*  ptr, type_of_input_bits  type, connection::shared_memory&  dest) = 0;
 };
 
 

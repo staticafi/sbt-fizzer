@@ -154,7 +154,7 @@ bool  fuzzer::round_end(execution_record&  record)
     {
         record.flags = flags;
         record.stdin_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
-        record.stdin_byte_counts = iomodels::iomanager::instance().get_stdin()->get_counts();
+        record.stdin_types = iomodels::iomanager::instance().get_stdin()->get_types();
         for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
             record.path.push_back({ info.id, info.direction });
     }

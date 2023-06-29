@@ -15,7 +15,7 @@ stdin_replay_bytes_then_repeat_byte::stdin_replay_bytes_then_repeat_byte(byte_co
     : stdin_base{ max_bytes_ }
     , cursor(0U)
     , bytes()
-    , counts()
+    , types()
     , repeat_byte(repeat_byte)
 {}
 
@@ -24,7 +24,7 @@ void  stdin_replay_bytes_then_repeat_byte::clear()
 {
     cursor = 0U;
     bytes.clear();
-    counts.clear();
+    types.clear();
 }
 
 template <typename Medium>
@@ -35,8 +35,8 @@ void  stdin_replay_bytes_then_repeat_byte::save_(Medium& dest) const
     dest << (byte_count_type)bytes.size();
     dest.load(bytes.data(),(byte_count_type)bytes.size());
 
-    dest << (byte_count_type)counts.size();
-    dest.load(counts.data(), (byte_count_type)counts.size());
+    dest << (byte_count_type)types.size();
+    dest.load(types.data(), (byte_count_type)types.size());
 }
 
 template void stdin_replay_bytes_then_repeat_byte::save_(shared_memory&) const;
@@ -63,10 +63,10 @@ void  stdin_replay_bytes_then_repeat_byte::load_(Medium&  src)
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
-    byte_count_type  num_counts;
-    src >> num_counts;
-    counts.resize(num_counts);
-    src.save(counts.data(), num_counts);
+    byte_count_type  num_types;
+    src >> num_types;
+    types.resize(num_types);
+    src.save(types.data(), num_types);
 }
 
 template void stdin_replay_bytes_then_repeat_byte::load_(shared_memory&);
@@ -86,9 +86,11 @@ void  stdin_replay_bytes_then_repeat_byte::load(shared_memory&  src)
 
 template <typename Medium>
 void  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
-    natural_8_bit count;
-    src >> count;
-    counts.push_back(count);
+    natural_8_bit type_id;
+    src >> type_id;
+    type_of_input_bits const type = from_id(type_id);
+    natural_8_bit const count = num_bytes(type);
+    types.push_back(type);
     size_t old_size = bytes.size();
     bytes.resize(old_size + count);
     src.save(bytes.data() + old_size, count);
@@ -109,15 +111,16 @@ void  stdin_replay_bytes_then_repeat_byte::load_record(shared_memory&  src) {
 
 
 size_t stdin_replay_bytes_then_repeat_byte::max_flattened_size() const {
-    return sizeof(counts[0]) * max_bytes() + max_bytes();
+    return sizeof(types[0]) * max_bytes() + max_bytes();
 }
 
 
 
 void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr, 
-                                                natural_8_bit  count,
+                                                type_of_input_bits const type,
                                                 shared_memory& dest)
 {
+    natural_8_bit const count = num_bytes(type);
     if (cursor + count > max_bytes()) {
         dest.set_termination(target_termination::boundary_condition_violation);
         exit(0);
@@ -126,10 +129,10 @@ void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr,
         bytes.resize(cursor + count, repeat_byte);
     }
     memcpy(ptr, bytes.data() + cursor, count);
-    dest << data_record_id::stdin_bytes << count;
+    dest << data_record_id::stdin_bytes << to_id(type);
     dest.load(bytes.data() + cursor, count);
     cursor += count;
-    counts.push_back(count);
+    types.push_back(type);
 }
 
 

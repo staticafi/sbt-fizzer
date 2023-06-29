@@ -95,13 +95,13 @@ void fuzz_target::process_call_end(natural_32_bit const  id) {
     context_hashes.pop_back();
 }
 
-void fuzz_target::on_read(natural_8_bit* ptr, natural_8_bit const  count) {
-    stdin_model->read(ptr, count, shared_memory);
+void fuzz_target::on_read(natural_8_bit* ptr, type_of_input_bits const type) {
+    stdin_model->read(ptr, type, shared_memory);
 }
 
 
-void fuzz_target::on_write(natural_8_bit const*  ptr, natural_8_bit  count) {
-    stdout_model->write(ptr, count, shared_memory);
+void fuzz_target::on_write(natural_8_bit const*  ptr, type_of_input_bits const type) {
+    stdout_model->write(ptr, type, shared_memory);
 }
 
 

@@ -12,6 +12,8 @@ namespace  iomodels {
 struct  stdin_base
 {
     using  byte_count_type = natural_32_bit;
+    using  type_of_input_bits = instrumentation::type_of_input_bits;
+    using  input_types_vector = std::vector<type_of_input_bits>;
 
     explicit stdin_base(byte_count_type const  max_bytes_) : m_max_bytes{ max_bytes_ } {}
     virtual ~stdin_base() = default;
@@ -24,10 +26,10 @@ struct  stdin_base
     virtual void  load_record(connection::message&  src) = 0;
     virtual void  load_record(connection::shared_memory&  src) = 0;
     virtual size_t max_flattened_size() const = 0;
-    virtual void  read(natural_8_bit*  ptr, natural_8_bit  count, connection::shared_memory&  dest) = 0;
+    virtual void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::shared_memory&  dest) = 0;
 
     virtual vecu8 const&  get_bytes() const = 0;
-    virtual vecu8 const&  get_counts() const = 0;
+    virtual input_types_vector const&  get_types() const = 0;
     virtual byte_count_type  num_bytes_read() const = 0;
 
     virtual void  set_bytes(vecu8 const&  bytes) = 0;

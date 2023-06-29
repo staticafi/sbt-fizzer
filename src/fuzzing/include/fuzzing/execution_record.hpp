@@ -10,6 +10,7 @@ namespace  fuzzing {
 struct  execution_record
 {
     using execution_flags = natural_8_bit;
+    using input_types_vector = std::vector<type_of_input_bits>;
 
     static execution_flags constexpr  BRANCH_DISCOVERED   = 1 << 0;
     static execution_flags constexpr  BRANCH_COVERED      = 1 << 1;
@@ -18,7 +19,7 @@ struct  execution_record
 
     execution_flags  flags { 0 }; 
     vecu8  stdin_bytes {};
-    vecu8  stdin_byte_counts {};
+    input_types_vector  stdin_types {};
     execution_path  path {};
 };
 

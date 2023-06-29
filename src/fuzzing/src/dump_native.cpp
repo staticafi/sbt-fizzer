@@ -2,6 +2,7 @@
 #include <fuzzing/termination_info.hpp>
 #include <utility/math.hpp>
 #include <utility/assumptions.hpp>
+#include <utility/invariants.hpp>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -12,13 +13,13 @@ namespace  fuzzing {
 void  save_native_test(std::ostream&  ostr, execution_record const&  record)
 {
     vecu64  chunk_values;
-    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_byte_counts.size(); i < n; ++i)
+    for (natural_32_bit  k = 0U, i = 0U, n = (natural_32_bit)record.stdin_types.size(); i < n; ++i)
     {
-        ASSUMPTION(record.stdin_byte_counts.at(i) <= sizeof(chunk_values.back()));
+        ASSUMPTION(num_bytes(record.stdin_types.at(i)) <= sizeof(chunk_values.back()));
         chunk_values.push_back(0U);
-        for (natural_8_bit  j = 0U, m = record.stdin_byte_counts.at(i); j < m; ++j)
+        for (natural_8_bit  j = 0U, m = num_bytes(record.stdin_types.at(i)); j < m; ++j)
             *(((natural_8_bit*)&chunk_values.back()) + j) = record.stdin_bytes.at(k + j);
-        k += record.stdin_byte_counts.at(i);
+        k += num_bytes(record.stdin_types.at(i));
     }
 
     std::string const  shift = "    ";
@@ -46,8 +47,8 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     for (natural_32_bit  i = 0U, n = (natural_32_bit)chunk_values.size(); i < n; ++i)
     {
         if (i % 8U == 0U) ostr << '\n' << shift << shift;
-        ostr << std::dec << (natural_32_bit)record.stdin_byte_counts.at(i) << ','
-             << std::dec << (natural_32_bit)chunk_values.at(i);
+        ostr << std::dec << '"' << to_string(record.stdin_types.at(i)) << "\",";
+        save_value(ostr, record.stdin_types.at(i), &chunk_values.at(i));
         if (i + 1 < n)
             ostr << ',' << shift;
     }

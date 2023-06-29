@@ -61,6 +61,37 @@ struct  br_instr_coverage_info
 bool  is_same_branching(branching_coverage_info const&  l, branching_coverage_info const&  r);
 
 
+enum struct  type_of_input_bits : natural_8_bit
+{
+    BOOLEAN = 0U,
+
+    UINT8 = 1U,
+    SINT8 = 2U,
+
+    UINT16 = 3U,
+    SINT16 = 4U,
+
+    UINT32 = 5U,
+    SINT32 = 6U,
+
+    UINT64 = 7U,
+    SINT64 = 8U,
+
+    FLOAT32 = 9U,
+    FLOAT64 = 10U
+};
+
+inline natural_8_bit  to_id(type_of_input_bits const  type) { return (natural_8_bit)type; }
+type_of_input_bits  from_id(natural_8_bit  id);
+
+std::string  to_string(type_of_input_bits  type);
+
+natural_8_bit  num_bytes(type_of_input_bits  type);
+inline natural_8_bit  num_bits(type_of_input_bits const  type) { return num_bytes(type); }
+
+std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits  type, void*  value_ptr);
+
+
 }
 
 

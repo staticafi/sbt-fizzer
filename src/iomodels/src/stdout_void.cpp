@@ -33,7 +33,7 @@ void  stdout_void::load(connection::shared_memory&  src)
 }
 
 
-void  stdout_void::write(natural_8_bit const*  ptr, natural_8_bit  count, connection::shared_memory&  dest)
+void  stdout_void::write(natural_8_bit const*  ptr, type_of_input_bits const  type, connection::shared_memory&  dest)
 {
     // Nothing to do.
 }

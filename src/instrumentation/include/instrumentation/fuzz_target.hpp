@@ -36,8 +36,8 @@ public:
     void process_call_begin(natural_32_bit const  id);
     void process_call_end(natural_32_bit const  id);
 
-    void on_read(natural_8_bit* ptr, natural_8_bit const  count);
-    void on_write(natural_8_bit const*  ptr, natural_8_bit  count);
+    void on_read(natural_8_bit* ptr, type_of_input_bits type);
+    void on_write(natural_8_bit const*  ptr, type_of_input_bits type);
 
     void load_stdin();
     void load_config();
