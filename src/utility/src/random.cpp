@@ -30,12 +30,23 @@ float_32_bit  get_random_float_32_bit_in_range(
     )
 {
     ASSUMPTION(min_value <= max_value);
-    float_64_bit const  coef =
-            static_cast<float_64_bit>(get_random_natural_32_bit_in_range(0U,std::numeric_limits<natural_32_bit>::max(),generator))
-            / static_cast<float_64_bit>(std::numeric_limits<natural_32_bit>::max());
-    return static_cast<float_32_bit>(min_value + coef * (max_value - min_value));
+    if (std::isfinite(max_value - min_value))
+    {
+        float_64_bit const  coef =
+                static_cast<float_64_bit>(get_random_natural_32_bit_in_range(0U,std::numeric_limits<natural_32_bit>::max(),generator))
+                / static_cast<float_64_bit>(std::numeric_limits<natural_32_bit>::max());
+        return static_cast<float_32_bit>((1.0 - coef) * min_value + coef * max_value);
+    }
+    return get_random_float_32_bit(generator);
 }
 
+
+float_32_bit  get_random_float_32_bit(random_generator_for_natural_32_bit&  generator)
+{
+    float_32_bit  result;
+    *((natural_32_bit*)&result) = get_random_natural_32_bit_in_range(0U,std::numeric_limits<natural_32_bit>::max(),generator);
+    return result;
+}
 
 void  reset(random_generator_for_natural_32_bit&  generator, natural_32_bit const  seed)
 {
@@ -53,6 +64,30 @@ natural_64_bit  get_random_natural_64_bit_in_range(
     return std::uniform_int_distribution<natural_64_bit>(min_value,max_value)(generator);
 }
 
+float_64_bit  get_random_float_64_bit_in_range(
+    float_64_bit const min_value,
+    float_64_bit const max_value,
+    random_generator_for_natural_64_bit&   generator
+    )
+{
+    ASSUMPTION(min_value <= max_value);
+    if (std::isfinite(max_value - min_value))
+    {
+        float_64_bit const  coef =
+                static_cast<float_64_bit>(get_random_natural_64_bit_in_range(0ULL,std::numeric_limits<natural_64_bit>::max(),generator))
+                / static_cast<float_64_bit>(std::numeric_limits<natural_64_bit>::max());
+        return (1.0 - coef) * min_value + coef * max_value;
+    }
+    return get_random_float_64_bit(generator);
+}
+
+
+float_64_bit  get_random_float_64_bit(random_generator_for_natural_64_bit&  generator)
+{
+    float_64_bit  result;
+    *((natural_64_bit*)&result) = get_random_natural_64_bit_in_range(0ULL,std::numeric_limits<natural_64_bit>::max(),generator);
+    return result;
+}
 
 void  reset(random_generator_for_natural_64_bit&  generator, natural_64_bit const  seed)
 {

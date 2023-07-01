@@ -145,7 +145,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << "},\n"
          << shift << "\"typed_minimization_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.typed_minimization_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"suppressed_repetitions\": " << results.typed_minimization_statistics.suppressed_repetitions << ",\n"
          << shift << shift << "\"max_bits\": " << results.typed_minimization_statistics.max_bits << ",\n"
          << shift << shift << "\"seeds_processed\": " << results.typed_minimization_statistics.seeds_processed << ",\n"
          << shift << shift << "\"gradient_steps\": " << results.typed_minimization_statistics.gradient_steps << ",\n"

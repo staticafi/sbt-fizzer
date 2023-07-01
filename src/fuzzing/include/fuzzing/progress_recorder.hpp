@@ -27,16 +27,7 @@ struct  progress_recorder
     void  on_sensitivity_stop();
 
     void  on_typed_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
-    void  on_typed_minimization_gradient_step();
-    void  on_typed_minimization_execution_results_available(
-            typed_minimization_analysis::gradient_descent_state::STAGE stage,
-            vecb const&  bits,
-            std::size_t  bits_hash
-            );
-    void  on_typed_minimization_execution_results_cache_hit(
-            typed_minimization_analysis::gradient_descent_state::STAGE stage,
-            std::size_t  bits_hash
-            );
+    void  on_typed_minimization_execution_results_available(vecb const&  bits);
     void  on_typed_minimization_stop();
 
     void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
@@ -86,26 +77,7 @@ private:
 
     struct  typed_minimization_progress_info : public analysis_common_info
     {
-        using STAGE = typed_minimization_analysis::gradient_descent_state::STAGE;
-
-        struct  stage_change_info
-        {
-            integer_32_bit  index;
-            STAGE stage;
-        };
-
-        struct  execution_cache_hits_info
-        {
-            natural_32_bit  trace_index;
-            std::size_t  bits_hash;
-        };
-
         void  save_info(std::ostream&  ostr) const override;
-
-        stdin_bits_and_types_pointer  bits_and_types{ nullptr };
-        vecu32  bit_translation{};
-        std::vector<stage_change_info>  stage_changes{};
-        std::vector<execution_cache_hits_info>  execution_cache_hits{};
     };
 
     struct  minimization_progress_info : public analysis_common_info

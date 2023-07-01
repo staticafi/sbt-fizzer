@@ -350,6 +350,7 @@ void  generate_samples_of_hamming_class(vec<vecb>&  output_samples, std::size_t 
 
 void  bits_to_bytes(vecb const&  bits, vecu8&  bytes);
 void  bytes_to_bits(vecu8 const&  bytes, vecb&  bits);
+void  bytes_to_bits(natural_8_bit const*  begin, natural_8_bit const* end, vecb&  bits);
 
 
 #endif

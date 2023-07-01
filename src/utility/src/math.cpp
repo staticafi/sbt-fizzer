@@ -199,3 +199,11 @@ void  bytes_to_bits(vecu8 const&  bytes, vecb&  bits)
         for (natural_8_bit  i = 0U; i != 8U; ++i)
             bits.push_back(byte & (1 << (7U - i)));
 }
+
+
+void  bytes_to_bits(natural_8_bit const*  begin, natural_8_bit const* const  end, vecb&  bits)
+{
+    for ( ; begin != end; ++begin)
+        for (natural_8_bit  i = 0U; i != 8U; ++i)
+            bits.push_back((*begin) & (1 << (7U - i)));
+}
