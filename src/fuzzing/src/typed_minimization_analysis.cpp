@@ -9,38 +9,6 @@
 namespace  fuzzing {
 
 
-template<typename T>
-static T  get_random_value(random_generator_for_natural_32_bit&  generator)
-{
-    return (T)get_random_natural_32_bit_in_range(std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), generator);
-}
-
-
-template<typename T>
-static T  get_random_value(random_generator_for_natural_64_bit&  generator)
-{
-    return (T)get_random_natural_64_bit_in_range(std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), generator);
-}
-
-
-template<typename T>
-static float_64_bit  compute_max_variable_gradient_step(T const  v0, T const  v1, branching_function_value_type const  df)
-{
-    T const  dv = v1 - v0;
-    T const  ev = dv * df < 0 ? std::numeric_limits<T>::max() : std::numeric_limits<T>::min();
-    return (ev - v0) / ((float_64_bit)dv);
-}
-
-
-template<typename T>
-static float_64_bit  compute_max_variable_gradient_step_float(T const  v0, T const  v1, branching_function_value_type const  df)
-{
-    T const  dv = v1 - v0;
-    T const  ev = dv * df < 0 ? std::numeric_limits<T>::max() : -std::numeric_limits<T>::max();
-    return (ev - v0) / ((float_64_bit)dv);
-}
-
-
 bool  typed_minimization_analysis::are_types_of_sensitive_bits_available(
         stdin_bits_and_types_pointer  bits_and_types,
         std::unordered_set<stdin_bit_index> const&  sensitive_bits
@@ -264,28 +232,60 @@ void  typed_minimization_analysis::generate_next_seed()
                 current_variable_values.back().value_boolean = get_random_natural_32_bit_in_range(1, 100, random_generator32) < 50;
                 break;
             case type_of_input_bits::UINT8:
-                current_variable_values.back().value_uint8 = get_random_value<natural_8_bit>(random_generator32);
+                current_variable_values.back().value_uint8 =(natural_8_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_8_bit>::min(),
+                        std::numeric_limits<natural_8_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::SINT8:
-                current_variable_values.back().value_sint8 = get_random_value<integer_8_bit>(random_generator32);
+                current_variable_values.back().value_sint8 =(integer_8_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_8_bit>::min(),
+                        std::numeric_limits<natural_8_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::UINT16:
-                current_variable_values.back().value_uint16 = get_random_value<natural_16_bit>(random_generator32);
+                current_variable_values.back().value_uint16 =(natural_16_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_16_bit>::min(),
+                        std::numeric_limits<natural_16_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::SINT16:
-                current_variable_values.back().value_sint16 = get_random_value<integer_16_bit>(random_generator32);
+                current_variable_values.back().value_sint16 =(integer_16_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_16_bit>::min(),
+                        std::numeric_limits<natural_16_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::UINT32:
-                current_variable_values.back().value_uint32 = get_random_value<natural_32_bit>(random_generator32);
+                current_variable_values.back().value_uint32 =(natural_32_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_32_bit>::min(),
+                        std::numeric_limits<natural_32_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::SINT32:
-                current_variable_values.back().value_sint32 = get_random_value<integer_32_bit>(random_generator32);
+                current_variable_values.back().value_sint32 =(integer_32_bit)get_random_natural_32_bit_in_range(
+                        std::numeric_limits<natural_32_bit>::min(),
+                        std::numeric_limits<natural_32_bit>::max(),
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::UINT64:
-                current_variable_values.back().value_uint64 = get_random_value<natural_64_bit>(random_generator64);
+                current_variable_values.back().value_uint64 =(natural_64_bit)get_random_natural_64_bit_in_range(
+                        std::numeric_limits<natural_64_bit>::min(),
+                        std::numeric_limits<natural_64_bit>::max(),
+                        random_generator64
+                        );
                 break;
             case type_of_input_bits::SINT64:
-                current_variable_values.back().value_sint64 = get_random_value<integer_64_bit>(random_generator64);
+                current_variable_values.back().value_sint64 =(integer_64_bit)get_random_natural_64_bit_in_range(
+                        std::numeric_limits<natural_64_bit>::min(),
+                        std::numeric_limits<natural_64_bit>::max(),
+                        random_generator64
+                        );
                 break;
             case type_of_input_bits::FLOAT32:
                 current_variable_values.back().value_float32 = get_random_float_32_bit(random_generator32);
