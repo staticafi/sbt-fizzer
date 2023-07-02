@@ -29,6 +29,8 @@ struct  typed_minimization_analysis
 
     union  value_of_variable
     {
+        value_of_variable() : value_uint64{ 0ULL } {}
+
         bool  value_boolean;
 
         natural_8_bit  value_uint8;

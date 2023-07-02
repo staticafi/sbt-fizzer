@@ -333,10 +333,18 @@ void  typed_minimization_analysis::generate_next_partial()
             partial_variable_values.back().value_sint64 += 1;
             break;
         case type_of_input_bits::FLOAT32:
-            partial_variable_values.back().value_float32 += 0.1f * std::fabs(partial_variable_values.back().value_float32);
+            {
+                float_32_bit constexpr  mult = 0.001f;
+                float_32_bit const  dv = mult * std::fabs(partial_variable_values.back().value_float32);
+                partial_variable_values.back().value_float32 += dv != 0.0f ? dv : mult;
+            }
             break;
         case type_of_input_bits::FLOAT64:
-            partial_variable_values.back().value_float64 += 0.1f * std::fabs(partial_variable_values.back().value_float64);
+            {
+                float_64_bit constexpr  mult = 0.001f;
+                float_64_bit const  dv = mult * std::fabs(partial_variable_values.back().value_float64);
+                partial_variable_values.back().value_float64 += dv != 0.0f ? dv : mult;
+            }
             break;
         default: { UNREACHABLE(); }
     }
@@ -407,7 +415,7 @@ void  typed_minimization_analysis::compute_gradient()
         INVARIANT(dv != 0.0);
 
         gradient.push_back(df / dv);
-        if (!std::isnormal(gradient.back()))
+        if (!std::isfinite(gradient.back()))
             gradient.back() = 0.0;
     }
 }
@@ -424,7 +432,7 @@ void  typed_minimization_analysis::compute_step_variables()
         if (partial != 0.0)
         {
             branching_function_value_type const  lambda = std::fabs(current_function_value / partial);
-            if (std::isnormal(lambda) && lambda < max_lambda)
+            if (std::isfinite(lambda) && lambda < max_lambda)
                 max_lambda = lambda;
         }
     if (max_lambda == 0.0 || max_lambda == std::numeric_limits<branching_function_value_type>::max())
@@ -502,7 +510,7 @@ void  typed_minimization_analysis::compute_current_variable_and_function_value_f
     for (std::size_t  i = 0U; i != step_function_values.size(); ++i)
     {
         branching_function_value_type const  value = step_function_values.at(i);
-        if (std::isnormal(value) && (!std::isfinite(current_function_value) || std::fabs(value) < std::fabs(current_function_value)))
+        if (std::isfinite(value) && (!std::isfinite(current_function_value) || std::fabs(value) < std::fabs(current_function_value)))
         {
             current_variable_values = step_variable_values.at(i);
             current_function_value = value;
@@ -536,7 +544,7 @@ branching_function_value_type  typed_minimization_analysis::process_execution_tr
         ++it;
         ++it_path;
     }
-    return it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isnormal(it->value) ? it->value : INFINITY;
+    return it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value) ? it->value : INFINITY;
 }
 
 
