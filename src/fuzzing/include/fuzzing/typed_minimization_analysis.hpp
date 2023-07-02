@@ -81,7 +81,7 @@ struct  typed_minimization_analysis
     void  process_execution_results(execution_trace_pointer  trace_ptr);
 
     branching_node*  get_node() const { return node; }
-    bool  get_stoped_early() const { return stoped_early; }
+    bool  get_stopped_early() const { return stopped_early; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
 
@@ -89,6 +89,7 @@ private:
     void  generate_next_seed();
     void  generate_next_partial();
 
+    void  compute_gradient();
     void  compute_step_variables();
     void  compute_current_variable_and_function_value_from_step();
 
@@ -106,16 +107,17 @@ private:
 
     PROGRESS_STAGE  progress_stage;
     std::vector<value_of_variable>  current_variable_values;
-    branching_function_value_type  current_fuction_value;
+    branching_function_value_type  current_function_value;
     std::vector<value_of_variable>  partial_variable_values;
-    std::vector<branching_function_value_type>  partial_fuction_values;
-    std::vector<natural_32_bit>  step_variable_indices;
-    std::vector<value_of_variable>  step_variable_values;
-    std::vector<branching_function_value_type>  step_fuction_values;
+    std::vector<branching_function_value_type>  partial_function_values;
+    std::vector<branching_function_value_type>  gradient;
+    std::vector<branching_function_value_type>  lambdas;
+    std::vector<std::vector<value_of_variable> >  step_variable_values;
+    std::vector<branching_function_value_type>  step_function_values;
 
     std::vector<value_of_variable>  executed_variable_values;
 
-    bool stoped_early;
+    bool stopped_early;
 
     random_generator_for_natural_32_bit  random_generator32;
     random_generator_for_natural_64_bit  random_generator64;

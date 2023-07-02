@@ -63,14 +63,15 @@ typed_minimization_analysis::typed_minimization_analysis()
     , types_of_variables{}
     , progress_stage{ SEED }
     , current_variable_values{}
-    , current_fuction_value{}
+    , current_function_value{}
     , partial_variable_values{}
-    , partial_fuction_values{}
-    , step_variable_indices{}
+    , partial_function_values{}
+    , gradient{}
+    , lambdas{}
     , step_variable_values{}
-    , step_fuction_values{}
+    , step_function_values{}
     , executed_variable_values{}
-    , stoped_early{ false }
+    , stopped_early{ false }
     , random_generator32{}
     , random_generator64{}
     , statistics{}
@@ -119,16 +120,17 @@ void  typed_minimization_analysis::start(
 
     progress_stage = SEED;
     current_variable_values.clear();
-    current_fuction_value = INFINITY;
+    current_function_value = INFINITY;
     partial_variable_values.clear();
-    partial_fuction_values.clear();
-    step_variable_indices.clear();
+    partial_function_values.clear();
+    gradient.clear();
+    lambdas.clear();
     step_variable_values.clear();
-    step_fuction_values.clear();
+    step_function_values.clear();
 
     executed_variable_values.clear();
 
-    stoped_early = false;
+    stopped_early = false;
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, node->sensitive_stdin_bits.size());
@@ -146,7 +148,7 @@ void  typed_minimization_analysis::stop()
 
     if (false)
     {
-        stoped_early = true;
+        stopped_early = true;
 
         ++statistics.stop_calls_early;
     }
@@ -180,12 +182,8 @@ bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
             executed_variable_values.at(partial_variable_values.size() - 1U) = partial_variable_values.back();
             break;
         case STEP:
-            {
-                INVARIANT(step_fuction_values.size() < step_variable_values.size());
-                std::size_t const  idx = step_fuction_values.size();
-                executed_variable_values = current_variable_values;
-                executed_variable_values.at(step_variable_indices.at(idx)) = step_variable_values.at(idx);
-            }
+            INVARIANT(step_function_values.size() < step_variable_values.size());
+            executed_variable_values = step_variable_values.at(step_function_values.size());
             break;
         default: { UNREACHABLE(); }
     }
@@ -212,37 +210,38 @@ void  typed_minimization_analysis::process_execution_results(execution_trace_poi
         case SEED:
             if (std::isfinite(function_value))
             {
-                current_fuction_value = function_value;
+                current_function_value = function_value;
                 progress_stage = PARTIALS;
                 partial_variable_values.clear();
-                partial_fuction_values.clear();
+                partial_function_values.clear();
             }
             break;
         case PARTIALS:
-            partial_fuction_values.push_back(function_value);
-            if (partial_fuction_values.size() == types_of_variables.size())
+            partial_function_values.push_back(function_value);
+            if (partial_function_values.size() == types_of_variables.size())
             {
+                compute_gradient();
                 compute_step_variables();
                 if (step_variable_values.empty())
                     progress_stage = SEED;
                 else
                 {
                     progress_stage = STEP;
-                    step_fuction_values.clear();
+                    step_function_values.clear();
                     ++statistics.gradient_steps;
                 }
             }
             break;
         case STEP:
-            step_fuction_values.push_back(function_value);
-            if (step_fuction_values.size() == step_variable_values.size())
+            step_function_values.push_back(function_value);
+            if (step_function_values.size() == step_variable_values.size())
             {
                 compute_current_variable_and_function_value_from_step();
-                if (std::isfinite(current_fuction_value))
+                if (std::isfinite(current_function_value))
                 {
                     progress_stage = PARTIALS;
                     partial_variable_values.clear();
-                    partial_fuction_values.clear();                
+                    partial_function_values.clear();                
                 }
                 else
                     progress_stage = SEED;
@@ -344,216 +343,171 @@ void  typed_minimization_analysis::generate_next_partial()
 }
 
 
-void  typed_minimization_analysis::compute_step_variables()
+void  typed_minimization_analysis::compute_gradient()
 {
-    step_variable_indices.clear();
-    step_variable_values.clear();
+    INVARIANT(partial_variable_values.size() == types_of_variables.size());
 
-    branching_function_value_type const  f0 = current_fuction_value;
+    gradient.clear();
 
-    for (std::size_t  i = 0U; i != partial_fuction_values.size(); ++i)
+    branching_function_value_type const  f0 = std::fabs(current_function_value);
+
+    for (std::size_t  i = 0U; i != partial_function_values.size(); ++i)
     {
-        branching_function_value_type const  f1 = partial_fuction_values.at(i);
-        if (!std::isfinite(f1))
+        if (!std::isfinite(partial_function_values.at(i)))
+        {
+            gradient.push_back(0.0);
             continue;
+        }
 
+        branching_function_value_type const  f1 = std::fabs(partial_function_values.at(i));
         branching_function_value_type const  df = f1 - f0;
-        if (std::fabs(df) < 1e-6)
-            continue;
-
-        float_64_bit const  max_t_f = -f0 / df;
 
         value_of_variable const&  var0 = current_variable_values.at(i);
         value_of_variable const&  var1 = partial_variable_values.at(i);
 
-        float_64_bit  max_t_v = -1.0;
-
+        branching_function_value_type  dv;
         switch (types_of_variables.at(i))
         {
             case type_of_input_bits::BOOLEAN:
+                dv = 1.0;
                 break;
             case type_of_input_bits::UINT8:
-                max_t_v = compute_max_variable_gradient_step(var0.value_uint8, var1.value_uint8, df);
+                dv = (branching_function_value_type)(var1.value_uint8 - var0.value_uint8);
                 break;
             case type_of_input_bits::SINT8:
-                max_t_v = compute_max_variable_gradient_step(var0.value_sint8, var1.value_sint8, df);
+                dv = (branching_function_value_type)(var1.value_sint8 - var0.value_sint8);
                 break;
             case type_of_input_bits::UINT16:
-                max_t_v = compute_max_variable_gradient_step(var0.value_uint16, var1.value_uint16, df);
+                dv = (branching_function_value_type)(var1.value_uint16 - var0.value_uint16);
                 break;
             case type_of_input_bits::SINT16:
-                max_t_v = compute_max_variable_gradient_step(var0.value_sint16, var1.value_sint16, df);
+                dv = (branching_function_value_type)(var1.value_sint16 - var0.value_sint16);
                 break;
             case type_of_input_bits::UINT32:
-                max_t_v = compute_max_variable_gradient_step(var0.value_uint32, var1.value_uint32, df);
+                dv = (branching_function_value_type)(var1.value_uint32 - var0.value_uint32);
                 break;
             case type_of_input_bits::SINT32:
-                max_t_v = compute_max_variable_gradient_step(var0.value_sint32, var1.value_sint32, df);
+                dv = (branching_function_value_type)(var1.value_sint32 - var0.value_sint32);
                 break;
             case type_of_input_bits::UINT64:
-                max_t_v = compute_max_variable_gradient_step(var0.value_uint64, var1.value_uint64, df);
+                dv = (branching_function_value_type)(var1.value_uint64 - var0.value_uint64);
                 break;
             case type_of_input_bits::SINT64:
-                max_t_v = compute_max_variable_gradient_step(var0.value_sint64, var1.value_sint64, df);
+                dv = (branching_function_value_type)(var1.value_sint64 - var0.value_sint64);
                 break;
             case type_of_input_bits::FLOAT32:
-                max_t_v = compute_max_variable_gradient_step_float(var0.value_float32, var1.value_float32, df);
+                dv = (branching_function_value_type)(var1.value_float32 - var0.value_float32);
                 break;
             case type_of_input_bits::FLOAT64:
-                max_t_v = compute_max_variable_gradient_step_float(var0.value_float64, var1.value_float64, df);
+                dv = (branching_function_value_type)(var1.value_float64 - var0.value_float64);
                 break;
             default: { UNREACHABLE(); }
         }
 
-        float_64_bit  max_t = std::min(max_t_v, max_t_f);
-        if (max_t > 0.0)
-            for (float_64_bit const  t : {
-                    max_t,
-                    max_t * 0.75,
-                    max_t * 0.50,
-                    max_t * 0.25,
-                    max_t * 0.10,
-                    max_t * 0.01,
-                    max_t * 0.001,
-                    0.1,
-                    0.01,
-                    0.001
-                    })
-                if (t <= max_t)
-                {
-                    switch (types_of_variables.at(i))
-                    {
-                        case type_of_input_bits::UINT8: {
-                            auto const old_value = var0.value_uint8;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::SINT8: {
-                            auto const old_value = var0.value_sint8;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::UINT16: {
-                            auto const old_value = var0.value_uint16;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::SINT16: {
-                            auto const old_value = var0.value_sint16;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::UINT32: {
-                            auto const old_value = var0.value_uint32;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::SINT32: {
-                            auto const old_value = var0.value_sint32;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::UINT64: {
-                            auto const old_value = var0.value_uint64;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::SINT64: {
-                            auto const old_value = var0.value_sint64;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::FLOAT32: {
-                            auto const old_value = var0.value_float32;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        case type_of_input_bits::FLOAT64: {
-                            auto const old_value = var0.value_float64;
-                            auto const new_value = old_value + (decltype(old_value))(t * df);
-                            if (new_value != old_value)
-                            {
-                                step_fuction_values.push_back(new_value);
-                                step_variable_indices.push_back(i);
-                            }
-                            } break;
-                        default: { UNREACHABLE(); }
-                    }
-                }
+        INVARIANT(dv != 0.0);
+
+        gradient.push_back(df / dv);
+        if (!std::isnormal(gradient.back()))
+            gradient.back() = 0.0;
     }
+}
+
+
+void  typed_minimization_analysis::compute_step_variables()
+{
+    INVARIANT(gradient.size() == types_of_variables.size());
+
+    step_variable_values.clear();
+
+    branching_function_value_type  max_lambda = std::numeric_limits<branching_function_value_type>::max();
+    for (branching_function_value_type const  partial : gradient)
+        if (partial != 0.0)
+        {
+            branching_function_value_type const  lambda = std::fabs(current_function_value / partial);
+            if (std::isnormal(lambda) && lambda < max_lambda)
+                max_lambda = lambda;
+        }
+    if (max_lambda == 0.0 || max_lambda == std::numeric_limits<branching_function_value_type>::max())
+        return;
+
+    for (float_64_bit const  t : {
+            max_lambda,
+            max_lambda * 0.75,
+            max_lambda * 0.50,
+            max_lambda * 0.25,
+            max_lambda * 0.10,
+            max_lambda * 0.01,
+            max_lambda * 0.001,
+            0.1,
+            0.01,
+            0.001
+            })
+        if (t <= max_lambda)
+        {
+            step_variable_values.push_back({});
+            auto&  vars = step_variable_values.back();
+            for (std::size_t  i = 0U; i != types_of_variables.size(); ++i)
+            {
+                step_variable_values.back().push_back({});
+                value_of_variable&  var = step_variable_values.back().back();
+                value_of_variable const&  var0 = current_variable_values.at(i);
+                value_of_variable const&  target_var = step_variable_values.back().at(i);
+                branching_function_value_type const  partial = gradient.at(i);
+                switch (types_of_variables.at(i))
+                {
+                    case type_of_input_bits::UINT8:
+                        var.value_uint8 = var0.value_uint8 - (natural_8_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::SINT8:
+                        var.value_sint8 = var0.value_sint8 - (integer_8_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::UINT16:
+                        var.value_uint16 = var0.value_uint16 - (natural_16_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::SINT16:
+                        var.value_sint16 = var0.value_sint16 - (integer_16_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::UINT32:
+                        var.value_uint32 = var0.value_uint32 - (natural_32_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::SINT32:
+                        var.value_sint32 = var0.value_sint32 - (integer_32_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::UINT64:
+                        var.value_uint64 = var0.value_uint64 - (natural_64_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::SINT64:
+                        var.value_sint64 = var0.value_sint64 - (integer_64_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::FLOAT32:
+                        var.value_float32 = var0.value_float32 - (float_32_bit)(t * partial);
+                        break;
+                    case type_of_input_bits::FLOAT64:
+                        var.value_float64 = var0.value_float64 - (float_64_bit)(t * partial);
+                        break;
+                    default: { UNREACHABLE(); }
+                }
+            }
+        }
 }
 
 
 void  typed_minimization_analysis::compute_current_variable_and_function_value_from_step()
 {
-    natural_32_bit  best_variable_index{ std::numeric_limits<natural_32_bit>::max() };
-    value_of_variable  best_variable_value{ .value_uint64 = 0ULL };
-    branching_function_value_type  best_function_value{ current_fuction_value };
+    INVARIANT(step_function_values.size() == step_variable_values.size());
 
-    for (std::size_t  i = 0U; i != partial_fuction_values.size(); ++i)
+    current_variable_values.clear();
+    current_function_value = INFINITY;
+
+    for (std::size_t  i = 0U; i != step_function_values.size(); ++i)
     {
-        branching_function_value_type const  value = partial_fuction_values.at(i);
-        if (!std::isfinite(value) && std::fabs(value) < std::fabs(best_function_value))
+        branching_function_value_type const  value = step_function_values.at(i);
+        if (std::isnormal(value) && (!std::isfinite(current_function_value) || std::fabs(value) < std::fabs(current_function_value)))
         {
-            best_variable_index = i;
-            best_variable_value = partial_variable_values.at(i);
-            best_function_value = value;
+            current_variable_values = step_variable_values.at(i);
+            current_function_value = value;
         }
     }
-    for (std::size_t  i = 0U; i != step_fuction_values.size(); ++i)
-    {
-        branching_function_value_type const  value = step_fuction_values.at(i);
-        if (!std::isfinite(value) && std::fabs(value) < std::fabs(best_function_value))
-        {
-            best_variable_index = step_variable_indices.at(i);
-            best_variable_value = step_variable_values.at(i);
-            best_function_value = value;
-        }
-    }
-
-    if (std::fabs(best_function_value) < std::fabs(current_fuction_value))
-    {
-        current_variable_values.at(best_variable_index) = best_variable_value;
-        current_fuction_value = best_function_value;
-    }
-    else
-        current_fuction_value = INFINITY;
 }
 
 
