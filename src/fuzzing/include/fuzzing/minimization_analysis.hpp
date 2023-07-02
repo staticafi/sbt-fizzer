@@ -63,7 +63,7 @@ struct  minimization_analysis
         , computed_input_stdin{}
         , hashes_of_generated_bits{}
         , random_generator{}
-        , stoped_early{ false }
+        , stopped_early{ false }
         , statistics{}
     {}
 
@@ -77,7 +77,7 @@ struct  minimization_analysis
     void  process_execution_results(execution_trace_pointer  trace_ptr);
 
     branching_node*  get_node() const { return node; }
-    bool  get_stoped_early() const { return stoped_early; }
+    bool  get_stopped_early() const { return stopped_early; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
 
@@ -96,7 +96,7 @@ private:
     vecb  computed_input_stdin;
     std::unordered_map<std::size_t, branching_function_value_type> hashes_of_generated_bits;
     random_generator_for_natural_32_bit  random_generator;
-    bool stoped_early;
+    bool stopped_early;
 
     performance_statistics  statistics;
 };

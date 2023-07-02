@@ -53,7 +53,7 @@ void  minimization_analysis::start(
                 );
     std::reverse(seeds.begin(), seeds.end());
 
-    stoped_early = false;
+    stopped_early = false;
     descent = {};
     computed_input_stdin.clear();
     hashes_of_generated_bits.clear();
@@ -74,7 +74,7 @@ void  minimization_analysis::stop()
 
     if (!seeds.empty() || descent.stage != gradient_descent_state::TAKE_NEXT_SEED)
     {
-        stoped_early = true;
+        stopped_early = true;
 
         ++statistics.stop_calls_early;
     }

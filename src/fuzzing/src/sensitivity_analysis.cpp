@@ -24,7 +24,7 @@ void  sensitivity_analysis::start(
     leaf_branching = leaf_branching_ptr;
     execution_id = execution_id_;
     nodes.clear();
-    stoped_early = false;
+    stopped_early = false;
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bits_and_types->bits.size());
@@ -42,7 +42,7 @@ void  sensitivity_analysis::stop()
 
     if (mutated_bit_index < bits_and_types->bits.size())
     {
-        stoped_early = true;
+        stopped_early = true;
 
         ++statistics.stop_calls_early;
     }

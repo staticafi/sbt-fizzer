@@ -33,7 +33,7 @@ struct  sensitivity_analysis
         , leaf_branching{ nullptr }
         , execution_id{ 0 }
         , nodes{}
-        , stoped_early{ false }
+        , stopped_early{ false }
         , statistics{}
     {}
 
@@ -49,7 +49,7 @@ struct  sensitivity_analysis
 
     branching_node*  get_leaf_branching() const { return leaf_branching; }
     std::unordered_set<branching_node*> const&  get_nodes_with_extended_sensitive_bits() { return nodes; }
-    bool  get_stoped_early() const { return stoped_early; }
+    bool  get_stopped_early() const { return stopped_early; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
 
@@ -62,7 +62,7 @@ private:
     branching_node*  leaf_branching;
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  nodes;
-    bool  stoped_early;
+    bool  stopped_early;
 
     performance_statistics  statistics;
 };
