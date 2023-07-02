@@ -58,9 +58,11 @@ struct  typed_minimization_analysis
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
+        std::size_t  suppressed_repetitions{ 0 };
         std::size_t  max_bits{ 0 };
         std::size_t  seeds_processed{ 0 };
         std::size_t  gradient_steps{ 0 };
+        std::size_t  gradient_samples{ 0 };
         std::size_t  start_calls{ 0 };
         std::size_t  stop_calls_regular{ 0 };
         std::size_t  stop_calls_early{ 0 };
@@ -79,6 +81,9 @@ struct  typed_minimization_analysis
     void  start(branching_node*  node_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr, natural_32_bit  execution_id_);
     void  stop();
 
+    std::size_t  max_generated_inputs() const { return 20000ULL; }
+    std::size_t  num_generated_inputs() const { return hashes_of_generated_bits.size(); }
+
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr);
 
@@ -88,6 +93,8 @@ struct  typed_minimization_analysis
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
+    void  process_execution_results(branching_function_value_type  function_value);
+
     void  generate_next_seed();
     void  generate_next_partial();
 
@@ -95,9 +102,8 @@ private:
     void  compute_step_variables();
     void  compute_current_variable_and_function_value_from_step();
 
-    void  write_variable_values_to_input(vecb&  bits_ref);
-
-    branching_function_value_type  process_execution_trace(execution_trace_pointer  trace_ptr);
+    bool  apply_fast_execution_using_cache();
+    void  collect_bits_of_executed_variable_values(std::function<void(natural_32_bit, bool)> const&  bits_collector) const;
 
     STATE  state;
     branching_node*  node;
@@ -118,6 +124,8 @@ private:
     std::vector<branching_function_value_type>  step_function_values;
 
     std::vector<value_of_variable>  executed_variable_values;
+    std::size_t  executed_variable_values_hash;
+    std::unordered_map<std::size_t, branching_function_value_type>  hashes_of_generated_bits;
 
     bool stopped_early;
 

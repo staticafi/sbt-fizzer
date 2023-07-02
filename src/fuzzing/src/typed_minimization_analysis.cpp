@@ -39,6 +39,7 @@ typed_minimization_analysis::typed_minimization_analysis()
     , step_variable_values{}
     , step_function_values{}
     , executed_variable_values{}
+    , hashes_of_generated_bits{}
     , stopped_early{ false }
     , random_generator32{}
     , random_generator64{}
@@ -97,6 +98,7 @@ void  typed_minimization_analysis::start(
     step_function_values.clear();
 
     executed_variable_values.clear();
+    hashes_of_generated_bits.clear();
 
     stopped_early = false;
 
@@ -114,7 +116,7 @@ void  typed_minimization_analysis::stop()
 
     recorder().on_typed_minimization_stop();
 
-    if (false)
+    if (num_generated_inputs() < max_generated_inputs())
     {
         stopped_early = true;
 
@@ -137,26 +139,38 @@ bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    switch (progress_stage)
+    do
     {
-        case SEED:
-            generate_next_seed();
-            executed_variable_values = current_variable_values;
-            ++statistics.seeds_processed;
-            break;
-        case PARTIALS:
-            generate_next_partial();
-            executed_variable_values = current_variable_values;
-            executed_variable_values.at(partial_variable_values.size() - 1U) = partial_variable_values.back();
-            break;
-        case STEP:
-            INVARIANT(step_function_values.size() < step_variable_values.size());
-            executed_variable_values = step_variable_values.at(step_function_values.size());
-            break;
-        default: { UNREACHABLE(); }
-    }
+        if (num_generated_inputs() >= max_generated_inputs())
+        {
+            stop();
+            return false;
+        }
 
-    write_variable_values_to_input(bits_ref);
+        switch (progress_stage)
+        {
+            case SEED:
+                generate_next_seed();
+                executed_variable_values = current_variable_values;
+                ++statistics.seeds_processed;
+                break;
+            case PARTIALS:
+                generate_next_partial();
+                executed_variable_values = current_variable_values;
+                executed_variable_values.at(partial_variable_values.size() - 1U) = partial_variable_values.back();
+                break;
+            case STEP:
+                INVARIANT(step_function_values.size() < step_variable_values.size());
+                executed_variable_values = step_variable_values.at(step_function_values.size());
+                ++statistics.gradient_samples;
+                break;
+            default: { UNREACHABLE(); }
+        }
+    }
+    while (apply_fast_execution_using_cache());
+
+    bits_ref = bits_and_types->bits;
+    collect_bits_of_executed_variable_values([&bits_ref](natural_32_bit const  idx, bool const  state) { bits_ref.at(idx) = state; });
 
     ++statistics.generated_inputs;
 
@@ -171,8 +185,24 @@ void  typed_minimization_analysis::process_execution_results(execution_trace_poi
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr);
 
-    branching_function_value_type const  function_value = process_execution_trace(trace_ptr);
+    auto  it = trace_ptr->begin();
+    auto  it_path = path.begin();
+    while (it != trace_ptr->end() && it_path != path.end() && it->id == it_path->first && it->direction == it_path->second)
+    {
+        ++it;
+        ++it_path;
+    }
+    branching_function_value_type const  function_value =
+            it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value) ? it->value : INFINITY;
 
+    hashes_of_generated_bits.insert({ executed_variable_values_hash, function_value });
+
+    process_execution_results(function_value);
+}
+
+
+void  typed_minimization_analysis::process_execution_results(branching_function_value_type const  function_value)
+{
     switch (progress_stage)
     {
         case SEED:
@@ -519,9 +549,28 @@ void  typed_minimization_analysis::compute_current_variable_and_function_value_f
 }
 
 
-void  typed_minimization_analysis::write_variable_values_to_input(vecb&  bits_ref)
+bool  typed_minimization_analysis::apply_fast_execution_using_cache()
 {
-    bits_ref = bits_and_types->bits;
+    vecb  bits;
+    collect_bits_of_executed_variable_values([&bits](natural_32_bit, bool const  state) { bits.push_back(state); });
+
+    executed_variable_values_hash = make_hash(bits);
+
+    auto const  hash_it = hashes_of_generated_bits.find(executed_variable_values_hash);
+    if (hash_it == hashes_of_generated_bits.end())
+        return false;
+
+    process_execution_results(hash_it->second);
+
+    ++statistics.suppressed_repetitions;
+
+    // recorder().on_minimization_execution_results_cache_hit(descent.stage, hash_it->first);
+
+    return true;
+}
+
+void  typed_minimization_analysis::collect_bits_of_executed_variable_values(std::function<void(natural_32_bit, bool)> const&  bits_collector) const
+{
     for (std::size_t  i = 0UL; i != from_variables_to_input.size(); ++i)
     {
         vecb  bits;
@@ -530,21 +579,8 @@ void  typed_minimization_analysis::write_variable_values_to_input(vecb&  bits_re
 
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            bits_ref.at(mapping.input_start_bit_index + idx) = bits.at(idx);
+            bits_collector(mapping.input_start_bit_index + idx, bits.at(idx));
     }
-}
-
-
-branching_function_value_type  typed_minimization_analysis::process_execution_trace(execution_trace_pointer  trace_ptr)
-{
-    auto  it = trace_ptr->begin();
-    auto  it_path = path.begin();
-    while (it != trace_ptr->end() && it_path != path.end() && it->id == it_path->first && it->direction == it_path->second)
-    {
-        ++it;
-        ++it_path;
-    }
-    return it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value) ? it->value : INFINITY;
 }
 
 
