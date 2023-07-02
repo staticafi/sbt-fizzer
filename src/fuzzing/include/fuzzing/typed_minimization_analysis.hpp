@@ -81,8 +81,7 @@ struct  typed_minimization_analysis
     void  start(branching_node*  node_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr, natural_32_bit  execution_id_);
     void  stop();
 
-    std::size_t  max_generated_inputs() const { return 20000ULL; }
-    std::size_t  num_generated_inputs() const { return hashes_of_generated_bits.size(); }
+    natural_32_bit  max_num_executions() const;
 
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr);
@@ -119,7 +118,6 @@ private:
     std::vector<value_of_variable>  partial_variable_values;
     std::vector<branching_function_value_type>  partial_function_values;
     std::vector<branching_function_value_type>  gradient;
-    std::vector<branching_function_value_type>  lambdas;
     std::vector<std::vector<value_of_variable> >  step_variable_values;
     std::vector<branching_function_value_type>  step_function_values;
 
@@ -127,6 +125,7 @@ private:
     std::size_t  executed_variable_values_hash;
     std::unordered_map<std::size_t, branching_function_value_type>  hashes_of_generated_bits;
 
+    natural_32_bit  num_fast_and_genuine_executions;
     bool stopped_early;
 
     random_generator_for_natural_32_bit  random_generator32;

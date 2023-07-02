@@ -35,11 +35,11 @@ typed_minimization_analysis::typed_minimization_analysis()
     , partial_variable_values{}
     , partial_function_values{}
     , gradient{}
-    , lambdas{}
     , step_variable_values{}
     , step_function_values{}
     , executed_variable_values{}
     , hashes_of_generated_bits{}
+    , num_fast_and_genuine_executions{ 0U }
     , stopped_early{ false }
     , random_generator32{}
     , random_generator64{}
@@ -87,19 +87,21 @@ void  typed_minimization_analysis::start(
         std::sort(from_variables_to_input.back().value_bit_indices.begin(), from_variables_to_input.back().value_bit_indices.end());
     }
 
+    INVARIANT(!types_of_variables.empty());
+
     progress_stage = SEED;
     current_variable_values.clear();
     current_function_value = INFINITY;
     partial_variable_values.clear();
     partial_function_values.clear();
     gradient.clear();
-    lambdas.clear();
     step_variable_values.clear();
     step_function_values.clear();
 
     executed_variable_values.clear();
     hashes_of_generated_bits.clear();
 
+    num_fast_and_genuine_executions = 0U;
     stopped_early = false;
 
     ++statistics.start_calls;
@@ -116,7 +118,7 @@ void  typed_minimization_analysis::stop()
 
     recorder().on_typed_minimization_stop();
 
-    if (num_generated_inputs() < max_generated_inputs())
+    if (num_fast_and_genuine_executions < max_num_executions())
     {
         stopped_early = true;
 
@@ -132,6 +134,12 @@ void  typed_minimization_analysis::stop()
 }
 
 
+natural_32_bit  typed_minimization_analysis::max_num_executions() const
+{
+    return (natural_32_bit)(100U * node->sensitive_stdin_bits.size());
+}
+
+
 bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
 {
     TMPROF_BLOCK();
@@ -141,7 +149,7 @@ bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
 
     do
     {
-        if (num_generated_inputs() >= max_generated_inputs())
+        if (num_fast_and_genuine_executions >= max_num_executions())
         {
             stop();
             return false;
@@ -166,6 +174,8 @@ bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 break;
             default: { UNREACHABLE(); }
         }
+
+        ++num_fast_and_genuine_executions;
     }
     while (apply_fast_execution_using_cache());
 
@@ -235,7 +245,7 @@ void  typed_minimization_analysis::process_execution_results(branching_function_
             if (step_function_values.size() == step_variable_values.size())
             {
                 compute_current_variable_and_function_value_from_step();
-                if (std::isfinite(current_function_value))
+                if (!current_variable_values.empty())
                 {
                     progress_stage = PARTIALS;
                     partial_variable_values.clear();
@@ -533,14 +543,14 @@ void  typed_minimization_analysis::compute_step_variables()
 void  typed_minimization_analysis::compute_current_variable_and_function_value_from_step()
 {
     INVARIANT(step_function_values.size() == step_variable_values.size());
+    INVARIANT(std::isfinite(current_function_value));
 
     current_variable_values.clear();
-    current_function_value = INFINITY;
 
     for (std::size_t  i = 0U; i != step_function_values.size(); ++i)
     {
         branching_function_value_type const  value = step_function_values.at(i);
-        if (std::isfinite(value) && (!std::isfinite(current_function_value) || std::fabs(value) < std::fabs(current_function_value)))
+        if (std::isfinite(value) && std::fabs(value) < std::fabs(current_function_value))
         {
             current_variable_values = step_variable_values.at(i);
             current_function_value = value;
