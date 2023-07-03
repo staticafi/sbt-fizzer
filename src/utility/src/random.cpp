@@ -23,6 +23,16 @@ natural_32_bit  get_random_natural_32_bit_in_range(
     return std::uniform_int_distribution<natural_32_bit>(min_value,max_value)(generator);
 }
 
+integer_32_bit  get_random_integer_32_bit_in_range(
+    integer_32_bit const min_value,
+    integer_32_bit const max_value,
+    random_generator_for_natural_32_bit&   generator
+    )
+{
+    ASSUMPTION(min_value <= max_value);
+    return std::uniform_int_distribution<integer_32_bit>(min_value,max_value)(generator);
+}
+
 float_32_bit  get_random_float_32_bit_in_range(
     float_32_bit const min_value,
     float_32_bit const max_value,
@@ -62,6 +72,16 @@ natural_64_bit  get_random_natural_64_bit_in_range(
 {
     ASSUMPTION(min_value <= max_value);
     return std::uniform_int_distribution<natural_64_bit>(min_value,max_value)(generator);
+}
+
+integer_64_bit  get_random_integer_64_bit_in_range(
+    integer_64_bit const  min_value,
+    integer_64_bit const  max_value,
+    random_generator_for_natural_64_bit&  generator
+    )
+{
+    ASSUMPTION(min_value <= max_value);
+    return std::uniform_int_distribution<integer_64_bit>(min_value,max_value)(generator);
 }
 
 float_64_bit  get_random_float_64_bit_in_range(

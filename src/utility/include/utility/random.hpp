@@ -30,6 +30,12 @@ natural_32_bit  get_random_natural_32_bit_in_range(
     random_generator_for_natural_32_bit&   generator = default_random_generator()
     );
 
+integer_32_bit  get_random_integer_32_bit_in_range(
+    integer_32_bit const min_value,
+    integer_32_bit const max_value,
+    random_generator_for_natural_32_bit&   generator = default_random_generator()
+    );
+
 float_32_bit  get_random_float_32_bit_in_range(
     float_32_bit const min_value,
     float_32_bit const max_value,
@@ -44,6 +50,12 @@ void  reset(random_generator_for_natural_32_bit&  generator,
 natural_64_bit  get_random_natural_64_bit_in_range(
     natural_64_bit const  min_value,
     natural_64_bit const  max_value,
+    random_generator_for_natural_64_bit&  generator
+    );
+
+integer_64_bit  get_random_integer_64_bit_in_range(
+    integer_64_bit const  min_value,
+    integer_64_bit const  max_value,
     random_generator_for_natural_64_bit&  generator
     );
 
