@@ -262,9 +262,27 @@ void  typed_minimization_analysis::process_execution_results(branching_function_
 
 void  typed_minimization_analysis::generate_next_seed()
 {
+    natural_16_bit constexpr  min_exponent = 8U;
+    static std::unordered_map<type_of_input_bits, natural_16_bit> const  types_to_exponents {
+        { type_of_input_bits::UINT16, 16 - min_exponent },
+        { type_of_input_bits::SINT16, 15 - min_exponent },
+        { type_of_input_bits::UINT32, 32 - min_exponent },
+        { type_of_input_bits::SINT32, 31 - min_exponent },
+        { type_of_input_bits::UINT64, 64 - min_exponent },
+        { type_of_input_bits::SINT64, 63 - min_exponent },
+        { type_of_input_bits::FLOAT32, 127 - min_exponent },
+        { type_of_input_bits::FLOAT64, 1023 - min_exponent },
+    };
+
+    float_64_bit const  progress = (float_64_bit)num_fast_and_genuine_executions / (float_64_bit)max_num_executions();
+
     current_variable_values.clear();
     for (type_of_input_bits const  type : types_of_variables)
     {
+        auto const  it = types_to_exponents.find(type);
+        float_64_bit const  max_abs_value = (it == types_to_exponents.end()) ? 0.0 :
+            std::roundf(std::pow(2.0, min_exponent + (float_64_bit)it->second * progress) - 1.0);
+
         current_variable_values.push_back({});
         switch (type)
         {
@@ -279,63 +297,83 @@ void  typed_minimization_analysis::generate_next_seed()
                         );
                 break;
             case type_of_input_bits::SINT8:
-                current_variable_values.back().value_sint8 =(integer_8_bit)get_random_natural_32_bit_in_range(
-                        std::numeric_limits<natural_8_bit>::min(),
-                        std::numeric_limits<natural_8_bit>::max(),
+                current_variable_values.back().value_sint8 =(integer_8_bit)get_random_integer_32_bit_in_range(
+                        std::numeric_limits<integer_8_bit>::min(),
+                        std::numeric_limits<integer_8_bit>::max(),
                         random_generator32
                         );
                 break;
             case type_of_input_bits::UINT16:
                 current_variable_values.back().value_uint16 =(natural_16_bit)get_random_natural_32_bit_in_range(
                         std::numeric_limits<natural_16_bit>::min(),
-                        std::numeric_limits<natural_16_bit>::max(),
+                        (natural_16_bit)max_abs_value,
                         random_generator32
                         );
                 break;
             case type_of_input_bits::SINT16:
-                current_variable_values.back().value_sint16 =(integer_16_bit)get_random_natural_32_bit_in_range(
-                        std::numeric_limits<natural_16_bit>::min(),
-                        std::numeric_limits<natural_16_bit>::max(),
+                current_variable_values.back().value_sint16 =(integer_16_bit)get_random_integer_32_bit_in_range(
+                        -(integer_16_bit)max_abs_value,
+                        (integer_16_bit)max_abs_value,
                         random_generator32
                         );
                 break;
             case type_of_input_bits::UINT32:
                 current_variable_values.back().value_uint32 =(natural_32_bit)get_random_natural_32_bit_in_range(
                         std::numeric_limits<natural_32_bit>::min(),
-                        std::numeric_limits<natural_32_bit>::max(),
+                        (natural_32_bit)max_abs_value,
                         random_generator32
                         );
                 break;
             case type_of_input_bits::SINT32:
-                current_variable_values.back().value_sint32 =(integer_32_bit)get_random_natural_32_bit_in_range(
-                        std::numeric_limits<natural_32_bit>::min(),
-                        std::numeric_limits<natural_32_bit>::max(),
+                current_variable_values.back().value_sint32 =(integer_32_bit)get_random_integer_32_bit_in_range(
+                        -(integer_32_bit)max_abs_value,
+                        (integer_32_bit)max_abs_value,
                         random_generator32
                         );
                 break;
             case type_of_input_bits::UINT64:
                 current_variable_values.back().value_uint64 =(natural_64_bit)get_random_natural_64_bit_in_range(
                         std::numeric_limits<natural_64_bit>::min(),
-                        std::numeric_limits<natural_64_bit>::max(),
+                        (natural_64_bit)max_abs_value,
                         random_generator64
                         );
                 break;
             case type_of_input_bits::SINT64:
-                current_variable_values.back().value_sint64 =(integer_64_bit)get_random_natural_64_bit_in_range(
-                        std::numeric_limits<natural_64_bit>::min(),
-                        std::numeric_limits<natural_64_bit>::max(),
+                current_variable_values.back().value_sint64 =(integer_64_bit)get_random_integer_64_bit_in_range(
+                        -(integer_64_bit)max_abs_value,
+                        (integer_64_bit)max_abs_value,
                         random_generator64
                         );
                 break;
             case type_of_input_bits::FLOAT32:
-                current_variable_values.back().value_float32 = get_random_float_32_bit(random_generator32);
+                current_variable_values.back().value_float32 = get_random_float_32_bit_in_range(
+                        -(float_32_bit)max_abs_value,
+                        (float_32_bit)max_abs_value,
+                        random_generator32
+                        );
                 break;
             case type_of_input_bits::FLOAT64:
-                current_variable_values.back().value_float64 = get_random_float_64_bit(random_generator64);
+                current_variable_values.back().value_float64 = get_random_float_64_bit_in_range(
+                        -max_abs_value,
+                        max_abs_value,
+                        random_generator64
+                        );
                 break;
             default: { UNREACHABLE(); }
         }
     }
+}
+
+
+template<typename float_type>
+float_type  find_best_floating_point_variable_delta(float_type const v0, branching_function_value_type const f0)
+{
+    float_type constexpr  under_linear_estimate{ 0.1 };
+    float_type constexpr  half{ 0.5 };
+    float_type  mult{ half };
+    while (v0 + (half * mult) * v0 != v0 && std::fabs((half * mult) * v0) >= std::fabs(under_linear_estimate * f0))
+        mult *= half;
+    return mult * std::fabs(v0);
 }
 
 
@@ -373,18 +411,12 @@ void  typed_minimization_analysis::generate_next_partial()
             partial_variable_values.back().value_sint64 += 1;
             break;
         case type_of_input_bits::FLOAT32:
-            {
-                float_32_bit constexpr  mult = 0.001f;
-                float_32_bit const  dv = mult * std::fabs(partial_variable_values.back().value_float32);
-                partial_variable_values.back().value_float32 += dv != 0.0f ? dv : mult;
-            }
+            partial_variable_values.back().value_float32 +=
+                    find_best_floating_point_variable_delta(partial_variable_values.back().value_float32, current_function_value);
             break;
         case type_of_input_bits::FLOAT64:
-            {
-                float_64_bit constexpr  mult = 0.001f;
-                float_64_bit const  dv = mult * std::fabs(partial_variable_values.back().value_float64);
-                partial_variable_values.back().value_float64 += dv != 0.0f ? dv : mult;
-            }
+            partial_variable_values.back().value_float64 +=
+                    find_best_floating_point_variable_delta(partial_variable_values.back().value_float64, current_function_value);
             break;
         default: { UNREACHABLE(); }
     }
@@ -479,16 +511,13 @@ void  typed_minimization_analysis::compute_step_variables()
         return;
 
     for (float_64_bit const  t : {
-            max_lambda,
-            // max_lambda * 0.75,
-            max_lambda * 0.50,
-            // max_lambda * 0.25,
-            max_lambda * 0.10,
-            // max_lambda * 0.01,
-            // max_lambda * 0.001,
-            // 0.1,
-            // 0.01,
-            // 0.001
+            max_lambda * 1000.0,
+            max_lambda * 100.0,
+            max_lambda * 10.0,
+            max_lambda * 1.0,
+            max_lambda * 0.1,
+            max_lambda * 0.01,
+            max_lambda * 0.001,
             })
         if (t <= max_lambda)
         {
