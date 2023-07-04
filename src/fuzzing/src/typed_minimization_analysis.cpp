@@ -281,7 +281,7 @@ void  typed_minimization_analysis::generate_next_seed()
     {
         auto const  it = types_to_exponents.find(type);
         float_64_bit const  max_abs_value = (it == types_to_exponents.end()) ? 0.0 :
-            std::roundf(std::pow(2.0, min_exponent + (float_64_bit)it->second * progress) - 1.0);
+            std::round(std::pow(2.0, min_exponent + (float_64_bit)it->second * progress) - 1.0);
 
         current_variable_values.push_back({});
         switch (type)
@@ -533,28 +533,28 @@ void  typed_minimization_analysis::compute_step_variables()
             switch (types_of_variables.at(i))
             {
                 case type_of_input_bits::UINT8:
-                    var.value_uint8 = (natural_8_bit)(var0.value_uint8 - t * partial);
+                    var.value_uint8 = (natural_8_bit)std::round(var0.value_uint8 - t * partial);
                     break;
                 case type_of_input_bits::SINT8:
-                    var.value_sint8 = (integer_8_bit)(var0.value_sint8 - t * partial);
+                    var.value_sint8 = (integer_8_bit)std::round(var0.value_sint8 - t * partial);
                     break;
                 case type_of_input_bits::UINT16:
-                    var.value_uint16 = (natural_16_bit)(var0.value_uint16 - t * partial);
+                    var.value_uint16 = (natural_16_bit)std::round(var0.value_uint16 - t * partial);
                     break;
                 case type_of_input_bits::SINT16:
-                    var.value_sint16 = (integer_16_bit)(var0.value_sint16 - t * partial);
+                    var.value_sint16 = (integer_16_bit)std::round(var0.value_sint16 - t * partial);
                     break;
                 case type_of_input_bits::UINT32:
-                    var.value_uint32 = (natural_32_bit)(var0.value_uint32 - t * partial);
+                    var.value_uint32 = (natural_32_bit)std::round(var0.value_uint32 - t * partial);
                     break;
                 case type_of_input_bits::SINT32:
-                    var.value_sint32 = (integer_32_bit)(var0.value_sint32 - t * partial);
+                    var.value_sint32 = (integer_32_bit)std::round(var0.value_sint32 - t * partial);
                     break;
                 case type_of_input_bits::UINT64:
-                    var.value_uint64 = var0.value_uint64 - (natural_64_bit)(t * partial);
+                    var.value_uint64 = var0.value_uint64 - (natural_64_bit)std::round(t * partial);
                     break;
                 case type_of_input_bits::SINT64:
-                    var.value_sint64 = var0.value_sint64 - (integer_64_bit)(t * partial);
+                    var.value_sint64 = var0.value_sint64 - (integer_64_bit)std::round(t * partial);
                     break;
                 case type_of_input_bits::FLOAT32:
                     var.value_float32 = (float_32_bit)(var0.value_float32 - t * partial);
