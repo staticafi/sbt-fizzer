@@ -82,6 +82,7 @@ struct  typed_minimization_analysis
     void  stop();
 
     natural_32_bit  max_num_executions() const;
+    natural_8_bit  max_partial_variable_corrections() const;
 
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr);
@@ -96,6 +97,7 @@ private:
 
     void  generate_next_seed();
     void  generate_next_partial();
+    bool  try_to_correct_active_partial_variable();
 
     void  compute_gradient();
     void  compute_step_variables();
@@ -117,6 +119,7 @@ private:
     branching_function_value_type  current_function_value;
     std::vector<value_of_variable>  partial_variable_values;
     std::vector<branching_function_value_type>  partial_function_values;
+    natural_8_bit  num_corrections_of_active_partial_variable;
     std::vector<branching_function_value_type>  gradient;
     std::vector<bool>  gradient_direction_locks;
     std::vector<std::vector<value_of_variable> >  step_variable_values;

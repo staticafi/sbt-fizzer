@@ -34,6 +34,7 @@ typed_minimization_analysis::typed_minimization_analysis()
     , current_function_value{}
     , partial_variable_values{}
     , partial_function_values{}
+    , num_corrections_of_active_partial_variable{ 0U }
     , gradient{}
     , gradient_direction_locks{}
     , step_variable_values{}
@@ -95,6 +96,7 @@ void  typed_minimization_analysis::start(
     current_function_value = INFINITY;
     partial_variable_values.clear();
     partial_function_values.clear();
+    num_corrections_of_active_partial_variable = 0U;
     gradient.clear();
     gradient_direction_locks.clear();
     step_variable_values.clear();
@@ -142,6 +144,12 @@ natural_32_bit  typed_minimization_analysis::max_num_executions() const
 }
 
 
+natural_8_bit  typed_minimization_analysis::max_partial_variable_corrections() const
+{
+    return 8U;
+}
+
+
 bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
 {
     TMPROF_BLOCK();
@@ -165,7 +173,8 @@ bool  typed_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 ++statistics.seeds_processed;
                 break;
             case PARTIALS:
-                generate_next_partial();
+                if (partial_variable_values.size() == partial_function_values.size())
+                    generate_next_partial();
                 executed_variable_values = current_variable_values;
                 executed_variable_values.at(partial_variable_values.size() - 1U) = partial_variable_values.back();
                 break;
@@ -227,18 +236,21 @@ void  typed_minimization_analysis::process_execution_results(branching_function_
             }
             break;
         case PARTIALS:
-            partial_function_values.push_back(function_value);
-            if (partial_function_values.size() == types_of_variables.size())
+            if (std::isfinite(function_value) || !try_to_correct_active_partial_variable())
             {
-                compute_gradient();
-                compute_step_variables();
-                if (step_variable_values.empty())
-                    progress_stage = SEED;
-                else
+                partial_function_values.push_back(function_value);
+                if (partial_function_values.size() == types_of_variables.size())
                 {
-                    progress_stage = STEP;
-                    step_function_values.clear();
-                    ++statistics.gradient_steps;
+                    compute_gradient();
+                    compute_step_variables();
+                    if (step_variable_values.empty())
+                        progress_stage = SEED;
+                    else
+                    {
+                        progress_stage = STEP;
+                        step_function_values.clear();
+                        ++statistics.gradient_steps;
+                    }
                 }
             }
             break;
@@ -425,6 +437,53 @@ void  typed_minimization_analysis::generate_next_partial()
             partial_variable_values.back().value_float64 +=
                     find_best_floating_point_variable_delta(partial_variable_values.back().value_float64, current_function_value);
             break;
+        default: { UNREACHABLE(); }
+    }
+    num_corrections_of_active_partial_variable = 0U;
+}
+
+
+template<typename float_type>
+static bool  correct_partial_variable(float_type&  v, float_type const  v0)
+{
+    float_type constexpr  zero{ 0.0 };
+    float_type constexpr  half{ 0.5 };
+    float_type  dv = v0 - v;
+    if (dv > zero)
+        dv *= half;
+    v = v0 + dv;
+    return  v != v0;
+}
+
+
+bool  typed_minimization_analysis::try_to_correct_active_partial_variable()
+{
+    if (num_corrections_of_active_partial_variable == max_partial_variable_corrections())
+        return false;
+    ++num_corrections_of_active_partial_variable;
+
+    switch (types_of_variables.at(partial_variable_values.size() - 1U))
+    {
+        case type_of_input_bits::BOOLEAN:
+        case type_of_input_bits::UINT8:
+        case type_of_input_bits::SINT8:
+        case type_of_input_bits::UINT16:
+        case type_of_input_bits::SINT16:
+        case type_of_input_bits::UINT32:
+        case type_of_input_bits::SINT32:
+        case type_of_input_bits::UINT64:
+        case type_of_input_bits::SINT64:
+            return false;
+        case type_of_input_bits::FLOAT32:
+            return correct_partial_variable(
+                        partial_variable_values.back().value_float32,
+                        current_variable_values.at(partial_variable_values.size() - 1U).value_float32
+                        );
+        case type_of_input_bits::FLOAT64:
+            return correct_partial_variable(
+                        partial_variable_values.back().value_float64,
+                        current_variable_values.at(partial_variable_values.size() - 1U).value_float64
+                        );
         default: { UNREACHABLE(); }
     }
 }
