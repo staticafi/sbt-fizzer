@@ -857,7 +857,7 @@ void  fuzzer::select_next_state()
 
     if (!winner.node->sensitivity_performed)
     {
-        INVARIANT(winner.leaf != nullptr && !winner.leaf->sensitivity_performed);
+        INVARIANT(winner.leaf != nullptr);
         sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf, num_driver_executions);
         state = SENSITIVITY;
     }
