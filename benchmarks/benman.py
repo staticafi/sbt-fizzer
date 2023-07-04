@@ -137,6 +137,50 @@ class Benchmark:
                         return False
         return True
 
+    def _ok_stats_message(self, config : dict, outcomes : dict) -> str:
+        max_num_execution = config["results"]["num_executions"]
+        try:
+            num_execution = outcomes["num_executions"]
+        except Exception as e:
+            return "Unknown executions count"
+        percentage = 100.0 * num_execution / max_num_execution
+        return "#" + ("%.2f" % (percentage - 100)) + "%" if percentage < 90 else ""
+
+    def _fail_stats_message(self, config : dict, outcomes : dict) -> str:
+        expected_termination_type = config["results"]["termination_type"]
+        try:
+            termination_type = outcomes["termination_type"]
+        except Exception as e:
+            return "Unknown termination type"
+        if termination_type != expected_termination_type:
+            return termination_type
+        
+        result = ""
+
+        expected_termination_reason = config["results"]["termination_reason"]
+        try:
+            termination_reason = outcomes["termination_reason"]
+        except Exception as e:
+            return "Unknown termination reason"
+        if termination_reason != expected_termination_reason:
+            result += termination_reason
+
+        max_num_execution = config["results"]["num_executions"]
+        try:
+            num_execution = outcomes["num_executions"]
+        except Exception as e:
+            return result + ("" if len(result) == 0 else ", ") + "unknown executions count"
+        if len(result) == 0 and num_execution > max_num_execution:
+            percentage = 100.0 * num_execution / max_num_execution
+            result += ("" if len(result) == 0 else ", ") + "#" + ("+%.2f" % (percentage - 100)) + "%"
+
+        return result
+
+    def _embrace_stats_message(self, msg : str) -> str:
+        if len(msg) == 0:
+            return msg
+        return "[" + msg + "]"
+
     def build(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
         self.log("===")
         self.log("=== Building: " + self.src_file, "building: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
@@ -242,12 +286,14 @@ class Benchmark:
             with open(outcomes_pathname, "rb") as fp:
                 outcomes = json.load(fp)
             if self._check_outcomes(config, outcomes) is True:
-                self.log("The outcomes are as expected => the test has PASSED.", "ok\n")
+                stats_msg = self._embrace_stats_message(self._ok_stats_message(config, outcomes))
+                self.log("The outcomes are as expected => the test has PASSED. [Details: " + stats_msg + "]", "ok " + stats_msg + "\n")
                 return True
         except Exception as e:
             self.log("FAILURE due to an EXCEPTION: " + str(e), "EXCEPTION[" + str(e) + "]\n")
             return False
-        self.log("The outcomes are NOT as expected => the test has FAILED.", "FAILED\n")
+        stats_msg = self._embrace_stats_message(self._fail_stats_message(config, outcomes))
+        self.log("The outcomes are NOT as expected => the test has FAILED. Details: " + stats_msg, "FAILED " + stats_msg + "\n")
         return False
 
     def clear(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
