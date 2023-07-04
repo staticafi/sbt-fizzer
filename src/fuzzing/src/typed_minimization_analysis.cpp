@@ -35,6 +35,7 @@ typed_minimization_analysis::typed_minimization_analysis()
     , partial_variable_values{}
     , partial_function_values{}
     , gradient{}
+    , gradient_direction_locks{}
     , step_variable_values{}
     , step_function_values{}
     , executed_variable_values{}
@@ -95,6 +96,7 @@ void  typed_minimization_analysis::start(
     partial_variable_values.clear();
     partial_function_values.clear();
     gradient.clear();
+    gradient_direction_locks.clear();
     step_variable_values.clear();
     step_function_values.clear();
 
@@ -243,17 +245,22 @@ void  typed_minimization_analysis::process_execution_results(branching_function_
         case STEP:
             step_function_values.push_back(function_value);
             if (step_function_values.size() == step_variable_values.size())
-            {
-                compute_current_variable_and_function_value_from_step();
-                if (!current_variable_values.empty())
+                switch (compute_current_variable_and_function_value_from_step())
                 {
-                    progress_stage = PARTIALS;
-                    partial_variable_values.clear();
-                    partial_function_values.clear();                
+                    case 0U: // Regular gradient step (we got closer to the minimum)
+                        progress_stage = PARTIALS;
+                        partial_variable_values.clear();
+                        partial_function_values.clear();
+                        break;
+                    case 1U: // We locked some gradient coordinates => let's step in other directions.
+                        compute_step_variables();
+                        step_function_values.clear();
+                        break;
+                    case 2U:
+                        progress_stage = SEED;
+                        break;
+                    default: UNREACHABLE(); break;
                 }
-                else
-                    progress_stage = SEED;
-            }
             break;
         default: { UNREACHABLE(); }
     }
@@ -366,7 +373,7 @@ void  typed_minimization_analysis::generate_next_seed()
 
 
 template<typename float_type>
-float_type  find_best_floating_point_variable_delta(float_type const v0, branching_function_value_type const f0)
+static float_type  find_best_floating_point_variable_delta(float_type const v0, branching_function_value_type const f0)
 {
     float_type constexpr  under_linear_estimate{ 0.1 };
     float_type constexpr  half{ 0.5 };
@@ -428,6 +435,7 @@ void  typed_minimization_analysis::compute_gradient()
     INVARIANT(partial_variable_values.size() == types_of_variables.size());
 
     gradient.clear();
+    gradient_direction_locks.clear();
 
     branching_function_value_type const  f0 = std::fabs(current_function_value);
 
@@ -436,6 +444,7 @@ void  typed_minimization_analysis::compute_gradient()
         if (!std::isfinite(partial_function_values.at(i)))
         {
             gradient.push_back(0.0);
+            gradient_direction_locks.push_back(true);
             continue;
         }
 
@@ -486,9 +495,17 @@ void  typed_minimization_analysis::compute_gradient()
 
         INVARIANT(dv != 0.0);
 
-        gradient.push_back(df / dv);
-        if (!std::isfinite(gradient.back()))
-            gradient.back() = 0.0;
+        branching_function_value_type const  gradient_value = df / dv;
+        if (std::isfinite(gradient_value))
+        {
+            gradient.push_back(gradient_value);
+            gradient_direction_locks.push_back(false);
+        }
+        else
+        {
+            gradient.push_back(0.0);
+            gradient_direction_locks.push_back(true);
+        }
     }
 }
 
@@ -500,8 +517,12 @@ void  typed_minimization_analysis::compute_step_variables()
     step_variable_values.clear();
 
     branching_function_value_type  grad_length_squared = 0.0;   // I.e., dot(gradient,gradient)
-    for (branching_function_value_type const  partial : gradient)
-        grad_length_squared += partial * partial;
+    for (std::size_t  i = 0U; i != gradient.size(); ++i)
+        if (!gradient_direction_locks.at(i))
+        {
+            branching_function_value_type const  partial = gradient.at(i);
+            grad_length_squared += partial * partial;
+        }
     if (grad_length_squared == 0.0 || !std::isfinite(grad_length_squared))
         return;
 
@@ -529,6 +550,11 @@ void  typed_minimization_analysis::compute_step_variables()
             step_variable_values.back().push_back({});
             value_of_variable&  var = step_variable_values.back().back();
             value_of_variable const&  var0 = current_variable_values.at(i);
+            if (gradient_direction_locks.at(i))
+            {
+                var = var0;
+                continue;
+            }
             branching_function_value_type const  partial = gradient.at(i);
             switch (types_of_variables.at(i))
             {
@@ -569,13 +595,12 @@ void  typed_minimization_analysis::compute_step_variables()
 }
 
 
-void  typed_minimization_analysis::compute_current_variable_and_function_value_from_step()
+natural_8_bit  typed_minimization_analysis::compute_current_variable_and_function_value_from_step()
 {
     INVARIANT(step_function_values.size() == step_variable_values.size());
     INVARIANT(std::isfinite(current_function_value));
 
-    current_variable_values.clear();
-
+    bool variables_updated = false;
     for (std::size_t  i = 0U; i != step_function_values.size(); ++i)
     {
         branching_function_value_type const  value = step_function_values.at(i);
@@ -583,8 +608,55 @@ void  typed_minimization_analysis::compute_current_variable_and_function_value_f
         {
             current_variable_values = step_variable_values.at(i);
             current_function_value = value;
+            variables_updated = true;
         }
     }
+    if (variables_updated)
+        return 0;
+
+    branching_function_value_type  min_lambda = std::numeric_limits<branching_function_value_type>::max();
+    branching_function_value_type  max_lambda = 0.0;
+
+    std::vector<branching_function_value_type>  lambda_per_partial;
+    for (std::size_t  i = 0U; i != gradient_direction_locks.size(); ++i)
+        if (gradient_direction_locks.at(i))
+            lambda_per_partial.push_back(INFINITY);
+        else
+        {
+            branching_function_value_type const  partial = gradient.at(i);
+            branching_function_value_type const  partial_squared = partial * partial;
+            if (partial_squared == 0.0)
+            {
+                lambda_per_partial.push_back(INFINITY);
+                gradient_direction_locks.at(i) = true;
+                continue;
+            }
+            branching_function_value_type const  lambda = std::fabs(1.0 / partial_squared);
+            if (lambda == 0.0 || !std::isfinite(lambda))
+            {
+                lambda_per_partial.push_back(INFINITY);
+                gradient_direction_locks.at(i) = true;
+                continue;
+            }
+            lambda_per_partial.push_back(lambda);
+            min_lambda = std::min(min_lambda, lambda);
+            max_lambda = std::max(max_lambda, lambda);
+        }
+
+    branching_function_value_type  lambda_limit = 0.5 * min_lambda + 0.5 * max_lambda + 0.1 * (max_lambda - min_lambda);
+
+    natural_32_bit  num_unlocked_vars = 0U;
+    for (std::size_t  i = 0U; i != gradient_direction_locks.size(); ++i)
+        if (!gradient_direction_locks.at(i))
+        {
+            branching_function_value_type const  lambda = lambda_per_partial.at(i);
+            if (!std::isfinite(lambda) || lambda < lambda_limit)
+                gradient_direction_locks.at(i) = true;
+            else
+                ++num_unlocked_vars;
+        }
+
+    return num_unlocked_vars > 0U ? 1U : 2U;
 }
 
 

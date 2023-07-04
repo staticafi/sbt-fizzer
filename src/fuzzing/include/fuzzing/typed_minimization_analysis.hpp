@@ -99,7 +99,7 @@ private:
 
     void  compute_gradient();
     void  compute_step_variables();
-    void  compute_current_variable_and_function_value_from_step();
+    natural_8_bit  compute_current_variable_and_function_value_from_step();
 
     bool  apply_fast_execution_using_cache();
     void  collect_bits_of_executed_variable_values(std::function<void(natural_32_bit, bool)> const&  bits_collector) const;
@@ -118,6 +118,7 @@ private:
     std::vector<value_of_variable>  partial_variable_values;
     std::vector<branching_function_value_type>  partial_function_values;
     std::vector<branching_function_value_type>  gradient;
+    std::vector<bool>  gradient_direction_locks;
     std::vector<std::vector<value_of_variable> >  step_variable_values;
     std::vector<branching_function_value_type>  step_function_values;
 
