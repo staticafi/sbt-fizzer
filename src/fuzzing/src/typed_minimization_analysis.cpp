@@ -617,6 +617,8 @@ natural_8_bit  typed_minimization_analysis::compute_current_variable_and_functio
     branching_function_value_type  min_lambda = std::numeric_limits<branching_function_value_type>::max();
     branching_function_value_type  max_lambda = 0.0;
 
+    bool  some_variable_locked = false;
+
     std::vector<branching_function_value_type>  lambda_per_partial;
     for (std::size_t  i = 0U; i != gradient_direction_locks.size(); ++i)
         if (gradient_direction_locks.at(i))
@@ -629,6 +631,7 @@ natural_8_bit  typed_minimization_analysis::compute_current_variable_and_functio
             {
                 lambda_per_partial.push_back(INFINITY);
                 gradient_direction_locks.at(i) = true;
+                some_variable_locked = true;
                 continue;
             }
             branching_function_value_type const  lambda = std::fabs(1.0 / partial_squared);
@@ -636,6 +639,7 @@ natural_8_bit  typed_minimization_analysis::compute_current_variable_and_functio
             {
                 lambda_per_partial.push_back(INFINITY);
                 gradient_direction_locks.at(i) = true;
+                some_variable_locked = true;
                 continue;
             }
             lambda_per_partial.push_back(lambda);
@@ -651,12 +655,15 @@ natural_8_bit  typed_minimization_analysis::compute_current_variable_and_functio
         {
             branching_function_value_type const  lambda = lambda_per_partial.at(i);
             if (!std::isfinite(lambda) || lambda < lambda_limit)
+            {
                 gradient_direction_locks.at(i) = true;
+                some_variable_locked = true;
+            }
             else
                 ++num_unlocked_vars;
         }
 
-    return num_unlocked_vars > 0U ? 1U : 2U;
+    return some_variable_locked && num_unlocked_vars > 0U ? 1U : 2U;
 }
 
 
