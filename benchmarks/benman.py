@@ -144,7 +144,7 @@ class Benchmark:
         except Exception as e:
             return "Unknown executions count"
         percentage = 100.0 * num_execution / max_num_execution
-        return "#" + ("%.2f" % (percentage - 100)) + "%" if percentage < 90 else ""
+        return "#" + ("%.2f" % (percentage - 100)) + "%" if max_num_execution >= 100 and percentage < 90 else ""
 
     def _fail_stats_message(self, config : dict, outcomes : dict) -> str:
         expected_termination_type = config["results"]["termination_type"]

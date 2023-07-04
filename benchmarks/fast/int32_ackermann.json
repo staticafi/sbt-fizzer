@@ -29,6 +29,6 @@
         ],
         "num_generated_tests": 12,
         "num_crashes": 0,
-        "num_boundary_violations": 1
+        "num_boundary_violations": 2
     }
 }
