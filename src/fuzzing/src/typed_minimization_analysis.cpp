@@ -499,72 +499,73 @@ void  typed_minimization_analysis::compute_step_variables()
 
     step_variable_values.clear();
 
-    branching_function_value_type  max_lambda = std::numeric_limits<branching_function_value_type>::max();
+    branching_function_value_type  grad_length_squared = 0.0;   // I.e., dot(gradient,gradient)
     for (branching_function_value_type const  partial : gradient)
-        if (partial != 0.0)
-        {
-            branching_function_value_type const  lambda = std::fabs(current_function_value / (partial * partial));
-            if (std::isfinite(lambda) && lambda < max_lambda)
-                max_lambda = lambda;
-        }
-    if (max_lambda == 0.0 || max_lambda == std::numeric_limits<branching_function_value_type>::max())
+        grad_length_squared += partial * partial;
+    if (grad_length_squared == 0.0 || !std::isfinite(grad_length_squared))
         return;
 
-    for (float_64_bit const  t : {
-            max_lambda * 1000.0,
-            max_lambda * 100.0,
-            max_lambda * 10.0,
-            max_lambda * 1.0,
-            max_lambda * 0.1,
-            max_lambda * 0.01,
-            max_lambda * 0.001,
-            })
-        if (t <= max_lambda)
+    branching_function_value_type  max_lambda = std::fabs(current_function_value) / grad_length_squared;
+    if (max_lambda == 0.0 || !std::isfinite(max_lambda))
+        return;
+
+    static std::vector<float_64_bit> const multipliers {
+        1000.0,
+        100.0,
+        10.0,
+        1.0,
+        0.1,
+        0.01,
+        0.001,
+        };
+
+    for (float_64_bit const  m : multipliers)
+    {
+        float_64_bit const  t = m * max_lambda;
+        step_variable_values.push_back({});
+        auto&  vars = step_variable_values.back();
+        for (std::size_t  i = 0U; i != types_of_variables.size(); ++i)
         {
-            step_variable_values.push_back({});
-            auto&  vars = step_variable_values.back();
-            for (std::size_t  i = 0U; i != types_of_variables.size(); ++i)
+            step_variable_values.back().push_back({});
+            value_of_variable&  var = step_variable_values.back().back();
+            value_of_variable const&  var0 = current_variable_values.at(i);
+            branching_function_value_type const  partial = gradient.at(i);
+            switch (types_of_variables.at(i))
             {
-                step_variable_values.back().push_back({});
-                value_of_variable&  var = step_variable_values.back().back();
-                value_of_variable const&  var0 = current_variable_values.at(i);
-                branching_function_value_type const  partial = gradient.at(i);
-                switch (types_of_variables.at(i))
-                {
-                    case type_of_input_bits::UINT8:
-                        var.value_uint8 = (natural_8_bit)(var0.value_uint8 - t * partial);
-                        break;
-                    case type_of_input_bits::SINT8:
-                        var.value_sint8 = (integer_8_bit)(var0.value_sint8 - t * partial);
-                        break;
-                    case type_of_input_bits::UINT16:
-                        var.value_uint16 = (natural_16_bit)(var0.value_uint16 - t * partial);
-                        break;
-                    case type_of_input_bits::SINT16:
-                        var.value_sint16 = (integer_16_bit)(var0.value_sint16 - t * partial);
-                        break;
-                    case type_of_input_bits::UINT32:
-                        var.value_uint32 = (natural_32_bit)(var0.value_uint32 - t * partial);
-                        break;
-                    case type_of_input_bits::SINT32:
-                        var.value_sint32 = (integer_32_bit)(var0.value_sint32 - t * partial);
-                        break;
-                    case type_of_input_bits::UINT64:
-                        var.value_uint64 = var0.value_uint64 - (natural_64_bit)(t * partial);
-                        break;
-                    case type_of_input_bits::SINT64:
-                        var.value_sint64 = var0.value_sint64 - (integer_64_bit)(t * partial);
-                        break;
-                    case type_of_input_bits::FLOAT32:
-                        var.value_float32 = (float_32_bit)(var0.value_float32 - t * partial);
-                        break;
-                    case type_of_input_bits::FLOAT64:
-                        var.value_float64 = var0.value_float64 - t * partial;
-                        break;
-                    default: { UNREACHABLE(); }
-                }
+                case type_of_input_bits::UINT8:
+                    var.value_uint8 = (natural_8_bit)(var0.value_uint8 - t * partial);
+                    break;
+                case type_of_input_bits::SINT8:
+                    var.value_sint8 = (integer_8_bit)(var0.value_sint8 - t * partial);
+                    break;
+                case type_of_input_bits::UINT16:
+                    var.value_uint16 = (natural_16_bit)(var0.value_uint16 - t * partial);
+                    break;
+                case type_of_input_bits::SINT16:
+                    var.value_sint16 = (integer_16_bit)(var0.value_sint16 - t * partial);
+                    break;
+                case type_of_input_bits::UINT32:
+                    var.value_uint32 = (natural_32_bit)(var0.value_uint32 - t * partial);
+                    break;
+                case type_of_input_bits::SINT32:
+                    var.value_sint32 = (integer_32_bit)(var0.value_sint32 - t * partial);
+                    break;
+                case type_of_input_bits::UINT64:
+                    var.value_uint64 = var0.value_uint64 - (natural_64_bit)(t * partial);
+                    break;
+                case type_of_input_bits::SINT64:
+                    var.value_sint64 = var0.value_sint64 - (integer_64_bit)(t * partial);
+                    break;
+                case type_of_input_bits::FLOAT32:
+                    var.value_float32 = (float_32_bit)(var0.value_float32 - t * partial);
+                    break;
+                case type_of_input_bits::FLOAT64:
+                    var.value_float64 = var0.value_float64 - t * partial;
+                    break;
+                default: { UNREACHABLE(); }
             }
         }
+    }
 }
 
 
