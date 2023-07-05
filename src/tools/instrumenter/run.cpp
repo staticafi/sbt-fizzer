@@ -104,7 +104,7 @@ void run(int argc, char* argv[])
     llvm_instrumenter  instrumenter;
     instrumenter.doInitialization(*M);
     for (auto it = M->begin(); it != M->end(); ++it)
-        instrumenter.runOnFunction(*it);
+        instrumenter.runOnFunction(*it, get_program_options()->has("br_too"));
 
     {
         std::ofstream  ostr(get_program_options()->value("output").c_str(), std::ios::binary);

@@ -79,7 +79,7 @@ struct llvm_instrumenter {
         std::unordered_map<std::string, llvm::FunctionCallee> replacements
     );
     void instrumentCalls(llvm::Function &F);
-    bool runOnFunction(llvm::Function &F);
+    bool runOnFunction(llvm::Function &F, bool br_too);
 
     bool doInitialization(llvm::Module &M);
 

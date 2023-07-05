@@ -115,6 +115,7 @@
             "args": [
                 "--input", "${workspaceFolder}/dist/benchmarks/fast/switch.ll",
                 "--output", "${workspaceFolder}/dist/benchmarks/fast/switch_instrumented.ll",
+                // "--br_too",
                 "--save_mapping"
             ],
             "stopAtEntry": false,

@@ -205,7 +205,7 @@ void llvm_instrumenter::instrumentCalls(Function &F) {
     }
 }
 
-bool llvm_instrumenter::runOnFunction(Function &F) {
+bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
     if (F.isDeclaration()) {
         return false;
     }
@@ -241,7 +241,7 @@ bool llvm_instrumenter::runOnFunction(Function &F) {
         }
 
         BranchInst *brInst = dyn_cast<BranchInst>(BB.getTerminator());
-        if (!brInst || !brInst->isConditional()) {
+        if (!brInst || !brInst->isConditional() || !br_too) {
             continue;
         }
         instrumentCondBr(brInst);
