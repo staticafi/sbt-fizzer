@@ -270,7 +270,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 nullptr,
                 std::numeric_limits<branching_function_value_type>::max(),
                 std::numeric_limits<branching_function_value_type>::max(),
-                num_driver_executions
+                num_driver_executions,
+                trace->front().xor_like_branching_function
                 );
         construction_props.diverging_node = entry_branching;
 
@@ -346,7 +347,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     br_instr_trace,
                     succ_info.value,
                     succ_info.value * succ_info.value,
-                    num_driver_executions
+                    num_driver_executions,
+                    succ_info.xor_like_branching_function
                     )
             });
 
@@ -867,7 +869,8 @@ void  fuzzer::select_next_state()
         bitshare.start(winner.node, num_driver_executions);
         state = BITSHARE;
     }
-    else if (typed_minimization_analysis::are_types_of_sensitive_bits_available(winner.node->best_stdin, winner.node->sensitive_stdin_bits))
+    else if (!winner.node->xor_like_branching_function &&
+        typed_minimization_analysis::are_types_of_sensitive_bits_available(winner.node->best_stdin, winner.node->sensitive_stdin_bits))
     {
         INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
         typed_minimization.start(winner.node, winner.node->best_stdin, num_driver_executions);

@@ -39,7 +39,8 @@ struct  branching_node
             br_instr_execution_trace_pointer  best_br_instr_trace_,
             branching_function_value_type  best_coverage_value_,
             branching_function_value_type  best_summary_value_,
-            natural_32_bit  execution_number
+            natural_32_bit  execution_number,
+            bool  xor_like_branching_function_
             )
         : id{ id_ }
         , trace_index{ trace_index_ }
@@ -63,6 +64,8 @@ struct  branching_node
         , best_value_execution{ execution_number }
 
         , sensitive_stdin_bits{}
+
+        , xor_like_branching_function{ xor_like_branching_function_ }
     {}
 
     successor_pointer const&  successor(bool const  direction) const { return direction == false ? successors.front() : successors.back(); }
@@ -102,6 +105,8 @@ struct  branching_node
     natural_32_bit  best_value_execution;
 
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
+
+    bool  xor_like_branching_function;
 };
 
 
