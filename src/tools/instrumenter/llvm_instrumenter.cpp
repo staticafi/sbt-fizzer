@@ -227,6 +227,7 @@ bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
 
         unsigned int dbgShift = 0U;
 
+        bool  xor_instr_detected = false;
         for (Instruction &I: BB) {
             if (bbDbgInfo.info == nullptr) {
                 bbDbgInfo.info = I.getDebugLoc();
@@ -234,8 +235,14 @@ bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
                     bbDbgInfo.depth = 0;
             }
             ++dbgShift;
+
+            BinaryOperator const* const binary_operator = dyn_cast<BinaryOperator>(&I);
+            if (binary_operator != nullptr && binary_operator->getOpcode() == BinaryOperator::Xor) {
+                xor_instr_detected = true;
+            }
+
             if (I.getType() == Int1Ty) {
-                if (instrumentCond(&I, false))
+                if (instrumentCond(&I, xor_instr_detected))
                     condInstrDbgInfo.push_back({ &I, condCounter, dbgShift });
             }
         }
