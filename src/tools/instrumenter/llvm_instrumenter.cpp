@@ -28,7 +28,7 @@ bool llvm_instrumenter::doInitialization(Module &M) {
 
     processCondFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
-                              Int32Ty, Int1Ty, DoubleTy);
+                              Int32Ty, Int1Ty, DoubleTy, Int1Ty);
 
     processCondBrFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
@@ -119,7 +119,7 @@ Value *llvm_instrumenter::instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder) 
 }
 
 
-bool llvm_instrumenter::instrumentCond(Instruction *inst) {
+bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_branching_function) {
     if (!inst->getNextNode()) {
         return false;
     }
@@ -142,7 +142,7 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst) {
     Value *cond = inst;
 
     builder.CreateCall(processCondFunc,
-                {location, cond, distance});
+                {location, cond, distance, ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0) });
 
     return true;
 }
@@ -235,7 +235,7 @@ bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
             }
             ++dbgShift;
             if (I.getType() == Int1Ty) {
-                if (instrumentCond(&I))
+                if (instrumentCond(&I, false))
                     condInstrDbgInfo.push_back({ &I, condCounter, dbgShift });
             }
         }

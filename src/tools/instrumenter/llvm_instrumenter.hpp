@@ -86,7 +86,7 @@ struct llvm_instrumenter {
     void printErrCond(llvm::Value *cond);
 
     void instrumentCondBr(llvm::BranchInst *brInst);
-    bool instrumentCond(llvm::Instruction *inst);
+    bool instrumentCond(llvm::Instruction *inst, bool xor_like_branching_function);
     llvm::Value *instrumentCmp(llvm::CmpInst *cmpInst, llvm::IRBuilder<> &builder);
     llvm::Value *instrumentIcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
                           llvm::IRBuilder<> &builder);

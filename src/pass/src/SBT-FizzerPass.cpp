@@ -59,7 +59,7 @@ struct FizzerPass : public FunctionPass {
     void printErrCond(Value *cond);
 
     void instrumentCondBr(BranchInst *brInst);
-    void instrumentCond(Instruction *inst);
+    void instrumentCond(Instruction *inst, bool xor_like_branching_function);
     Value *instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder);
     Value *instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                           IRBuilder<> &builder);
@@ -87,7 +87,7 @@ bool FizzerPass::doInitialization(Module &M) {
 
     processCondFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
-                              Int32Ty, Int1Ty, DoubleTy);
+                              Int32Ty, Int1Ty, DoubleTy, Int1Ty);
 
     processCondBrFunc =
         M.getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
@@ -178,7 +178,7 @@ Value *FizzerPass::instrumentCmp(CmpInst *cmpInst, IRBuilder<> &builder) {
 }
 
 
-void FizzerPass::instrumentCond(Instruction *inst) {
+void FizzerPass::instrumentCond(Instruction *inst, bool const xor_like_branching_function) {
     if (!inst->getNextNode()) {
         return;
     }
@@ -201,7 +201,7 @@ void FizzerPass::instrumentCond(Instruction *inst) {
     Value *cond = inst;
 
     builder.CreateCall(processCondFunc,
-                {location, cond, distance});
+                {location, cond, distance, ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0) });
 }
 
 void FizzerPass::instrumentCondBr(BranchInst *brInst) {
@@ -281,7 +281,7 @@ bool FizzerPass::runOnFunction(Function &F) {
 
         for (Instruction &I: BB) {
             if (I.getType() == Int1Ty) {
-                instrumentCond(&I);
+                instrumentCond(&I, false);
             }
         }
 

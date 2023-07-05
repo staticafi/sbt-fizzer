@@ -22,7 +22,7 @@ fuzz_target::fuzz_target():
 }
 
 
-void fuzz_target::process_condition(location_id id, bool direction, branching_function_value_type value) {
+void fuzz_target::process_condition(location_id id, bool direction, branching_function_value_type value, bool xor_like_branching_function) {
     if (stdin_model->num_bytes_read() == 0)
         return;
         
@@ -37,7 +37,7 @@ void fuzz_target::process_condition(location_id id, bool direction, branching_fu
     
     id.context_hash = context_hashes.back();
     natural_32_bit idx_to_br_instr = br_instr_trace_length;
-    shared_memory << data_record_id::condition << id << direction << value << idx_to_br_instr;
+    shared_memory << data_record_id::condition << id << direction << value << idx_to_br_instr << xor_like_branching_function;
     ++trace_length;
 }
 

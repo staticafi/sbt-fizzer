@@ -57,6 +57,7 @@ void  iomanager::load_trace_record(Medium& src) {
     src >> info.direction;
     src >> info.value;
     src >> info.idx_to_br_instr;
+    src >> info.xor_like_branching_function;
     trace.push_back(info);
 }
 
