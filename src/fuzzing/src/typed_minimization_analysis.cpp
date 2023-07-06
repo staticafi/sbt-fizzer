@@ -120,16 +120,20 @@ void  typed_minimization_analysis::stop()
     if (!is_busy())
         return;
 
-    recorder().on_typed_minimization_stop();
-
     if (num_fast_and_genuine_executions < max_num_executions())
     {
         stopped_early = true;
 
+        recorder().on_typed_minimization_stop(progress_recorder::EARLY);
+
         ++statistics.stop_calls_early;
     }
     else
+    {
+        recorder().on_typed_minimization_stop(progress_recorder::REGULAR);
+
         ++statistics.stop_calls_regular;
+    }
 
     node->minimization_performed = true;
     node->minimization_start_execution = execution_id;

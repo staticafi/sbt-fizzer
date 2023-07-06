@@ -70,16 +70,20 @@ void  minimization_analysis::stop()
     if (!is_busy())
         return;
 
-    recorder().on_minimization_stop();
-
     if (!seeds.empty() || descent.stage != gradient_descent_state::TAKE_NEXT_SEED)
     {
         stopped_early = true;
 
+        recorder().on_minimization_stop(progress_recorder::EARLY);
+
         ++statistics.stop_calls_early;
     }
     else
+    {
+        recorder().on_minimization_stop(progress_recorder::REGULAR);
+
         ++statistics.stop_calls_regular;
+    }
 
     node->minimization_performed = true;
     node->minimization_start_execution = execution_id;

@@ -117,12 +117,13 @@ void  progress_recorder::on_sensitivity_start(branching_node* const  node_ptr)
 }
 
 
-void  progress_recorder::on_sensitivity_stop()
+void  progress_recorder::on_sensitivity_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
         return;
 
     //save_sensitive_bits();
+    sensitivity.stop_attribute = attribute;
     sensitivity.save();
     on_analysis_stop();
 }
@@ -161,11 +162,12 @@ void  progress_recorder::on_typed_minimization_execution_results_available(vecb 
 }
 
 
-void  progress_recorder::on_typed_minimization_stop()
+void  progress_recorder::on_typed_minimization_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
         return;
 
+    typed_minimization.stop_attribute = attribute;
     typed_minimization.save();
     on_analysis_stop();
 }
@@ -252,11 +254,12 @@ void  progress_recorder::on_minimization_execution_results_cache_hit(
 }
 
 
-void  progress_recorder::on_minimization_stop()
+void  progress_recorder::on_minimization_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
         return;
 
+    minimization.stop_attribute = attribute;
     minimization.save();
     on_analysis_stop();
 }
@@ -271,11 +274,12 @@ void  progress_recorder::on_bitshare_start(branching_node* const  node_ptr)
 }
 
 
-void  progress_recorder::on_bitshare_stop()
+void  progress_recorder::on_bitshare_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
         return;
 
+    bitshare.stop_attribute = attribute;
     bitshare.save();
     on_analysis_stop();
 }
@@ -306,6 +310,7 @@ void  progress_recorder::on_analysis_stop()
 
     analysis = NONE;
     sensitivity = {};
+    typed_minimization = {};
     minimization = {};
     bitshare = {};
 }
@@ -431,7 +436,17 @@ void  progress_recorder::analysis_common_info::save() const
         if (i + 1 < n) ostr << ',';
         ostr << '\n';
     }
-    ostr << "]\n";
+    ostr << "],\n";
+
+    ostr << "\"stop_attribute\": ";
+    switch (stop_attribute)
+    {
+        case INSTANT: ostr << "\"INSTANT\""; break;
+        case EARLY: ostr << "\"EARLY\""; break;
+        case REGULAR: ostr << "\"REGULAR\""; break;
+        default: UNREACHABLE(); break;
+    }
+    ostr << '\n';
 
     ostr << "}\n";
 }

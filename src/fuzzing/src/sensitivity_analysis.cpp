@@ -38,16 +38,20 @@ void  sensitivity_analysis::stop()
     if (!is_busy())
         return;
 
-    recorder().on_sensitivity_stop();
-
     if (mutated_bit_index < bits_and_types->bits.size())
     {
         stopped_early = true;
 
+        recorder().on_sensitivity_stop(progress_recorder::EARLY);
+
         ++statistics.stop_calls_early;
     }
     else
+    {
+        recorder().on_sensitivity_stop(progress_recorder::REGULAR);
+
         ++statistics.stop_calls_regular;
+    }
 
     state = READY;
 }

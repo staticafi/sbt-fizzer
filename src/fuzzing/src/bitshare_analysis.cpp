@@ -52,14 +52,21 @@ void  bitshare_analysis::stop()
     if (!is_busy())
         return;
 
-    recorder().on_bitshare_stop();
-
     if (samples_ptr == nullptr)
+    {
+        recorder().on_bitshare_stop(progress_recorder::INSTANT);
         ++statistics.stop_calls_instant;
+    }
     else if (sample_index < samples_ptr->size())
+    {
+        recorder().on_bitshare_stop(progress_recorder::EARLY);
         ++statistics.stop_calls_early;
+    }
     else
+    {
+        recorder().on_bitshare_stop(progress_recorder::REGULAR);
         ++statistics.stop_calls_regular;
+    }
 
     processed_node->bitshare_performed = true;
     processed_node->bitshare_start_execution = execution_id;

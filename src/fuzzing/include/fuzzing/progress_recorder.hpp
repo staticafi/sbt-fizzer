@@ -16,6 +16,13 @@ namespace  fuzzing {
 
 struct  progress_recorder
 {
+    enum STOP_ATTRIBUTE
+    {
+        INSTANT = 0,
+        EARLY = 1,
+        REGULAR = 2
+    };
+
     static progress_recorder& instance();
 
     void  start(std::filesystem::path const&  path_to_client_, std::filesystem::path const&  output_dir_);
@@ -24,11 +31,11 @@ struct  progress_recorder
     bool  is_started() const { return started; }
 
     void  on_sensitivity_start(branching_node* const  node_ptr);
-    void  on_sensitivity_stop();
+    void  on_sensitivity_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_typed_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
     void  on_typed_minimization_execution_results_available(vecb const&  bits);
-    void  on_typed_minimization_stop();
+    void  on_typed_minimization_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
     void  on_minimization_gradient_step();
@@ -41,10 +48,10 @@ struct  progress_recorder
             minimization_analysis::gradient_descent_state::STAGE stage,
             std::size_t  bits_hash
             );
-    void  on_minimization_stop();
+    void  on_minimization_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_bitshare_start(branching_node* const  node_ptr);
-    void  on_bitshare_stop();
+    void  on_bitshare_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_input_generated();
     void  on_execution_results_available();
@@ -68,6 +75,7 @@ private:
 
         branching_node*  node{ nullptr };
         std::filesystem::path  analysis_dir{};
+        STOP_ATTRIBUTE  stop_attribute;
     };
 
     struct  sensitivity_progress_info : public analysis_common_info
