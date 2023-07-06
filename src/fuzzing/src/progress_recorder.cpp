@@ -150,8 +150,7 @@ void  progress_recorder::on_typed_minimization_execution_results_available(
         typed_minimization_analysis::PROGRESS_STAGE const  progress_stage,
         std::vector<typed_minimization_analysis::value_of_variable> const&  variable_values,
         branching_function_value_type const  function_value,
-        std::size_t const  variables_hash,
-        bool const  cached_execution
+        std::size_t const  variables_hash
         )
 {
     if (!is_started())
@@ -168,7 +167,6 @@ void  progress_recorder::on_typed_minimization_execution_results_available(
         case typed_minimization_analysis::STEP: ostr << "STEP"; break;
     }
     ostr << "\",\n"
-         << "\"cached_execution\": " << std::boolalpha << cached_execution << ",\n"
          << "\"variables_hash\": " << variables_hash << ",\n"
          << "\"variable_values\": [\n";
     for (natural_32_bit  i = 0U, n = (natural_32_bit)variable_values.size(); i < n; ++i)
@@ -200,6 +198,18 @@ void  progress_recorder::on_typed_minimization_execution_results_available(
 }
 
 
+void  progress_recorder::on_typed_minimization_execution_results_cache_hit(
+        typed_minimization_analysis::PROGRESS_STAGE  progress_stage,
+        std::size_t  variables_hash
+        )
+{
+    if (!is_started())
+        return;
+
+    typed_minimization.execution_cache_hits.push_back({ counter_results, variables_hash, progress_stage });
+}
+
+
 void  progress_recorder::on_typed_minimization_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
@@ -228,6 +238,9 @@ void  progress_recorder::on_minimization_start(
 
 void  progress_recorder::on_minimization_gradient_step()
 {
+    if (!is_started())
+        return;
+
     minimization.stage_changes.push_back({
             std::numeric_limits<integer_32_bit>::max(),
             minimization_analysis::gradient_descent_state::STEP
@@ -525,7 +538,7 @@ void  progress_recorder::typed_minimization_progress_info::save_info(std::ostrea
     for (natural_32_bit  i = 0U, end = (natural_32_bit)from_variables_to_input.size(); i < end; ++i)
     {
         typed_minimization_analysis::mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
-        ostr << mapping.input_start_bit_index << ",  ";
+        ostr << mapping.input_start_bit_index << ", " << mapping.value_bit_indices.size() << ",  ";
         for (natural_32_bit  j = 0U, j_end = (natural_32_bit)mapping.value_bit_indices.size(); j < j_end; ++j)
         {
             ostr << (natural_32_bit)mapping.value_bit_indices.at(j);
@@ -552,6 +565,21 @@ void  progress_recorder::typed_minimization_progress_info::save_info(std::ostrea
         if (i % 8U == 0U) ostr << '\n';
         ostr << '\"' << to_string(bits_and_types->types.at(i)) << '\"';
         if (i + 1 < end) ostr << ',';
+    }
+    ostr << "],\n\"execution_cache_hits\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)execution_cache_hits.size(); i < end; ++i)
+    {
+        ostr << execution_cache_hits.at(i).trace_index << ','
+             << execution_cache_hits.at(i).variables_hash << ",\"";
+        switch (execution_cache_hits.at(i).progress_stage)
+        {
+            case typed_minimization_analysis::SEED: ostr << "SEED"; break;
+            case typed_minimization_analysis::PARTIALS: ostr << "PARTIALS"; break;
+            case typed_minimization_analysis::STEP: ostr << "STEP"; break;
+        }
+        ostr << '\"';
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
     }
     ostr << "]";
 }

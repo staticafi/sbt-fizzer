@@ -43,8 +43,11 @@ struct  progress_recorder
             typed_minimization_analysis::PROGRESS_STAGE  progress_stage,
             std::vector<typed_minimization_analysis::value_of_variable> const&  variable_values,
             branching_function_value_type  function_value,
-            std::size_t  variables_hash,
-            bool  cached_execution
+            std::size_t  variables_hash
+            );
+    void  on_typed_minimization_execution_results_cache_hit(
+            typed_minimization_analysis::PROGRESS_STAGE  progress_stage,
+            std::size_t  variables_hash
             );
     void  on_typed_minimization_stop(STOP_ATTRIBUTE  attribute);
 
@@ -96,11 +99,21 @@ private:
 
     struct  typed_minimization_progress_info : public analysis_common_info
     {
+        using PROGRESS_STAGE = typed_minimization_analysis::PROGRESS_STAGE;
+
+        struct  execution_cache_hits_info
+        {
+            natural_32_bit  trace_index;
+            std::size_t  variables_hash;
+            PROGRESS_STAGE  progress_stage;
+        };
+
         void  save_info(std::ostream&  ostr) const override;
 
         stdin_bits_and_types_pointer  bits_and_types{ nullptr };
         std::vector<typed_minimization_analysis::mapping_to_input_bits>  from_variables_to_input{};
         std::vector<type_of_input_bits>  types_of_variables{};
+        std::vector<execution_cache_hits_info>  execution_cache_hits{};
     };
 
     struct  minimization_progress_info : public analysis_common_info

@@ -226,8 +226,7 @@ void  typed_minimization_analysis::process_execution_results(execution_trace_poi
             progress_stage,
             executed_variable_values,
             function_value,
-            executed_variable_values_hash,
-            false
+            executed_variable_values_hash
             );
 
     process_execution_results(function_value);
@@ -749,13 +748,7 @@ bool  typed_minimization_analysis::apply_fast_execution_using_cache()
     if (hash_it == hashes_of_generated_bits.end())
         return false;
 
-    recorder().on_typed_minimization_execution_results_available(
-            progress_stage,
-            executed_variable_values,
-            hash_it->second,
-            executed_variable_values_hash,
-            true
-            );
+    recorder().on_typed_minimization_execution_results_cache_hit(progress_stage, executed_variable_values_hash);
 
     process_execution_results(hash_it->second);
 
