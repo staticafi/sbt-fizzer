@@ -33,8 +33,19 @@ struct  progress_recorder
     void  on_sensitivity_start(branching_node* const  node_ptr);
     void  on_sensitivity_stop(STOP_ATTRIBUTE  attribute);
 
-    void  on_typed_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
-    void  on_typed_minimization_execution_results_available(vecb const&  bits);
+    void  on_typed_minimization_start(
+            branching_node* const  node_ptr,
+            std::vector<typed_minimization_analysis::mapping_to_input_bits> const&  from_variables_to_input,
+            std::vector<type_of_input_bits> const& types_of_variables,
+            stdin_bits_and_types_pointer  bits_and_types
+            );
+    void  on_typed_minimization_execution_results_available(
+            typed_minimization_analysis::PROGRESS_STAGE  progress_stage,
+            std::vector<typed_minimization_analysis::value_of_variable> const&  variable_values,
+            branching_function_value_type  function_value,
+            std::size_t  variables_hash,
+            bool  cached_execution
+            );
     void  on_typed_minimization_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_minimization_start(branching_node* const  node_ptr, vecu32 const&  bit_translation, stdin_bits_and_types_pointer  bits_and_types);
@@ -75,7 +86,7 @@ private:
 
         branching_node*  node{ nullptr };
         std::filesystem::path  analysis_dir{};
-        STOP_ATTRIBUTE  stop_attribute;
+        STOP_ATTRIBUTE  stop_attribute{ REGULAR };
     };
 
     struct  sensitivity_progress_info : public analysis_common_info
@@ -86,6 +97,10 @@ private:
     struct  typed_minimization_progress_info : public analysis_common_info
     {
         void  save_info(std::ostream&  ostr) const override;
+
+        stdin_bits_and_types_pointer  bits_and_types{ nullptr };
+        std::vector<typed_minimization_analysis::mapping_to_input_bits>  from_variables_to_input{};
+        std::vector<type_of_input_bits>  types_of_variables{};
     };
 
     struct  minimization_progress_info : public analysis_common_info

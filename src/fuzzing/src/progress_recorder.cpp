@@ -131,7 +131,8 @@ void  progress_recorder::on_sensitivity_stop(STOP_ATTRIBUTE const  attribute)
 
 void  progress_recorder::on_typed_minimization_start(
         branching_node* const  node_ptr,
-        vecu32 const&  bit_translation,
+        std::vector<typed_minimization_analysis::mapping_to_input_bits> const&  from_variables_to_input,
+        std::vector<type_of_input_bits> const& types_of_variables,
         stdin_bits_and_types_pointer const  bits_and_types
         )
 {
@@ -139,10 +140,19 @@ void  progress_recorder::on_typed_minimization_start(
         return;
 
     on_analysis_start(TYPED_MINIMIZATION, typed_minimization, node_ptr);
+    typed_minimization.bits_and_types = bits_and_types;
+    typed_minimization.from_variables_to_input = from_variables_to_input;
+    typed_minimization.types_of_variables = types_of_variables;
 }
 
 
-void  progress_recorder::on_typed_minimization_execution_results_available(vecb const&  bits)
+void  progress_recorder::on_typed_minimization_execution_results_available(
+        typed_minimization_analysis::PROGRESS_STAGE const  progress_stage,
+        std::vector<typed_minimization_analysis::value_of_variable> const&  variable_values,
+        branching_function_value_type const  function_value,
+        std::size_t const  variables_hash,
+        bool const  cached_execution
+        )
 {
     if (!is_started())
         return;
@@ -150,15 +160,43 @@ void  progress_recorder::on_typed_minimization_execution_results_available(vecb 
     auto const  ostr_ptr{ save_default_execution_results() };
     std::ofstream&  ostr{ *ostr_ptr };
 
-    ostr << "\"bits\": [";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)bits.size(); i < n; ++i)
+    ostr << "\"progress_stage\": \"";
+    switch (progress_stage)
     {
-        if (i % 8U == 0U) ostr << '\n';
-        ostr << (bits.at(i) ? 1 : 0);
-        if (i + 1 < n) ostr << ',';
+        case typed_minimization_analysis::SEED: ostr << "SEED"; break;
+        case typed_minimization_analysis::PARTIALS: ostr << "PARTIALS"; break;
+        case typed_minimization_analysis::STEP: ostr << "STEP"; break;
     }
+    ostr << "\",\n"
+         << "\"cached_execution\": " << std::boolalpha << cached_execution << ",\n"
+         << "\"variables_hash\": " << variables_hash << ",\n"
+         << "\"variable_values\": [\n";
+    for (natural_32_bit  i = 0U, n = (natural_32_bit)variable_values.size(); i < n; ++i)
+    {
+        switch (typed_minimization.types_of_variables.at(i))
+        {
+            case type_of_input_bits::BOOLEAN: ostr << variable_values.at(i).value_boolean; break;
+            case type_of_input_bits::UINT8: ostr << variable_values.at(i).value_uint8; break;
+            case type_of_input_bits::SINT8: ostr << variable_values.at(i).value_sint8; break;
+            case type_of_input_bits::UINT16: ostr << variable_values.at(i).value_uint16; break;
+            case type_of_input_bits::SINT16: ostr << variable_values.at(i).value_sint16; break;
+            case type_of_input_bits::UINT32: ostr << variable_values.at(i).value_uint32; break;
+            case type_of_input_bits::SINT32: ostr << variable_values.at(i).value_sint32; break;
+            case type_of_input_bits::UINT64: ostr << variable_values.at(i).value_uint64; break;
+            case type_of_input_bits::SINT64: ostr << variable_values.at(i).value_sint64; break;
+            case type_of_input_bits::FLOAT32: ostr << variable_values.at(i).value_float32; break;
+            case type_of_input_bits::FLOAT64: ostr << variable_values.at(i).value_float64; break;
+            default: { UNREACHABLE(); }
+        }
+        if (i + 1 < n) ostr << ",\n";
+    }
+    ostr << "],\n\"function_value\": ";
+    if (std::isfinite(function_value))
+        ostr << function_value;
+    else
+        ostr << "\"INFINITY\"";
 
-    ostr << "]\n}\n";
+    ostr << "\n}\n";
 }
 
 
@@ -483,6 +521,39 @@ void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ost
 
 void  progress_recorder::typed_minimization_progress_info::save_info(std::ostream&  ostr) const
 {
+    ostr << "\"from_variables_to_input\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)from_variables_to_input.size(); i < end; ++i)
+    {
+        typed_minimization_analysis::mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
+        ostr << mapping.input_start_bit_index << ",  ";
+        for (natural_32_bit  j = 0U, j_end = (natural_32_bit)mapping.value_bit_indices.size(); j < j_end; ++j)
+        {
+            ostr << (natural_32_bit)mapping.value_bit_indices.at(j);
+            if (j + 1 < j_end) ostr << ',';
+        }
+        if (i + 1 < end) ostr << ",\n";
+    }
+    ostr << "],\n\"types_of_variables\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)types_of_variables.size(); i < end; ++i)
+    {
+        ostr << '\"' << to_string(types_of_variables.at(i)) << '\"';
+        if (i + 1 < end) ostr << ',';
+    }
+    ostr << "],\n\"all_input_bits\": [";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_and_types->bits.size(); i < end; ++i)
+    {
+        if (i % 8U == 0U) ostr << '\n';
+        ostr << (bits_and_types->bits.at(i) ? '1' : '0');
+        if (i + 1 < end) ostr << ',';
+    }
+    ostr << "],\n\"all_input_types\": [";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_and_types->types.size(); i < end; ++i)
+    {
+        if (i % 8U == 0U) ostr << '\n';
+        ostr << '\"' << to_string(bits_and_types->types.at(i)) << '\"';
+        if (i + 1 < end) ostr << ',';
+    }
+    ostr << "]";
 }
 
 

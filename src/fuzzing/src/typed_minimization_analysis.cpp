@@ -111,7 +111,7 @@ void  typed_minimization_analysis::start(
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, node->sensitive_stdin_bits.size());
 
-    // recorder().on_typed_minimization_start(node, bit_translation, bits_and_types);
+    recorder().on_typed_minimization_start(node, from_variables_to_input, types_of_variables, bits_and_types);
 }
 
 
@@ -221,6 +221,14 @@ void  typed_minimization_analysis::process_execution_results(execution_trace_poi
             it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value) ? it->value : INFINITY;
 
     hashes_of_generated_bits.insert({ executed_variable_values_hash, function_value });
+
+    recorder().on_typed_minimization_execution_results_available(
+            progress_stage,
+            executed_variable_values,
+            function_value,
+            executed_variable_values_hash,
+            false
+            );
 
     process_execution_results(function_value);
 }
@@ -741,11 +749,17 @@ bool  typed_minimization_analysis::apply_fast_execution_using_cache()
     if (hash_it == hashes_of_generated_bits.end())
         return false;
 
+    recorder().on_typed_minimization_execution_results_available(
+            progress_stage,
+            executed_variable_values,
+            hash_it->second,
+            executed_variable_values_hash,
+            true
+            );
+
     process_execution_results(hash_it->second);
 
     ++statistics.suppressed_repetitions;
-
-    // recorder().on_minimization_execution_results_cache_hit(descent.stage, hash_it->first);
 
     return true;
 }
