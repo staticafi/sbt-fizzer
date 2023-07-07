@@ -595,8 +595,9 @@ void  typed_minimization_analysis::compute_step_variables()
         }
     if (grad_length_squared == 0.0 || !std::isfinite(grad_length_squared))
         return;
-
-    branching_function_value_type  max_lambda = std::fabs(current_function_value) / grad_length_squared;
+    branching_function_value_type const current_function_value_abs = std::fabs(current_function_value);
+    branching_function_value_type const  max_lambda =
+            (current_function_value_abs == 0.0 ? 1.0 : current_function_value_abs) / grad_length_squared;
     if (max_lambda == 0.0 || !std::isfinite(max_lambda))
         return;
 
