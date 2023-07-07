@@ -66,6 +66,8 @@ struct  branching_node
         , sensitive_stdin_bits{}
 
         , xor_like_branching_function{ xor_like_branching_function_ }
+
+        , num_coverage_failure_resets{ 0U }
     {}
 
     successor_pointer const&  successor(bool const  direction) const { return direction == false ? successors.front() : successors.back(); }
@@ -107,6 +109,8 @@ struct  branching_node
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 
     bool  xor_like_branching_function;
+
+    natural_32_bit  num_coverage_failure_resets;
 };
 
 

@@ -731,6 +731,7 @@ void  fuzzer::apply_coverage_failures_with_hope()
                 node->sensitivity_start_execution = std::numeric_limits<natural_32_bit>::max();
                 node->minimization_start_execution = std::numeric_limits<natural_32_bit>::max();
                 node->bitshare_start_execution = std::numeric_limits<natural_32_bit>::max();
+                ++node->num_coverage_failure_resets;
 
                 ++statistics.coverage_failure_resets;
 

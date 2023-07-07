@@ -174,8 +174,8 @@ void  progress_recorder::on_typed_minimization_execution_results_available(
         switch (typed_minimization.types_of_variables.at(i))
         {
             case type_of_input_bits::BOOLEAN: ostr << variable_values.at(i).value_boolean; break;
-            case type_of_input_bits::UINT8: ostr << variable_values.at(i).value_uint8; break;
-            case type_of_input_bits::SINT8: ostr << variable_values.at(i).value_sint8; break;
+            case type_of_input_bits::UINT8: ostr << (natural_32_bit)variable_values.at(i).value_uint8; break;
+            case type_of_input_bits::SINT8: ostr << (integer_32_bit)variable_values.at(i).value_sint8; break;
             case type_of_input_bits::UINT16: ostr << variable_values.at(i).value_uint16; break;
             case type_of_input_bits::SINT16: ostr << variable_values.at(i).value_sint16; break;
             case type_of_input_bits::UINT32: ostr << variable_values.at(i).value_uint32; break;
@@ -497,9 +497,19 @@ void  progress_recorder::analysis_common_info::save() const
         case REGULAR: ostr << "\"REGULAR\""; break;
         default: UNREACHABLE(); break;
     }
-    ostr << '\n';
+    ostr << ",\n\"num_coverage_failure_resets\": " << get_num_coverage_failure_resets() << '\n';
 
     ostr << "}\n";
+}
+
+
+natural_32_bit  progress_recorder::sensitivity_progress_info::get_num_coverage_failure_resets() const
+{
+    natural_32_bit  max_num_coverage_failure_resets{ 0U };
+    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
+        if (max_num_coverage_failure_resets < n->num_coverage_failure_resets)
+            max_num_coverage_failure_resets = n->num_coverage_failure_resets;
+    return max_num_coverage_failure_resets;
 }
 
 
