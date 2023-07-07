@@ -57,7 +57,7 @@ void  bitshare_analysis::stop()
         recorder().on_bitshare_stop(progress_recorder::INSTANT);
         ++statistics.stop_calls_instant;
     }
-    else if (sample_index < samples_ptr->size())
+    else if (sample_index <= samples_ptr->size())
     {
         recorder().on_bitshare_stop(progress_recorder::EARLY);
         ++statistics.stop_calls_early;
@@ -87,6 +87,7 @@ bool  bitshare_analysis::generate_next_input(vecb&  bits_ref)
 
     if (samples_ptr == nullptr || sample_index >= samples_ptr->size())
     {
+        sample_index = std::numeric_limits<std::size_t>::max();
         stop();
         return false;
     }
