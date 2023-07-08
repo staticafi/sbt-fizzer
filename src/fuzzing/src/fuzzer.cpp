@@ -711,6 +711,12 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 
 void  fuzzer::apply_coverage_failures_with_hope()
 {
+    for (auto it = coverage_failures_with_hope.begin(); it != coverage_failures_with_hope.end(); )
+        if (covered_branchings.contains((*it)->id))
+            it = coverage_failures_with_hope.erase(it);
+        else
+            ++it;
+
     for (auto&  leaf_and_props : leaf_branchings)
         for (auto  node = leaf_and_props.first; node != nullptr; node = node->predecessor)
         {
