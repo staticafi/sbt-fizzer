@@ -16,6 +16,11 @@ bool  fuzzer::iid_frontier_record::operator<(iid_frontier_record const&  other) 
     if (std::fabs(iid_node->best_coverage_value) > std::fabs(other.iid_node->best_coverage_value))
         return false;
 
+    if (iid_node->get_num_stdin_bytes() < other.iid_node->get_num_stdin_bytes())
+        return true;
+    if (iid_node->get_num_stdin_bytes() > other.iid_node->get_num_stdin_bytes())
+        return false;
+
     // if (iid_node->sensitivity_performed != other.iid_node->sensitivity_performed)
     //     return iid_node->sensitivity_performed;
 
@@ -774,11 +779,16 @@ void  fuzzer::select_next_state()
                     if (other.node->sensitivity_performed)
                         return false;
 
-                    if (num_nodes < other.num_nodes)
-                        return false;
-                    if (num_nodes > other.num_nodes)
-                        return true;
+                    // if (num_nodes < other.num_nodes)
+                    //     return false;
+                    // if (num_nodes > other.num_nodes)
+                    //     return true;
                 }
+
+                if (node->get_num_stdin_bytes() < other.node->get_num_stdin_bytes())
+                    return true;
+                if (node->get_num_stdin_bytes() > other.node->get_num_stdin_bytes())
+                    return false;
 
                 if (node->trace_index < other.node->trace_index)
                     return true;
