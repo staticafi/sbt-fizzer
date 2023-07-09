@@ -58,6 +58,7 @@ void  iomanager::load_trace_record(Medium& src) {
     src >> info.value;
     src >> info.idx_to_br_instr;
     src >> info.xor_like_branching_function;
+    info.num_input_bytes = (natural_32_bit)get_stdin()->get_bytes().size();
     trace.push_back(info);
 }
 

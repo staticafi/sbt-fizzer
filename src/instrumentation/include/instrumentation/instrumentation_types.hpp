@@ -46,6 +46,7 @@ struct  branching_coverage_info
     branching_function_value_type  value;
     natural_32_bit  idx_to_br_instr;
     bool xor_like_branching_function;
+    natural_32_bit  num_input_bytes;
 };
 
 

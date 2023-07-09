@@ -11,10 +11,11 @@ branching_coverage_info::branching_coverage_info(location_id const  id_)
     , value{}
     , idx_to_br_instr{}
     , xor_like_branching_function{}
+    , num_input_bytes{}
 {}
 
 size_t branching_coverage_info::flattened_size() {
-    return sizeof(id) + sizeof(direction) + sizeof(value) + sizeof(idx_to_br_instr) + sizeof(xor_like_branching_function);
+    return sizeof(id) + sizeof(direction) + sizeof(value) + sizeof(idx_to_br_instr) + sizeof(xor_like_branching_function) + sizeof(num_input_bytes);
 }
 
 br_instr_coverage_info::br_instr_coverage_info(location_id const  id)
