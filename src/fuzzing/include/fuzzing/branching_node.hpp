@@ -33,6 +33,7 @@ struct  branching_node
     branching_node(
             location_id  id_,
             trace_index_type  trace_index_,
+            natural_32_bit  num_stdin_bytes_,
             branching_node*  predecessor_,
             stdin_bits_and_types_pointer  best_stdin_,
             execution_trace_pointer  best_trace_,
@@ -44,6 +45,7 @@ struct  branching_node
             )
         : id{ id_ }
         , trace_index{ trace_index_ }
+        , num_stdin_bytes{ num_stdin_bytes_ }
 
         , predecessor{ predecessor_ }
         , successors{}
@@ -70,6 +72,11 @@ struct  branching_node
         , num_coverage_failure_resets{ 0U }
     {}
 
+    location_id const&  get_location_id() const { return id; }
+    trace_index_type  get_trace_index() const { return trace_index; }
+    natural_32_bit  get_num_stdin_bytes() const { return num_stdin_bytes; }
+    natural_32_bit  get_num_stdin_bits() const { return 8U * num_stdin_bytes; }
+
     successor_pointer const&  successor(bool const  direction) const { return direction == false ? successors.front() : successors.back(); }
     successor_pointer&  successor(bool const  direction) { return direction == false ? successors.front() : successors.back(); }
 
@@ -87,6 +94,7 @@ struct  branching_node
 
     location_id  id;
     trace_index_type  trace_index;
+    natural_32_bit  num_stdin_bytes;
 
     branching_node*  predecessor;
     std::array<successor_pointer, 2>  successors;

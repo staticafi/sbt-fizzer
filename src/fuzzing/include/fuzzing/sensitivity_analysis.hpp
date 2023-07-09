@@ -30,7 +30,7 @@ struct  sensitivity_analysis
         , bits_and_types{ nullptr }
         , trace{ nullptr }
         , mutated_bit_index{ invalid_stdin_bit_index }
-        , leaf_branching{ nullptr }
+        , node{ nullptr }
         , execution_id{ 0 }
         , nodes{}
         , stopped_early{ false }
@@ -40,14 +40,13 @@ struct  sensitivity_analysis
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
-    void  start(stdin_bits_and_types_pointer  bits_and_types_ptr, execution_trace_pointer  trace_ptr,
-                branching_node*  leaf_branching_ptr, natural_32_bit  execution_id_);
+    void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
     void  stop();
 
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr, branching_node*  entry_branching_ptr);
 
-    branching_node*  get_leaf_branching() const { return leaf_branching; }
+    branching_node*  get_node() const { return node; }
     std::unordered_set<branching_node*> const&  get_nodes_with_extended_sensitive_bits() { return nodes; }
     bool  get_stopped_early() const { return stopped_early; }
 
@@ -59,7 +58,7 @@ private:
     stdin_bits_and_types_pointer  bits_and_types;
     execution_trace_pointer  trace;
     stdin_bit_index  mutated_bit_index;
-    branching_node*  leaf_branching;
+    branching_node*  node;
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  nodes;
     bool  stopped_early;

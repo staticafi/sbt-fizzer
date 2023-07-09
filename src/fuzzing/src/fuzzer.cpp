@@ -264,6 +264,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         entry_branching = new branching_node(
                 trace->front().id,
                 0,
+                trace->front().num_input_bytes,
                 nullptr,
                 nullptr,
                 nullptr,
@@ -341,6 +342,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 new branching_node(
                     succ_info.id,
                     trace_index + 1,
+                    succ_info.num_input_bytes,
                     construction_props.leaf,
                     bits_and_types,
                     trace,
@@ -466,10 +468,10 @@ void  fuzzer::do_cleanup()
 
     if (state == SENSITIVITY)
     {
-        INVARIANT(sensitivity.get_leaf_branching() != nullptr && leaf_branchings.contains(sensitivity.get_leaf_branching()));
+        INVARIANT(sensitivity.get_node() != nullptr);
 
         std::unordered_set<branching_node*>  iid_nodes;
-        for (branching_node* node = sensitivity.get_leaf_branching(); node != nullptr; node = node->predecessor)
+        for (branching_node* node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
         {
             INVARIANT(node->sensitivity_performed);
             if (!did_branchings.contains(node->id))
@@ -667,7 +669,7 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() || sensitivity.get_leaf_branching() != node);
+    INVARIANT(sensitivity.is_ready() || sensitivity.get_node() != node);
     INVARIANT(typed_minimization.is_ready() || typed_minimization.get_node() != node);
     INVARIANT(minimization.is_ready() || minimization.get_node() != node);
     INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
@@ -684,7 +686,7 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 
         branching_node* const  pred = node->predecessor;
 
-        INVARIANT(sensitivity.is_ready() || sensitivity.get_leaf_branching() != node);
+        INVARIANT(sensitivity.is_ready() || sensitivity.get_node() != node);
         INVARIANT(typed_minimization.is_ready() || typed_minimization.get_node() != node);
         INVARIANT(minimization.is_ready() || minimization.get_node() != node);
         INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
@@ -749,17 +751,12 @@ void  fuzzer::select_next_state()
 
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
-    struct  selection_winner
-    {
-        branching_node* node = nullptr;
-        branching_node* leaf = nullptr;
-    };
-
-    selection_winner winner{};
+    branching_node* winner = nullptr;
 
     {
-        struct  did_compare_record : public selection_winner
+        struct  did_compare_record
         {
+            branching_node* node = nullptr;
             std::size_t  num_nodes = 0;
 
             bool operator<(did_compare_record const&  other) const
@@ -800,87 +797,72 @@ void  fuzzer::select_next_state()
             for (auto& loc_and_nodes : leaf_and_props.second.uncovered_branchings)
                 for (branching_node* node : loc_and_nodes.second)
                 {
-                    did_compare_record const  current {
-                            { node, leaf_and_props.first },
-                            leaf_and_props.second.uncovered_branchings.size()
-                            };
+                    did_compare_record const  current{ node, leaf_and_props.second.uncovered_branchings.size() };
                     if (current < did_winner)
                         did_winner = current;
                 }
-        winner = did_winner;
+        winner = did_winner.node;
     }
 
-    if (winner.node == nullptr)
+    if (winner == nullptr)
     {
-        INVARIANT(winner.leaf == nullptr);
-
         if (!iid_frontier.empty())
         {
             debug_save_branching_tree("iid");
 
-            winner.node = iid_frontier.begin()->node;
-            if (!winner.node->sensitivity_performed)
-            {
-                winner.leaf = winner.node;
-                while (!leaf_branchings.contains(winner.leaf))
-                {
-                    branching_node* const  left = winner.leaf->successor(false).pointer;
-                    branching_node* const  right = winner.leaf->successor(true).pointer;
-
-                    INVARIANT(left != nullptr || right != nullptr);
-
-                    if (left != nullptr)
-                        winner.leaf = left;
-                    else
-                        winner.leaf = right;
-                }
-            }
+            winner = iid_frontier.begin()->node;
         }
         else
         {
-            debug_save_branching_tree("frontier");
-
             for (auto& leaf_and_props : leaf_branchings)
             {
                 branching_node* const  node = leaf_and_props.second.frontier_branching;
-                if (node != nullptr && (winner.node == nullptr || winner.node->trace_index > node->trace_index))
-                {
-                    winner.node = node;
-                    winner.leaf = leaf_and_props.first;
-                }
+                if (node != nullptr && (winner == nullptr || winner->trace_index > node->trace_index))
+                    winner = node;
             }
         }
     }
 
-    if (winner.node == nullptr)
+    if (winner == nullptr)
     {
         state = FINISHED;
         return;
     }
 
-    if (!winner.node->sensitivity_performed)
+    if (!winner->sensitivity_performed)
     {
-        INVARIANT(winner.leaf != nullptr);
-        sensitivity.start(winner.leaf->best_stdin, winner.leaf->best_trace, winner.leaf, num_driver_executions);
+        while (true)
+        {
+            branching_node* const  left = winner->successor(false).pointer;
+            branching_node* const  right = winner->successor(true).pointer;
+
+            if (left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes())
+                winner = left;
+            else if (right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes())
+                winner = right;
+            else
+                break;
+        }
+        sensitivity.start(winner, num_driver_executions);
         state = SENSITIVITY;
     }
-    else if (!winner.node->bitshare_performed)
+    else if (!winner->bitshare_performed)
     {
-        INVARIANT(!winner.node->sensitive_stdin_bits.empty());
-        bitshare.start(winner.node, num_driver_executions);
+        INVARIANT(!winner->sensitive_stdin_bits.empty());
+        bitshare.start(winner, num_driver_executions);
         state = BITSHARE;
     }
-    else if (!winner.node->xor_like_branching_function &&
-        typed_minimization_analysis::are_types_of_sensitive_bits_available(winner.node->best_stdin, winner.node->sensitive_stdin_bits))
+    else if (!winner->xor_like_branching_function &&
+        typed_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
     {
-        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
-        typed_minimization.start(winner.node, winner.node->best_stdin, num_driver_executions);
+        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
+        typed_minimization.start(winner, winner->best_stdin, num_driver_executions);
         state = TYPED_MINIMIZATION;
     }
     else
     {
-        INVARIANT(!winner.node->sensitive_stdin_bits.empty() && !winner.node->minimization_performed);
-        minimization.start(winner.node, winner.node->best_stdin, num_driver_executions);
+        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
+        minimization.start(winner, winner->best_stdin, num_driver_executions);
         state = MINIMIZATION;
     }
 }

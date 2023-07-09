@@ -7,29 +7,38 @@
 namespace  fuzzing {
 
 
-void  sensitivity_analysis::start(
-        stdin_bits_and_types_pointer const  bits_and_types_ptr,
-        execution_trace_pointer const trace_ptr,
-        branching_node* const  leaf_branching_ptr,
-        natural_32_bit const  execution_id_
-        )
+void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(bits_and_types_ptr != nullptr && trace_ptr != nullptr && leaf_branching_ptr != nullptr);
+    ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
+    ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
+    ASSUMPTION(
+        [node_ptr]() -> bool {
+            branching_node*  n = node_ptr;
+            for (trace_index_type  i = n->get_trace_index() + 1U; i > 0U; --i, n = n->predecessor)
+            {
+                if (n == nullptr || n->id != node_ptr->best_trace->at(i - 1U).id)
+                    return false;
+                if (i > 1U && n->predecessor->successor_direction(n) != node_ptr->best_trace->at(i - 2U).direction)
+                    return false;
+            }
+            return n == nullptr;
+        }()
+        );
 
     state = BUSY;
-    bits_and_types = bits_and_types_ptr;
-    trace = trace_ptr;
+    bits_and_types = node_ptr->best_stdin;
+    trace = node_ptr->best_trace;
     mutated_bit_index = 0;
-    leaf_branching = leaf_branching_ptr;
+    node = node_ptr;
     execution_id = execution_id_;
     nodes.clear();
     stopped_early = false;
 
     ++statistics.start_calls;
-    statistics.max_bits = std::max(statistics.max_bits, bits_and_types->bits.size());
+    statistics.max_bits = std::max(statistics.max_bits, (std::size_t)node->get_num_stdin_bits());
 
-    recorder().on_sensitivity_start(leaf_branching);
+    recorder().on_sensitivity_start(node);
 }
 
 
@@ -38,7 +47,7 @@ void  sensitivity_analysis::stop()
     if (!is_busy())
         return;
 
-    if (mutated_bit_index < bits_and_types->bits.size())
+    if (mutated_bit_index < node->get_num_stdin_bits())
     {
         stopped_early = true;
 
@@ -64,20 +73,12 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    if (mutated_bit_index == bits_and_types->bits.size())
+    if (mutated_bit_index == node->get_num_stdin_bits())
     {
-        auto  rit = trace->rbegin();
-        branching_node* node = leaf_branching;
-        while (node != nullptr)
+        for (branching_node* n = node; n != nullptr; n = n->predecessor)
         {
-            INVARIANT(
-                rit != trace->rend() && node->id == rit->id && (node->predecessor == nullptr) == (std::next(rit) == trace->rend()) &&
-                (node->predecessor == nullptr || node->predecessor->successor_direction(node) == std::next(rit)->direction)
-                );
-            node->sensitivity_performed = true;
-            node->sensitivity_start_execution = execution_id;
-            node = node->predecessor;
-            ++rit;
+            n->sensitivity_performed = true;
+            n->sensitivity_start_execution = execution_id;
         }
 
         stop();
@@ -103,29 +104,26 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
     ASSUMPTION(trace_ptr != nullptr && entry_branching_ptr != nullptr);
 
     stdin_bit_index const low_bit_idx = ((mutated_bit_index - 1) / 8) * 8;
-
-    branching_node*  node = entry_branching_ptr;
-    auto  it_orig = trace->begin();
-    auto  it_curr = trace_ptr->begin();
-    while (node != nullptr && it_orig != trace->end() && it_curr != trace_ptr->end()
-                && it_orig->id == it_curr->id && it_orig->id == node->id)
+    branching_node*  n = entry_branching_ptr;
+    for (trace_index_type  i = 0U, end = std::min(node->get_trace_index() + 1U, (trace_index_type)trace_ptr->size()); i < end; ++i)
     {
-        if (it_orig->value != it_curr->value)
+        branching_coverage_info const&  info_orig = trace->at(i);
+        branching_coverage_info const&  info_curr = trace_ptr->at(i);
+
+        INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->id);
+
+        if (info_orig.value != info_curr.value)
         {
             for (stdin_bit_index i = 0; i != 8; ++i)
             {
-                auto const  it_and_state = node->sensitive_stdin_bits.insert(low_bit_idx + i);
+                auto const  it_and_state = n->sensitive_stdin_bits.insert(low_bit_idx + i);
                 if (it_and_state.second)
-                    nodes.insert(node);
+                    nodes.insert(n);
             }
         }
-
-        if (it_orig->direction != it_curr->direction)
+        if (info_orig.direction != info_curr.direction)
             break;        
-
-        node = node->successor(it_orig->direction).pointer;
-        ++it_orig;
-        ++it_curr;
+        n = n->successor(info_orig.direction).pointer;
     }
 }
 
