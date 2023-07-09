@@ -437,6 +437,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
         ostr << '\n';
         ostr << trace.at(i).id.id << ',' << trace.at(i).id.context_hash << ','
              << (trace.at(i).direction ? 1 : 0) << ','
+             << trace.at(i).num_input_bytes << ','
              << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << value;
         if (i + 1 < n) ostr << ',';
     }
