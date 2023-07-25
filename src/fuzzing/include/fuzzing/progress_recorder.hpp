@@ -71,6 +71,9 @@ struct  progress_recorder
     void  on_trace_mapped_to_tree(branching_node*  leaf_);
     void  on_execution_results_available();
 
+    void  on_post_node_closed(branching_node*  node);
+    void  flush_post_data();
+
 private:
 
     enum ANALYSIS
@@ -148,6 +151,19 @@ private:
         void  save_info(std::ostream&  ostr) const override;
     };
 
+    struct  post_analysis_data
+    {
+        void  on_node_closed(branching_node*  node);
+
+        void  set_output_dir(std::filesystem::path const&  dir);
+        void  clear();
+        bool  empty() const;
+        void  save() const;
+
+        std::filesystem::path  output_dir;
+        std::unordered_set<branching_node::guid_type>  closed_node_guids;
+    };
+
     progress_recorder();
 
     progress_recorder(progress_recorder const&) = delete;
@@ -175,6 +191,8 @@ private:
 
     natural_32_bit  num_bytes;
     branching_node*  leaf;
+
+    post_analysis_data  post_data;
 };
 
 

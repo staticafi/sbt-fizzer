@@ -57,6 +57,8 @@ progress_recorder::progress_recorder()
 
     , num_bytes{ 0 }
     , leaf{ nullptr }
+
+    , post_data{}
 {}
 
 
@@ -94,6 +96,8 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
 
     num_bytes = 0;
     leaf = nullptr;
+
+    post_data.clear();
 }
 
 
@@ -112,6 +116,8 @@ void  progress_recorder::stop()
 
     num_bytes = 0;
     leaf = nullptr;
+
+    post_data.clear();
 }
 
 
@@ -348,16 +354,22 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_in
     if (!is_started())
         return;
 
+    flush_post_data();
+
     ASSUMPTION(node_ptr != nullptr);
 
     analysis = a;
     if (counter_results != 0)
         ++counter_analysis;
     counter_results = 0;
+
     num_bytes = 0;
+    leaf = nullptr;
 
     info.node = node_ptr;
     info.analysis_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
+
+    post_data.set_output_dir(info.analysis_dir);
 }
 
 
@@ -652,6 +664,69 @@ void  progress_recorder::minimization_progress_info::save_info(std::ostream&  os
 
 void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) const
 {
+}
+
+
+void  progress_recorder::on_post_node_closed(branching_node* const  node)
+{
+    if (!is_started())
+        return;
+    post_data.on_node_closed(node);
+}
+
+
+void  progress_recorder::flush_post_data()
+{
+    if (!is_started())
+        return;
+    if (!post_data.empty() && std::filesystem::is_directory(post_data.output_dir))
+        post_data.save();
+    post_data.clear();
+}
+
+
+void  progress_recorder::post_analysis_data::on_node_closed(branching_node* const  node)
+{
+   closed_node_guids.insert(node->guid()); 
+}
+
+
+void  progress_recorder::post_analysis_data::set_output_dir(std::filesystem::path const&  dir)
+{
+    output_dir = dir;
+}
+
+
+void  progress_recorder::post_analysis_data::clear()
+{
+    output_dir.clear();
+    closed_node_guids.clear();
+}
+
+
+bool  progress_recorder::post_analysis_data::empty() const
+{
+    return closed_node_guids.empty();
+}
+
+
+void  progress_recorder::post_analysis_data::save() const
+{
+    std::filesystem::path const  record_pathname = output_dir / "post.json";
+    std::ofstream  ostr{ record_pathname.c_str(), std::ios::binary };
+    if (!ostr.is_open())
+        throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
+    ostr << "{\n";
+
+    ostr << "\"closed_node_guids\": [\n";
+    for (auto  it = closed_node_guids.begin(); it != closed_node_guids.end(); ++it)
+    {
+        ostr << *it;
+        if (std::next(it) != closed_node_guids.end()) ostr << ",\n";
+    }
+    ostr << "]\n";
+
+    ostr << "}\n";
 }
 
 

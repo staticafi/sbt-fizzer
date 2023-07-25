@@ -138,6 +138,8 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 
     node->set_closed();
 
+    recorder().on_post_node_closed(node);
+
     if (node->predecessor != nullptr)
         update_close_flags_from(node->predecessor);
 }
@@ -187,6 +189,9 @@ fuzzer::~fuzzer()
 void  fuzzer::terminate()
 {
     stop_all_analyzes();
+
+    recorder().flush_post_data();
+
     while (!leaf_branchings.empty())
         remove_leaf_branching_node(*leaf_branchings.begin());
 }
