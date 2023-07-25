@@ -501,6 +501,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     else
         update_close_flags_from(construction_props.leaf);
 
+    recorder().on_trace_mapped_to_tree(construction_props.leaf);
+
     switch (state)
     {
         case STARTUP:

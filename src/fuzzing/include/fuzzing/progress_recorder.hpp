@@ -68,6 +68,7 @@ struct  progress_recorder
     void  on_bitshare_stop(STOP_ATTRIBUTE  attribute);
 
     void  on_input_generated();
+    void  on_trace_mapped_to_tree(branching_node*  leaf_);
     void  on_execution_results_available();
 
 private:
@@ -171,7 +172,9 @@ private:
     bitshare_progress_info  bitshare;
     natural_32_bit  counter_analysis;
     natural_32_bit  counter_results;
+
     natural_32_bit  num_bytes;
+    branching_node*  leaf;
 };
 
 

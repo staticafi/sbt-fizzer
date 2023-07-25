@@ -54,6 +54,9 @@ progress_recorder::progress_recorder()
     , bitshare{}
     , counter_analysis{ 1 }
     , counter_results{ 0 }
+
+    , num_bytes{ 0 }
+    , leaf{ nullptr }
 {}
 
 
@@ -88,7 +91,9 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
+
     num_bytes = 0;
+    leaf = nullptr;
 }
 
 
@@ -104,7 +109,9 @@ void  progress_recorder::stop()
     bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
+
     num_bytes = 0;
+    leaf = nullptr;
 }
 
 
@@ -375,6 +382,14 @@ void  progress_recorder::on_input_generated()
 }
 
 
+void  progress_recorder::on_trace_mapped_to_tree(branching_node* const  leaf_)
+{
+    if (!is_started())
+        return;
+    leaf = leaf_;
+}
+
+
 void  progress_recorder::on_execution_results_available()
 {
     if (!is_started())
@@ -416,6 +431,13 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
 
+    std::vector<branching_node::guid_type>  node_guids;
+    for (branching_node* n = leaf; n != nullptr; n = n->predecessor)
+        node_guids.push_back(n->guid());
+    std::reverse(node_guids.begin(), node_guids.end());
+
+    INVARIANT(trace.size() == node_guids.size());
+
     ostr << "{\n";
 
     ostr << "\"trace_termination\": \"";
@@ -438,7 +460,8 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
         ostr << trace.at(i).id.id << ',' << trace.at(i).id.context_hash << ','
              << (trace.at(i).direction ? 1 : 0) << ','
              << trace.at(i).num_input_bytes << ','
-             << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << value;
+             << std::setprecision(std::numeric_limits<branching_function_value_type>::digits10 + 1) << value << ','
+             << node_guids.at(i);
         if (i + 1 < n) ostr << ',';
     }
 
@@ -461,11 +484,6 @@ void  progress_recorder::analysis_common_info::save() const
     if (!std::filesystem::is_directory(analysis_dir))
         return; // No input was generated => the analysis did nothing => no need to save any data.
 
-    std::vector<branching_location_and_direction>  path;
-    for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
-        path.push_back({ n->id, n->successor_direction(s) });
-    std::reverse(path.begin(), path.end());
-
     std::filesystem::path const  pathname = analysis_dir / "info.json";
     std::ofstream  ostr(pathname.c_str(), std::ios::binary);
     if (!ostr.is_open())
@@ -481,14 +499,7 @@ void  progress_recorder::analysis_common_info::save() const
             ostr << ",\n";
     }
 
-    ostr << "\"node\": [\n";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)path.size(); i < n; ++i)
-    {
-        ostr << path.at(i).first.id << ',' << path.at(i).first.context_hash << ',' << (path.at(i).second ? 1 : 0);
-        if (i + 1 < n) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "],\n";
+    ostr << "\"node_guid\": " << node->guid() << ",\n";
 
     ostr << "\"stop_attribute\": ";
     switch (stop_attribute)
