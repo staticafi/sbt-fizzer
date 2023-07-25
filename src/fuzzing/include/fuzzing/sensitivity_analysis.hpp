@@ -32,7 +32,7 @@ struct  sensitivity_analysis
         , mutated_bit_index{ invalid_stdin_bit_index }
         , node{ nullptr }
         , execution_id{ 0 }
-        , nodes{}
+        , changed_nodes{}
         , stopped_early{ false }
         , statistics{}
     {}
@@ -47,7 +47,7 @@ struct  sensitivity_analysis
     void  process_execution_results(execution_trace_pointer  trace_ptr, branching_node*  entry_branching_ptr);
 
     branching_node*  get_node() const { return node; }
-    std::unordered_set<branching_node*> const&  get_nodes_with_extended_sensitive_bits() { return nodes; }
+    std::unordered_set<branching_node*> const&  get_changed_nodes() { return changed_nodes; }
     bool  get_stopped_early() const { return stopped_early; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
@@ -60,7 +60,7 @@ private:
     stdin_bit_index  mutated_bit_index;
     branching_node*  node;
     natural_32_bit  execution_id;
-    std::unordered_set<branching_node*>  nodes;
+    std::unordered_set<branching_node*>  changed_nodes;
     bool  stopped_early;
 
     performance_statistics  statistics;

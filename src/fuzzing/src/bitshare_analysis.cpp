@@ -72,9 +72,6 @@ void  bitshare_analysis::stop()
     processed_node->bitshare_start_execution = execution_id;
 
     state = READY;
-    processed_node = nullptr;
-    samples_ptr = nullptr;
-    sample_index = 0;
 }
 
 

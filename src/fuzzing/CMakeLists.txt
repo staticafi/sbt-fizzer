@@ -5,6 +5,7 @@ add_library(${THIS_TARGET_NAME}
     ./src/stdin_bits.cpp
 
     ./include/fuzzing/branching_node.hpp
+    ./src/branching_node.cpp
     ./include/fuzzing/fuzzer.hpp
     ./src/fuzzer.cpp
 

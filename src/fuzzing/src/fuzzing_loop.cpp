@@ -25,15 +25,16 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
     {
         while (true)
         {
-            TMPROF_BLOCK();
-
             if (!f.round_begin(results.termination_reason))
             {
                 results.termination_type = analysis_outcomes::TERMINATION_TYPE::NORMAL;
                 break;
             }
 
-            benchmark_executor();
+            {
+                TMPROF_BLOCK();
+                benchmark_executor();
+            }
 
             if (f.round_end(results.execution_records.back()))
                 results.execution_records.push_back({});

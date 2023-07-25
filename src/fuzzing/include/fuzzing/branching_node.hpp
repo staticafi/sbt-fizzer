@@ -30,6 +30,8 @@ struct  branching_node
         branching_node*  pointer { nullptr };
     };
 
+    using guid_type = natural_32_bit;
+
     branching_node(
             location_id  id_,
             trace_index_type  trace_index_,
@@ -69,7 +71,12 @@ struct  branching_node
 
         , xor_like_branching_function{ xor_like_branching_function_ }
 
+        , closed{ false }
+
+        , max_successors_trace_index{ trace_index_ }
         , num_coverage_failure_resets{ 0U }
+
+        , guid__{ get_fresh_guid__() }
     {}
 
     location_id const&  get_location_id() const { return id; }
@@ -86,11 +93,22 @@ struct  branching_node
     void  set_successor(bool const  direction, successor_pointer const&  succ)
     { ASSUMPTION(succ.pointer == nullptr || succ.label == successor_pointer::VISITED); successor(direction) = succ; }
 
+    bool  is_open_branching() const
+    {
+        return  (is_direction_unexplored(false) || is_direction_unexplored(true)) &&
+                (!sensitivity_performed || (!sensitive_stdin_bits.empty() && (!bitshare_performed || !minimization_performed)));
+    }
     bool  is_did_branching() const { return sensitivity_performed && !sensitive_stdin_bits.empty(); }
     bool  is_iid_branching() const { return sensitivity_performed && sensitive_stdin_bits.empty(); }
 
     bool  is_direction_explored(bool const  direction) const
     { successor_pointer const&  succ = successor(direction); return succ.label == successor_pointer::VISITED || succ.label == successor_pointer::END_NORMAL; }
+    bool  is_direction_unexplored(bool const  direction) const { return successor(direction).label == successor_pointer::NOT_VISITED; }
+
+    bool  is_closed() const { return closed; }
+    void  set_closed(bool const  state = true) { closed = state; }
+
+    guid_type  guid() const { return guid__; }
 
     location_id  id;
     trace_index_type  trace_index;
@@ -118,7 +136,14 @@ struct  branching_node
 
     bool  xor_like_branching_function;
 
+    bool  closed;
+
+    trace_index_type  max_successors_trace_index;
     natural_32_bit  num_coverage_failure_resets;
+
+private:
+    guid_type  guid__;
+    static guid_type  get_fresh_guid__();
 };
 
 

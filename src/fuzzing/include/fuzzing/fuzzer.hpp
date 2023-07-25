@@ -13,7 +13,6 @@
 #   include <string>
 #   include <unordered_set>
 #   include <unordered_map>
-#   include <set>
 #   include <chrono>
 #   include <memory>
 #   include <limits>
@@ -93,26 +92,40 @@ private:
     {
         branching_node*  leaf{ nullptr };
         branching_node*  diverging_node{ nullptr };
-        branching_node*  frontier_node{ nullptr };
         bool  any_location_discovered{ false };
         std::unordered_set<location_id>  covered_locations{};
         std::unordered_map<location_id, std::unordered_set<branching_node*> >  uncovered_locations{};
     };
 
-    struct  leaf_branching_processing_props
+    struct  primary_coverage_target_branchings
     {
-        std::unordered_map<location_id, std::unordered_set<branching_node*> >  uncovered_branchings {};
-        branching_node*  frontier_branching{ nullptr };
+        primary_coverage_target_branchings(
+                std::function<bool(location_id)> const&  is_covered_,
+                std::function<bool(location_id)> const&  is_iid_
+                );
+
+        void  process_potential_coverage_target(branching_node*  node);
+        void  erase(branching_node*  node);
+
+        bool  empty() const;
+        void  clear();
+
+        void  do_cleanup();
+        branching_node*  get_best();
+
+        std::unordered_set<branching_node*>  sensitive; // Priority #1 (the highest)
+        std::unordered_set<branching_node*>  untouched; // Priority #2
+        std::unordered_set<branching_node*>  iid_twins; // Priority #3
+        std::function<bool(location_id)>  is_covered;
+        std::function<bool(location_id)>  is_iid;
     };
 
-    struct  iid_frontier_record
+    struct  iid_pivot_props
     {
-        bool  operator<(iid_frontier_record const&  other) const;
-        branching_node*  iid_node;
-        branching_node*  node;
-        natural_32_bit  distance;
-        bool  forward;
+        branching_node*  pivot;
     };
+
+    static void  update_close_flags_from(branching_node*  node);
 
     void  debug_save_branching_tree(std::string const&  stage_name) const;
 
@@ -120,10 +133,10 @@ private:
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
-    void  remove_leaf_branching_node(branching_node*  node);
-    void  apply_coverage_failures_with_hope();
-
     void  select_next_state();
+
+    void  remove_leaf_branching_node(branching_node*  node);
+    bool  apply_coverage_failures_with_hope();
 
     termination_info termination_props;
 
@@ -132,16 +145,14 @@ private:
     std::chrono::steady_clock::time_point  time_point_current;
 
     branching_node*  entry_branching;
-    std::unordered_map<branching_node*, leaf_branching_processing_props>  leaf_branchings;
+    std::unordered_set<branching_node*>  leaf_branchings;
 
     std::unordered_set<location_id>  covered_branchings;
     std::unordered_set<branching_location_and_direction>  uncovered_branchings;
     std::unordered_set<location_id>  branchings_to_crashes;
 
-    std::unordered_set<location_id>  did_branchings;
-    std::unordered_map<location_id, std::unordered_map<location_id, natural_32_bit> >  iid_regions;
-    std::unordered_set<branching_node*>  iid_frontier_sources;
-    std::multiset<iid_frontier_record>  iid_frontier;
+    primary_coverage_target_branchings  primary_coverage_targets;
+    std::unordered_map<location_id, std::unordered_map<natural_32_bit, std::unordered_map<branching_node*, iid_pivot_props> > >  iid_pivots;
 
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 

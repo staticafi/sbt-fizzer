@@ -32,7 +32,7 @@ void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bi
     mutated_bit_index = 0;
     node = node_ptr;
     execution_id = execution_id_;
-    nodes.clear();
+    changed_nodes.clear();
     stopped_early = false;
 
     ++statistics.start_calls;
@@ -77,6 +77,8 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     {
         for (branching_node* n = node; n != nullptr; n = n->predecessor)
         {
+            if (!n->sensitivity_performed)
+                changed_nodes.insert(n);
             n->sensitivity_performed = true;
             n->sensitivity_start_execution = execution_id;
         }
@@ -118,7 +120,7 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
             {
                 auto const  it_and_state = n->sensitive_stdin_bits.insert(low_bit_idx + i);
                 if (it_and_state.second)
-                    nodes.insert(n);
+                    changed_nodes.insert(n);
             }
         }
         if (info_orig.direction != info_curr.direction)
