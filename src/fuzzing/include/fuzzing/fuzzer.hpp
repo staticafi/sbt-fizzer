@@ -9,8 +9,10 @@
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
+#   include <utility/random.hpp>
 #   include <utility/std_pair_hash.hpp>
 #   include <string>
+#   include <array>
 #   include <unordered_set>
 #   include <unordered_map>
 #   include <chrono>
@@ -113,6 +115,9 @@ private:
         void  do_cleanup();
         branching_node*  get_best();
 
+    private:
+        static branching_node*  get_best(std::unordered_set<branching_node*> const&  targets);
+
         std::unordered_set<branching_node*>  sensitive; // Priority #1 (the highest)
         std::unordered_set<branching_node*>  untouched; // Priority #2
         std::unordered_set<branching_node*>  iid_twins; // Priority #3
@@ -120,12 +125,27 @@ private:
         std::function<bool(location_id)>  is_iid;
     };
 
+    struct  hit_count_per_direction
+    {
+        hit_count_per_direction() : hit_count{ 0U, 0U } {}
+        hit_count_per_direction(natural_32_bit const  left, natural_32_bit const  right) : hit_count{ left, right } {}
+        natural_32_bit  operator[](bool const  direction) const { return hit_count[direction ? 1 : 0]; }
+        natural_32_bit&  operator[](bool const  direction) { return hit_count[direction ? 1 : 0]; }
+        natural_32_bit  hit_count[2];
+    };
+
+    using  histogram_of_hit_counts_per_direction = std::unordered_map<location_id::id_type, hit_count_per_direction>;
+
     struct  iid_pivot_props
     {
         branching_node*  pivot;
+        histogram_of_hit_counts_per_direction  histogram;
+        mutable random_generator_for_natural_32_bit  random_generator;
     };
 
     static void  update_close_flags_from(branching_node*  node);
+    static void  compute_hit_counts_histogram(branching_node const*  pivot, histogram_of_hit_counts_per_direction&  histogram);
+    static branching_node*  monte_carlo_search(branching_node*  root, iid_pivot_props const&  props);
 
     void  debug_save_branching_tree(std::string const&  stage_name) const;
 
@@ -161,6 +181,8 @@ private:
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
+
+    random_generator_for_natural_32_bit  generator_iid_props_selection;
 
     performance_statistics  statistics;
 

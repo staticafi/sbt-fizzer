@@ -82,6 +82,33 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 
 branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
 {
+    branching_node*  best_node = get_best(sensitive);
+    if (best_node != nullptr)
+    {
+        recorder().on_strategy_turn_primary_sensitive();
+        return best_node;
+    }
+
+    best_node = get_best(untouched);
+    if (best_node != nullptr)
+    {
+        recorder().on_strategy_turn_primary_untouched();
+        return best_node;
+    }
+
+    best_node = get_best(iid_twins);
+    if (best_node != nullptr)
+    {
+        recorder().on_strategy_turn_primary_iid_twins();
+        return best_node;
+    }
+
+    return nullptr;
+}
+
+
+branching_node*  fuzzer::primary_coverage_target_branchings::get_best(std::unordered_set<branching_node*> const&  targets)
+{
     struct  branching_node_with_less_than
     {
         branching_node_with_less_than(branching_node* const  node_) : node{ node_ } {}
@@ -109,18 +136,17 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
     private:
         branching_node*  node;
     };
-    for (auto* const  targets : { &sensitive, &untouched, &iid_twins })
-        if (!targets->empty())
+    if (!targets.empty())
+    {
+        branching_node_with_less_than  best{ *targets.begin() };
+        for (auto  it = std::next(targets.begin()); it != targets.end(); ++it)
         {
-            branching_node_with_less_than  best{ *targets->begin() };
-            for (auto  it = std::next(targets->begin()); it != targets->end(); ++it)
-            {
-                branching_node_with_less_than const  current{ *it };
-                if (current < best)
-                    best = current;
-            }
-            return best;
+            branching_node_with_less_than const  current{ *it };
+            if (current < best)
+                best = current;
         }
+        return best;
+    }
     return nullptr;
 }
 
@@ -142,6 +168,70 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 
     if (node->predecessor != nullptr)
         update_close_flags_from(node->predecessor);
+}
+
+
+void  fuzzer::compute_hit_counts_histogram(branching_node const* const  pivot, histogram_of_hit_counts_per_direction&  histogram)
+{
+    ASSUMPTION(pivot != nullptr);
+    for (branching_node const*  node = pivot; node->predecessor != nullptr; node = node->predecessor)
+        ++histogram[node->predecessor->get_location_id().id][node->predecessor->successor_direction(node)];
+}
+
+
+branching_node*  fuzzer::monte_carlo_search(branching_node* const  root, iid_pivot_props const&  props)
+{
+    TMPROF_BLOCK();
+
+    ASSUMPTION(root != nullptr && !root->is_closed());
+
+    branching_node*  pivot = root;
+    while (true)
+    {
+        INVARIANT(pivot != nullptr && !pivot->is_closed());
+
+        branching_node*  successor = nullptr;
+        {
+            branching_node*  left = pivot->successor(false).pointer;
+            branching_node*  right = pivot->successor(true).pointer;
+
+            bool const  can_go_left = left != nullptr && !left->is_closed();
+            bool const  can_go_right = right != nullptr && !right->is_closed();
+
+            bool  desired_direction;
+            {
+                hit_count_per_direction  hit_count{ 1U, 1U };
+                {
+                    auto const  it = props.histogram.find(pivot->get_location_id().id);
+                    if (it != props.histogram.end())
+                    {
+                        hit_count = it->second;
+                        INVARIANT(hit_count[false] != 0U || hit_count[true] != 0U);
+                    }
+                }
+                float_64_bit const  go_left_probability {
+                        (float_64_bit)hit_count[false] / ((float_64_bit)hit_count[false] + (float_64_bit)hit_count[true])
+                        };
+                float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, props.random_generator) };
+                desired_direction = (float_64_bit)probability <= go_left_probability ? false : true;
+            }
+
+            bool const can_go_desired_direction = (desired_direction == false && can_go_left) || (desired_direction == true && can_go_right);
+
+            if (can_go_desired_direction)
+                successor = desired_direction == false ? left : right;
+            else if (!pivot->is_open_branching())
+                successor = can_go_left ? left : right;
+        }
+        if (successor == nullptr)
+            break;
+
+        pivot = successor;
+    }
+
+    INVARIANT(pivot != nullptr && pivot->is_open_branching());
+
+    return pivot;
 }
 
 
@@ -172,6 +262,8 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , typed_minimization{}
     , minimization{}
     , bitshare{}
+
+    , generator_iid_props_selection{}
 
     , statistics{}
 
@@ -599,7 +691,10 @@ void  fuzzer::do_cleanup()
         case SENSITIVITY:
             for (branching_node* node : sensitivity.get_changed_nodes())
                 if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
-                    iid_pivots[node->get_location_id()][node->get_num_stdin_bytes()].insert({ node, {} });
+                {
+                    auto const  it_and_state = iid_pivots[node->get_location_id()][node->get_num_stdin_bytes()].insert({ node, { node, {} } });
+                    compute_hit_counts_histogram(node, it_and_state.first->second.histogram);
+                }
             update_close_flags_from(sensitivity.get_node());
             break;
         case BITSHARE:
@@ -652,6 +747,17 @@ void  fuzzer::select_next_state()
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = primary_coverage_targets.get_best();
+
+    if (winner == nullptr && !iid_pivots.empty() && !entry_branching->is_closed())
+    {
+        auto const  it_loc = std::next(iid_pivots.begin(), get_random_natural_32_bit_in_range(0, iid_pivots.size() - 1, generator_iid_props_selection));
+        auto const  it_width = std::next(it_loc->second.begin(), get_random_natural_32_bit_in_range(0, it_loc->second.size() - 1, generator_iid_props_selection));
+        auto const  it_pivot = std::next(it_width->second.begin(), get_random_natural_32_bit_in_range(0, it_width->second.size() - 1, generator_iid_props_selection));
+        winner = monte_carlo_search(entry_branching, it_pivot->second);
+        INVARIANT(winner != nullptr);
+
+        recorder().on_strategy_turn_monte_carlo();
+    }
 
     if (winner == nullptr)
     {

@@ -71,6 +71,10 @@ struct  progress_recorder
     void  on_trace_mapped_to_tree(branching_node*  leaf_);
     void  on_execution_results_available();
 
+    void  on_strategy_turn_primary_sensitive();
+    void  on_strategy_turn_primary_untouched();
+    void  on_strategy_turn_primary_iid_twins();
+    void  on_strategy_turn_monte_carlo();
     void  on_post_node_closed(branching_node*  node);
     void  flush_post_data();
 
@@ -153,6 +157,18 @@ private:
 
     struct  post_analysis_data
     {
+        enum STRATEGY
+        {
+            NONE                = 0,
+            PRIMARY_SENSITIVE   = 1,
+            PRIMARY_UNTOUCHED   = 2,
+            PRIMARY_IID_TWINS   = 3,
+            MONTE_CARLO         = 4
+        };
+
+        post_analysis_data();
+
+        void  on_strategy_changed(STRATEGY strategy_);
         void  on_node_closed(branching_node*  node);
 
         void  set_output_dir(std::filesystem::path const&  dir);
@@ -161,6 +177,7 @@ private:
         void  save() const;
 
         std::filesystem::path  output_dir;
+        STRATEGY  strategy;
         std::unordered_set<branching_node::guid_type>  closed_node_guids;
     };
 

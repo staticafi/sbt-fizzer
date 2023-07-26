@@ -439,6 +439,9 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
     if (!ostr_ptr->is_open())
         throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
 
+    if (post_data.output_dir.empty())
+        post_data.output_dir = record_dir;
+
     std::ofstream&  ostr{ *ostr_ptr }; 
 
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
@@ -667,6 +670,38 @@ void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) 
 }
 
 
+void  progress_recorder::on_strategy_turn_primary_sensitive()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::PRIMARY_SENSITIVE);
+}
+
+
+void  progress_recorder::on_strategy_turn_primary_untouched()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::PRIMARY_UNTOUCHED);
+}
+
+
+void  progress_recorder::on_strategy_turn_primary_iid_twins()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::PRIMARY_IID_TWINS);
+}
+
+
+void  progress_recorder::on_strategy_turn_monte_carlo()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO);
+}
+
+
 void  progress_recorder::on_post_node_closed(branching_node* const  node)
 {
     if (!is_started())
@@ -685,6 +720,19 @@ void  progress_recorder::flush_post_data()
 }
 
 
+progress_recorder::post_analysis_data::post_analysis_data()
+    : output_dir{}
+    , strategy{ NONE }
+    , closed_node_guids{}
+{}
+
+
+void  progress_recorder::post_analysis_data::on_strategy_changed(STRATEGY const  strategy_)
+{
+   strategy = strategy_; 
+}
+
+
 void  progress_recorder::post_analysis_data::on_node_closed(branching_node* const  node)
 {
    closed_node_guids.insert(node->guid()); 
@@ -700,13 +748,14 @@ void  progress_recorder::post_analysis_data::set_output_dir(std::filesystem::pat
 void  progress_recorder::post_analysis_data::clear()
 {
     output_dir.clear();
+    strategy = NONE;
     closed_node_guids.clear();
 }
 
 
 bool  progress_recorder::post_analysis_data::empty() const
 {
-    return closed_node_guids.empty();
+    return strategy == NONE && closed_node_guids.empty();
 }
 
 
@@ -718,7 +767,17 @@ void  progress_recorder::post_analysis_data::save() const
         throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
     ostr << "{\n";
 
-    ostr << "\"closed_node_guids\": [\n";
+    ostr << "\"strategy\": \"";
+    switch (strategy)
+    {
+        case NONE: ostr << "NONE"; break;
+        case PRIMARY_SENSITIVE: ostr << "PRIMARY_SENSITIVE"; break;
+        case PRIMARY_UNTOUCHED: ostr << "PRIMARY_UNTOUCHED"; break;
+        case PRIMARY_IID_TWINS: ostr << "PRIMARY_IID_TWINS"; break;
+        case MONTE_CARLO: ostr << "MONTE_CARLO"; break;
+        default: UNREACHABLE(); break;
+    }
+    ostr << "\",\n\"closed_node_guids\": [\n";
     for (auto  it = closed_node_guids.begin(); it != closed_node_guids.end(); ++it)
     {
         ostr << *it;
