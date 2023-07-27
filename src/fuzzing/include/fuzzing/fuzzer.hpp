@@ -139,13 +139,31 @@ private:
     struct  iid_pivot_props
     {
         branching_node*  pivot;
+        std::vector<branching_node*>  loop_entries;
+        std::vector<branching_node*>  loop_exits;
+        std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
         histogram_of_hit_counts_per_direction  histogram;
-        mutable random_generator_for_natural_32_bit  random_generator;
+        mutable random_generator_for_natural_32_bit  generator_branch_selector;
+        mutable random_generator_for_natural_32_bit  generator_start_selector;
     };
 
     static void  update_close_flags_from(branching_node*  node);
+    static void  detect_loops_along_path_to_node(
+            branching_node* const  end_node,
+            std::vector<branching_node*>&  loop_exits,
+            std::unordered_map<location_id, std::unordered_set<location_id> >&  loop_heads_to_bodies
+            );
+    static void  detect_loop_entries(
+            std::vector<branching_node*> const&  loop_exits,
+            std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
+            std::vector<branching_node*>&  loop_entries
+            );
     static void  compute_hit_counts_histogram(branching_node const*  pivot, histogram_of_hit_counts_per_direction&  histogram);
-    static branching_node*  monte_carlo_search(branching_node*  root, iid_pivot_props const&  props);
+    static branching_node*  monte_carlo_search(
+            branching_node*  root,
+            histogram_of_hit_counts_per_direction const&  histogram,
+            random_generator_for_natural_32_bit&  random_generator
+            );
 
     void  debug_save_branching_tree(std::string const&  stage_name) const;
 

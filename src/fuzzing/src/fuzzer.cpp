@@ -171,6 +171,66 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 }
 
 
+void  fuzzer::detect_loops_along_path_to_node(
+        branching_node* const  end_node,
+        std::vector<branching_node*>&  loop_exits,
+        std::unordered_map<location_id, std::unordered_set<location_id> >&  loop_heads_to_bodies
+        )
+{
+    std::vector<branching_node*>  branching_stack;
+    std::unordered_map<location_id, natural_32_bit>  pointers_to_branching_stack;
+
+    // We must explore the 'branching_records' backwards,
+    // because of do-while loops (all loops terminate with
+    // the loop-head condition, but do not have to start
+    // with it).
+    for (branching_node*  node = end_node; node != nullptr; node = node->predecessor)
+    {
+        auto const  it = pointers_to_branching_stack.find(node->get_location_id());
+        if (it == pointers_to_branching_stack.end())
+        {
+            pointers_to_branching_stack.insert({ node->get_location_id(), (natural_32_bit)branching_stack.size() });
+            branching_stack.push_back(node);
+        }
+        else
+        {
+            branching_node* const  loop_exit = branching_stack.at(it->second);
+            if (loop_exits.empty() || loop_exits.back() != loop_exit)
+                loop_exits.push_back(loop_exit);
+
+            auto&  loop_body = loop_heads_to_bodies[loop_exit->get_location_id()];
+            for (std::size_t  end_size = it->second + 1ULL; branching_stack.size() > end_size; )
+            {
+                loop_body.insert(branching_stack.back()->get_location_id());
+                pointers_to_branching_stack.erase(branching_stack.back()->get_location_id());
+                branching_stack.pop_back();
+            }
+        }
+    }
+    std::reverse(loop_exits.begin(), loop_exits.end());
+}
+
+
+void  fuzzer::detect_loop_entries(
+        std::vector<branching_node*> const&  loop_exits,
+        std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
+        std::vector<branching_node*>&  loop_entries
+        )
+{
+    for (std::size_t  i = 0U; i != loop_exits.size(); ++i)
+    {
+        branching_node* const  stop_node = i == 0 ? nullptr : loop_exits.at(i - 1);
+        branching_node* const  loop_exit = loop_exits.at(i);
+        branching_node*        loop_entry = loop_exit;
+        while (loop_entry->predecessor != stop_node &&
+                    (loop_entry->predecessor->get_location_id() == loop_exit->get_location_id() ||
+                            loop_heads_to_bodies.at(loop_exit->get_location_id()).contains(loop_entry->predecessor->get_location_id())))
+            loop_entry = loop_entry->predecessor;
+        loop_entries.push_back(loop_entry);
+    }
+}
+
+
 void  fuzzer::compute_hit_counts_histogram(branching_node const* const  pivot, histogram_of_hit_counts_per_direction&  histogram)
 {
     ASSUMPTION(pivot != nullptr);
@@ -179,13 +239,17 @@ void  fuzzer::compute_hit_counts_histogram(branching_node const* const  pivot, h
 }
 
 
-branching_node*  fuzzer::monte_carlo_search(branching_node* const  root, iid_pivot_props const&  props)
+branching_node*  fuzzer::monte_carlo_search(
+        branching_node* const  start_node,
+        histogram_of_hit_counts_per_direction const&  histogram,
+        random_generator_for_natural_32_bit&  random_generator
+        )
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(root != nullptr && !root->is_closed());
+    ASSUMPTION(start_node != nullptr && !start_node->is_closed());
 
-    branching_node*  pivot = root;
+    branching_node*  pivot = start_node;
     while (true)
     {
         INVARIANT(pivot != nullptr && !pivot->is_closed());
@@ -202,8 +266,8 @@ branching_node*  fuzzer::monte_carlo_search(branching_node* const  root, iid_piv
             {
                 hit_count_per_direction  hit_count{ 1U, 1U };
                 {
-                    auto const  it = props.histogram.find(pivot->get_location_id().id);
-                    if (it != props.histogram.end())
+                    auto const  it = histogram.find(pivot->get_location_id().id);
+                    if (it != histogram.end())
                     {
                         hit_count = it->second;
                         INVARIANT(hit_count[false] != 0U || hit_count[true] != 0U);
@@ -212,7 +276,7 @@ branching_node*  fuzzer::monte_carlo_search(branching_node* const  root, iid_piv
                 float_64_bit const  go_left_probability {
                         (float_64_bit)hit_count[false] / ((float_64_bit)hit_count[false] + (float_64_bit)hit_count[true])
                         };
-                float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, props.random_generator) };
+                float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, random_generator) };
                 desired_direction = (float_64_bit)probability <= go_left_probability ? false : true;
             }
 
@@ -674,6 +738,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 }
 
 
+// static  branching_node*  __monte_carlo_test_node = nullptr;
+
+
 void  fuzzer::do_cleanup()
 {
     TMPROF_BLOCK();
@@ -693,7 +760,10 @@ void  fuzzer::do_cleanup()
                 if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
                 {
                     auto const  it_and_state = iid_pivots[node->get_location_id()][node->get_num_stdin_bytes()].insert({ node, { node, {} } });
-                    compute_hit_counts_histogram(node, it_and_state.first->second.histogram);
+                    iid_pivot_props&  props = it_and_state.first->second;
+                    detect_loops_along_path_to_node(node, props.loop_exits, props.loop_heads_to_bodies);
+                    detect_loop_entries(props.loop_exits, props.loop_heads_to_bodies, props.loop_entries);
+                    compute_hit_counts_histogram(node, props.histogram);
                 }
             update_close_flags_from(sensitivity.get_node());
             break;
@@ -737,6 +807,16 @@ void  fuzzer::do_cleanup()
             it = coverage_failures_with_hope.erase(it);
         else
             ++it;
+
+
+// if (__monte_carlo_test_node != nullptr && covered_branchings.contains(__monte_carlo_test_node->get_location_id()))
+//     __monte_carlo_test_node = nullptr;
+// if (__monte_carlo_test_node == nullptr && !iid_pivots.empty())
+// {
+//     __monte_carlo_test_node = iid_pivots.begin()->second.begin()->second.begin()->first;
+// }
+
+
 }
 
 
@@ -747,13 +827,35 @@ void  fuzzer::select_next_state()
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = primary_coverage_targets.get_best();
+// branching_node*  winner = __monte_carlo_test_node == nullptr ? primary_coverage_targets.get_best() : nullptr;
 
     if (winner == nullptr && !iid_pivots.empty() && !entry_branching->is_closed())
+// if (winner == nullptr && __monte_carlo_test_node != nullptr)
     {
         auto const  it_loc = std::next(iid_pivots.begin(), get_random_natural_32_bit_in_range(0, iid_pivots.size() - 1, generator_iid_props_selection));
         auto const  it_width = std::next(it_loc->second.begin(), get_random_natural_32_bit_in_range(0, it_loc->second.size() - 1, generator_iid_props_selection));
         auto const  it_pivot = std::next(it_width->second.begin(), get_random_natural_32_bit_in_range(0, it_width->second.size() - 1, generator_iid_props_selection));
-        winner = monte_carlo_search(entry_branching, it_pivot->second);
+// auto const  it_pivot = iid_pivots.find(__monte_carlo_test_node->get_location_id())->second
+//                                  .find(__monte_carlo_test_node->get_num_stdin_bytes())->second
+//                                  .find(__monte_carlo_test_node);
+
+        iid_pivot_props&  props = it_pivot->second;
+
+// INVARIANT(props.pivot == __monte_carlo_test_node);
+
+        branching_node*  start_node = entry_branching;
+        if (!props.loop_entries.empty())
+        {
+            float_32_bit constexpr  LIMIT_STEP = 0.75f;
+            float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, props.generator_start_selector) };
+            std::size_t  i = 0;
+            for (float_32_bit  limit = LIMIT_STEP; i != props.loop_entries.size() && probability > limit; limit += LIMIT_STEP * (1.0f - limit))
+                ++i;
+            if (i < props.loop_entries.size())
+                start_node = props.loop_entries.at((props.loop_entries.size() - 1U) - i);
+        }
+
+        winner = monte_carlo_search(start_node, props.histogram, props.generator_branch_selector);
         INVARIANT(winner != nullptr);
 
         recorder().on_strategy_turn_monte_carlo();
