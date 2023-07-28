@@ -23,6 +23,7 @@ using veci16 = vec<integer_16_bit>;
 using vecu16 = vec<natural_16_bit>;
 using veci32 = vec<integer_32_bit>;
 using vecu32 = vec<natural_32_bit>;
+using vecf32 = vec<float_32_bit>;
 using veci64 = vec<integer_64_bit>;
 using vecu64 = vec<natural_64_bit>;
 using vecf64 = vec<float_64_bit>;
@@ -160,6 +161,12 @@ T sum(vec<T> const& v)
     for (std::size_t  i = 0UL; i != v.size(); ++i)
         result += at(v,i);
     return result;
+}
+
+template<typename T>
+float_32_bit avg(vec<T> const& v)
+{
+    return v.empty() ? 0.0f : (float_32_bit)sum(v) / (float_32_bit)v.size();
 }
 
 template<typename T, typename S>
