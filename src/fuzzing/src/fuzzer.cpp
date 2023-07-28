@@ -1137,9 +1137,14 @@ void  fuzzer::select_next_state()
             branching_node* const  left = winner->successor(false).pointer;
             branching_node* const  right = winner->successor(true).pointer;
 
-            if (left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes())
+            bool const  can_go_left = left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
+            bool const  can_go_right = right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
+
+            if (can_go_left && can_go_right)
+                winner = left->max_successors_trace_index >= right->max_successors_trace_index ? left : right;
+            else if (can_go_left)
                 winner = left;
-            else if (right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes())
+            else if (can_go_right)
                 winner = right;
             else
                 break;
