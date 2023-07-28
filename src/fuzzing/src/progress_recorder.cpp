@@ -670,6 +670,14 @@ void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) 
 }
 
 
+void  progress_recorder::on_strategy_turn_primary_loop_head()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::PRIMARY_LOOP_HEAD);
+}
+
+
 void  progress_recorder::on_strategy_turn_primary_sensitive()
 {
     if (!is_started())
@@ -699,6 +707,14 @@ void  progress_recorder::on_strategy_turn_monte_carlo()
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO);
+}
+
+
+void  progress_recorder::on_strategy_turn_monte_carlo_backward()
+{
+    if (!is_started())
+        return;
+    post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO_BACKWARD);
 }
 
 
@@ -771,10 +787,12 @@ void  progress_recorder::post_analysis_data::save() const
     switch (strategy)
     {
         case NONE: ostr << "NONE"; break;
+        case PRIMARY_LOOP_HEAD: ostr << "PRIMARY_LOOP_HEAD"; break;
         case PRIMARY_SENSITIVE: ostr << "PRIMARY_SENSITIVE"; break;
         case PRIMARY_UNTOUCHED: ostr << "PRIMARY_UNTOUCHED"; break;
         case PRIMARY_IID_TWINS: ostr << "PRIMARY_IID_TWINS"; break;
         case MONTE_CARLO: ostr << "MONTE_CARLO"; break;
+        case MONTE_CARLO_BACKWARD: ostr << "MONTE_CARLO_BACKWARD"; break;
         default: UNREACHABLE(); break;
     }
     ostr << "\",\n\"closed_node_guids\": [\n";

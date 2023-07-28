@@ -71,10 +71,12 @@ struct  progress_recorder
     void  on_trace_mapped_to_tree(branching_node*  leaf_);
     void  on_execution_results_available();
 
+    void  on_strategy_turn_primary_loop_head();
     void  on_strategy_turn_primary_sensitive();
     void  on_strategy_turn_primary_untouched();
     void  on_strategy_turn_primary_iid_twins();
     void  on_strategy_turn_monte_carlo();
+    void  on_strategy_turn_monte_carlo_backward();
     void  on_post_node_closed(branching_node*  node);
     void  flush_post_data();
 
@@ -159,11 +161,13 @@ private:
     {
         enum STRATEGY
         {
-            NONE                = 0,
-            PRIMARY_SENSITIVE   = 1,
-            PRIMARY_UNTOUCHED   = 2,
-            PRIMARY_IID_TWINS   = 3,
-            MONTE_CARLO         = 4
+            NONE                    = 0,
+            PRIMARY_LOOP_HEAD       = 1,
+            PRIMARY_SENSITIVE       = 2,
+            PRIMARY_UNTOUCHED       = 3,
+            PRIMARY_IID_TWINS       = 4,
+            MONTE_CARLO             = 5,
+            MONTE_CARLO_BACKWARD    = 6
         };
 
         post_analysis_data();

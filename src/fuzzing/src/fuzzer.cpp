@@ -14,12 +14,50 @@ fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
         std::function<bool(location_id)> const&  is_covered_,
         std::function<bool(location_id)> const&  is_iid_
         )
-    : sensitive{}
+    : loop_heads{}
+    , sensitive{}
     , untouched{}
     , iid_twins{}
     , is_covered{ is_covered_ }
     , is_iid{ is_iid_ }
 {}
+
+
+void  fuzzer::primary_coverage_target_branchings::collect_loop_heads_along_path_to_node(branching_node* const  end_node)
+{
+    std::unordered_map<natural_32_bit, std::pair<bool, branching_node*> >  input_class_coverage;
+    {
+        for (natural_32_bit  input_width : get_input_width_classes())
+            input_class_coverage.insert({ input_width, { false, nullptr } });
+
+        std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
+        {
+            std::vector<branching_node*>  loop_exits;
+            detect_loops_along_path_to_node(end_node, loop_exits, loop_heads_to_bodies);
+        }
+
+        for (branching_node*  node = end_node; node != nullptr; node = node->predecessor)
+            if (loop_heads_to_bodies.contains(node->get_location_id()))
+            {
+                natural_32_bit const  input_class = get_input_width_class(node->get_num_stdin_bytes());
+                auto&  state_and_node = input_class_coverage.at(input_class);
+                if (!state_and_node.first)
+                {
+                    if (node->is_open_branching())
+                    {
+                        if (state_and_node.second == nullptr || node->get_num_stdin_bytes() < state_and_node.second->get_num_stdin_bytes())
+                            state_and_node.second = node;
+                    }
+                    else
+                        state_and_node.first = true;
+                }
+            }
+    }
+
+    for (auto const&  width_and_state_and_node : input_class_coverage)
+        if (!width_and_state_and_node.second.first && width_and_state_and_node.second.second != nullptr)
+            loop_heads.insert(width_and_state_and_node.second.second);
+}
 
 
 void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_target(branching_node* const  node)
@@ -46,6 +84,7 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
 void  fuzzer::primary_coverage_target_branchings::erase(branching_node* const  node)
 {
     ASSUMPTION(node != nullptr);
+    loop_heads.erase(node);
     sensitive.erase(node);
     untouched.erase(node);
     iid_twins.erase(node);
@@ -54,12 +93,13 @@ void  fuzzer::primary_coverage_target_branchings::erase(branching_node* const  n
 
 bool  fuzzer::primary_coverage_target_branchings::empty() const
 {
-    return sensitive.empty() && untouched.empty() && iid_twins.empty();
+    return loop_heads.empty() && sensitive.empty() && untouched.empty() && iid_twins.empty();
 }
 
 
 void  fuzzer::primary_coverage_target_branchings::clear()
 {
+    loop_heads.clear();
     sensitive.clear();
     untouched.clear();
     iid_twins.clear();
@@ -68,10 +108,18 @@ void  fuzzer::primary_coverage_target_branchings::clear()
 
 void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 {
+    for (auto  it = loop_heads.begin(); it != loop_heads.end(); )
+        if ((*it)->is_open_branching())
+            ++it;
+        else
+            it = loop_heads.erase(it);
+
     std::unordered_set<branching_node*>  work_set{ sensitive.begin(), sensitive.end() };
     work_set.insert(untouched.begin(), untouched.end());
     work_set.insert(iid_twins.begin(), iid_twins.end());
-    clear();
+    sensitive.clear();
+    untouched.clear();
+    iid_twins.clear();
     while (!work_set.empty())
     {
         branching_node* const  node = *work_set.begin();
@@ -83,7 +131,18 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 
 branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
 {
-    branching_node*  best_node = get_best(sensitive);
+    TMPROF_BLOCK();
+
+    branching_node*  best_node = nullptr;
+
+    if (!loop_heads.empty())
+    {
+        best_node = *loop_heads.begin();
+        recorder().on_strategy_turn_primary_loop_head();
+        return best_node;
+    }
+
+    best_node = get_best(sensitive);
     if (best_node != nullptr)
     {
         recorder().on_strategy_turn_primary_sensitive();
@@ -207,7 +266,7 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 
 std::vector<natural_32_bit> const&  fuzzer::get_input_width_classes()
 {
-    static std::vector<natural_32_bit> const  input_width_classes{ 8, 16, 32, 64, 128, 256, 1024 };
+    static std::vector<natural_32_bit> const  input_width_classes{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 1024 };
     return input_width_classes;
 }
 
@@ -220,6 +279,12 @@ std::unordered_set<natural_32_bit> const&  fuzzer::get_input_width_classes_set()
 
 
 natural_32_bit  fuzzer::get_input_width_class(natural_32_bit const  num_input_bytes)
+{
+    return get_input_width_classes().at(get_input_width_class_index(num_input_bytes));
+}
+
+
+natural_32_bit  fuzzer::get_input_width_class_index(natural_32_bit const  num_input_bytes)
 {
     return (natural_32_bit)std::distance(
             get_input_width_classes().begin(),
@@ -348,7 +413,7 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
 
     float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, random_generator) };
     std::size_t  i = 0;
-    for (float_32_bit  limit = LIMIT_STEP; i != pivots_order.size() && probability > limit; limit += LIMIT_STEP * (1.0f - limit))
+    for (float_32_bit  limit = LIMIT_STEP; i + 1U < pivots_order.size() && probability > limit; limit += LIMIT_STEP * (1.0f - limit))
         ++i;
 
     return pivots.find(pivots_order.at(i));
@@ -541,8 +606,11 @@ std::pair<branching_node*, bool>  fuzzer::monte_carlo_backward_search(
 
     ASSUMPTION(start_node != nullptr && end_node != nullptr && !end_node->is_closed());
 
+    if (start_node == end_node)
+        return { end_node, end_node->is_direction_unexplored(false) ? false : true };
+
     branching_node*  pivot = start_node;
-    while (pivot->predecessor != end_node && pivot->is_closed())
+    while (pivot->predecessor->is_closed())
         pivot = pivot->predecessor;
 
     while (pivot->predecessor != end_node)
@@ -955,6 +1023,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         auto const  it_and_state = leaf_branchings.insert(construction_props.leaf);
         INVARIANT(it_and_state.second);
 
+        primary_coverage_targets.collect_loop_heads_along_path_to_node(construction_props.leaf);
         for (branching_node*  node = construction_props.leaf; node != construction_props.diverging_node->predecessor; node = node->predecessor)
             primary_coverage_targets.process_potential_coverage_target(node);
 
@@ -1192,6 +1261,8 @@ void  fuzzer::select_next_state()
 
 branching_node*  fuzzer::select_iid_coverage_target() const
 {
+    TMPROF_BLOCK();
+
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
 
@@ -1239,15 +1310,15 @@ branching_node*  fuzzer::select_iid_coverage_target() const
                 generators,
                 *random_uniform_generator
                 );
-        if (node_and_direction.first->successor(node_and_direction.second).pointer != nullptr)
-            winner = monte_carlo_search(
-                    node_and_direction.first->successor(node_and_direction.second).pointer,
-                    histogram,
-                    generators,
-                    *random_uniform_generator
-                    );
+        branching_node* const  successor = node_and_direction.first->successor(node_and_direction.second).pointer;
+        if (successor != nullptr)
+            winner = monte_carlo_search(successor, histogram, generators, *random_uniform_generator);
+        else if (!node_and_direction.first->is_open_branching())
+            winner = monte_carlo_search(node_and_direction.first, histogram, generators, *random_uniform_generator);
         else
             winner = node_and_direction.first;
+
+        recorder().on_strategy_turn_monte_carlo_backward();
     }
     else
     {
@@ -1259,11 +1330,11 @@ branching_node*  fuzzer::select_iid_coverage_target() const
                 );
 
         winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
+
+        recorder().on_strategy_turn_monte_carlo();
     }
     
     INVARIANT(winner != nullptr);
-
-    recorder().on_strategy_turn_monte_carlo();
 
     return winner;
 }

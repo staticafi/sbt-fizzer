@@ -105,6 +105,7 @@ private:
                 std::function<bool(location_id)> const&  is_iid_
                 );
 
+        void  collect_loop_heads_along_path_to_node(branching_node* const  end_node);
         void  process_potential_coverage_target(branching_node*  node);
         void  erase(branching_node*  node);
 
@@ -117,9 +118,10 @@ private:
     private:
         static branching_node*  get_best(std::unordered_set<branching_node*> const&  targets);
 
-        std::unordered_set<branching_node*>  sensitive; // Priority #1 (the highest)
-        std::unordered_set<branching_node*>  untouched; // Priority #2
-        std::unordered_set<branching_node*>  iid_twins; // Priority #3
+        std::unordered_set<branching_node*>  loop_heads;    // Priority #1 (the highest)
+        std::unordered_set<branching_node*>  sensitive;     // Priority #2
+        std::unordered_set<branching_node*>  untouched;     // Priority #3
+        std::unordered_set<branching_node*>  iid_twins;     // Priority #4
         std::function<bool(location_id)>  is_covered;
         std::function<bool(location_id)>  is_iid;
     };
@@ -185,6 +187,7 @@ private:
     static std::vector<natural_32_bit> const&  get_input_width_classes();
     static std::unordered_set<natural_32_bit> const&  get_input_width_classes_set();
     static natural_32_bit  get_input_width_class(natural_32_bit  num_input_bytes);
+    static natural_32_bit  get_input_width_class_index(natural_32_bit  num_input_bytes);
 
     static void  detect_loops_along_path_to_node(
             branching_node* const  end_node,
