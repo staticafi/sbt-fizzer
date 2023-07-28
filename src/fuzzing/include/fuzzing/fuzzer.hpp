@@ -12,7 +12,6 @@
 #   include <utility/random.hpp>
 #   include <utility/std_pair_hash.hpp>
 #   include <string>
-#   include <array>
 #   include <unordered_set>
 #   include <unordered_map>
 #   include <chrono>
@@ -131,23 +130,58 @@ private:
         hit_count_per_direction(natural_32_bit const  left, natural_32_bit const  right) : hit_count{ left, right } {}
         natural_32_bit  operator[](bool const  direction) const { return hit_count[direction ? 1 : 0]; }
         natural_32_bit&  operator[](bool const  direction) { return hit_count[direction ? 1 : 0]; }
+        natural_32_bit  total() const { return hit_count[0] + hit_count[1]; }
         natural_32_bit  hit_count[2];
     };
 
     using  histogram_of_hit_counts_per_direction = std::unordered_map<location_id::id_type, hit_count_per_direction>;
 
+    struct  probability_generator
+    {
+        virtual ~probability_generator() {}
+        virtual float_32_bit  next() = 0;
+    };
+
+    struct  probability_generator_random_uniform : public probability_generator
+    {
+        probability_generator_random_uniform(random_generator_for_natural_32_bit&  random_generator) : generator{ random_generator } {}
+        float_32_bit  next() override { return get_random_float_32_bit_in_range(0.0f, 1.0f, generator); }
+    private:
+        random_generator_for_natural_32_bit&  generator;
+    };
+
+    struct  probability_generator_all_then_all : public probability_generator
+    {
+        probability_generator_all_then_all(float_32_bit  false_direction_probability_, natural_32_bit  total_num_samples_, bool  first_direction_);
+        float_32_bit  next() override;
+    private:
+        natural_32_bit  samples_total[2];
+        natural_32_bit  samples_consumed[2];
+        bool  direction;
+    };
+
+    using  histogram_of_false_direction_probabilities = std::unordered_map<location_id::id_type, float_32_bit>;
+    using  probability_generators_for_locations = std::unordered_map<location_id::id_type, std::shared_ptr<probability_generator> >;
+
     struct  iid_pivot_props
     {
-        branching_node*  pivot;
         std::vector<branching_node*>  loop_entries;
         std::vector<branching_node*>  loop_exits;
         std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
+        std::unordered_set<location_id>  pure_loop_bodies;
         histogram_of_hit_counts_per_direction  histogram;
-        mutable random_generator_for_natural_32_bit  generator_branch_selector;
-        mutable random_generator_for_natural_32_bit  generator_start_selector;
+        mutable random_generator_for_natural_32_bit  generator_for_start_node_selection;
+        mutable random_generator_for_natural_32_bit  generator_for_monte_carlo;
+    };
+
+    struct  iid_location_props
+    {
+        std::unordered_map<branching_node*, iid_pivot_props>  pivots;
+        mutable random_generator_for_natural_32_bit  generator_for_pivot_selection;
     };
 
     static void  update_close_flags_from(branching_node*  node);
+
     static void  detect_loops_along_path_to_node(
             branching_node* const  end_node,
             std::vector<branching_node*>&  loop_exits,
@@ -158,11 +192,40 @@ private:
             std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
             std::vector<branching_node*>&  loop_entries
             );
+    static void  compute_pure_loop_bodies(
+            std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
+            std::unordered_set<location_id>&  pure_loop_bodies
+            );
+
     static void  compute_hit_counts_histogram(branching_node const*  pivot, histogram_of_hit_counts_per_direction&  histogram);
+    static void  compute_histogram_of_false_direction_probabilities(
+            natural_32_bit const  input_width,
+            std::unordered_set<location_id> const&  pure_loop_bodies,
+            std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
+            histogram_of_false_direction_probabilities&  histogram
+            );
+
+    static branching_node*  select_not_closed_loop_entry(
+            std::vector<branching_node*> const&  loop_entries,
+            random_generator_for_natural_32_bit&  random_generator,
+            float_32_bit  LIMIT_STEP = 0.5f,
+            branching_node*  fallback_node = nullptr
+            );
+
+    static std::shared_ptr<probability_generator_random_uniform>  compute_probability_generators_for_locations(
+            histogram_of_false_direction_probabilities const&  probabilities,
+            histogram_of_hit_counts_per_direction const&  hit_counts,
+            std::unordered_set<location_id> const&  pure_loop_bodies,
+            probability_generators_for_locations&  generators,
+            random_generator_for_natural_32_bit&  generator_for_generator_selection,
+            random_generator_for_natural_32_bit&  generator_for_generators
+            );
+
     static branching_node*  monte_carlo_search(
             branching_node*  root,
-            histogram_of_hit_counts_per_direction const&  histogram,
-            random_generator_for_natural_32_bit&  random_generator
+            histogram_of_false_direction_probabilities const&  histogram,
+            probability_generators_for_locations const&  generators,
+            probability_generator_random_uniform&  location_miss_generator
             );
 
     void  debug_save_branching_tree(std::string const&  stage_name) const;
@@ -190,7 +253,7 @@ private:
     std::unordered_set<location_id>  branchings_to_crashes;
 
     primary_coverage_target_branchings  primary_coverage_targets;
-    std::unordered_map<location_id, std::unordered_map<natural_32_bit, std::unordered_map<branching_node*, iid_pivot_props> > >  iid_pivots;
+    std::unordered_map<location_id, iid_location_props>  iid_pivots;
 
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
@@ -200,7 +263,8 @@ private:
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
 
-    random_generator_for_natural_32_bit  generator_iid_props_selection;
+    random_generator_for_natural_32_bit  generator_for_iid_location_selection;
+    random_generator_for_natural_32_bit  generator_for_generator_selection;
 
     performance_statistics  statistics;
 
