@@ -227,6 +227,19 @@ private:
             probability_generators_for_locations const&  generators,
             probability_generator_random_uniform&  location_miss_generator
             );
+    static std::pair<branching_node*, bool>  monte_carlo_backward_search(
+            branching_node* const  start_node,
+            branching_node* const  end_node,
+            histogram_of_false_direction_probabilities const&  histogram,
+            probability_generators_for_locations const&  generators,
+            probability_generator_random_uniform&  location_miss_generator
+            );
+    static branching_node*  monte_carlo_step(
+            branching_node* const  pivot,
+            histogram_of_false_direction_probabilities const&  histogram,
+            probability_generators_for_locations const&  generators,
+            probability_generator_random_uniform&  location_miss_generator
+            );
 
     void  debug_save_branching_tree(std::string const&  stage_name) const;
 

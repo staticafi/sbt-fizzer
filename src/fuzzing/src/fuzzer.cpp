@@ -439,47 +439,86 @@ branching_node*  fuzzer::monte_carlo_search(
     branching_node*  pivot = start_node;
     while (true)
     {
-        INVARIANT(pivot != nullptr && !pivot->is_closed());
-
-        branching_node*  successor = nullptr;
-        {
-            branching_node*  left = pivot->successor(false).pointer;
-            branching_node*  right = pivot->successor(true).pointer;
-
-            bool const  can_go_left = left != nullptr && !left->is_closed();
-            bool const  can_go_right = right != nullptr && !right->is_closed();
-
-            bool  desired_direction;
-            {
-                float_32_bit  false_direction_probability;
-                {
-                    auto const  it = histogram.find(pivot->get_location_id().id);
-                    false_direction_probability = it != histogram.end() ? it->second : 0.5f;
-                }
-                float_32_bit  probability;
-                {
-                    auto const  it = generators.find(pivot->get_location_id().id);
-                    probability = it != generators.end() ? it->second->next() : location_miss_generator.next();
-                }
-                desired_direction = probability <= false_direction_probability ? false : true;
-            }
-
-            bool const can_go_desired_direction = (desired_direction == false && can_go_left) || (desired_direction == true && can_go_right);
-
-            if (can_go_desired_direction)
-                successor = desired_direction == false ? left : right;
-            else if (!pivot->is_open_branching())
-                successor = can_go_left ? left : right;
-        }
+        branching_node* const  successor{ monte_carlo_step(pivot, histogram, generators, location_miss_generator) };
         if (successor == nullptr)
             break;
-
         pivot = successor;
     }
 
     INVARIANT(pivot != nullptr && pivot->is_open_branching());
 
     return pivot;
+}
+
+
+std::pair<branching_node*, bool>  fuzzer::monte_carlo_backward_search(
+        branching_node* const  start_node,
+        branching_node* const  end_node,
+        histogram_of_false_direction_probabilities const&  histogram,
+        probability_generators_for_locations const&  generators,
+        probability_generator_random_uniform&  location_miss_generator
+        )
+{
+    TMPROF_BLOCK();
+
+    ASSUMPTION(start_node != nullptr && end_node != nullptr && !end_node->is_closed());
+
+    branching_node*  pivot = start_node;
+    while (pivot->predecessor != end_node && pivot->is_closed())
+        pivot = pivot->predecessor;
+
+    while (pivot->predecessor != end_node)
+    {
+        branching_node* const  successor{ monte_carlo_step(pivot->predecessor, histogram, generators, location_miss_generator) };
+        if (successor != pivot)
+            break;
+        pivot = pivot->predecessor;
+    }
+
+    return { pivot->predecessor, !pivot->predecessor->successor_direction(pivot) };
+}
+
+
+branching_node*  fuzzer::monte_carlo_step(
+        branching_node* const  pivot,
+        histogram_of_false_direction_probabilities const&  histogram,
+        probability_generators_for_locations const&  generators,
+        probability_generator_random_uniform&  location_miss_generator
+        )
+{
+    INVARIANT(pivot != nullptr && !pivot->is_closed());
+
+    branching_node*  successor = nullptr;
+
+    branching_node*  left = pivot->successor(false).pointer;
+    branching_node*  right = pivot->successor(true).pointer;
+
+    bool const  can_go_left = left != nullptr && !left->is_closed();
+    bool const  can_go_right = right != nullptr && !right->is_closed();
+
+    bool  desired_direction;
+    {
+        float_32_bit  false_direction_probability;
+        {
+            auto const  it = histogram.find(pivot->get_location_id().id);
+            false_direction_probability = it != histogram.end() ? it->second : 0.5f;
+        }
+        float_32_bit  probability;
+        {
+            auto const  it = generators.find(pivot->get_location_id().id);
+            probability = it != generators.end() ? it->second->next() : location_miss_generator.next();
+        }
+        desired_direction = probability <= false_direction_probability ? false : true;
+    }
+
+    bool const can_go_desired_direction = (desired_direction == false && can_go_left) || (desired_direction == true && can_go_right);
+
+    if (can_go_desired_direction)
+        successor = desired_direction == false ? left : right;
+    else if (!pivot->is_open_branching())
+        successor = can_go_left ? left : right;
+
+    return successor;
 }
 
 
@@ -1052,14 +1091,32 @@ void  fuzzer::select_next_state()
                 generator_for_generator_selection
                 );
 
-        branching_node* const  start_node = select_not_closed_loop_entry(
-                pivot_props.loop_entries,
-                pivot_props.generator_for_start_node_selection,
-                0.75f,
-                entry_branching
+        auto const  node_and_direction = monte_carlo_backward_search(
+                it_pivot->first,
+                entry_branching,
+                histogram,
+                generators,
+                *random_uniform_generator
                 );
+        if (node_and_direction.first->successor(node_and_direction.second).pointer != nullptr)
+            winner = monte_carlo_search(
+                    node_and_direction.first->successor(node_and_direction.second).pointer,
+                    histogram,
+                    generators,
+                    *random_uniform_generator
+                    );
+        else
+            winner = node_and_direction.first;
 
-        winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
+
+        // branching_node* const  start_node = select_not_closed_loop_entry(
+        //         pivot_props.loop_entries,
+        //         pivot_props.generator_for_start_node_selection,
+        //         0.75f,
+        //         entry_branching
+        //         );
+
+        // winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
         INVARIANT(winner != nullptr);
 
         recorder().on_strategy_turn_monte_carlo();
