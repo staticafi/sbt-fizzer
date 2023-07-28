@@ -205,6 +205,33 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 }
 
 
+std::vector<natural_32_bit> const&  fuzzer::get_input_width_classes()
+{
+    static std::vector<natural_32_bit> const  input_width_classes{ 8, 16, 32, 64, 128, 256, 1024 };
+    return input_width_classes;
+}
+
+
+std::unordered_set<natural_32_bit> const&  fuzzer::get_input_width_classes_set()
+{
+    static std::unordered_set<natural_32_bit> const  input_width_classes_set{ get_input_width_classes().begin(), get_input_width_classes().end() };
+    return input_width_classes_set;
+}
+
+
+natural_32_bit  fuzzer::get_input_width_class(natural_32_bit const  num_input_bytes)
+{
+    return (natural_32_bit)std::distance(
+            get_input_width_classes().begin(),
+            std::lower_bound(
+                    get_input_width_classes().begin(),
+                    get_input_width_classes().end(),
+                    num_input_bytes
+                    )
+            );
+}
+
+
 void  fuzzer::detect_loops_along_path_to_node(
         branching_node* const  end_node,
         std::vector<branching_node*>&  loop_exits,
@@ -274,6 +301,57 @@ void  fuzzer::compute_pure_loop_bodies(
         pure_loop_bodies.insert(loc_and_bodies.second.begin(), loc_and_bodies.second.end());
     for (auto const&  loc_and_bodies : loop_heads_to_bodies)
         pure_loop_bodies.erase(loc_and_bodies.first);
+}
+
+
+std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fuzzer::select_best_iid_pivot(
+        std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
+        random_generator_for_natural_32_bit&  random_generator,
+        float_32_bit const  LIMIT_STEP
+        )
+{
+    struct  iid_pivot_with_less_than
+    {
+        iid_pivot_with_less_than(branching_node* const  pivot_)
+            : pivot{ pivot_ }
+            , abs_value{ std::fabs(pivot->best_coverage_value) }
+            , input_width_class{ get_input_width_class(pivot->get_num_stdin_bytes()) }
+            , in_input_width_class{ input_width_class == pivot->get_num_stdin_bytes() }
+        {}
+        operator branching_node*() const { return pivot; }
+        bool  operator<(iid_pivot_with_less_than const&  other) const
+        {
+            if (abs_value < other.abs_value)
+                return true;
+            if (abs_value > other.abs_value)
+                return false;
+
+            if (in_input_width_class != other.in_input_width_class)
+                return in_input_width_class;
+
+            if (pivot->get_num_stdin_bytes() < other.pivot->get_num_stdin_bytes())
+                return true;
+            if (pivot->get_num_stdin_bytes() > other.pivot->get_num_stdin_bytes())
+                return false;
+
+            return pivot->get_trace_index() < other.pivot->get_trace_index();
+        }
+        branching_node*  pivot;
+        branching_function_value_type  abs_value;
+        natural_32_bit  input_width_class;
+        bool  in_input_width_class;
+    };
+    std::vector<iid_pivot_with_less_than>  pivots_order;
+    for (auto const&  pivot_and_props : pivots)
+        pivots_order.push_back(pivot_and_props.first);
+    std::sort(pivots_order.begin(), pivots_order.end());
+
+    float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, random_generator) };
+    std::size_t  i = 0;
+    for (float_32_bit  limit = LIMIT_STEP; i != pivots_order.size() && probability > limit; limit += LIMIT_STEP * (1.0f - limit))
+        ++i;
+
+    return pivots.find(pivots_order.at(i));
 }
 
 
@@ -551,6 +629,7 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , bitshare{}
 
     , generator_for_iid_location_selection{}
+    , generator_for_iid_approach_selection{}
     , generator_for_generator_selection{}
 
     , statistics{}
@@ -1051,75 +1130,12 @@ void  fuzzer::select_next_state()
 
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
-    branching_node*  winner = primary_coverage_targets.get_best();
-// branching_node*  winner = __monte_carlo_test_node == nullptr ? primary_coverage_targets.get_best() : nullptr;
-
-    if (winner == nullptr && !iid_pivots.empty() && !entry_branching->is_closed())
-// if (winner == nullptr && __monte_carlo_test_node != nullptr && !entry_branching->is_closed())
+    branching_node*  winner = nullptr;
+    if (!entry_branching->is_closed())
     {
-        auto const  it_loc = std::next(
-                iid_pivots.begin(),
-                get_random_natural_32_bit_in_range(0, iid_pivots.size() - 1, generator_for_iid_location_selection)
-                );
-        auto const  it_pivot = std::next(
-                it_loc->second.pivots.begin(),
-                get_random_natural_32_bit_in_range(0, it_loc->second.pivots.size() - 1, it_loc->second.generator_for_pivot_selection)
-                );
-// auto const  it_loc = iid_pivots.find(__monte_carlo_test_node->get_location_id());
-// auto const  it_pivot = it_loc->second.pivots.find(__monte_carlo_test_node);
-
-        auto&  pivots = it_loc->second.pivots;
-        iid_pivot_props&  pivot_props = it_pivot->second;
-
-// INVARIANT(it_pivot->first == __monte_carlo_test_node);
-
-        histogram_of_false_direction_probabilities  histogram;
-        compute_histogram_of_false_direction_probabilities(
-                it_pivot->first->get_num_stdin_bytes(),
-                pivot_props.pure_loop_bodies,
-                pivots,
-                histogram
-                );
-
-        probability_generators_for_locations  generators;
-        auto const  random_uniform_generator = compute_probability_generators_for_locations(
-                histogram,
-                pivot_props.histogram,
-                pivot_props.pure_loop_bodies,
-                generators,
-                pivot_props.generator_for_monte_carlo,
-                generator_for_generator_selection
-                );
-
-        auto const  node_and_direction = monte_carlo_backward_search(
-                it_pivot->first,
-                entry_branching,
-                histogram,
-                generators,
-                *random_uniform_generator
-                );
-        if (node_and_direction.first->successor(node_and_direction.second).pointer != nullptr)
-            winner = monte_carlo_search(
-                    node_and_direction.first->successor(node_and_direction.second).pointer,
-                    histogram,
-                    generators,
-                    *random_uniform_generator
-                    );
-        else
-            winner = node_and_direction.first;
-
-
-        // branching_node* const  start_node = select_not_closed_loop_entry(
-        //         pivot_props.loop_entries,
-        //         pivot_props.generator_for_start_node_selection,
-        //         0.75f,
-        //         entry_branching
-        //         );
-
-        // winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
-        INVARIANT(winner != nullptr);
-
-        recorder().on_strategy_turn_monte_carlo();
+        winner = primary_coverage_targets.get_best();
+        if (winner == nullptr)
+            winner = select_iid_coverage_target();
     }
 
     if (winner == nullptr)
@@ -1171,6 +1187,85 @@ void  fuzzer::select_next_state()
         minimization.start(winner, winner->best_stdin, num_driver_executions);
         state = MINIMIZATION;
     }
+}
+
+
+branching_node*  fuzzer::select_iid_coverage_target() const
+{
+    if (iid_pivots.empty() || entry_branching->is_closed())
+        return nullptr;
+
+    auto const  it_loc = std::next(
+            iid_pivots.begin(),
+            get_random_natural_32_bit_in_range(0, iid_pivots.size() - 1, generator_for_iid_location_selection)
+            );
+    auto const  it_pivot = select_best_iid_pivot(
+            it_loc->second.pivots,
+            it_loc->second.generator_for_pivot_selection,
+            0.5f
+            );
+
+// if (__monte_carlo_test_node == nullptr)
+//    return nullptr;
+// auto const  it_loc = iid_pivots.find(__monte_carlo_test_node->get_location_id());
+// auto const  it_pivot = it_loc->second.pivots.find(__monte_carlo_test_node);
+// INVARIANT(it_pivot->first == __monte_carlo_test_node);
+
+    histogram_of_false_direction_probabilities  histogram;
+    compute_histogram_of_false_direction_probabilities(
+            it_pivot->first->get_num_stdin_bytes(),
+            it_pivot->second.pure_loop_bodies,
+            it_loc->second.pivots,
+            histogram
+            );
+
+    probability_generators_for_locations  generators;
+    auto const  random_uniform_generator = compute_probability_generators_for_locations(
+            histogram,
+            it_pivot->second.histogram,
+            it_pivot->second.pure_loop_bodies,
+            generators,
+            it_pivot->second.generator_for_monte_carlo,
+            generator_for_generator_selection
+            );
+
+    branching_node*  winner;
+    if (get_random_natural_32_bit_in_range(1, 100, generator_for_iid_approach_selection) <= 50)
+    {
+        auto const  node_and_direction = monte_carlo_backward_search(
+                it_pivot->first,
+                entry_branching,
+                histogram,
+                generators,
+                *random_uniform_generator
+                );
+        if (node_and_direction.first->successor(node_and_direction.second).pointer != nullptr)
+            winner = monte_carlo_search(
+                    node_and_direction.first->successor(node_and_direction.second).pointer,
+                    histogram,
+                    generators,
+                    *random_uniform_generator
+                    );
+        else
+            winner = node_and_direction.first;
+    }
+    else
+    {
+        branching_node* const  start_node = select_not_closed_loop_entry(
+                it_pivot->second.loop_entries,
+                it_pivot->second.generator_for_start_node_selection,
+                0.75f,
+                entry_branching
+                );
+
+        winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
+    }
+    
+    INVARIANT(winner != nullptr);
+
+    recorder().on_strategy_turn_monte_carlo();
+
+    return winner;
 }
 
 

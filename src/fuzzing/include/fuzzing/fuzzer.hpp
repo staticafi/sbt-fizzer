@@ -182,6 +182,10 @@ private:
 
     static void  update_close_flags_from(branching_node*  node);
 
+    static std::vector<natural_32_bit> const&  get_input_width_classes();
+    static std::unordered_set<natural_32_bit> const&  get_input_width_classes_set();
+    static natural_32_bit  get_input_width_class(natural_32_bit  num_input_bytes);
+
     static void  detect_loops_along_path_to_node(
             branching_node* const  end_node,
             std::vector<branching_node*>&  loop_exits,
@@ -195,6 +199,12 @@ private:
     static void  compute_pure_loop_bodies(
             std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
             std::unordered_set<location_id>&  pure_loop_bodies
+            );
+
+    static std::unordered_map<branching_node*, iid_pivot_props>::const_iterator  select_best_iid_pivot(
+            std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
+            random_generator_for_natural_32_bit&  random_generator,
+            float_32_bit const  LIMIT_STEP = 0.5f
             );
 
     static void  compute_hit_counts_histogram(branching_node const*  pivot, histogram_of_hit_counts_per_direction&  histogram);
@@ -248,6 +258,7 @@ private:
 
     void  do_cleanup();
     void  select_next_state();
+    branching_node*  select_iid_coverage_target() const;
 
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();
@@ -276,8 +287,9 @@ private:
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
 
-    random_generator_for_natural_32_bit  generator_for_iid_location_selection;
-    random_generator_for_natural_32_bit  generator_for_generator_selection;
+    mutable random_generator_for_natural_32_bit  generator_for_iid_location_selection;
+    mutable random_generator_for_natural_32_bit  generator_for_iid_approach_selection;
+    mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
     performance_statistics  statistics;
 
