@@ -45,7 +45,18 @@ void  fuzzer::primary_coverage_target_branchings::collect_loop_heads_along_path_
                 {
                     if (node->is_open_branching())
                     {
-                        if (state_and_node.second == nullptr || node->get_num_stdin_bytes() < state_and_node.second->get_num_stdin_bytes())
+                        struct  local
+                        {
+                            static bool  less_than(branching_node const* const  left, branching_node const* const  right)
+                            {
+                                if (left->get_num_stdin_bytes() < right->get_num_stdin_bytes())
+                                    return true;
+                                if (left->get_num_stdin_bytes() > right->get_num_stdin_bytes())
+                                    return false;
+                                return left->get_trace_index() < right->get_trace_index();
+                            }
+                        };
+                        if (state_and_node.second == nullptr || local::less_than(node, state_and_node.second))
                             state_and_node.second = node;
                     }
                     else
