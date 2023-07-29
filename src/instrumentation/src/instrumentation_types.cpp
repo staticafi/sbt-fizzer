@@ -157,8 +157,8 @@ std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, v
     {
         case type_of_input_bits::BOOLEAN: ostr << (*(natural_8_bit const*)value_ptr == 0 ? 0 : 1); break;
 
-        case type_of_input_bits::UINT8: ostr << *(natural_8_bit const*)value_ptr; break;
-        case type_of_input_bits::SINT8: ostr << *(integer_8_bit const*)value_ptr; break;
+        case type_of_input_bits::UINT8: ostr << (natural_32_bit)*(natural_8_bit const*)value_ptr; break;
+        case type_of_input_bits::SINT8: ostr << (integer_32_bit)*(integer_8_bit const*)value_ptr; break;
 
         case type_of_input_bits::UINT16: ostr << *(natural_16_bit const*)value_ptr; break;
         case type_of_input_bits::SINT16: ostr << *(integer_16_bit const*)value_ptr; break;
@@ -172,7 +172,7 @@ std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, v
         case type_of_input_bits::FLOAT32: ostr << *(float_32_bit const*)value_ptr; break;
         case type_of_input_bits::FLOAT64: ostr << *(float_64_bit const*)value_ptr; break;
 
-        case type_of_input_bits::UNTYPED8: ostr << *(natural_8_bit const*)value_ptr; break;
+        case type_of_input_bits::UNTYPED8: ostr << (natural_32_bit)*(natural_8_bit const*)value_ptr; break;
         case type_of_input_bits::UNTYPED16: ostr << *(natural_16_bit const*)value_ptr; break;
         case type_of_input_bits::UNTYPED32: ostr << *(natural_32_bit const*)value_ptr; break;
         case type_of_input_bits::UNTYPED64: ostr << *(natural_64_bit const*)value_ptr; break;
