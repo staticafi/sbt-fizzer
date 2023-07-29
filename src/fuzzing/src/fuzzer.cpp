@@ -674,6 +674,8 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , minimization{}
     , bitshare{}
 
+    , max_input_width{ 0U }
+
     , generator_for_iid_location_selection{}
     , generator_for_iid_approach_selection{}
     , generator_for_generator_selection{}
@@ -1011,6 +1013,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     }
     else
         update_close_flags_from(construction_props.leaf);
+
+    if (max_input_width < construction_props.leaf->get_num_stdin_bytes())
+    {
+        max_input_width = construction_props.leaf->get_num_stdin_bytes();
+
+        statistics.max_input_width = max_input_width;
+    }
 
     recorder().on_trace_mapped_to_tree(construction_props.leaf);
 

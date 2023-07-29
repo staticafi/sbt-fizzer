@@ -182,6 +182,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"nodes_created\": " << results.statistics.nodes_created << ",\n"
          << shift << shift << "\"nodes_destroyed\": " << results.statistics.nodes_destroyed << ",\n"
          << shift << shift << "\"max_leaf_nodes\": " << results.statistics.max_leaf_nodes << ",\n"
+         << shift << shift << "\"max_input_width\": " << results.statistics.max_input_width << ",\n"
          << shift << shift << "\"longest_branch\": " << results.statistics.longest_branch << ",\n"
          << shift << shift << "\"traces_to_crash\": " << results.statistics.traces_to_crash << ",\n"
          << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << ",\n"

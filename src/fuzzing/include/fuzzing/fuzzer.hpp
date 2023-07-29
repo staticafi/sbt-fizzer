@@ -41,6 +41,7 @@ struct  fuzzer final
         std::size_t  nodes_created{ 0 };
         std::size_t  nodes_destroyed{ 0 };
         std::size_t  max_leaf_nodes{ 0 };
+        std::size_t  max_input_width{ 0 };
         std::size_t  longest_branch{ 0 };
         std::size_t  traces_to_crash{ 0 };
         std::size_t  traces_to_boundary_violation{ 0 };
@@ -289,6 +290,8 @@ private:
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
+
+    natural_32_bit  max_input_width;
 
     mutable random_generator_for_natural_32_bit  generator_for_iid_location_selection;
     mutable random_generator_for_natural_32_bit  generator_for_iid_approach_selection;
