@@ -110,6 +110,17 @@ void run(int argc, char* argv[])
             return;
         }
     }
+    if (get_program_options()->has("clear_output_dir"))
+    {
+        for (const auto&  entry : std::filesystem::directory_iterator(output_dir))
+            if (entry.is_regular_file() && entry.path().extension() == ".json")
+                std::filesystem::remove(entry);
+        if (std::filesystem::is_directory(output_dir / "test-suite"))
+            for (const auto&  entry : std::filesystem::directory_iterator(output_dir / "test-suite"))
+                std::filesystem::remove(entry);
+        if (std::filesystem::is_directory(output_dir / "progress_recording"))
+            std::filesystem::remove_all(output_dir / "progress_recording");
+    }
     if (!get_program_options()->has("path_to_target")) {
         std::cerr << "ERROR: The path to target is empty.\n";
         return;

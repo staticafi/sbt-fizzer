@@ -14,6 +14,8 @@ program_options::program_options(int argc, char* argv[])
     add_option("output_dir", "A directory where to store generated tests.", "1");
     add_value("output_dir", ".");
 
+    add_option("clear_output_dir", "Erase the content of the output directory, if there is some.", "0");
+
     fuzzing::termination_info const  terminator{};
 
     add_option("max_executions", "Max number of executions for fuzzing the benchmark.", "1");
