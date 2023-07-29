@@ -45,7 +45,9 @@ progress_recorder& progress_recorder::instance()
 
 progress_recorder::progress_recorder()
     : started{ false }
+
     , output_dir{}
+    , program_name{}
 
     , analysis{ NONE }
     , sensitivity{}
@@ -72,17 +74,16 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     if (!std::filesystem::is_directory(output_dir))
         throw std::runtime_error("Cannot create directory: " + output_dir.string());
 
-    {
-        std::filesystem::path  input_dir{ path_to_client_.parent_path() };
-        std::string  executable_name{ path_to_client_.filename().string() };
-        std::string  program_name{ executable_name.substr(0, executable_name.find("_sbt-fizzer_target")) };
+    std::filesystem::path const  input_dir{ path_to_client_.parent_path() };
+    std::string const  executable_name{ path_to_client_.filename().string() };
 
-        if (!copy_file(input_dir, program_name + ".i", "source.c", output_dir, false))
-            copy_file(input_dir, program_name + ".c", "source.c", output_dir);
-        copy_file(input_dir, program_name + "_instrumented.ll", "source.ll", output_dir);
-        copy_file(input_dir, program_name + "_dbg_cond_map.json", "cond_map.json", output_dir);
-        copy_file(input_dir, program_name + "_dbg_br_map.json", "br_map.json", output_dir);
-    }
+    program_name = executable_name.substr(0, executable_name.find("_sbt-fizzer_target"));
+
+    if (!copy_file(input_dir, program_name + ".i", "source.c", output_dir, false))
+        copy_file(input_dir, program_name + ".c", "source.c", output_dir);
+    copy_file(input_dir, program_name + "_instrumented.ll", "source.ll", output_dir);
+    copy_file(input_dir, program_name + "_dbg_cond_map.json", "cond_map.json", output_dir);
+    copy_file(input_dir, program_name + "_dbg_br_map.json", "br_map.json", output_dir);
 
     started = true;
 
@@ -103,8 +104,32 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
 
 void  progress_recorder::stop()
 {
+    if (!is_started())
+        return;
+
+    std::filesystem::path const  input_dir{ output_dir.parent_path() };
+
+    copy_file(input_dir, program_name + "_config.json", "config.json", output_dir);
+    copy_file(input_dir, program_name + "_config_opt.json", "config_opt.json", output_dir, false);
+
+    copy_file(input_dir, program_name + "_outcomes.json", "outcomes.json", output_dir);
+    copy_file(input_dir, program_name + "_outcomes_opt.json", "outcomes_opt.json", output_dir, false);
+
+    for (natural_32_bit  i = 1U; true; ++i)
+        if (!copy_file(input_dir, program_name + "_test_" + std::to_string(i) + ".json",
+                       "test_" + std::to_string(i) + ".json", output_dir, false))
+            break;
+
+    if (std::filesystem::is_directory(input_dir / "test-suite"))
+        for (natural_32_bit  i = 1U; true; ++i)
+            if (!copy_file(input_dir / "test-suite", program_name + "_test_" + std::to_string(i) + ".xml",
+                        "test_" + std::to_string(i) + ".xml", output_dir, false))
+                break;
+
     started = false;
+
     output_dir.clear();
+    program_name.clear();
  
     analysis = NONE;
     sensitivity = {};

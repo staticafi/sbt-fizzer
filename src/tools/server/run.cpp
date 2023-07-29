@@ -170,7 +170,7 @@ void run(int argc, char* argv[])
             };
 
     if (get_program_options()->has("progress_recording")) {
-        fuzzing::recorder().start(get_program_options()->value("path_to_target"), output_dir);
+        fuzzing::recorder().start(std::filesystem::absolute(get_program_options()->value("path_to_target")), output_dir);
     }
 
     std::string target_name = std::filesystem::path(get_program_options()->value("path_to_target")).stem().string();
@@ -268,8 +268,6 @@ void run(int argc, char* argv[])
 
     server.stop();
 
-    fuzzing::recorder().stop();
-
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, target_name, results);
     if (opt_results_ptr != nullptr)
@@ -306,6 +304,8 @@ void run(int argc, char* argv[])
             );
     }
     
+    fuzzing::recorder().stop();
+
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Done." << std::endl;
 }

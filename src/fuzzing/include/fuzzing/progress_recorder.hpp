@@ -200,7 +200,9 @@ private:
     static std::string const&  analysis_name(ANALYSIS a);
 
     bool  started;
+
     std::filesystem::path  output_dir;
+    std::string  program_name;
 
     ANALYSIS  analysis;
     sensitivity_progress_info  sensitivity;
