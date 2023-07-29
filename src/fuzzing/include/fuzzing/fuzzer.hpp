@@ -103,7 +103,7 @@ private:
     {
         primary_coverage_target_branchings(
                 std::function<bool(location_id)> const&  is_covered_,
-                std::function<bool(location_id)> const&  is_iid_
+                std::function<std::pair<bool, bool>(branching_node*)> const&  is_iid_
                 );
 
         void  collect_loop_heads_along_path_to_node(branching_node* const  end_node);
@@ -114,17 +114,17 @@ private:
         void  clear();
 
         void  do_cleanup();
-        branching_node*  get_best();
+        branching_node*  get_best(natural_32_bit  max_input_width);
 
     private:
-        static branching_node*  get_best(std::unordered_set<branching_node*> const&  targets);
+        static branching_node*  get_best(std::unordered_set<branching_node*> const&  targets, natural_32_bit  max_input_width);
 
         std::unordered_set<branching_node*>  loop_heads;    // Priority #1 (the highest)
         std::unordered_set<branching_node*>  sensitive;     // Priority #2
         std::unordered_set<branching_node*>  untouched;     // Priority #3
         std::unordered_set<branching_node*>  iid_twins;     // Priority #4
         std::function<bool(location_id)>  is_covered;
-        std::function<bool(location_id)>  is_iid;
+        std::function<std::pair<bool, bool>(branching_node*)>  is_iid;
     };
 
     struct  hit_count_per_direction
@@ -166,10 +166,16 @@ private:
     using  histogram_of_false_direction_probabilities = std::unordered_map<location_id::id_type, float_32_bit>;
     using  probability_generators_for_locations = std::unordered_map<location_id::id_type, std::shared_ptr<probability_generator> >;
 
+    struct  loop_exit_and_direct_successor
+    {
+        branching_node*  loop_exit;
+        branching_node*  successor;
+    };
+
     struct  iid_pivot_props
     {
         std::vector<branching_node*>  loop_entries;
-        std::vector<branching_node*>  loop_exits;
+        std::vector<loop_exit_and_direct_successor>  loop_exits;
         std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
         std::unordered_set<location_id>  pure_loop_bodies;
         histogram_of_hit_counts_per_direction  histogram;
@@ -192,11 +198,11 @@ private:
 
     static void  detect_loops_along_path_to_node(
             branching_node* const  end_node,
-            std::vector<branching_node*>&  loop_exits,
+            std::vector<loop_exit_and_direct_successor>&  loop_exits,
             std::unordered_map<location_id, std::unordered_set<location_id> >&  loop_heads_to_bodies
             );
     static void  detect_loop_entries(
-            std::vector<branching_node*> const&  loop_exits,
+            std::vector<loop_exit_and_direct_successor> const&  loop_exits,
             std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
             std::vector<branching_node*>&  loop_entries
             );
@@ -207,6 +213,7 @@ private:
 
     static std::unordered_map<branching_node*, iid_pivot_props>::const_iterator  select_best_iid_pivot(
             std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
+            natural_32_bit  max_input_width,
             random_generator_for_natural_32_bit&  random_generator,
             float_32_bit const  LIMIT_STEP = 0.5f
             );
@@ -219,8 +226,9 @@ private:
             histogram_of_false_direction_probabilities&  histogram
             );
 
-    static branching_node*  select_not_closed_loop_entry(
+    static branching_node*  select_start_node_for_monte_carlo_search(
             std::vector<branching_node*> const&  loop_entries,
+            std::vector<loop_exit_and_direct_successor> const&  loop_exits,
             random_generator_for_natural_32_bit&  random_generator,
             float_32_bit  LIMIT_STEP = 0.5f,
             branching_node*  fallback_node = nullptr

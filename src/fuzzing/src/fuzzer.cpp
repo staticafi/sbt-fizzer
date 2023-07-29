@@ -12,7 +12,7 @@ namespace  fuzzing {
 
 fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
         std::function<bool(location_id)> const&  is_covered_,
-        std::function<bool(location_id)> const&  is_iid_
+        std::function<std::pair<bool, bool>(branching_node*)> const&  is_iid_
         )
     : loop_heads{}
     , sensitive{}
@@ -32,7 +32,7 @@ void  fuzzer::primary_coverage_target_branchings::collect_loop_heads_along_path_
 
         std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
         {
-            std::vector<branching_node*>  loop_exits;
+            std::vector<loop_exit_and_direct_successor>  loop_exits;
             detect_loops_along_path_to_node(end_node, loop_exits, loop_heads_to_bodies);
         }
 
@@ -72,8 +72,12 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
         }
         else
         {
-            if (is_iid(node->get_location_id()))
-                iid_twins.insert(node);
+            auto const  iid_and_useful = is_iid(node);
+            if (iid_and_useful.first)
+            {
+                if (iid_and_useful.second)
+                    iid_twins.insert(node);
+            }
             else
                 untouched.insert(node);
         }
@@ -129,7 +133,7 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 }
 
 
-branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
+branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32_bit const  max_input_width)
 {
     TMPROF_BLOCK();
 
@@ -142,21 +146,21 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
         return best_node;
     }
 
-    best_node = get_best(sensitive);
+    best_node = get_best(sensitive, max_input_width);
     if (best_node != nullptr)
     {
         recorder().on_strategy_turn_primary_sensitive();
         return best_node;
     }
 
-    best_node = get_best(untouched);
+    best_node = get_best(untouched, max_input_width);
     if (best_node != nullptr)
     {
         recorder().on_strategy_turn_primary_untouched();
         return best_node;
     }
 
-    best_node = get_best(iid_twins);
+    best_node = get_best(iid_twins, max_input_width);
     if (best_node != nullptr)
     {
         recorder().on_strategy_turn_primary_iid_twins();
@@ -167,11 +171,20 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best()
 }
 
 
-branching_node*  fuzzer::primary_coverage_target_branchings::get_best(std::unordered_set<branching_node*> const&  targets)
+branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
+        std::unordered_set<branching_node*> const&  targets,
+        natural_32_bit const  max_input_width
+        )
 {
     struct  branching_node_with_less_than
     {
-        branching_node_with_less_than(branching_node* const  node_) : node{ node_ } {}
+        branching_node_with_less_than(branching_node* const  node_, natural_32_bit const  max_input_width)
+            : node{ node_ }
+            , distance_to_central_input_width_class{
+                    std::abs((integer_32_bit)get_input_width_class(max_input_width / 2U) -
+                             (integer_32_bit)get_input_width_class(node->get_num_stdin_bytes()))
+                    }
+        {}
         operator  branching_node*() const { return node; }
         bool  operator<(branching_node_with_less_than const&  other) const
         {
@@ -182,6 +195,10 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(std::unord
             if (node->sensitive_stdin_bits.size() < other.node->sensitive_stdin_bits.size())
                 return true;
             if (node->sensitive_stdin_bits.size() > other.node->sensitive_stdin_bits.size())
+                return false;
+            if (distance_to_central_input_width_class < other.distance_to_central_input_width_class)
+                return true;
+            if (distance_to_central_input_width_class > other.distance_to_central_input_width_class)
                 return false;
             if (node->get_num_stdin_bytes() < other.node->get_num_stdin_bytes())
                 return true;
@@ -195,13 +212,14 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(std::unord
         }
     private:
         branching_node*  node;
+        integer_32_bit  distance_to_central_input_width_class;
     };
     if (!targets.empty())
     {
-        branching_node_with_less_than  best{ *targets.begin() };
+        branching_node_with_less_than  best{ *targets.begin(), max_input_width };
         for (auto  it = std::next(targets.begin()); it != targets.end(); ++it)
         {
-            branching_node_with_less_than const  current{ *it };
+            branching_node_with_less_than const  current{ *it, max_input_width };
             if (current < best)
                 best = current;
         }
@@ -299,36 +317,36 @@ natural_32_bit  fuzzer::get_input_width_class_index(natural_32_bit const  num_in
 
 void  fuzzer::detect_loops_along_path_to_node(
         branching_node* const  end_node,
-        std::vector<branching_node*>&  loop_exits,
+        std::vector<loop_exit_and_direct_successor>&  loop_exits,
         std::unordered_map<location_id, std::unordered_set<location_id> >&  loop_heads_to_bodies
         )
 {
-    std::vector<branching_node*>  branching_stack;
+    std::vector<loop_exit_and_direct_successor>  branching_stack;
     std::unordered_map<location_id, natural_32_bit>  pointers_to_branching_stack;
 
     // We must explore the 'branching_records' backwards,
     // because of do-while loops (all loops terminate with
     // the loop-head condition, but do not have to start
     // with it).
-    for (branching_node*  node = end_node; node != nullptr; node = node->predecessor)
+    for (branching_node*  node = end_node, *succ_node = node; node != nullptr; succ_node = node, node = node->predecessor)
     {
         auto const  it = pointers_to_branching_stack.find(node->get_location_id());
         if (it == pointers_to_branching_stack.end())
         {
             pointers_to_branching_stack.insert({ node->get_location_id(), (natural_32_bit)branching_stack.size() });
-            branching_stack.push_back(node);
+            branching_stack.push_back({ node, succ_node });
         }
         else
         {
-            branching_node* const  loop_exit = branching_stack.at(it->second);
-            if (loop_exits.empty() || loop_exits.back() != loop_exit)
-                loop_exits.push_back(loop_exit);
+            loop_exit_and_direct_successor const&  props = branching_stack.at(it->second);
+            if (loop_exits.empty() || loop_exits.back().loop_exit != props.loop_exit)
+                loop_exits.push_back(props);
 
-            auto&  loop_body = loop_heads_to_bodies[loop_exit->get_location_id()];
+            auto&  loop_body = loop_heads_to_bodies[props.loop_exit->get_location_id()];
             for (std::size_t  end_size = it->second + 1ULL; branching_stack.size() > end_size; )
             {
-                loop_body.insert(branching_stack.back()->get_location_id());
-                pointers_to_branching_stack.erase(branching_stack.back()->get_location_id());
+                loop_body.insert(branching_stack.back().loop_exit->get_location_id());
+                pointers_to_branching_stack.erase(branching_stack.back().loop_exit->get_location_id());
                 branching_stack.pop_back();
             }
         }
@@ -338,15 +356,15 @@ void  fuzzer::detect_loops_along_path_to_node(
 
 
 void  fuzzer::detect_loop_entries(
-        std::vector<branching_node*> const&  loop_exits,
+        std::vector<loop_exit_and_direct_successor> const&  loop_exits,
         std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
         std::vector<branching_node*>&  loop_entries
         )
 {
     for (std::size_t  i = 0U; i != loop_exits.size(); ++i)
     {
-        branching_node* const  stop_node = i == 0 ? nullptr : loop_exits.at(i - 1);
-        branching_node* const  loop_exit = loop_exits.at(i);
+        branching_node* const  stop_node = i == 0 ? nullptr : loop_exits.at(i - 1).loop_exit;
+        branching_node* const  loop_exit = loop_exits.at(i).loop_exit;
         branching_node*        loop_entry = loop_exit;
         while (loop_entry->predecessor != stop_node &&
                     (loop_entry->predecessor->get_location_id() == loop_exit->get_location_id() ||
@@ -371,17 +389,20 @@ void  fuzzer::compute_pure_loop_bodies(
 
 std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fuzzer::select_best_iid_pivot(
         std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
+        natural_32_bit const  max_input_width,
         random_generator_for_natural_32_bit&  random_generator,
         float_32_bit const  LIMIT_STEP
         )
 {
     struct  iid_pivot_with_less_than
     {
-        iid_pivot_with_less_than(branching_node* const  pivot_)
+        iid_pivot_with_less_than(branching_node* const  pivot_, natural_32_bit const  max_input_width)
             : pivot{ pivot_ }
             , abs_value{ std::fabs(pivot->best_coverage_value) }
-            , input_width_class{ get_input_width_class(pivot->get_num_stdin_bytes()) }
-            , in_input_width_class{ input_width_class == pivot->get_num_stdin_bytes() }
+            , distance_to_central_input_width_class{
+                    std::abs((integer_32_bit)get_input_width_class(max_input_width / 2U) -
+                             (integer_32_bit)get_input_width_class(pivot->get_num_stdin_bytes()))
+                    }
         {}
         operator branching_node*() const { return pivot; }
         bool  operator<(iid_pivot_with_less_than const&  other) const
@@ -391,8 +412,10 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
             if (abs_value > other.abs_value)
                 return false;
 
-            if (in_input_width_class != other.in_input_width_class)
-                return in_input_width_class;
+            if (distance_to_central_input_width_class < other.distance_to_central_input_width_class)
+                return true;
+            if (distance_to_central_input_width_class > other.distance_to_central_input_width_class)
+                return false;
 
             if (pivot->get_num_stdin_bytes() < other.pivot->get_num_stdin_bytes())
                 return true;
@@ -403,12 +426,11 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
         }
         branching_node*  pivot;
         branching_function_value_type  abs_value;
-        natural_32_bit  input_width_class;
-        bool  in_input_width_class;
+        integer_32_bit  distance_to_central_input_width_class;
     };
     std::vector<iid_pivot_with_less_than>  pivots_order;
     for (auto const&  pivot_and_props : pivots)
-        pivots_order.push_back(pivot_and_props.first);
+        pivots_order.push_back({ pivot_and_props.first, max_input_width });
     std::sort(pivots_order.begin(), pivots_order.end());
 
     float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, random_generator) };
@@ -473,26 +495,38 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
 }
 
 
-branching_node*  fuzzer::select_not_closed_loop_entry(
+branching_node*  fuzzer::select_start_node_for_monte_carlo_search(
         std::vector<branching_node*> const&  loop_entries,
+        std::vector<loop_exit_and_direct_successor> const&  loop_exits,
         random_generator_for_natural_32_bit&  random_generator,
         float_32_bit const  LIMIT_STEP,
         branching_node*  fallback_node
         )
 {
-    ASSUMPTION(LIMIT_STEP >= 0.0f && LIMIT_STEP <= 1.0f);
+    ASSUMPTION(LIMIT_STEP >= 0.0f && LIMIT_STEP <= 1.0f && loop_entries.size() == loop_exits.size());
     if (!loop_entries.empty())
     {
+        std::vector<branching_node*>  loop_nodes;
+        {
+            loop_nodes.reserve(2 * loop_entries.size());
+            for (std::size_t  i = 0; i != loop_entries.size(); ++i)
+            {
+                INVARIANT(loop_entries.at(i)->get_trace_index() < loop_exits.at(i).successor->get_trace_index());
+                loop_nodes.push_back(loop_entries.at(i));
+                loop_nodes.push_back(loop_exits.at(i).successor);
+            }
+        }
+
         float_32_bit const  probability{ get_random_float_32_bit_in_range(0.0f, 1.0f, random_generator) };
         std::size_t  i = 0;
         for (float_32_bit  limit = LIMIT_STEP;
-                i != loop_entries.size() && probability > limit;
+                i != loop_nodes.size() && probability > limit;
                 limit += LIMIT_STEP * (1.0f - limit)
                 )
             ++i;
-        for ( ; i < loop_entries.size(); ++i)
+        for ( ; i < loop_nodes.size(); ++i)
         {
-            branching_node* const  node = loop_entries.at((loop_entries.size() - 1U) - i);
+            branching_node* const  node = loop_nodes.at((loop_nodes.size() - 1U) - i);
             if (!node->is_closed())
                 return node;
         }
@@ -662,7 +696,16 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
 
     , primary_coverage_targets{
             [this](location_id const  id) { return covered_branchings.contains(id); },
-            [this](location_id const  id) { return iid_pivots.contains(id); }                    
+            [this](branching_node* const  node) -> std::pair<bool, bool> {
+                    auto const  it = iid_pivots.find(node->get_location_id());
+                    if (it == iid_pivots.end())
+                        return { false, false };
+                    for (auto const&  pivot_and_props : it->second.pivots)
+                        if (pivot_and_props.first->get_num_stdin_bytes() == node->get_num_stdin_bytes()
+                                && std::fabs(pivot_and_props.first->best_coverage_value) <= std::fabs(node->best_coverage_value))
+                            return { true, false };
+                    return { true, true };
+                    }                    
             }
     , iid_pivots{}
 
@@ -1176,7 +1219,7 @@ void  fuzzer::select_next_state()
     branching_node*  winner = nullptr;
     if (!entry_branching->is_closed())
     {
-        winner = primary_coverage_targets.get_best();
+        winner = primary_coverage_targets.get_best(max_input_width);
         if (winner == nullptr)
             winner = select_iid_coverage_target();
     }
@@ -1246,8 +1289,9 @@ branching_node*  fuzzer::select_iid_coverage_target() const
             );
     auto const  it_pivot = select_best_iid_pivot(
             it_loc->second.pivots,
+            max_input_width,
             it_loc->second.generator_for_pivot_selection,
-            0.5f
+            0.75f
             );
 
     histogram_of_false_direction_probabilities  histogram;
@@ -1269,7 +1313,8 @@ branching_node*  fuzzer::select_iid_coverage_target() const
             );
 
     branching_node*  winner;
-    if (get_random_natural_32_bit_in_range(1, 100, generator_for_iid_approach_selection) <= 50)
+    if (false)  // original code: if (get_random_natural_32_bit_in_range(1, 100, generator_for_iid_approach_selection) <= 50)
+                // Currently diabled, because it performs worse for some yet unknown reason.
     {
         auto const  node_and_direction = monte_carlo_backward_search(
                 it_pivot->first,
@@ -1290,8 +1335,9 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     }
     else
     {
-        branching_node* const  start_node = select_not_closed_loop_entry(
+        branching_node* const  start_node = select_start_node_for_monte_carlo_search(
                 it_pivot->second.loop_entries,
+                it_pivot->second.loop_exits,
                 it_pivot->second.generator_for_start_node_selection,
                 0.75f,
                 entry_branching
