@@ -470,27 +470,6 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
         }
         histogram[id_and_pack.first] = avg(probabilities);
     }
-    // for (location_id const  loc_id : pivot_props.pure_loop_bodies)
-    // {
-    //     auto const  it = hist_pack.find(loc_id.id);
-    //     if (it != hist_pack.end())
-    //         it->second.insert({ it->second.begin()->first, 0.5f });
-    // }
-    // for (auto const&  id_and_pack : hist_pack)
-    // {
-    //     auto const&  pack = id_and_pack.second;
-
-    //     natural_32_bit  count = 1U;
-    //     float_32_bit  sum = pack.begin()->second;
-    //     auto  it_end = std::next(pack.begin());
-    //     while (it_end != pack.end() && std::fabs(pack.begin()->first - it_end->first) < 1e-6f)
-    //     {
-    //         ++count;
-    //         sum += it_end->second;
-    //         ++it_end;
-    //     }
-    //     histogram[id_and_pack.first] = sum / (float_32_bit)count;
-    // }
 }
 
 
@@ -539,7 +518,6 @@ std::shared_ptr<fuzzer::probability_generator_random_uniform>  fuzzer::compute_p
         if (pure_loop_bodies.contains(id_and_probability.first))
         {
             switch (get_random_integer_32_bit_in_range(0, 2, generator_for_generator_selection))
-// switch (2)
             {
                 case 0:
                     generators[id_and_probability.first] = random_uniform_generator;
@@ -1110,9 +1088,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 }
 
 
-// static  branching_node*  __monte_carlo_test_node = nullptr;
-
-
 void  fuzzer::do_cleanup()
 {
     TMPROF_BLOCK();
@@ -1180,16 +1155,6 @@ void  fuzzer::do_cleanup()
             it = coverage_failures_with_hope.erase(it);
         else
             ++it;
-
-
-// if (__monte_carlo_test_node != nullptr && covered_branchings.contains(__monte_carlo_test_node->get_location_id()))
-//     __monte_carlo_test_node = nullptr;
-// if (__monte_carlo_test_node == nullptr && !iid_pivots.empty())
-// {
-//     __monte_carlo_test_node = iid_pivots.begin()->second.pivots.begin()->first;
-// }
-
-
 }
 
 
@@ -1275,12 +1240,6 @@ branching_node*  fuzzer::select_iid_coverage_target() const
             it_loc->second.generator_for_pivot_selection,
             0.5f
             );
-
-// if (__monte_carlo_test_node == nullptr)
-//    return nullptr;
-// auto const  it_loc = iid_pivots.find(__monte_carlo_test_node->get_location_id());
-// auto const  it_pivot = it_loc->second.pivots.find(__monte_carlo_test_node);
-// INVARIANT(it_pivot->first == __monte_carlo_test_node);
 
     histogram_of_false_direction_probabilities  histogram;
     compute_histogram_of_false_direction_probabilities(
