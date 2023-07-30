@@ -10,8 +10,10 @@
 
 using namespace llvm;
 
-bool llvm_instrumenter::doInitialization(Module &M) {
-    LLVMContext &C = M.getContext();
+bool llvm_instrumenter::doInitialization(Module *M) {
+    module = M;
+
+    LLVMContext &C = module->getContext();
 
     Int1Ty = IntegerType::getInt1Ty(C);
     Int8Ty = IntegerType::getInt8Ty(C);
@@ -23,22 +25,22 @@ bool llvm_instrumenter::doInitialization(Module &M) {
     FloatTy = Type::getFloatTy(C);
     DoubleTy = Type::getDoubleTy(C);
 
-    DependenciesFPM = std::make_unique<legacy::FunctionPassManager>(&M);
+    DependenciesFPM = std::make_unique<legacy::FunctionPassManager>(module);
     DependenciesFPM->add(createLowerSwitchPass());
 
     processCondFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
+        module->getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
                               Int32Ty, Int1Ty, DoubleTy, Int1Ty);
 
     processCondBrFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
+        module->getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
                               Int32Ty, Int1Ty);
 
     processCallBeginFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_call_begin", VoidTy,
+        module->getOrInsertFunction("__sbt_fizzer_process_call_begin", VoidTy,
                               Int32Ty);
     processCallEndFunc =
-        M.getOrInsertFunction("__sbt_fizzer_process_call_end", VoidTy,
+        module->getOrInsertFunction("__sbt_fizzer_process_call_end", VoidTy,
                               Int32Ty);
 
     basicBlockCounter = 0;
@@ -46,6 +48,24 @@ bool llvm_instrumenter::doInitialization(Module &M) {
     callSiteCounter = 0;
 
     return true;
+}
+
+void llvm_instrumenter::renameRedefinedStdFunctions()
+{
+    std::string const  renamePrefix{ "__fizzer_rename_prefix__" };
+    for (std::string const&  fnName : {
+            "malloc",
+            "calloc",
+            "realloc",
+            "free",
+            "abort",
+            "exit",
+            "atexit"
+            }) {
+        Function* const fn = module->getFunction(fnName);
+        if (fn != nullptr && !fn->isDeclaration())
+            fn->setName(renamePrefix + fnName);
+    }
 }
 
 void llvm_instrumenter::printErrCond(Value *cond) {

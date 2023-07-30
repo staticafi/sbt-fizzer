@@ -102,7 +102,8 @@ void run(int argc, char* argv[])
     }
 
     llvm_instrumenter  instrumenter;
-    instrumenter.doInitialization(*M);
+    instrumenter.doInitialization(M.get());
+    instrumenter.renameRedefinedStdFunctions();
     for (auto it = M->begin(); it != M->end(); ++it)
         instrumenter.runOnFunction(*it, get_program_options()->has("br_too"));
 
@@ -116,7 +117,7 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("save_mapping"))
     {
         instrumenter.propagateMissingBasicBlockDbgInfo();
-        dump_dbg_mapping(instrumenter.condInstrDbgInfo, instrumenter.basicBlockDbgInfo, "cond");
-        dump_dbg_mapping(instrumenter.brInstrDbgInfo, instrumenter.basicBlockDbgInfo, "br");
+        dump_dbg_mapping(instrumenter.getCondInstrDbgInfo(), instrumenter.getBasicBlockDbgInfo(), "cond");
+        dump_dbg_mapping(instrumenter.getBrInstrDbgInfo(), instrumenter.getBasicBlockDbgInfo(), "br");
     }
 }

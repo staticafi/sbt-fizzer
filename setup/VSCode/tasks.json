@@ -61,6 +61,7 @@
                     // "fast/int8_if_x_xor_a_eq_b.c"
                     // "fast/mul_two_int16.c
                     // "fast/switch.c"
+                    // "fast/std_redef_malloc_free.c",
                     // "fast/nested_ifs.c"
                     // "fast/uint16_if_parabola.c"
                     // "fast/uint32_if_parabola.c"
@@ -156,6 +157,7 @@
                 // "fast/mul_two_int16.c
                 // "fast/switch.c"
                 "fast/nested_ifs.c"
+                // "fast/std_redef_malloc_free.c",
                 // "fast/uint16_if_parabola.c"
                 // "fast/uint32_if_parabola.c"
 

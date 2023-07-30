@@ -30,6 +30,54 @@
 
 struct llvm_instrumenter {
 
+    struct basic_block_dbg_info {
+        static int constexpr invalid_depth = std::numeric_limits<int>::max();
+        unsigned int id { 0U };
+        llvm::DILocation const *info { nullptr };
+        int depth { invalid_depth };
+    };
+
+    using basic_block_dbg_info_map = std::unordered_map<llvm::BasicBlock const*, basic_block_dbg_info>;
+
+    struct instruction_dbg_info {
+        llvm::Instruction const *instruction { nullptr };
+        unsigned int id { 0U };
+        unsigned int shift { 0U };
+    };
+
+    using instruction_dbg_info_vector = std::vector<instruction_dbg_info>;
+
+    bool doInitialization(llvm::Module *M);
+
+    void renameRedefinedStdFunctions();
+
+    void replaceCalls(
+        llvm::Function &F, 
+        std::unordered_map<std::string, llvm::FunctionCallee> replacements
+    );
+    void instrumentCalls(llvm::Function &F);
+    bool runOnFunction(llvm::Function &F, bool br_too);
+
+    void printErrCond(llvm::Value *cond);
+
+    void instrumentCondBr(llvm::BranchInst *brInst);
+    bool instrumentCond(llvm::Instruction *inst, bool xor_like_branching_function);
+    llvm::Value *instrumentCmp(llvm::CmpInst *cmpInst, llvm::IRBuilder<> &builder);
+    llvm::Value *instrumentIcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
+                          llvm::IRBuilder<> &builder);
+    llvm::Value *instrumentFcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
+                          llvm::IRBuilder<> &builder);
+
+    void propagateMissingBasicBlockDbgInfo();
+
+    basic_block_dbg_info_map const&  getBasicBlockDbgInfo() const { return basicBlockDbgInfo; }
+    instruction_dbg_info_vector const&  getCondInstrDbgInfo() const { return condInstrDbgInfo; }
+    instruction_dbg_info_vector const&  getBrInstrDbgInfo() const { return brInstrDbgInfo; }
+
+private:
+
+    llvm::Module *module;
+
     llvm::IntegerType *Int1Ty;
     llvm::IntegerType *Int8Ty;
     llvm::IntegerType *Int16Ty;
@@ -52,48 +100,9 @@ struct llvm_instrumenter {
     unsigned int condCounter;
     unsigned int callSiteCounter;
 
-    struct basic_block_dbg_info {
-        static int constexpr invalid_depth = std::numeric_limits<int>::max();
-        unsigned int id { 0U };
-        llvm::DILocation const *info { nullptr };
-        int depth { invalid_depth };
-    };
-
-    using basic_block_dbg_info_map = std::unordered_map<llvm::BasicBlock const*, basic_block_dbg_info>;
-
     basic_block_dbg_info_map basicBlockDbgInfo;
-
-    struct instruction_dbg_info {
-        llvm::Instruction const *instruction { nullptr };
-        unsigned int id { 0U };
-        unsigned int shift { 0U };
-    };
-
-    using instruction_dbg_info_vector = std::vector<instruction_dbg_info>;
-
     instruction_dbg_info_vector condInstrDbgInfo;
     instruction_dbg_info_vector brInstrDbgInfo;
-
-    void replaceCalls(
-        llvm::Function &F, 
-        std::unordered_map<std::string, llvm::FunctionCallee> replacements
-    );
-    void instrumentCalls(llvm::Function &F);
-    bool runOnFunction(llvm::Function &F, bool br_too);
-
-    bool doInitialization(llvm::Module &M);
-
-    void printErrCond(llvm::Value *cond);
-
-    void instrumentCondBr(llvm::BranchInst *brInst);
-    bool instrumentCond(llvm::Instruction *inst, bool xor_like_branching_function);
-    llvm::Value *instrumentCmp(llvm::CmpInst *cmpInst, llvm::IRBuilder<> &builder);
-    llvm::Value *instrumentIcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
-                          llvm::IRBuilder<> &builder);
-    llvm::Value *instrumentFcmp(llvm::Value *lhs, llvm::Value *rhs, llvm::CmpInst *cmpInst,
-                          llvm::IRBuilder<> &builder);
-
-    void propagateMissingBasicBlockDbgInfo();
 };
 
 

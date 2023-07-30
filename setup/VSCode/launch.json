@@ -49,6 +49,7 @@
                     // "fast/int8_if_x_xor_a_eq_b_sbt-fizzer_target",
                     // "fast/mul_two_int16_sbt-fizzer_target",
                     "fast/nested_ifs_sbt-fizzer_target",
+                    // "fast/std_redef_malloc_free_sbt-fizzer_target",
                     // "fast/switch_sbt-fizzer_target",
                     // "fast/uint16_if_parabola_sbt-fizzer_target",
                     // "fast/uint32_if_parabola_sbt-fizzer_target",
@@ -209,6 +210,7 @@
                     // "fast/mul_two_int16.c
                     // "fast/switch.c"
                     // "fast/nested_ifs.c"
+                    // "fast/std_redef_malloc_free.c",
                     // "fast/uint16_if_parabola.c"
                     // "fast/uint32_if_parabola.c"
 
