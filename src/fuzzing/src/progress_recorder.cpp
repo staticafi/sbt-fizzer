@@ -3,6 +3,7 @@
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
+#include <utility/timeprof.hpp>
 #include <instrumentation/target_termination.hpp>
 #include <vector>
 #include <algorithm>
@@ -194,6 +195,8 @@ void  progress_recorder::on_typed_minimization_execution_results_available(
     if (!is_started())
         return;
 
+    TMPROF_BLOCK();
+
     auto const  ostr_ptr{ save_default_execution_results() };
     std::ofstream&  ostr{ *ostr_ptr };
 
@@ -294,6 +297,8 @@ void  progress_recorder::on_minimization_execution_results_available(
 {
     if (!is_started())
         return;
+
+    TMPROF_BLOCK();
 
     auto const  ostr_ptr{ save_default_execution_results() };
     std::ofstream&  ostr{ *ostr_ptr };
@@ -432,6 +437,8 @@ void  progress_recorder::on_execution_results_available()
     if (!is_started())
         return;
 
+    TMPROF_BLOCK();
+
     auto const  ostr_ptr{ save_default_execution_results() };
     std::ofstream&  ostr{ *ostr_ptr };
 
@@ -452,6 +459,8 @@ void  progress_recorder::on_execution_results_available()
 
 std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_results()
 {
+    TMPROF_BLOCK();
+
     ++counter_results;
 
     std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
@@ -521,6 +530,8 @@ std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
 
 void  progress_recorder::analysis_common_info::save() const
 {
+    TMPROF_BLOCK();
+
     if (!std::filesystem::is_directory(analysis_dir))
         return; // No input was generated => the analysis did nothing => no need to save any data.
 
@@ -567,6 +578,8 @@ natural_32_bit  progress_recorder::sensitivity_progress_info::get_num_coverage_f
 
 void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ostr) const
 {
+    TMPROF_BLOCK();
+
     std::vector<branching_node*>  nodes;
     for (branching_node*  n = node; n != nullptr; n = n->predecessor)
         nodes.push_back(n);
@@ -596,6 +609,8 @@ void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ost
 
 void  progress_recorder::typed_minimization_progress_info::save_info(std::ostream&  ostr) const
 {
+    TMPROF_BLOCK();
+
     ostr << "\"from_variables_to_input\": [\n";
     for (natural_32_bit  i = 0U, end = (natural_32_bit)from_variables_to_input.size(); i < end; ++i)
     {
@@ -649,6 +664,8 @@ void  progress_recorder::typed_minimization_progress_info::save_info(std::ostrea
 
 void  progress_recorder::minimization_progress_info::save_info(std::ostream&  ostr) const
 {
+    TMPROF_BLOCK();
+
     ostr << "\"bit_translation\": [";
     for (natural_32_bit  i = 0U, end = (natural_32_bit)bit_translation.size(); i < end; ++i)
     {
@@ -802,6 +819,8 @@ bool  progress_recorder::post_analysis_data::empty() const
 
 void  progress_recorder::post_analysis_data::save() const
 {
+    TMPROF_BLOCK();
+
     std::filesystem::path const  record_pathname = output_dir / "post.json";
     std::ofstream  ostr{ record_pathname.c_str(), std::ios::binary };
     if (!ostr.is_open())
