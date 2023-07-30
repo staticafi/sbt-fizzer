@@ -107,7 +107,7 @@ private:
                 );
 
         void  collect_loop_heads_along_path_to_node(branching_node* const  end_node);
-        void  process_potential_coverage_target(branching_node*  node);
+        void  process_potential_coverage_target(std::pair<branching_node*, bool> const&  node_and_flag);
         void  erase(branching_node*  node);
 
         bool  empty() const;
@@ -117,12 +117,12 @@ private:
         branching_node*  get_best(natural_32_bit  max_input_width);
 
     private:
-        static branching_node*  get_best(std::unordered_set<branching_node*> const&  targets, natural_32_bit  max_input_width);
+        branching_node*  get_best(std::unordered_map<branching_node*, bool>&  targets, natural_32_bit  max_input_width);
 
-        std::unordered_set<branching_node*>  loop_heads;    // Priority #1 (the highest)
-        std::unordered_set<branching_node*>  sensitive;     // Priority #2
-        std::unordered_set<branching_node*>  untouched;     // Priority #3
-        std::unordered_set<branching_node*>  iid_twins;     // Priority #4
+        std::unordered_set<branching_node*>  loop_heads;        // Priority #1 (the highest)
+        std::unordered_map<branching_node*, bool>  sensitive;   // Priority #2
+        std::unordered_map<branching_node*, bool>  untouched;   // Priority #3
+        std::unordered_map<branching_node*, bool>  iid_twins;   // Priority #4
         std::function<bool(location_id)>  is_covered;
         std::function<std::pair<bool, bool>(branching_node*)>  is_iid;
     };

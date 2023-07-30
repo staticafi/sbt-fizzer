@@ -71,15 +71,18 @@ void  fuzzer::primary_coverage_target_branchings::collect_loop_heads_along_path_
 }
 
 
-void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_target(branching_node* const  node)
+void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_target(
+        std::pair<branching_node*, bool> const&  node_and_flag
+        )
 {
+    auto const [node, flag] = node_and_flag;
     ASSUMPTION(node != nullptr);
     if (node->is_open_branching() && !is_covered(node->get_location_id()))
     {
         if (node->sensitivity_performed)
         {
             if (!node->sensitive_stdin_bits.empty() && (!node->bitshare_performed || !node->minimization_performed))
-                sensitive.insert(node);
+                sensitive.insert(node_and_flag);
         }
         else
         {
@@ -87,10 +90,10 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
             if (iid_and_useful.first)
             {
                 if (iid_and_useful.second)
-                    iid_twins.insert(node);
+                    iid_twins.insert(node_and_flag);
             }
             else
-                untouched.insert(node);
+                untouched.insert(node_and_flag);
         }
     }
 }
@@ -129,7 +132,7 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
         else
             it = loop_heads.erase(it);
 
-    std::unordered_set<branching_node*>  work_set{ sensitive.begin(), sensitive.end() };
+    std::unordered_map<branching_node*, bool>  work_set{ sensitive.begin(), sensitive.end() };
     work_set.insert(untouched.begin(), untouched.end());
     work_set.insert(iid_twins.begin(), iid_twins.end());
     sensitive.clear();
@@ -137,9 +140,9 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
     iid_twins.clear();
     while (!work_set.empty())
     {
-        branching_node* const  node = *work_set.begin();
+        std::pair<branching_node*, bool> const  node_and_flag = *work_set.begin();
         work_set.erase(work_set.begin());
-        process_potential_coverage_target(node);
+        process_potential_coverage_target(node_and_flag);
     }
 }
 
@@ -160,6 +163,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     best_node = get_best(sensitive, max_input_width);
     if (best_node != nullptr)
     {
+        if (!loop_heads.empty())
+            return get_best(max_input_width);
         recorder().on_strategy_turn_primary_sensitive();
         return best_node;
     }
@@ -167,6 +172,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     best_node = get_best(untouched, max_input_width);
     if (best_node != nullptr)
     {
+        if (!loop_heads.empty())
+            return get_best(max_input_width);
         recorder().on_strategy_turn_primary_untouched();
         return best_node;
     }
@@ -174,6 +181,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     best_node = get_best(iid_twins, max_input_width);
     if (best_node != nullptr)
     {
+        if (!loop_heads.empty())
+            return get_best(max_input_width);
         recorder().on_strategy_turn_primary_iid_twins();
         return best_node;
     }
@@ -183,10 +192,13 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
 
 
 branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
-        std::unordered_set<branching_node*> const&  targets,
+        std::unordered_map<branching_node*, bool>&  targets,
         natural_32_bit const  max_input_width
         )
 {
+    if (targets.empty())
+        return nullptr;
+
     struct  branching_node_with_less_than
     {
         branching_node_with_less_than(branching_node* const  node_, natural_32_bit const  max_input_width)
@@ -225,18 +237,23 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
         branching_node*  node;
         integer_32_bit  distance_to_central_input_width_class;
     };
-    if (!targets.empty())
+
+    branching_node_with_less_than  best{ targets.begin()->first, max_input_width };
+    for (auto  it = std::next(targets.begin()); it != targets.end(); ++it)
     {
-        branching_node_with_less_than  best{ *targets.begin(), max_input_width };
-        for (auto  it = std::next(targets.begin()); it != targets.end(); ++it)
-        {
-            branching_node_with_less_than const  current{ *it, max_input_width };
-            if (current < best)
-                best = current;
-        }
-        return best;
+        branching_node_with_less_than const  current{ it->first, max_input_width };
+        if (current < best)
+            best = current;
     }
-    return nullptr;
+
+    auto const  it = targets.find(best);
+    if (!it->second)
+    {
+        collect_loop_heads_along_path_to_node(it->first);
+        it->second = true;
+    }
+
+    return best;
 }
 
 
@@ -1057,9 +1074,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         auto const  it_and_state = leaf_branchings.insert(construction_props.leaf);
         INVARIANT(it_and_state.second);
 
-        primary_coverage_targets.collect_loop_heads_along_path_to_node(construction_props.leaf);
         for (branching_node*  node = construction_props.leaf; node != construction_props.diverging_node->predecessor; node = node->predecessor)
-            primary_coverage_targets.process_potential_coverage_target(node);
+            primary_coverage_targets.process_potential_coverage_target({ node, false });
 
         ++statistics.leaf_nodes_created;
         statistics.max_leaf_nodes = std::max(statistics.max_leaf_nodes, leaf_branchings.size());
@@ -1429,7 +1445,7 @@ bool  fuzzer::apply_coverage_failures_with_hope()
             node->closed = false;
             ++node->num_coverage_failure_resets;
 
-            primary_coverage_targets.process_potential_coverage_target(node);
+            primary_coverage_targets.process_potential_coverage_target({ node, true });
 
             ++statistics.coverage_failure_resets;
         }
