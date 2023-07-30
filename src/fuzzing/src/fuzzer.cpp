@@ -1,5 +1,4 @@
 #include <fuzzing/fuzzer.hpp>
-#include <fuzzing/dump_tree.hpp>
 #include <fuzzing/progress_recorder.hpp>
 #include <iomodels/iomanager.hpp>
 #include <utility/assumptions.hpp>
@@ -708,7 +707,7 @@ branching_node*  fuzzer::monte_carlo_step(
 }
 
 
-fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
+fuzzer::fuzzer(termination_info const&  info)
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -752,9 +751,6 @@ fuzzer::fuzzer(termination_info const&  info, bool const  debug_mode_)
     , generator_for_generator_selection{}
 
     , statistics{}
-
-    , debug_mode{ debug_mode_ }
-    , debug_data{}
 {}
 
 
@@ -793,7 +789,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
         if (uncovered_branchings.empty())
         {
             stop_all_analyzes();
-            debug_save_branching_tree("final");
             terminate();
             termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
             return false;
@@ -803,7 +798,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     if (num_remaining_seconds() <= 0L)
     {
         stop_all_analyzes();
-        debug_save_branching_tree("final");
         terminate();
         termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
         return false;
@@ -812,7 +806,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     if (num_remaining_driver_executions() <= 0L)
     {
         stop_all_analyzes();
-        debug_save_branching_tree("final");
         terminate();
         termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
         return false;
@@ -826,7 +819,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     if (!can_make_progress())
     {
         stop_all_analyzes();
-        debug_save_branching_tree("final");
         terminate();
         termination_reason = TERMINATION_REASON::FUZZING_STRATEGY_DEPLETED;
         return false;
@@ -863,21 +855,6 @@ bool  fuzzer::round_end(execution_record&  record)
     ++num_driver_executions;
 
     return is_path_worth_recording;
-}
-
-
-void  fuzzer::debug_save_branching_tree(std::string const&  stage_name) const
-{
-    if (debug_mode == false)
-        return;
-
-    std::string const  suffix = '_' + stage_name + ".dot";
-    if (debug_data.contains(suffix))
-        return;
-
-    std::stringstream  sstr;
-    dump_subtree_dot(entry_branching, sstr);
-    debug_data.insert({ suffix, sstr.str() });
 }
 
 

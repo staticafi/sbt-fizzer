@@ -38,12 +38,6 @@ void  save_analysis_outcomes(
         analysis_outcomes const&  results
         );
 
-void  save_debug_data_to_directory(
-        std::filesystem::path const&  output_dir,
-        std::string const&  name_prefix,
-        std::unordered_map<std::string, std::string> const&  data
-        );
-
 void  print_optimization_configuration(std::ostream&  ostr, optimizer::configuration const&  config);
 void  log_optimization_configuration(optimizer::configuration const&  config);
 void  save_optimization_configuration(

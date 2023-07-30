@@ -237,8 +237,7 @@ void run(int argc, char* argv[])
 
         results = fuzzing::run(
             run_client,
-            terminator,
-            get_program_options()->has("debug_mode")
+            terminator
             );
 
         load_optimizer_config(optimizer_config);
@@ -267,8 +266,7 @@ void run(int argc, char* argv[])
 
         results = fuzzing::run(
             run_target,
-            terminator,
-            get_program_options()->has("debug_mode")
+            terminator
             );
 
         load_optimizer_config(optimizer_config);
@@ -297,12 +295,6 @@ void run(int argc, char* argv[])
     
     if (test_type == "native") {
         fuzzing::save_native_output(output_dir, *test_suite_ptr, test_name);
-        if (!results.debug_data.empty())
-        {
-            if (!get_program_options()->has("silent_mode"))
-                std::cout << "Saving debug data under the output directory...\n";
-            fuzzing::save_debug_data_to_directory(output_dir, test_name, results.debug_data);
-        }
     }
     else {
         ASSUMPTION(test_type == "testcomp");

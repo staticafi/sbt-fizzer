@@ -83,7 +83,6 @@
                 "--optimizer_max_seconds", "10",
                 "--optimizer_max_trace_length", "1000000",
                 "--optimizer_max_stdin_bytes", "1000000",
-                // "--debug_mode",
                 "--clear_output_dir",
                 "--progress_recording",
                 // "--silent_mode",

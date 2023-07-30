@@ -254,21 +254,6 @@ void  save_analysis_outcomes(
 }
 
 
-void  save_debug_data_to_directory(
-        std::filesystem::path const&  output_dir,
-        std::string const&  name_prefix,
-        std::unordered_map<std::string, std::string> const&  data
-        )
-{
-    for (auto const&  suffix_and_value : data)
-    {
-        std::filesystem::path const  debug_file_path = output_dir / (name_prefix + suffix_and_value.first);
-        std::ofstream  ostr(debug_file_path.c_str(), std::ios::binary);
-        ostr << suffix_and_value.second;
-    }
-}
-
-
 void  print_optimization_configuration(std::ostream&  ostr, optimizer::configuration const&  config)
 {
     std::string const  shift = "    ";

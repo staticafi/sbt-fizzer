@@ -12,14 +12,14 @@
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termination_info const&  info, bool const  debug_mode)
+analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termination_info const&  info)
 {
     TMPROF_BLOCK();
 
     analysis_outcomes  results;
     results.execution_records.push_back({});
 
-    fuzzer f{ info, debug_mode };
+    fuzzer f{ info };
 
     try
     {
@@ -69,8 +69,6 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
     results.minimization_statistics = f.get_minimization_statistics();
     results.bitshare_statistics = f.get_bitshare_statistics();
     results.statistics = f.get_fuzzer_statistics();
-    if (debug_mode)
-        results.debug_data = f.get_debug_data();
 
     return  results;
 }

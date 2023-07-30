@@ -48,7 +48,7 @@ struct  fuzzer final
         std::size_t  coverage_failure_resets{ 0 };
     };
 
-    explicit fuzzer(termination_info const&  info, bool  debug_mode_ = false);
+    explicit fuzzer(termination_info const&  info);
     ~fuzzer();
 
     void  terminate();
@@ -75,8 +75,6 @@ struct  fuzzer final
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
-
-    std::unordered_map<std::string, std::string> const&  get_debug_data() const { return debug_data; }
 
 private:
 
@@ -263,8 +261,6 @@ private:
             probability_generator_random_uniform&  location_miss_generator
             );
 
-    void  debug_save_branching_tree(std::string const&  stage_name) const;
-
     void  generate_next_input(vecb&  stdin_bits);
     execution_record::execution_flags  process_execution_results();
 
@@ -306,9 +302,6 @@ private:
     mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
     performance_statistics  statistics;
-
-    bool  debug_mode;
-    mutable std::unordered_map<std::string, std::string>  debug_data;
 };
 
 

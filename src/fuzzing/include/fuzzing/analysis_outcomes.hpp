@@ -35,7 +35,6 @@ struct analysis_outcomes
     minimization_analysis::performance_statistics   minimization_statistics;
     bitshare_analysis::performance_statistics   bitshare_statistics;
     fuzzer::performance_statistics  statistics;
-    std::unordered_map<std::string, std::string>  debug_data;
 };
 
 
