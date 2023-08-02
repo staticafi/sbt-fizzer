@@ -111,10 +111,7 @@ void  progress_recorder::stop()
     std::filesystem::path const  input_dir{ output_dir.parent_path() };
 
     copy_file(input_dir, program_name + "_config.json", "config.json", output_dir);
-    copy_file(input_dir, program_name + "_config_opt.json", "config_opt.json", output_dir, false);
-
     copy_file(input_dir, program_name + "_outcomes.json", "outcomes.json", output_dir);
-    copy_file(input_dir, program_name + "_outcomes_opt.json", "outcomes_opt.json", output_dir, false);
 
     for (natural_32_bit  i = 1U; true; ++i)
         if (!copy_file(input_dir, program_name + "_test_" + std::to_string(i) + ".json",
