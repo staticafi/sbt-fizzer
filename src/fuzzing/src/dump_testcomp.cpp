@@ -1,8 +1,5 @@
 #include <fuzzing/dump_testcomp.hpp>
-
-#include <utility/assumptions.hpp>
 #include <utility/math.hpp>
-#include <utility/log.hpp>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -57,25 +54,5 @@ void save_testcomp_test_inputs(std::ostream& ostr, const execution_record& trace
     }
 }
 
-
-void save_testcomp_output(
-    std::filesystem::path const& output_dir,
-    std::vector<execution_record> const&  traces_forming_coverage,
-    const std::string& test_name_prefix,
-    const std::string& version,
-    const std::string& program_file
-    ) {
-        {
-            std::filesystem::path metadata = output_dir / "metadata.xml";
-            std::ofstream ostr(metadata.c_str(), std::ios::binary);
-            save_testcomp_metadata(ostr, version, program_file);
-        }
-        
-        for (std::size_t i = 0U; i < traces_forming_coverage.size(); ++i) {
-            std::filesystem::path test_file_path = output_dir / (test_name_prefix + "_" + std::to_string(i + 1U) + ".xml");
-            std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
-            save_testcomp_test(ostr, traces_forming_coverage[i]);
-        }
-    }
 
 }

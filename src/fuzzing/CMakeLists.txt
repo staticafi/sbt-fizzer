@@ -44,6 +44,10 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/fuzzing/progress_recorder.hpp
     ./src/progress_recorder.cpp
+
+    ./include/fuzzing/execution_record.hpp
+    ./include/fuzzing/execution_record_writer.hpp
+    ./src/execution_record_writer.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

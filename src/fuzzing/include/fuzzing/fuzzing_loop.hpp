@@ -3,12 +3,20 @@
 
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/analysis_outcomes.hpp>
+#   include <fuzzing/execution_record.hpp>
+#   include <fuzzing/execution_record_writer.hpp>
+#   include <connection/benchmark_executor.hpp>
 #   include <functional>
 
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::function<void()> const&  benchmark_executor, fuzzing::termination_info const&  info);
+analysis_outcomes  run(
+        connection::benchmark_executor&  benchmark_executor,
+        execution_record_writer&  save_execution_record,
+        std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
+        fuzzing::termination_info const&  info
+        );
 
 
 }

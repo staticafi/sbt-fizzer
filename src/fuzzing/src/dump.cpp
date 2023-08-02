@@ -215,20 +215,9 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     }
     ostr << '\n' << shift << "],\n";
 
-    ostr << shift << "\"num_generated_tests\": " << results.execution_records.size() << ",\n";
-    {
-        std::uint32_t num_crashes = 0U;
-        std::uint32_t num_boundary_violations = 0U;
-        for (execution_record const&  record : results.execution_records)
-        {
-            if (record.flags & execution_record::EXECUTION_CRASHES)
-                ++num_crashes;
-            if (record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION)
-                ++num_boundary_violations;
-        }
-        ostr << shift << "\"num_crashes\": " << num_crashes << ",\n";
-        ostr << shift << "\"num_boundary_violations\": " << num_boundary_violations << "\n";
-    }
+    ostr << shift << "\"num_generated_tests\": " << results.num_generated_tests << ",\n";
+    ostr << shift << "\"num_crashes\": " << results.num_crashes << ",\n";
+    ostr << shift << "\"num_boundary_violations\": " << results.num_boundary_violations << "\n";
 
     ostr << "}\n";
 }

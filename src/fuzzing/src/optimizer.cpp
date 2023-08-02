@@ -1,6 +1,7 @@
 #include <fuzzing/optimizer.hpp>
 #include <fuzzing/optimization_outcomes.hpp>
 #include <iomodels/iomanager.hpp>
+#include <utility/std_pair_hash.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
@@ -10,50 +11,45 @@
 namespace  fuzzing {
 
 
-optimizer::optimizer(
-        configuration const&  cfg,
-        analysis_outcomes const&  fuzzing_outcomes_,
-        std::function<void()> const&  benchmark_executor_,
-        optimization_outcomes&  outcomes_
-        )
+optimizer::optimizer(configuration const&  cfg)
     : config{ cfg }
-    , benchmark_executor{ benchmark_executor_ }
-    , fuzzing_outcomes{ fuzzing_outcomes_ }
 
     , time_point_start{}
     , time_point_current{}
 
-    , outcomes{ outcomes_ }
+    , statistics{}
 {}
 
 
-void  optimizer::run()
+optimization_outcomes  optimizer::run(
+        std::vector<vecu8> const&  inputs_leading_to_boundary_violation,
+        std::vector<location_id> const&  already_covered_branchings,
+        std::vector<branching_location_and_direction> const&  already_uncovered_branchings,
+        connection::benchmark_executor&  benchmark_executor,
+        execution_record_writer&  save_execution_record
+        )
 {
     time_point_start = std::chrono::steady_clock::now();
     time_point_current = time_point_start;
 
-    outcomes.execution_records = fuzzing_outcomes.execution_records;
+    optimization_outcomes  outcomes;
     outcomes.termination_type = optimization_outcomes::TERMINATION_TYPE::NORMAL;
     outcomes.termination_reason = TERMINATION_REASON::ALL_TESTS_WERE_PROCESSED;
 
-    std::vector<std::size_t>  test_indices;
-    for (std::size_t  i = 0; i < outcomes.execution_records.size(); ++i)
-        if ((outcomes.execution_records.at(i).flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
-            test_indices.push_back(i);
-    if (!test_indices.empty())
+    if (!inputs_leading_to_boundary_violation.empty())
     {
 
         std::unordered_set<location_id>  covered_branchings{
-                fuzzing_outcomes.covered_branchings.begin(), fuzzing_outcomes.covered_branchings.end()
+                already_covered_branchings.begin(), already_covered_branchings.end()
                 };
         std::unordered_set<branching_location_and_direction>  uncovered_branchings{
-                fuzzing_outcomes.uncovered_branchings.begin(), fuzzing_outcomes.uncovered_branchings.end()
+                already_uncovered_branchings.begin(), already_uncovered_branchings.end()
                 };
 
         std::unordered_set<location_id>  extra_covered_branchings;
         std::unordered_set<branching_location_and_direction>  extra_uncovered_branchings;
 
-        for (std::size_t  i : test_indices)
+        for (vecu8 const&  stdin_bytes : inputs_leading_to_boundary_violation)
         {
             time_point_current = std::chrono::steady_clock::now();
             if (num_remaining_seconds() <= 0L)
@@ -62,11 +58,9 @@ void  optimizer::run()
                 break;
             }
 
-            execution_record&  record = outcomes.execution_records.at(i);
-
             iomodels::iomanager::instance().get_stdin()->clear();
             iomodels::iomanager::instance().get_stdout()->clear();
-            iomodels::iomanager::instance().get_stdin()->set_bytes(record.stdin_bytes);
+            iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
 
             try
             {
@@ -81,23 +75,11 @@ void  optimizer::run()
 
             ++statistics.num_executions;
 
-            bool  diverged = false;
             bool  trace_any_location_discovered = false;
             std::unordered_set<location_id>  trace_covered_branchings;
             {
-                auto  orig_path_it = record.path.begin();
                 for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
                 {
-                    if (orig_path_it != record.path.end())
-                    {
-                        if (*orig_path_it != branching_location_and_direction{ info.id, info.direction })
-                        {
-                            diverged = true;
-                            break;
-                        }
-                        ++orig_path_it;
-                    }
-
                     if (!covered_branchings.contains(info.id))
                     {
                         auto const  it_along = uncovered_branchings.find({ info.id, info.direction });
@@ -126,29 +108,29 @@ void  optimizer::run()
                 }
             }
 
-            if (!diverged)
+            execution_record::execution_flags  exe_flags;
             {
-                execution_record::execution_flags  exe_flags;
-                {
-                    exe_flags = 0;
+                exe_flags = 0;
 
-                    if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
-                        exe_flags |= execution_record::EXECUTION_CRASHES;
+                if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
+                    exe_flags |= execution_record::EXECUTION_CRASHES;
 
-                    if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
-                        exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
+                if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
+                    exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
 
-                    if (trace_any_location_discovered)
-                        exe_flags |= execution_record::BRANCH_DISCOVERED;
+                if (trace_any_location_discovered)
+                    exe_flags |= execution_record::BRANCH_DISCOVERED;
 
-                    if (!trace_covered_branchings.empty())
-                        exe_flags |= execution_record::BRANCH_COVERED;
-                }
+                if (!trace_covered_branchings.empty())
+                    exe_flags |= execution_record::BRANCH_COVERED;
+            }
 
-                bool const  is_path_worth_recording =
-                        exe_flags & (execution_record::BRANCH_DISCOVERED | execution_record::BRANCH_COVERED | execution_record::EXECUTION_CRASHES);
+            bool const  is_path_worth_recording =
+                    exe_flags & (execution_record::BRANCH_DISCOVERED | execution_record::BRANCH_COVERED | execution_record::EXECUTION_CRASHES);
 
-                if (is_path_worth_recording)
+            if (is_path_worth_recording)
+            {
+                execution_record record;
                 {
                     record.flags |= exe_flags;
                     record.stdin_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
@@ -156,9 +138,10 @@ void  optimizer::run()
                     record.path.clear();
                     for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
                         record.path.push_back({ info.id, info.direction });
-
-                    ++statistics.num_extended_tests;
                 }
+                save_execution_record(record);
+
+                ++statistics.num_extended_tests;
             }
         }
 
@@ -172,6 +155,8 @@ void  optimizer::run()
 
     time_point_current = std::chrono::steady_clock::now();
     statistics.num_seconds = get_elapsed_seconds();
+
+    return outcomes;
 }
 
 

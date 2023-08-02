@@ -1,5 +1,6 @@
 #include <fuzzing/fuzzing_loop.hpp>
 #include <fuzzing/fuzzer.hpp>
+#include <fuzzing/execution_record.hpp>
 #include <iomodels/iomanager.hpp>
 #include <connection/client_crash_exception.hpp>
 #include <utility/assumptions.hpp>
@@ -12,12 +13,16 @@
 namespace  fuzzing {
 
 
-analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termination_info const&  info)
+analysis_outcomes  run(
+        connection::benchmark_executor&  benchmark_executor,
+        execution_record_writer&  save_execution_record,
+        std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
+        fuzzing::termination_info const&  info
+        )
 {
     TMPROF_BLOCK();
 
     analysis_outcomes  results;
-    results.execution_records.push_back({});
 
     fuzzer f{ info };
 
@@ -36,8 +41,21 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
                 benchmark_executor();
             }
 
-            if (f.round_end(results.execution_records.back()))
-                results.execution_records.push_back({});
+            execution_record  record;
+            if (f.round_end(record))
+            {
+                save_execution_record(record);
+
+                ++results.num_generated_tests;
+                if ((record.flags & execution_record::EXECUTION_CRASHES) != 0)
+                    ++results.num_crashes;
+                if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
+                {
+                    collector_of_boundary_violations(record);
+        
+                    ++results.num_boundary_violations;
+                }
+            }
         }
     }
     catch (connection::client_crash_exception const&  e)
@@ -55,8 +73,6 @@ analysis_outcomes  run(std::function<void()> const&  benchmark_executor, termina
     {
         try { f.terminate(); } catch (...) {}
     }
-
-    results.execution_records.pop_back();
 
     results.num_executions = f.get_performed_driver_executions();
     results.num_elapsed_seconds = f.get_elapsed_seconds();

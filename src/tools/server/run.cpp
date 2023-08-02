@@ -1,12 +1,11 @@
 #include <server/program_info.hpp>
 #include <server/program_options.hpp>
-#include <connection/client_executor.hpp>
-#include <connection/target_executor.hpp>
-#include <connection/server.hpp>
+#include <connection/benchmark_executor.hpp>
 #include <iomodels/iomanager.hpp>
 #include <iomodels/models_map.hpp>
 #include <fuzzing/analysis_outcomes.hpp>
 #include <fuzzing/fuzzing_loop.hpp>
+#include <fuzzing/execution_record_writer.hpp>
 #include <fuzzing/optimization_outcomes.hpp>
 #include <fuzzing/optimizer.hpp>
 #include <fuzzing/progress_recorder.hpp>
@@ -14,59 +13,7 @@
 #include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
 #include <iostream>
-
-
-void load_optimizer_config(const fuzzing::optimizer::configuration& optimizer_config) {
-    iomodels::configuration  io_cfg = iomodels::iomanager::instance().get_config();
-    io_cfg.max_trace_length = optimizer_config.max_trace_length;
-    io_cfg.max_stdin_bytes = optimizer_config.max_stdin_bytes;
-    io_cfg.invalidate_shared_memory_size_cache();
-    iomodels::iomanager::instance().set_config(io_cfg);
-}
-
-std::unique_ptr<fuzzing::optimization_outcomes> run_optimization(
-    const fuzzing::optimizer::configuration& optimizer_config,
-    const fuzzing::analysis_outcomes& results,
-    const std::function<void()>& benchmark_executor,
-    const std::filesystem::path& output_dir,
-    const std::string& target_name
-) {
-    if (!get_program_options()->has("silent_mode"))
-    {
-        std::cout << "Fuzzing was stopped. Details:" << std::endl;
-        fuzzing::print_analysis_outcomes(std::cout, results);
-
-        std::cout << "Configuration for test suite optimization:" << std::endl;
-        fuzzing::print_optimization_configuration(std::cout, optimizer_config);
-    }
-    fuzzing::log_optimization_configuration(optimizer_config);
-    fuzzing::save_optimization_configuration(output_dir, target_name, optimizer_config);
-
-    std::unique_ptr<fuzzing::optimization_outcomes> opt_results_ptr;
-
-    if (optimizer_config.max_seconds > 0)
-    {
-        if (!get_program_options()->has("silent_mode"))
-            std::cout << "Optimization was started..." << std::endl;
-
-        opt_results_ptr = std::make_unique<fuzzing::optimization_outcomes>();
-        fuzzing::optimizer opt{
-            optimizer_config,
-            results,
-            benchmark_executor,
-            *opt_results_ptr
-        };
-        opt.run();
-
-        if (!get_program_options()->has("silent_mode"))
-        {
-            std::cout << "Optimization was stopped. Details:" << std::endl;
-            fuzzing::print_optimization_outcomes(std::cout, *opt_results_ptr);
-        }
-    }
-
-    return opt_results_ptr;
-}
+#include <fstream>
 
 
 void run(int argc, char* argv[])
@@ -193,6 +140,35 @@ void run(int argc, char* argv[])
         }
     }
 
+    std::shared_ptr<connection::benchmark_executor>  benchmark_executor;
+    if (get_program_options()->has("path_to_client"))
+    {
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "Communication type: network" << std::endl;
+
+        benchmark_executor = std::make_shared<connection::benchmark_executor_via_network>(
+                get_program_options()->value("path_to_client"),
+                get_program_options()->value("path_to_target"),
+                get_program_options()->value_as_int("port")
+                );
+    }
+    else
+    {
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "Communication type: shared memory" << std::endl;
+
+        benchmark_executor = std::make_shared<connection::benchmark_executor_via_shared_memory>(
+                get_program_options()->value("path_to_target")
+                );
+    }
+
+    fuzzing::execution_record_writer  execution_record_writer{
+            output_dir,
+            target_name,
+            get_program_version(),
+            test_type == "native"
+            };
+
     if (!get_program_options()->has("silent_mode"))
     {
         std::cout << "Configuration for fuzzing:" << std::endl;
@@ -215,99 +191,71 @@ void run(int argc, char* argv[])
             terminator
             );
 
-    connection::server server(get_program_options()->value_as_int("port"));
-    server.start();
-
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Fuzzing was started..." << std::endl;
 
-    fuzzing::analysis_outcomes results;
-    std::unique_ptr<fuzzing::optimization_outcomes>  opt_results_ptr;
-    if (get_program_options()->has("path_to_client")) {
-        std::string client_invocation = get_program_options()->value("path_to_client") +
-            " --path_to_target " + get_program_options()->value("path_to_target") +
-            " --port " + get_program_options()->value("port");
-
-        auto run_client = [&server](){ 
-            server.send_input_to_client_and_receive_result(); 
-        };
-
-        connection::client_executor executor(5, std::move(client_invocation), server);
-        executor.start();
-
-        results = fuzzing::run(
-            run_client,
-            terminator
-            );
-
-        load_optimizer_config(optimizer_config);
-        opt_results_ptr = run_optimization(optimizer_config, results, run_client, output_dir, target_name);
-
-        executor.stop();   
-    }
-    else {
-        connection::shared_memory_remover remover;
-        connection::target_executor executor(get_program_options()->value("path_to_target"));
-        executor.timeout_ms = iomodels::iomanager::instance().get_config().max_exec_milliseconds;
-        executor.init_shared_memory(iomodels::iomanager::instance().get_config().required_shared_memory_size());
-
-        auto run_target = [&executor] {
-            executor.shared_memory.clear();
-            iomodels::iomanager::instance().get_config().save_target_config(executor.shared_memory);
-            iomodels::iomanager::instance().get_stdin()->save(executor.shared_memory);
-            iomodels::iomanager::instance().get_stdout()->save(executor.shared_memory);
-            executor.execute_target();
-            iomodels::iomanager::instance().clear_trace();
-            iomodels::iomanager::instance().clear_br_instr_trace();
-            iomodels::iomanager::instance().get_stdin()->clear();
-            iomodels::iomanager::instance().get_stdout()->clear();
-            iomodels::iomanager::instance().load_results(executor.shared_memory);
-        };
-
-        results = fuzzing::run(
-            run_target,
-            terminator
-            );
-
-        load_optimizer_config(optimizer_config);
-        // remap the shared memory since its size changed
-        executor.init_shared_memory(iomodels::iomanager::instance().get_config().required_shared_memory_size());
-        opt_results_ptr = run_optimization(optimizer_config, results, run_target, output_dir, target_name);        
-    }
-
-    server.stop();
-
-    fuzzing::log_analysis_outcomes(results);
-    fuzzing::save_analysis_outcomes(output_dir, target_name, results);
-    if (opt_results_ptr != nullptr)
-    {
-        fuzzing::log_optimization_outcomes(*opt_results_ptr);
-        fuzzing::save_optimization_outcomes(output_dir, target_name, *opt_results_ptr);
-    }
-
-    std::vector<fuzzing::execution_record> const* const  test_suite_ptr =
-        opt_results_ptr != nullptr ? &opt_results_ptr->execution_records : &results.execution_records;
-
-    std::string test_name = target_name + "_test";
+    std::vector<vecu8>  inputs_leading_to_boundary_violation;
+    fuzzing::analysis_outcomes const results = fuzzing::run(
+        *benchmark_executor,
+        execution_record_writer,
+        [&inputs_leading_to_boundary_violation, &optimizer_config](fuzzing::execution_record const&  record) {
+                if (optimizer_config.max_seconds > 0)
+                    inputs_leading_to_boundary_violation.push_back(record.stdin_bytes);
+                },
+        terminator
+        );
 
     if (!get_program_options()->has("silent_mode"))
-        std::cout << "Saving tests under the output directory...\n";
-    
-    if (test_type == "native") {
-        fuzzing::save_native_output(output_dir, *test_suite_ptr, test_name);
+    {
+        std::cout << "Fuzzing was stopped. Details:" << std::endl;
+        fuzzing::print_analysis_outcomes(std::cout, results);
     }
-    else {
-        ASSUMPTION(test_type == "testcomp");
-        fuzzing::save_testcomp_output(
-            output_dir / "test-suite", 
-            *test_suite_ptr,
-            test_name,
-            get_program_version(),
-            target_name
-            );
-    }
-    
+    fuzzing::log_analysis_outcomes(results);
+    fuzzing::save_analysis_outcomes(output_dir, target_name, results);
+
     fuzzing::recorder().stop();
+
+    if (!inputs_leading_to_boundary_violation.empty() && optimizer_config.max_seconds > 0)
+    {
+        if (!get_program_options()->has("silent_mode"))
+        {
+            std::cout << "Configuration for test suite optimization:" << std::endl;
+            fuzzing::print_optimization_configuration(std::cout, optimizer_config);
+        }
+        fuzzing::log_optimization_configuration(optimizer_config);
+        fuzzing::save_optimization_configuration(output_dir, target_name, optimizer_config);
+
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "Optimization was started..." << std::endl;
+
+        fuzzing::optimizer  opt{ optimizer_config };
+
+        {
+            iomodels::configuration  io_cfg = iomodels::iomanager::instance().get_config();
+            io_cfg.max_trace_length = optimizer_config.max_trace_length;
+            io_cfg.max_stdin_bytes = optimizer_config.max_stdin_bytes;
+
+            benchmark_executor->io_config_changes_begin();
+            iomodels::iomanager::instance().set_config(io_cfg);
+            benchmark_executor->io_config_changes_end();
+        }
+
+        fuzzing::optimization_outcomes const  opt_results = opt.run(
+                inputs_leading_to_boundary_violation,
+                results.covered_branchings,
+                results.uncovered_branchings,
+                *benchmark_executor,
+                execution_record_writer
+                );
+
+        if (!get_program_options()->has("silent_mode"))
+        {
+            std::cout << "Optimization was stopped. Details:" << std::endl;
+            fuzzing::print_optimization_outcomes(std::cout, opt_results);
+        }
+        fuzzing::log_optimization_outcomes(opt_results);
+        fuzzing::save_optimization_outcomes(output_dir, target_name, opt_results);
+    }
 
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Done." << std::endl;

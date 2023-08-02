@@ -25,6 +25,9 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/connection/client_executor.hpp
     ./src/client_executor.cpp
+
+    ./include/connection/benchmark_executor.hpp
+    ./src/benchmark_executor.cpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

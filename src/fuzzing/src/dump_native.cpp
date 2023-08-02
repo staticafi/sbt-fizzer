@@ -1,10 +1,7 @@
 #include <fuzzing/dump_native.hpp>
-#include <fuzzing/termination_info.hpp>
 #include <utility/math.hpp>
 #include <utility/assumptions.hpp>
-#include <utility/invariants.hpp>
 #include <iostream>
-#include <fstream>
 #include <iomanip>
 
 namespace  fuzzing {
@@ -68,20 +65,6 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     ostr << '\n' << shift << "]\n";
 
     ostr << "}\n";
-}
-
-void  save_native_output(
-        std::filesystem::path const&  output_dir,
-        std::vector<execution_record> const&  records,
-        std::string const&  test_name_prefix
-        )
-{
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)records.size(); i < n; ++i)
-    {
-        std::filesystem::path const  test_file_path = output_dir / (test_name_prefix + "_" + std::to_string(i + 1U) + ".json");
-        std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
-        save_native_test(ostr, records.at(i));
-    }
 }
 
 
