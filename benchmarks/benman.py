@@ -25,11 +25,8 @@ def kill_clients():
 
 
 class Benchmark:
-    def __init__(self, pathname : str, llvm_instumenter : str, fuzz_target_builder : str, server : str, client : Optional[str], verbose : bool) -> None:
-        self.llvm_instumenter = llvm_instumenter
-        self.fuzz_target_builder = fuzz_target_builder
-        self.server = server
-        self.client = client
+    def __init__(self, pathname : str, runner_script : str, verbose : bool) -> None:
+        self.runner_script = runner_script
         self.verbose = verbose
 
         self.python_binary = sys.executable
@@ -40,8 +37,6 @@ class Benchmark:
 
         self.src_file = os.path.join(self.work_dir, self.fname)
         self.config_file = os.path.join(self.work_dir, self.name + ".json")
-        self.ll_file = os.path.join(self.work_dir, self.name + ".ll")
-        self.instrumented_ll_file = os.path.join(self.work_dir, self.name + "_instrumented.ll")
         self.fuzz_target_file = os.path.join(self.work_dir, self.name + "_sbt-fizzer_target")
 
         self.dir_stack = []
@@ -185,48 +180,24 @@ class Benchmark:
         self.log("===")
         self.log("=== Building: " + self.src_file, "building: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
-        self._erase_file_if_exists(self.fuzz_target_file)
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
         self.log("makedirs " + output_dir)
         os.makedirs(output_dir, exist_ok=True)
 
-        if not os.path.exists(self.ll_file):
-            self._execute_and_check_output(
-                [
-                    self.python_binary,
-                    self.llvm_instumenter,
-                    "--output_dir",  self.work_dir,
-                    self.src_file,
-                    "--save_mapping",
-                    "--suppress_all_warnings"
-                ],
-                self.ll_file,
-                output_dir
-                )
-        if not os.path.exists(self.instrumented_ll_file):
-            self._execute_and_check_output(
-                [
-                    self.python_binary,
-                    self.llvm_instumenter,
-                    "--output_dir", self.work_dir,
-                    self.ll_file,
-                    "--save_mapping"
-                ],
-                self.instrumented_ll_file,
-                output_dir
-                )
         self._execute_and_check_output(
             [
                 self.python_binary,
-                self.fuzz_target_builder,
-                "--no_instrument",
-                "--output_dir", self.work_dir,
-                self.instrumented_ll_file
+                self.runner_script,
+                "--skip_fuzzing",
+                "--input_file", self.src_file,
+                "--output_dir",  self.work_dir,
+                "--save_mapping"
             ],
-            self.fuzz_target_file
+            self.fuzz_target_file,
+            output_dir
             )
-        ASSUMPTION(os.path.isfile(self.fuzz_target_file), "build(): the output is missing: " + self.fuzz_target_file)
+
         self.log("Done", "Done\n")
 
     def fuzz(self, benchmarks_root_dir : str, output_root_dir : str) -> bool:
@@ -260,8 +231,11 @@ class Benchmark:
         kill_clients()
         self._execute(
             [
-                self.server,
-                "--path_to_target", self.fuzz_target_file,
+                self.python_binary,
+                self.runner_script,
+                "--skip_building",
+                "--input_file", self.src_file,
+                "--output_dir", output_dir,
                 "--max_executions", str(config["args"]["max_executions"]),
                 "--max_seconds", str(config["args"]["max_seconds"]),
                 "--max_trace_length", str(config["args"]["max_trace_length"]),
@@ -275,8 +249,7 @@ class Benchmark:
                 "--optimizer_max_stdin_bytes", str(config["args"]["optimizer_max_stdin_bytes"]),
                 "--test_type", "native",
                 ("--silent_mode" if self.verbose is False else ""),
-                "--port", str(45654),
-                "--output_dir", output_dir
+                "--port", str(45654)
             ],
             output_dir
             )
@@ -324,30 +297,8 @@ class Benman:
         self._benchmarks_dir = os.getcwd()
         self.benchmarks_dir = self._benchmarks_dir
         self.output_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "output", "benchmarks"))
-        self.tools_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "tools"))
-        ASSUMPTION(os.path.isdir(self.tools_dir), "The tools install directory not found. Build and install the project first.")
-        self.lib_dir = os.path.normpath(os.path.join(self._benchmarks_dir, "..", "lib"))
-        ASSUMPTION(os.path.isdir(self.lib_dir), "The lib install directory not found. Build and install the project first.")
-        self.llvm_instrumenter = os.path.join(self.tools_dir, "sbt-fizzer_instrument")
-        ASSUMPTION(os.path.isfile(self.llvm_instrumenter), "The llvm instrumentation script not found. Build and install the project first.")
-        self.fuzz_target_builder = os.path.join(self.tools_dir, "sbt-fizzer_build_target")
-        ASSUMPTION(os.path.isfile(self.fuzz_target_builder), "The target build script not found. Build and install the project first.")
-        self.server_binary = self._find_binary_file(self.tools_dir, "sbt-fizzer_server_")
-        ASSUMPTION(self.server_binary is not None, "The server binary not found. Build and install the project first.")
-        self.client_binary = self._find_binary_file(self.tools_dir, "sbt-fizzer_client_")
-        ASSUMPTION(self.client_binary is not None, "The client binary not found. Build and install the project first.")
-        self.llvm_pass_binary = self._find_binary_file(self.lib_dir, "sbt-fizzer_pass_")
-        ASSUMPTION(self.llvm_pass_binary is not None, "The server binary not found. Build and install the project first.")
-
-    def _find_binary_file(self, folder : str, subname : str) -> str|None:
-        second_change = None
-        for fname in os.listdir(folder):
-            if os.path.isfile(os.path.join(folder, fname)) and subname in fname:
-                if "Release" in fname:
-                    return os.path.join(folder, fname)
-                elif second_change is None:
-                    second_change = os.path.join(folder, fname)
-        return second_change
+        self.runner_script = os.path.join(self.benchmarks_dir, "..", "sbt-fizzer.py")
+        ASSUMPTION(os.path.isfile(self.runner_script), "The runner script not found. Build and install the project first.")
 
     def collect_benchmarks(self, name : str) -> list[str]:
         def complete_and_check_benchmark_path(name : str) -> str:
@@ -381,7 +332,7 @@ class Benman:
 
     def build(self, name : str) -> bool:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, None, self.args.verbose)
+            benchmark = Benchmark(pathname, self.runner_script, self.args.verbose)
             benchmark.build(self.benchmarks_dir, self.output_dir)
         return True
 
@@ -390,7 +341,7 @@ class Benman:
         benchmark_paths = self.collect_benchmarks(name)
         for pathname in benchmark_paths:
             client_binary = self.client_binary if client_mode else None
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, client_binary, self.args.verbose)
+            benchmark = Benchmark(pathname, self.runner_script, self.args.verbose)
             if not benchmark.fuzz(self.benchmarks_dir, self.output_dir):
                 num_failures += 1
         kill_clients()
@@ -403,7 +354,7 @@ class Benman:
 
     def clear(self, name : str) -> None:
         for pathname in self.collect_benchmarks(name):
-            benchmark = Benchmark(pathname, self.llvm_instrumenter, self.fuzz_target_builder, self.server_binary, None, self.args.verbose)
+            benchmark = Benchmark(pathname, self.runner_script, self.args.verbose)
             benchmark.clear(self.benchmarks_dir, self.output_dir)
         return True
 
