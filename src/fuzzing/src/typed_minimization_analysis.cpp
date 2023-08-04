@@ -398,8 +398,8 @@ void  typed_minimization_analysis::generate_next_seed()
 template<typename float_type>
 static float_type  find_best_floating_point_variable_delta(float_type const v0, branching_function_value_type const f0)
 {
-    float_type constexpr  under_linear_estimate{ 0.1 };
-    float_type constexpr  half{ 0.5 };
+    float_type constexpr  under_linear_estimate{ (float_type)0.1 };
+    float_type constexpr  half{ (float_type)0.5 };
     float_type  mult{ half };
     while (v0 + (half * mult) * v0 != v0 && std::fabs((half * mult) * v0) >= std::fabs(under_linear_estimate * f0))
         mult *= half;
@@ -442,7 +442,7 @@ void  typed_minimization_analysis::generate_next_partial()
             break;
         case type_of_input_bits::FLOAT32:
             partial_variable_values.back().value_float32 +=
-                    find_best_floating_point_variable_delta(partial_variable_values.back().value_float32, current_function_value);
+                    find_best_floating_point_variable_delta((branching_function_value_type)partial_variable_values.back().value_float32, current_function_value);
             break;
         case type_of_input_bits::FLOAT64:
             partial_variable_values.back().value_float64 +=
