@@ -82,6 +82,7 @@ def help(self_dir):
     print("help                 Prints this help message.")
     print("input_file <PATH>    A source C file to build and analyze.")
     print("output_dir <PATH>    A directory under which all results will be saved.")
+    print("                     If not specified, then the current directory is used.")
     print("skip_building        Skip building of the source C file.")
     print("skip_fuzzing         Skip fuzzing of the built source C file.")
     print("use_network          When specified, the fuzzer will use network communication")
@@ -108,8 +109,9 @@ def version(self_dir):
 
 def main():
     self_dir = os.path.normpath(os.path.abspath(os.path.dirname(__file__)))
+    old_cwd = os.path.abspath(os.getcwd())
     input_file = None
-    output_dir = None
+    output_dir = old_cwd
     skip_building = False
     skip_fuzzing = False
     options = []
