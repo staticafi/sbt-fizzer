@@ -45,10 +45,11 @@ void save_testcomp_test(std::ostream& ostr, const execution_record& trace) {
 void save_testcomp_test_inputs(std::ostream& ostr, const execution_record& trace) {
     natural_32_bit offset = 0;
     for (type_of_input_bits input_chunk_type: trace.stdin_types) {
-        ostr << "  <input>0x";
-        for (natural_8_bit i = num_bytes(input_chunk_type); i-- > 0;) {
-            ostr << std::setfill('0') << std::setw(2) << std::hex << (natural_32_bit)trace.stdin_bytes.at(offset + i);
-        }
+        ostr << "  <input";
+        if (is_known_type(input_chunk_type))
+            ostr << " type=\"" << to_c_type_string(input_chunk_type) << '\"';
+        ostr << '>';
+        save_value(ostr, input_chunk_type, &trace.stdin_bytes.at(offset));
         ostr << "</input>\n";
         offset += num_bytes(input_chunk_type);
     }
