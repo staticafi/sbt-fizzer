@@ -1,6 +1,7 @@
 #include <instrumentation/instrumentation_types.hpp>
 #include <utility/invariants.hpp>
 #include <ostream>
+#include <iomanip>
 
 namespace  instrumentation {
 
@@ -122,6 +123,30 @@ std::string  to_string(type_of_input_bits  type)
 }
 
 
+std::string  to_c_type_string(type_of_input_bits  type)
+{
+    switch (type)
+    {
+        case type_of_input_bits::BOOLEAN: return "bool";
+        case type_of_input_bits::UINT8: return "unsigned char";
+        case type_of_input_bits::SINT8: return "char";
+        case type_of_input_bits::UINT16: return "unsigned short";
+        case type_of_input_bits::SINT16: return "short";
+        case type_of_input_bits::UINT32: return "unsigned int";
+        case type_of_input_bits::SINT32: return "int";
+        case type_of_input_bits::FLOAT32: return "float";
+        case type_of_input_bits::UINT64: return "unsigned long";
+        case type_of_input_bits::SINT64: return "long";
+        case type_of_input_bits::FLOAT64: return "double";
+        case type_of_input_bits::UNTYPED8: return "unsigned char";
+        case type_of_input_bits::UNTYPED16: return "unsigned short";
+        case type_of_input_bits::UNTYPED32: return "unsigned int";
+        case type_of_input_bits::UNTYPED64: return "unsigned long";
+        default: { UNREACHABLE(); return "ERROR"; }
+    }
+}
+
+
 natural_8_bit  num_bytes(type_of_input_bits const  type)
 {
     switch (type)
@@ -150,7 +175,7 @@ natural_8_bit  num_bytes(type_of_input_bits const  type)
 }
 
 
-std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, void* const  value_ptr)
+std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, void const* const  value_ptr)
 {
     ostr << std::dec;
     switch (type)
@@ -169,8 +194,10 @@ std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits const  type, v
         case type_of_input_bits::UINT64: ostr << *(natural_64_bit const*)value_ptr; break;
         case type_of_input_bits::SINT64: ostr << *(integer_64_bit const*)value_ptr; break;
 
-        case type_of_input_bits::FLOAT32: ostr << *(float_32_bit const*)value_ptr; break;
-        case type_of_input_bits::FLOAT64: ostr << *(float_64_bit const*)value_ptr; break;
+        case type_of_input_bits::FLOAT32: ostr << std::setprecision(std::numeric_limits<long double>::digits10 + 1)
+                                               << (long double)*(float_32_bit const*)value_ptr; break;
+        case type_of_input_bits::FLOAT64: ostr << std::setprecision(std::numeric_limits<long double>::digits10 + 1)
+                                               << (long double)*(float_64_bit const*)value_ptr; break;
 
         case type_of_input_bits::UNTYPED8: ostr << (natural_32_bit)*(natural_8_bit const*)value_ptr; break;
         case type_of_input_bits::UNTYPED16: ostr << *(natural_16_bit const*)value_ptr; break;
