@@ -331,6 +331,8 @@ natural_32_bit  fuzzer::get_input_width_class(natural_32_bit const  num_input_by
 
 natural_32_bit  fuzzer::get_input_width_class_index(natural_32_bit const  num_input_bytes)
 {
+    if (get_input_width_classes().back() <= num_input_bytes)
+        return (natural_32_bit)get_input_width_classes().size() - 1U;
     return (natural_32_bit)std::distance(
             get_input_width_classes().begin(),
             std::lower_bound(
