@@ -10,8 +10,6 @@ namespace  connection {
 
 
 struct message_header {
-
-    natural_32_bit type = 0;
 private:
     natural_32_bit size = 0;
 

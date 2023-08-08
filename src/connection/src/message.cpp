@@ -13,7 +13,6 @@ void  message::clear()
 {
     bytes.clear();
     cursor = 0U;
-    header.type = 0;
     header.size = 0;
 }
 
