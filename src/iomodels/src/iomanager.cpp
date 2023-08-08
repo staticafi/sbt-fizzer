@@ -7,6 +7,7 @@
 #include <utility/hash_combine.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
+#include <utility/timeprof.hpp>
 
 using namespace connection;
 using namespace instrumentation;
@@ -33,7 +34,8 @@ iomanager&  iomanager::instance()
 void  iomanager::set_config(configuration const&  cfg)
 {
     config = cfg;
-    
+    config.invalidate_shared_memory_size_cache();
+
     stdin_ptr = nullptr;
     stdout_ptr = nullptr;
 }
@@ -80,30 +82,38 @@ template void iomanager::load_br_instr_trace_record(message&);
 
 template <typename Medium>
 void  iomanager::load_results(Medium& src) {
-    while (!src.exhausted()) {
-        data_record_id id;
-        src >> id;
-        ASSUMPTION(id != data_record_id::invalid);
-        switch (id) {
-            case data_record_id::condition: 
-                load_trace_record(src);
-                break;
-            case data_record_id::br_instr:
-                load_br_instr_trace_record(src);
-                break;
-            case data_record_id::stdin_bytes:
-                stdin_ptr->load_record(src);
-                break;
-            case data_record_id::termination:
-                src >> termination;
-                break;
-            case data_record_id::invalid:
-            default:
-                /* if the target corrupts the shared memory segment, we might 
-                reach this block */
-                UNREACHABLE();
-                break;
+    TMPROF_BLOCK();
+    try {
+        while (!src.exhausted()) {
+            data_record_id id;
+            src >> id;
+            ASSUMPTION(id != data_record_id::invalid);
+            switch (id) {
+                case data_record_id::condition: 
+                    load_trace_record(src);
+                    break;
+                case data_record_id::br_instr:
+                    load_br_instr_trace_record(src);
+                    break;
+                case data_record_id::stdin_bytes:
+                    get_stdin()->load_record(src);
+                    break;
+                case data_record_id::termination:
+                    src >> termination;
+                    break;
+                case data_record_id::invalid:
+                default:
+                    /* if the target corrupts the shared memory segment, we might 
+                    reach this block */
+                    UNREACHABLE();
+                    break;
+            }
         }
+    }
+    catch(shared_memory::reading_after_end_exception const&) {
+        // Just stop reading. The last record was only partially saved due to
+        // an expiration of the execution timeout for the target.
+        INVARIANT(termination == target_termination::timeout);
     }
 }
 

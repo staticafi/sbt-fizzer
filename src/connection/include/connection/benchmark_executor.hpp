@@ -16,8 +16,7 @@ struct  benchmark_executor
 {
     virtual  ~benchmark_executor() {}
     virtual void  operator()() = 0;
-    virtual void  io_config_changes_begin() {}
-    virtual void  io_config_changes_end() {}
+    virtual void  on_io_config_changed() {}
 };
 
 
@@ -42,8 +41,7 @@ struct  benchmark_executor_via_shared_memory : public benchmark_executor
     benchmark_executor_via_shared_memory(std::string const&  path_to_target);
     ~benchmark_executor_via_shared_memory();
     void  operator()() override;
-    void  io_config_changes_begin() override;
-    void  io_config_changes_end() override;
+    void  on_io_config_changed() override;
 
 private:
     std::unique_ptr<target_executor>  executor;

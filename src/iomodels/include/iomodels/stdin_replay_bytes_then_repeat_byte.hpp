@@ -18,7 +18,7 @@ struct stdin_replay_bytes_then_repeat_byte : public stdin_base
     void  load(connection::shared_memory&  src) override;
     void  load_record(connection::message&  src) override;
     void  load_record(connection::shared_memory&  src) override;
-    size_t max_flattened_size() const override;
+    std::size_t min_flattened_size() const override;
     void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::shared_memory& dest) override;
 
     vecu8 const&  get_bytes() const override { return bytes; }

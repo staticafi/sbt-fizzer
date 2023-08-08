@@ -8,6 +8,7 @@
 #   include <instrumentation/target_termination.hpp>
 #   include <connection/message.hpp>
 #   include <optional>
+#   include <stdexcept>
 
 namespace  connection {
 
@@ -37,6 +38,9 @@ public:
     void save(message& dest);
 
     bool exhausted() const;
+
+    struct  reading_after_end_exception : public std::exception {};
+    struct  writing_after_end_exception : public std::exception {};
 
     /*Interprets the first two bytes as termination type*/
     std::optional<instrumentation::target_termination> get_termination() const;

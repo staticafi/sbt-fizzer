@@ -110,8 +110,8 @@ void  stdin_replay_bytes_then_repeat_byte::load_record(shared_memory&  src) {
 }
 
 
-size_t stdin_replay_bytes_then_repeat_byte::max_flattened_size() const {
-    return sizeof(types[0]) * max_bytes() + max_bytes();
+std::size_t stdin_replay_bytes_then_repeat_byte::min_flattened_size() const {
+    return sizeof(input_types_vector::value_type) + 1;
 }
 
 

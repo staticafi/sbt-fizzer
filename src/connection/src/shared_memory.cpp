@@ -45,15 +45,15 @@ void shared_memory::remove() {
 }
 
 void shared_memory::load(const void* src, size_t n) {
-    ASSUMPTION(memory != nullptr);
-    ASSUMPTION(*saved + n <= get_size());
+    if (memory == nullptr || get_size() < *saved + n)
+        throw writing_after_end_exception{};
     memcpy(memory + *saved, src, n);
     *saved += (natural_32_bit)n;
 }
 
 void shared_memory::save(void* dest, size_t n) {
-    ASSUMPTION(memory != nullptr);
-    ASSUMPTION(cursor + n <= *saved);
+    if (memory == nullptr || *saved < cursor + n)
+        throw reading_after_end_exception{};
     memcpy(dest, memory + cursor, n);
     cursor += (natural_32_bit)n;
 }

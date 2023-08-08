@@ -21,6 +21,8 @@ struct  configuration
     bool operator==(configuration const&  other) const;
     bool operator!=(configuration const&  other) const { return !(*this == other);}
 
+    static std::size_t flattened_size();
+
     // 
     mutable std::optional<natural_32_bit> shared_memory_size_cache;
 

@@ -126,6 +126,16 @@ void run(int argc, char* argv[])
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_trace_length"))),
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
             };
+    if (optimizer_config.max_seconds > 0U && optimizer_config.max_trace_length <= iomodels::iomanager::instance().get_config().max_trace_length)
+    {
+        std::cerr << "ERROR: The 'optimizer_max_trace_length' must be greater than 'max_trace_length'.\n";
+        return;
+    }
+    if (optimizer_config.max_seconds > 0U && optimizer_config.max_stdin_bytes <= iomodels::iomanager::instance().get_config().max_stdin_bytes)
+    {
+        std::cerr << "ERROR: The 'optimizer_max_stdin_bytes' must be greater than 'max_stdin_bytes'.\n";
+        return;
+    }
 
     if (get_program_options()->has("progress_recording")) {
         fuzzing::recorder().start(std::filesystem::absolute(get_program_options()->value("path_to_target")), output_dir);
@@ -234,10 +244,8 @@ void run(int argc, char* argv[])
             iomodels::configuration  io_cfg = iomodels::iomanager::instance().get_config();
             io_cfg.max_trace_length = optimizer_config.max_trace_length;
             io_cfg.max_stdin_bytes = optimizer_config.max_stdin_bytes;
-
-            benchmark_executor->io_config_changes_begin();
             iomodels::iomanager::instance().set_config(io_cfg);
-            benchmark_executor->io_config_changes_end();
+            benchmark_executor->on_io_config_changed();
         }
 
         fuzzing::optimization_outcomes const  opt_results = opt.run(

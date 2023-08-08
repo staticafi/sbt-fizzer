@@ -76,13 +76,8 @@ void benchmark_executor_via_shared_memory::operator()()
     iomodels::iomanager::instance().load_results(executor->shared_memory);
 }
 
-void benchmark_executor_via_shared_memory::io_config_changes_begin()
-{
-    iomodels::iomanager::instance().get_config().invalidate_shared_memory_size_cache();
-}
 
-
-void benchmark_executor_via_shared_memory::io_config_changes_end()
+void benchmark_executor_via_shared_memory::on_io_config_changed()
 {
     executor->init_shared_memory(iomodels::iomanager::instance().get_config().required_shared_memory_size());
 }
