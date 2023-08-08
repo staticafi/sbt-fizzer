@@ -6,11 +6,11 @@
 namespace instrumentation {
 
 enum class data_record_id: natural_8_bit {
-    invalid,
-    termination,
-    condition,
-    br_instr,
-    stdin_bytes
+    invalid         = 0,
+    termination     = 1,
+    condition       = 2,
+    br_instr        = 3,
+    stdin_bytes     = 4
 };
 
 }
