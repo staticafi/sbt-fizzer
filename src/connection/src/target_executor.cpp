@@ -48,9 +48,6 @@ void target_executor::execute_target() {
             shared_memory.set_termination(target_termination::crash);
         }
     }
-
-
-
 }
 
 
