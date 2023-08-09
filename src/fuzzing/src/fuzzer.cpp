@@ -508,7 +508,7 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
         for (auto  it = pack.rbegin(); it != pack.rend(); ++it)
             if (std::fabs(pack.begin()->first - it->first) >= 1e-6f)
             {
-                float_32_bit const  t = -it->first / (pack.begin()->first - it->first);
+                float_32_bit const  t = (float_32_bit)(-it->first / (pack.begin()->first - it->first));
                 float_32_bit const  raw_estimate = it->second + t * (pack.begin()->second - it->second);
                 float_32_bit const  estimate = std::min(std::max(0.0f, raw_estimate), 1.0f);
                 probabilities.push_back(estimate);
@@ -1291,7 +1291,7 @@ branching_node*  fuzzer::select_iid_coverage_target() const
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),
-            get_random_natural_32_bit_in_range(0, iid_pivots.size() - 1, generator_for_iid_location_selection)
+            get_random_natural_32_bit_in_range(0, (natural_32_bit)iid_pivots.size() - 1, generator_for_iid_location_selection)
             );
     auto const  it_pivot = select_best_iid_pivot(
             it_loc->second.pivots,

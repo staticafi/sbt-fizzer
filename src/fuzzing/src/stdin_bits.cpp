@@ -24,7 +24,7 @@ stdin_bits_and_types::stdin_bits_and_types(vecu8 const&  bytes_, vect const&  ty
 natural_32_bit  stdin_bits_and_types::type_index(natural_32_bit const  bit_index) const
 {
     ASSUMPTION(bit_index < (natural_32_bit)bits.size());
-    return std::distance(
+    return (natural_32_bit)std::distance(
                 bit_end_indices_of_types.begin(),
                 std::lower_bound(
                         bit_end_indices_of_types.begin(),

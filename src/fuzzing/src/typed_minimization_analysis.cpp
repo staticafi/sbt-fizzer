@@ -441,7 +441,7 @@ void  typed_minimization_analysis::generate_next_partial()
             partial_variable_values.back().value_sint64 += 1;
             break;
         case type_of_input_bits::FLOAT32:
-            partial_variable_values.back().value_float32 +=
+            partial_variable_values.back().value_float32 += (float_32_bit)
                     find_best_floating_point_variable_delta((branching_function_value_type)partial_variable_values.back().value_float32, current_function_value);
             break;
         case type_of_input_bits::FLOAT64:
