@@ -916,12 +916,26 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     TMPROF_BLOCK();
 
     if (state == FINISHED)
-        return false;
+        return 0;
 
     if (iomodels::iomanager::instance().get_trace().empty())
     {
+        execution_record::execution_flags  exe_flags;
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
+        {
+            ++statistics.traces_to_crash;
+            exe_flags |= execution_record::EXECUTION_CRASHES;
+        }
+
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
+        {
+            ++statistics.traces_to_boundary_violation;
+            exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
+        }
+
         state = FINISHED;
-        return true; // the analyzed program has exactly 1 trace.
+
+        return exe_flags;
     }
 
     stdin_bits_and_types_pointer const  bits_and_types{ std::make_shared<stdin_bits_and_types>(
