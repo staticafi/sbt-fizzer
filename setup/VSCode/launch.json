@@ -53,6 +53,7 @@
                     // "fast/switch_sbt-fizzer_target",
                     // "fast/uint16_if_parabola_sbt-fizzer_target",
                     // "fast/uint32_if_parabola_sbt-fizzer_target",
+                    // "fast/infinite01_sbt-fizzer_target"
 
                     // "pending/array_2-1_sbt-fizzer_target",
                     // "pending/double_req_bl_0660a_sbt-fizzer_target",
@@ -213,6 +214,7 @@
                     // "fast/std_redef_malloc_free.c",
                     // "fast/uint16_if_parabola.c"
                     // "fast/uint32_if_parabola.c"
+                    // "fast/infinite01.c"
 
                     // "pending/array_2-1.i"
                     // "pending/double_req_bl_0660a.c"
