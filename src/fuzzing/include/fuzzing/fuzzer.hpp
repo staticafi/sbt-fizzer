@@ -101,7 +101,7 @@ private:
     {
         primary_coverage_target_branchings(
                 std::function<bool(location_id)> const&  is_covered_,
-                std::function<std::pair<bool, bool>(branching_node*)> const&  is_iid_
+                std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_
                 );
 
         void  collect_loop_heads_along_path_to_node(branching_node* const  end_node);
@@ -120,9 +120,9 @@ private:
         std::unordered_set<branching_node*>  loop_heads;        // Priority #1 (the highest)
         std::unordered_map<branching_node*, bool>  sensitive;   // Priority #2
         std::unordered_map<branching_node*, bool>  untouched;   // Priority #3
-        std::unordered_map<branching_node*, bool>  iid_twins;   // Priority #4
+        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #4
         std::function<bool(location_id)>  is_covered;
-        std::function<std::pair<bool, bool>(branching_node*)>  is_iid;
+        std::function<branching_node*(location_id)>  iid_pivot_with_lowest_abs_value;
     };
 
     struct  hit_count_per_direction
@@ -184,7 +184,7 @@ private:
     struct  iid_location_props
     {
         std::unordered_map<branching_node*, iid_pivot_props>  pivots;
-        std::unordered_map<natural_32_bit, branching_function_value_type>  best_values_per_input_width;
+        branching_node*  pivot_with_lowest_abs_value{ nullptr };
         mutable random_generator_for_natural_32_bit  generator_for_pivot_selection;
     };
 

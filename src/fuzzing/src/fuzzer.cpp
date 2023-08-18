@@ -11,14 +11,14 @@ namespace  fuzzing {
 
 fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
         std::function<bool(location_id)> const&  is_covered_,
-        std::function<std::pair<bool, bool>(branching_node*)> const&  is_iid_
+        std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_
         )
     : loop_heads{}
     , sensitive{}
     , untouched{}
     , iid_twins{}
     , is_covered{ is_covered_ }
-    , is_iid{ is_iid_ }
+    , iid_pivot_with_lowest_abs_value{ iid_pivot_with_lowest_abs_value_ }
 {}
 
 
@@ -82,11 +82,16 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
         }
         else
         {
-            auto const  iid_and_useful = is_iid(node);
-            if (iid_and_useful.first)
+            branching_node* const  iid_pivot = iid_pivot_with_lowest_abs_value(node->get_location_id());
+            if (iid_pivot != nullptr)
             {
-                if (iid_and_useful.second)
-                    iid_twins.insert(node_and_flag);
+                if (std::fabs(node->best_coverage_value) < std::fabs(iid_pivot->best_coverage_value))
+                {
+                    auto const  it_and_state = iid_twins.insert({ node->get_location_id(), node_and_flag });
+                    if (!it_and_state.second &&
+                            std::fabs(node->best_coverage_value) < std::fabs(it_and_state.first->second.first->best_coverage_value))
+                        it_and_state.first->second = node_and_flag;
+                }
             }
             else
                 untouched.insert(node_and_flag);
@@ -101,7 +106,9 @@ void  fuzzer::primary_coverage_target_branchings::erase(branching_node* const  n
     loop_heads.erase(node);
     sensitive.erase(node);
     untouched.erase(node);
-    iid_twins.erase(node);
+    auto const  it = iid_twins.find(node->get_location_id());
+    if (it != iid_twins.end() && it->second.first == node)
+        iid_twins.erase(it);
 }
 
 
@@ -132,7 +139,8 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 
     std::unordered_map<branching_node*, bool>  work_set{ sensitive.begin(), sensitive.end() };
     work_set.insert(untouched.begin(), untouched.end());
-    work_set.insert(iid_twins.begin(), iid_twins.end());
+    for (auto const&  loc_and_props : iid_twins)
+        work_set.insert(loc_and_props.second);
     sensitive.clear();
     untouched.clear();
     iid_twins.clear();
@@ -176,13 +184,18 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
         return best_node;
     }
 
-    best_node = get_best(iid_twins, max_input_width);
-    if (best_node != nullptr)
+    if (!iid_twins.empty())
     {
-        if (!loop_heads.empty())
-            return get_best(max_input_width);
+        auto const  it = iid_twins.begin();
+        if (!it->second.second) 
+        {
+            collect_loop_heads_along_path_to_node(it->second.first);
+            it->second.second = true;
+            if (!loop_heads.empty())
+                return get_best(max_input_width);
+        }
         recorder().on_strategy_turn_primary_iid_twins();
-        return best_node;
+        return it->second.first;
     }
 
     return nullptr;
@@ -742,16 +755,9 @@ fuzzer::fuzzer(termination_info const&  info)
 
     , primary_coverage_targets{
             [this](location_id const  id) { return covered_branchings.contains(id); },
-            [this](branching_node* const  node) -> std::pair<bool, bool> {
-                    auto const  it = iid_pivots.find(node->get_location_id());
-                    if (it == iid_pivots.end())
-                        return { false, false };
-                    auto const  it_width = it->second.best_values_per_input_width.find(node->get_num_stdin_bytes());
-                    bool const  better_exists{
-                            it_width != it->second.best_values_per_input_width.end()
-                            && std::fabs(it_width->second) <= std::fabs(node->best_coverage_value)
-                            };
-                    return { true, !better_exists };
+            [this](location_id const  loc_id) {
+                    auto const  it = iid_pivots.find(loc_id);
+                    return it == iid_pivots.end() ? nullptr : it->second.pivot_with_lowest_abs_value;
                     }                    
             }
     , iid_pivots{}
@@ -1253,13 +1259,9 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
             auto const  pivot_it_and_state = loc_props.pivots.insert({ node, {} });
             if (pivot_it_and_state.second)
             {
-                auto const  width_it_and_state = loc_props.best_values_per_input_width.insert({
-                        node->get_num_stdin_bytes(),
-                        node->best_coverage_value
-                        });
-                if (!width_it_and_state.second
-                        && std::fabs(node->best_coverage_value) < std::fabs(width_it_and_state.first->second))
-                            width_it_and_state.first->second = node->best_coverage_value;
+                if (loc_props.pivot_with_lowest_abs_value == nullptr
+                        || std::fabs(node->best_coverage_value) < std::fabs(loc_props.pivot_with_lowest_abs_value->best_coverage_value))
+                    loc_props.pivot_with_lowest_abs_value = node;
 
                 pivots.push_back({ node, &pivot_it_and_state.first->second });
             }
