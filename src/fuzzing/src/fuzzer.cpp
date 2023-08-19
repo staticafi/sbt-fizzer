@@ -426,11 +426,20 @@ void  fuzzer::compute_loop_boundaries(
             std::vector<branching_node*>&  loop_boundaries
             )
 {
+    std::unordered_set<branching_node*>  stored;
     loop_boundaries.reserve(2U * loops.size());
     for (loop_boundary_props const&  props : loops)
     {
-        loop_boundaries.push_back(props.entry);
-        loop_boundaries.push_back(props.successor);
+        if (!stored.contains(props.entry))
+        {
+            loop_boundaries.push_back(props.entry);
+            stored.insert(props.entry);
+        }
+        if (!stored.contains(props.successor))
+        {
+            loop_boundaries.push_back(props.successor);
+            stored.insert(props.successor);
+        }
     }
     std::sort(
             loop_boundaries.begin(),
@@ -1331,6 +1340,13 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
         it->second->histogram = it_prev->second->histogram;
         extend_hit_counts_histogram(it->first, it_prev->first, it->second->histogram);
     }
+
+    for (auto const&  pivot_and_props : pivots)
+        for (auto  it = pivot_and_props.second->pure_loop_bodies.begin(); it != pivot_and_props.second->pure_loop_bodies.end(); )
+            if (pivot_and_props.second->histogram.contains(it->id))
+                ++it;
+            else
+                it = pivot_and_props.second->pure_loop_bodies.erase(it);
 }
 
 
