@@ -1357,12 +1357,9 @@ void  fuzzer::select_next_state()
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = nullptr;
-    if (!entry_branching->is_closed())
-    {
-        winner = primary_coverage_targets.get_best(max_input_width);
-        if (winner == nullptr)
-            winner = select_iid_coverage_target();
-    }
+    winner = primary_coverage_targets.get_best(max_input_width);
+    if (winner == nullptr && !entry_branching->is_closed())
+        winner = select_iid_coverage_target();
 
     if (winner == nullptr)
     {
