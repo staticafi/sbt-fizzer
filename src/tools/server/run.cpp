@@ -141,10 +141,10 @@ void run(int argc, char* argv[])
         fuzzing::recorder().start(std::filesystem::absolute(get_program_options()->value("path_to_target")), output_dir);
     }
 
-    std::string target_name = std::filesystem::path(get_program_options()->value("path_to_target")).stem().string();
+    std::string  target_name = std::filesystem::path(get_program_options()->value("path_to_target")).filename().string();
     {
-        std::string target_suffix = "_sbt-fizzer_target";
-        std::string::size_type suffix_i = target_name.find(target_suffix);
+        std::string const  target_suffix = "_sbt-fizzer_target";
+        std::string::size_type const  suffix_i = target_name.find(target_suffix);
         if (suffix_i != std::string::npos) {
             target_name.erase(suffix_i, target_suffix.length());
         }
