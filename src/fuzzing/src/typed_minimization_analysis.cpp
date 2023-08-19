@@ -655,9 +655,13 @@ void  typed_minimization_analysis::compute_step_variables()
                     break;
                 case type_of_input_bits::FLOAT32:
                     var.value_float32 = (float_32_bit)(var0.value_float32 - t * partial);
+                    if (!std::isfinite(var.value_float32))
+                        var = var0;
                     break;
                 case type_of_input_bits::FLOAT64:
                     var.value_float64 = var0.value_float64 - t * partial;
+                    if (!std::isfinite(var.value_float64))
+                        var = var0;
                     break;
                 default: { UNREACHABLE(); }
             }
