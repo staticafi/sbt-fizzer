@@ -951,9 +951,183 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     if (state == FINISHED)
         return 0;
 
-    if (iomodels::iomanager::instance().get_trace().empty())
+    stdin_bits_and_types_pointer const  bits_and_types{ std::make_shared<stdin_bits_and_types>(
+            iomodels::iomanager::instance().get_stdin()->get_bytes(),
+            iomodels::iomanager::instance().get_stdin()->get_types()
+            ) };
+    execution_trace_pointer const  trace = std::make_shared<execution_trace>(iomodels::iomanager::instance().get_trace());
+    br_instr_execution_trace_pointer const  br_instr_trace = std::make_shared<br_instr_execution_trace>(iomodels::iomanager::instance().get_br_instr_trace());
+
+    execution_record::execution_flags  exe_flags { 0U };
+
+    if (!trace->empty())
     {
-        execution_record::execution_flags  exe_flags;
+        leaf_branching_construction_props  construction_props;
+
+        if (entry_branching == nullptr)
+        {
+            entry_branching = new branching_node(
+                    trace->front().id,
+                    0,
+                    trace->front().num_input_bytes,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    std::numeric_limits<branching_function_value_type>::max(),
+                    std::numeric_limits<branching_function_value_type>::max(),
+                    num_driver_executions,
+                    trace->front().xor_like_branching_function
+                    );
+            construction_props.diverging_node = entry_branching;
+
+            ++statistics.nodes_created;
+        }
+
+        construction_props.leaf = entry_branching;
+        branching_function_value_type  summary_value = 0.0;
+
+        trace_index_type  trace_index = 0;
+        for (; true; ++trace_index)
+        {
+            branching_coverage_info const&  info = trace->at(trace_index);
+
+            INVARIANT(construction_props.leaf->id == info.id);
+
+            if (covered_branchings.count(info.id) == 0)
+            {
+                auto const  it_along = uncovered_branchings.find({ info.id, info.direction });
+                if (it_along == uncovered_branchings.end())
+                {
+                    auto const  it_escape = uncovered_branchings.find({ info.id, !info.direction });
+                    if (it_escape == uncovered_branchings.end())
+                    {
+                        uncovered_branchings.insert({ info.id, !info.direction });
+                        construction_props.any_location_discovered = true;
+                    }
+
+                    construction_props.uncovered_locations[info.id].insert(construction_props.leaf);
+                }
+                else
+                {
+                    uncovered_branchings.erase(it_along);
+                    covered_branchings.insert(info.id);
+
+                    construction_props.uncovered_locations.erase(info.id);
+                    construction_props.covered_locations.insert(info.id);
+                }
+            }
+
+            summary_value += info.value * info.value;
+            bool const  value_ok = std::isfinite(summary_value);
+            if (construction_props.leaf->best_stdin == nullptr || (value_ok && construction_props.leaf->best_summary_value > summary_value))
+            {
+                construction_props.leaf->best_stdin = bits_and_types;
+                construction_props.leaf->best_trace = trace;
+                construction_props.leaf->best_br_instr_trace = br_instr_trace;
+                construction_props.leaf->best_coverage_value =
+                        value_ok ? info.value : std::numeric_limits<branching_function_value_type>::max();
+                construction_props.leaf->best_summary_value =
+                        value_ok ? summary_value : std::numeric_limits<branching_function_value_type>::max();
+                construction_props.leaf->best_value_execution = num_driver_executions;
+            }
+
+            construction_props.leaf->max_successors_trace_index = std::max(
+                    construction_props.leaf->max_successors_trace_index,
+                    (trace_index_type)(trace->size() - 1)
+                    );
+
+            if (trace_index + 1 == trace->size())
+                break;
+
+            if (construction_props.leaf->successor(info.direction).pointer == nullptr)
+            {
+                branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
+                construction_props.leaf->set_successor(info.direction, {
+                    branching_node::successor_pointer::VISITED,
+                    new branching_node(
+                        succ_info.id,
+                        trace_index + 1,
+                        succ_info.num_input_bytes,
+                        construction_props.leaf,
+                        bits_and_types,
+                        trace,
+                        br_instr_trace,
+                        succ_info.value,
+                        succ_info.value * succ_info.value,
+                        num_driver_executions,
+                        succ_info.xor_like_branching_function
+                        )
+                });
+
+                ++statistics.nodes_created;
+
+                if (construction_props.diverging_node == nullptr)
+                    construction_props.diverging_node = construction_props.leaf->successor(info.direction).pointer;
+            }
+
+            construction_props.leaf = construction_props.leaf->successor(info.direction).pointer;
+        }
+
+        construction_props.leaf->set_successor(trace->back().direction, {
+            std::max(
+                iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::normal ?
+                    branching_node::successor_pointer::END_NORMAL :
+                    branching_node::successor_pointer::END_EXCEPTIONAL,
+                construction_props.leaf->successor(trace->back().direction).label
+                ),
+            construction_props.leaf->successor(trace->back().direction).pointer
+        });
+
+        if (construction_props.diverging_node != nullptr)
+        {
+            auto const  it_and_state = leaf_branchings.insert(construction_props.leaf);
+            INVARIANT(it_and_state.second);
+
+            for (branching_node*  node = construction_props.leaf; node != construction_props.diverging_node->predecessor; node = node->predecessor)
+                primary_coverage_targets.process_potential_coverage_target({ node, false });
+
+            ++statistics.leaf_nodes_created;
+            statistics.max_leaf_nodes = std::max(statistics.max_leaf_nodes, leaf_branchings.size());
+            statistics.longest_branch = std::max(statistics.longest_branch, (std::size_t)(trace_index + 1));
+        }
+        else
+            update_close_flags_from(construction_props.leaf);
+
+        if (max_input_width < construction_props.leaf->get_num_stdin_bytes())
+        {
+            max_input_width = construction_props.leaf->get_num_stdin_bytes();
+
+            statistics.max_input_width = max_input_width;
+        }
+
+        recorder().on_trace_mapped_to_tree(construction_props.leaf);
+
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
+        {
+            ++statistics.traces_to_crash;
+
+            auto const  it_and_state = branchings_to_crashes.insert(construction_props.leaf->id);
+            if (it_and_state.second)
+                exe_flags |= execution_record::EXECUTION_CRASHES;
+        }
+
+        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
+        {
+            ++statistics.traces_to_boundary_violation;
+            exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
+        }
+
+        if (construction_props.any_location_discovered)
+            exe_flags |= execution_record::BRANCH_DISCOVERED;
+
+        if (!construction_props.covered_locations.empty())
+            exe_flags |= execution_record::BRANCH_COVERED;
+    }
+    else
+    {
+        recorder().on_trace_mapped_to_tree(nullptr);
+
         if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
         {
             ++statistics.traces_to_crash;
@@ -965,159 +1139,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             ++statistics.traces_to_boundary_violation;
             exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
         }
-
-        state = FINISHED;
-
-        return exe_flags;
     }
-
-    stdin_bits_and_types_pointer const  bits_and_types{ std::make_shared<stdin_bits_and_types>(
-            iomodels::iomanager::instance().get_stdin()->get_bytes(),
-            iomodels::iomanager::instance().get_stdin()->get_types()
-            ) };
-    execution_trace_pointer const  trace = std::make_shared<execution_trace>(iomodels::iomanager::instance().get_trace());
-    br_instr_execution_trace_pointer const  br_instr_trace = std::make_shared<br_instr_execution_trace>(iomodels::iomanager::instance().get_br_instr_trace());
-
-    leaf_branching_construction_props  construction_props;
-
-    if (entry_branching == nullptr)
-    {
-        entry_branching = new branching_node(
-                trace->front().id,
-                0,
-                trace->front().num_input_bytes,
-                nullptr,
-                nullptr,
-                nullptr,
-                nullptr,
-                std::numeric_limits<branching_function_value_type>::max(),
-                std::numeric_limits<branching_function_value_type>::max(),
-                num_driver_executions,
-                trace->front().xor_like_branching_function
-                );
-        construction_props.diverging_node = entry_branching;
-
-        ++statistics.nodes_created;
-    }
-
-    construction_props.leaf = entry_branching;
-    branching_function_value_type  summary_value = 0.0;
-
-    trace_index_type  trace_index = 0;
-    for (; true; ++trace_index)
-    {
-        branching_coverage_info const&  info = trace->at(trace_index);
-
-        INVARIANT(construction_props.leaf->id == info.id);
-
-        if (covered_branchings.count(info.id) == 0)
-        {
-            auto const  it_along = uncovered_branchings.find({ info.id, info.direction });
-            if (it_along == uncovered_branchings.end())
-            {
-                auto const  it_escape = uncovered_branchings.find({ info.id, !info.direction });
-                if (it_escape == uncovered_branchings.end())
-                {
-                    uncovered_branchings.insert({ info.id, !info.direction });
-                    construction_props.any_location_discovered = true;
-                }
-
-                construction_props.uncovered_locations[info.id].insert(construction_props.leaf);
-            }
-            else
-            {
-                uncovered_branchings.erase(it_along);
-                covered_branchings.insert(info.id);
-
-                construction_props.uncovered_locations.erase(info.id);
-                construction_props.covered_locations.insert(info.id);
-            }
-        }
-
-        summary_value += info.value * info.value;
-        bool const  value_ok = std::isfinite(summary_value);
-        if (construction_props.leaf->best_stdin == nullptr || (value_ok && construction_props.leaf->best_summary_value > summary_value))
-        {
-            construction_props.leaf->best_stdin = bits_and_types;
-            construction_props.leaf->best_trace = trace;
-            construction_props.leaf->best_br_instr_trace = br_instr_trace;
-            construction_props.leaf->best_coverage_value =
-                    value_ok ? info.value : std::numeric_limits<branching_function_value_type>::max();
-            construction_props.leaf->best_summary_value =
-                    value_ok ? summary_value : std::numeric_limits<branching_function_value_type>::max();
-            construction_props.leaf->best_value_execution = num_driver_executions;
-        }
-
-        construction_props.leaf->max_successors_trace_index = std::max(
-                construction_props.leaf->max_successors_trace_index,
-                (trace_index_type)(trace->size() - 1)
-                );
-
-        if (trace_index + 1 == trace->size())
-            break;
-
-        if (construction_props.leaf->successor(info.direction).pointer == nullptr)
-        {
-            branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
-            construction_props.leaf->set_successor(info.direction, {
-                branching_node::successor_pointer::VISITED,
-                new branching_node(
-                    succ_info.id,
-                    trace_index + 1,
-                    succ_info.num_input_bytes,
-                    construction_props.leaf,
-                    bits_and_types,
-                    trace,
-                    br_instr_trace,
-                    succ_info.value,
-                    succ_info.value * succ_info.value,
-                    num_driver_executions,
-                    succ_info.xor_like_branching_function
-                    )
-            });
-
-            ++statistics.nodes_created;
-
-            if (construction_props.diverging_node == nullptr)
-                construction_props.diverging_node = construction_props.leaf->successor(info.direction).pointer;
-        }
-
-        construction_props.leaf = construction_props.leaf->successor(info.direction).pointer;
-    }
-
-    construction_props.leaf->set_successor(trace->back().direction, {
-        std::max(
-            iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::normal ?
-                branching_node::successor_pointer::END_NORMAL :
-                branching_node::successor_pointer::END_EXCEPTIONAL,
-            construction_props.leaf->successor(trace->back().direction).label
-            ),
-        construction_props.leaf->successor(trace->back().direction).pointer
-    });
-
-    if (construction_props.diverging_node != nullptr)
-    {
-        auto const  it_and_state = leaf_branchings.insert(construction_props.leaf);
-        INVARIANT(it_and_state.second);
-
-        for (branching_node*  node = construction_props.leaf; node != construction_props.diverging_node->predecessor; node = node->predecessor)
-            primary_coverage_targets.process_potential_coverage_target({ node, false });
-
-        ++statistics.leaf_nodes_created;
-        statistics.max_leaf_nodes = std::max(statistics.max_leaf_nodes, leaf_branchings.size());
-        statistics.longest_branch = std::max(statistics.longest_branch, (std::size_t)(trace_index + 1));
-    }
-    else
-        update_close_flags_from(construction_props.leaf);
-
-    if (max_input_width < construction_props.leaf->get_num_stdin_bytes())
-    {
-        max_input_width = construction_props.leaf->get_num_stdin_bytes();
-
-        statistics.max_input_width = max_input_width;
-    }
-
-    recorder().on_trace_mapped_to_tree(construction_props.leaf);
 
     switch (state)
     {
@@ -1161,32 +1183,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         default: UNREACHABLE(); break;
-    }
-
-    execution_record::execution_flags  exe_flags;
-    {
-        exe_flags = 0;
-
-        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::crash)
-        {
-            ++statistics.traces_to_crash;
-
-            auto const  it_and_state = branchings_to_crashes.insert(construction_props.leaf->id);
-            if (it_and_state.second)
-                exe_flags |= execution_record::EXECUTION_CRASHES;
-        }
-
-        if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
-        {
-            ++statistics.traces_to_boundary_violation;
-            exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
-        }
-
-        if (construction_props.any_location_discovered)
-            exe_flags |= execution_record::BRANCH_DISCOVERED;
-
-        if (!construction_props.covered_locations.empty())
-            exe_flags |= execution_record::BRANCH_COVERED;
     }
 
     return exe_flags;
