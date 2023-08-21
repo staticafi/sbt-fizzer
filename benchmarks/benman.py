@@ -38,6 +38,12 @@ class Benchmark:
         self.src_file = os.path.join(self.work_dir, self.fname)
         self.config_file = os.path.join(self.work_dir, self.name + ".json")
         self.fuzz_target_file = os.path.join(self.work_dir, self.name + "_sbt-fizzer_target")
+        self.aux_files = [
+            os.path.join(self.work_dir, self.name + ".ll"),
+            os.path.join(self.work_dir, self.name + "_instrumented.ll"),
+            os.path.join(self.work_dir, self.name + "_dbg_cond_map.json"),
+            os.path.join(self.work_dir, self.name + "_dbg_br_map.json")
+        ]
 
         self.dir_stack = []
 
@@ -273,8 +279,8 @@ class Benchmark:
         self.log("===")
         self.log("=== Clearing: " + self.src_file, "clearing: " + os.path.relpath(self.src_file, os.path.dirname(self.work_dir)) + " ... ")
         self.log("===")
-        self._erase_file_if_exists(self.ll_file)
-        self._erase_file_if_exists(self.instrumented_ll_file)
+        for aux_file in self.aux_files:
+            self._erase_file_if_exists(aux_file)
         self._erase_file_if_exists(self.fuzz_target_file)
         self._erase_dir_if_exists(self._compute_output_dir(benchmarks_root_dir, output_root_dir))
         self.log("Done", "Done\n")
