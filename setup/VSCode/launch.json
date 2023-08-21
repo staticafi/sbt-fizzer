@@ -42,6 +42,8 @@
                     // "fast/int32_logical_or_two_vars_sbt-fizzer_target",
                     // "fast/log_and_sbt-fizzer_target",
                     // "fast/log_cond_sbt-fizzer_target",
+                    // "fast/machine32bit_sbt-fizzer_target",
+                    // "fast/matrix-2_sbt-fizzer_target",
                     // "fast/int8_if_hash_x_y_z_eq_c_sbt-fizzer_target",
                     // "fast/int8_if_x_equal_c_sbt-fizzer_target",
                     // "fast/int8_if_x_equal_y_c_sbt-fizzer_target",
@@ -204,6 +206,8 @@
                     // "fast/int32_logical_or_two_vars.c"
                     // "fast/log_and.c"
                     // "fast/log_cond.c"
+                    // "fast/machine32bit.c"
+                    // "fast/matrix-2.c"
                     // "fast/int8_if_hash_x_y_z_eq_c.c"
                     // "fast/int8_if_x_equal_c.c"
                     // "fast/int8_if_x_equal_y_c.c"
@@ -213,7 +217,7 @@
                     // "fast/mul_two_int16.c
                     // "fast/switch.c"
                     // "fast/nested_ifs.c"
-                    // "fast/std_redef_malloc_free.c",
+                    // "fast/std_redef_malloc_free.c"
                     // "fast/uint16_if_parabola.c"
                     // "fast/uint32_if_parabola.c"
                     // "fast/infinite01.c"
