@@ -823,7 +823,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     {
         if (uncovered_branchings.empty())
         {
-            stop_all_analyzes();
             terminate();
             termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
             return false;
@@ -832,7 +831,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 
     if (num_remaining_seconds() <= 0L)
     {
-        stop_all_analyzes();
         terminate();
         termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
         return false;
@@ -840,7 +838,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 
     if (num_remaining_driver_executions() <= 0L)
     {
-        stop_all_analyzes();
         terminate();
         termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
         return false;
@@ -853,7 +850,6 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
     generate_next_input(stdin_bits);
     if (!can_make_progress())
     {
-        stop_all_analyzes();
         terminate();
         termination_reason = TERMINATION_REASON::FUZZING_STRATEGY_DEPLETED;
         return false;
