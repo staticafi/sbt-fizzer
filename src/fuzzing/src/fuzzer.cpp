@@ -871,7 +871,10 @@ bool  fuzzer::round_end(execution_record&  record)
     execution_record::execution_flags const  flags = process_execution_results();
 
     bool const  is_path_worth_recording =
-            flags & (execution_record::BRANCH_DISCOVERED | execution_record::BRANCH_COVERED | execution_record::EXECUTION_CRASHES);
+            (flags & (execution_record::BRANCH_DISCOVERED    |
+                      execution_record::BRANCH_COVERED       |
+                      execution_record::EXECUTION_CRASHES    |
+                      execution_record::EMPTY_STARTUP_TRACE  )) != 0;
 
     if (is_path_worth_recording)
     {
@@ -1135,6 +1138,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             ++statistics.traces_to_boundary_violation;
             exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
         }
+
+        if (state == STARTUP)
+            exe_flags |= execution_record::EMPTY_STARTUP_TRACE;
     }
 
     switch (state)
