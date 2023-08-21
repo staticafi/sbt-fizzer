@@ -33,7 +33,7 @@ def  benchmark_target_name(input_file):
 def build(self_dir, input_file, output_dir, options):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
     if _execute(
-            [ "clang" , "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", input_file, "-o", ll_file],
+            [ "clang" , "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", "-fbracket-depth=1024", input_file, "-o", ll_file],
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
 
