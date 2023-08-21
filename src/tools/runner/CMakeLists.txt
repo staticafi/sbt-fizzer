@@ -4,9 +4,13 @@ if("${LLVM_VERSION_MAJOR}" VERSION_GREATER_EQUAL "12")
   set(CLANG_USE_LEGACY_PM "-flegacy-pass-manager")
 endif()
 
-get_target_property(FUZZ_TARGET_LIBRARIES fuzz_target_lib LINK_LIBRARIES)
-# Also add the fuzz target lib containing main
-list(INSERT FUZZ_TARGET_LIBRARIES 0 fuzz_target_lib)
+set(FUZZ_TARGET_LIBRARIES
+    connection
+    iomodels
+    instrumentation
+    iomodels
+    utility
+    )
 
 foreach(FUZZ_TARGET_LIBRARY ${FUZZ_TARGET_LIBRARIES})
     list(APPEND FUZZ_TARGET_LIBRARIES_GENEXPRS_FILES \"$<TARGET_FILE_NAME:${FUZZ_TARGET_LIBRARY}>\")
