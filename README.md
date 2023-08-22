@@ -55,7 +55,7 @@ start with the **age** project:
 - **vcpkg** software package manager: https://github.com/microsoft/vcpkg
   - Once you have the package manager installed, install into it required packages:
     ```
-    vcpkg install boost llvm[core]
+    vcpkg install boost llvm[core] --clean-after-build
     ```
     On Windows append the option `--triplet=x64-windows` to the command and `--triplet=x64-linux` on Ubuntu.
 - **Microsoft Visual Studio Code** (VS code) source-code editor: https://code.visualstudio.com/
