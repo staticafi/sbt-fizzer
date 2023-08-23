@@ -84,23 +84,27 @@ Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpIns
 
     bool isUnsigned = cmpInst->isUnsigned();
 
-    // if the value was extended we can't overflow meaning we don't need to
-    // cast to a higher type
-    if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
-            dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
+    if ((!lhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)lhs->getType())->getBitWidth() < 64) &&
+        (!rhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)rhs->getType())->getBitWidth() < 64) )
+    {
+        // if the value was extended we can't overflow meaning we don't need to
+        // cast to a higher type
+        if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
+                dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
 
-        // extend based on the signedness
-        if (isUnsigned) {
-            lhs =
-                builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
-            rhs =
-                builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
-        }
-        else {
-            lhs =
-                builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
-            rhs =
-                builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
+            // extend based on the signedness
+            if (isUnsigned) {
+                lhs =
+                    builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
+                rhs =
+                    builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
+            }
+            else {
+                lhs =
+                    builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
+                rhs =
+                    builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
+            }
         }
     }
 
