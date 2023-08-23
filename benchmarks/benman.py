@@ -36,7 +36,25 @@ class Benchmark:
         self.name = os.path.splitext(self.fname)[0]
 
         self.src_file = os.path.join(self.work_dir, self.fname)
+
         self.config_file = os.path.join(self.work_dir, self.name + ".json")
+        with open(self.config_file, "rb") as fp:
+            self.config = json.load(fp)
+        ASSUMPTION(all(x in self.config for x in ["args", "results"]), "Cannot find 'args' or 'results' in the benchmark's JSON file.")
+        ASSUMPTION(all(x in self.config["args"] for x in [
+            "max_executions",
+            "max_seconds",
+            "max_trace_length",
+            "max_stdin_bytes",
+            "max_exec_milliseconds",
+            "max_exec_megabytes",
+            "stdin_model",
+            "stdout_model",
+            "optimizer_max_seconds",
+            "optimizer_max_trace_length",
+            "optimizer_max_stdin_bytes"
+            ]), "Benchmark's JSON file does not contain all required options for running the tool.")
+
         self.fuzz_target_file = os.path.join(self.work_dir, self.name + "_sbt-fizzer_target")
         self.aux_files = [
             os.path.join(self.work_dir, self.name + ".ll"),
@@ -199,7 +217,7 @@ class Benchmark:
                 "--input_file", self.src_file,
                 "--output_dir",  self.work_dir,
                 "--save_mapping"
-            ],
+            ] + (["--m32"] if "m32" in self.config["args"] and self.config["args"]["m32"] is True else []),
             self.fuzz_target_file,
             output_dir
             )
@@ -213,22 +231,6 @@ class Benchmark:
         if self.work_dir.endswith("pending"):
             self.log("The outcomes are as IGNORED => the test has PASSED.", "ignored\n")
             return True
-        with open(self.config_file, "rb") as fp:
-            config = json.load(fp)
-        ASSUMPTION(all(x in config for x in ["args", "results"]), "Cannot find 'args' or 'results' in the benchmark's JSON file.")
-        ASSUMPTION(all(x in config["args"] for x in [
-            "max_executions",
-            "max_seconds",
-            "max_trace_length",
-            "max_stdin_bytes",
-            "max_exec_milliseconds",
-            "max_exec_megabytes",
-            "stdin_model",
-            "stdout_model",
-            "optimizer_max_seconds",
-            "optimizer_max_trace_length",
-            "optimizer_max_stdin_bytes"
-            ]), "Benchmark's JSON file does not contain all required options for running the tool.")
 
         output_dir = self._compute_output_dir(benchmarks_root_dir, output_root_dir)
 
@@ -242,17 +244,17 @@ class Benchmark:
                 "--skip_building",
                 "--input_file", self.src_file,
                 "--output_dir", output_dir,
-                "--max_executions", str(config["args"]["max_executions"]),
-                "--max_seconds", str(config["args"]["max_seconds"]),
-                "--max_trace_length", str(config["args"]["max_trace_length"]),
-                "--max_stdin_bytes", str(config["args"]["max_stdin_bytes"]),
-                "--max_exec_milliseconds", str(config["args"]["max_exec_milliseconds"]),
-                "--max_exec_megabytes", str(config["args"]["max_exec_megabytes"]),
-                "--stdin_model", config["args"]["stdin_model"],
-                "--stdout_model", config["args"]["stdout_model"],
-                "--optimizer_max_seconds", str(config["args"]["optimizer_max_seconds"]),
-                "--optimizer_max_trace_length", str(config["args"]["optimizer_max_trace_length"]),
-                "--optimizer_max_stdin_bytes", str(config["args"]["optimizer_max_stdin_bytes"]),
+                "--max_executions", str(self.config["args"]["max_executions"]),
+                "--max_seconds", str(self.config["args"]["max_seconds"]),
+                "--max_trace_length", str(self.config["args"]["max_trace_length"]),
+                "--max_stdin_bytes", str(self.config["args"]["max_stdin_bytes"]),
+                "--max_exec_milliseconds", str(self.config["args"]["max_exec_milliseconds"]),
+                "--max_exec_megabytes", str(self.config["args"]["max_exec_megabytes"]),
+                "--stdin_model", self.config["args"]["stdin_model"],
+                "--stdout_model", self.config["args"]["stdout_model"],
+                "--optimizer_max_seconds", str(self.config["args"]["optimizer_max_seconds"]),
+                "--optimizer_max_trace_length", str(self.config["args"]["optimizer_max_trace_length"]),
+                "--optimizer_max_stdin_bytes", str(self.config["args"]["optimizer_max_stdin_bytes"]),
                 "--test_type", "native",
                 ("--silent_mode" if self.verbose is False else ""),
                 "--port", str(45654)
@@ -264,14 +266,14 @@ class Benchmark:
             outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")
             with open(outcomes_pathname, "rb") as fp:
                 outcomes = json.load(fp)
-            if self._check_outcomes(config, outcomes) is True:
-                stats_msg = self._embrace_stats_message(self._ok_stats_message(config, outcomes))
+            if self._check_outcomes(self.config, outcomes) is True:
+                stats_msg = self._embrace_stats_message(self._ok_stats_message(self.config, outcomes))
                 self.log("The outcomes are as expected => the test has PASSED. [Details: " + stats_msg + "]", "ok " + stats_msg + "\n")
                 return True
         except Exception as e:
             self.log("FAILURE due to an EXCEPTION: " + str(e), "EXCEPTION[" + str(e) + "]\n")
             return False
-        stats_msg = self._embrace_stats_message(self._fail_stats_message(config, outcomes))
+        stats_msg = self._embrace_stats_message(self._fail_stats_message(self.config, outcomes))
         self.log("The outcomes are NOT as expected => the test has FAILED. Details: " + stats_msg, "FAILED " + stats_msg + "\n")
         return False
 

@@ -11,16 +11,18 @@
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": true
     },
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 35,
-        "num_covered_branchings": 0,
+        "num_executions": 40,
+        "num_covered_branchings": 1,
         "covered_branchings": [
+            4,0
         ],
-        "num_generated_tests": 1,
+        "num_generated_tests": 2,
         "num_crashes": 0,
         "num_boundary_violations": 0
     }

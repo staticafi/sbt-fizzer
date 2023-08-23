@@ -30,10 +30,12 @@ def  benchmark_target_name(input_file):
     return benchmark_name(input_file) + "_sbt-fizzer_target"
 
 
-def build(self_dir, input_file, output_dir, options):
+def build(self_dir, input_file, output_dir, options, use_m32):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
     if _execute(
-            [ "clang" , "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", "-fbracket-depth=1024", input_file, "-o", ll_file],
+            [ "clang" ] +
+                (["-m32"] if use_m32 is True else []) +
+                [ "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", "-fbracket-depth=1024", input_file, "-o", ll_file],
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
 
@@ -47,12 +49,14 @@ def build(self_dir, input_file, output_dir, options):
 
 
     fuzz_target_libraries = list(map( # type: ignore
-        lambda lib_name: os.path.join(self_dir, "lib", lib_name).replace("\\", "/"), 
+        lambda lib_name: os.path.join(self_dir, "lib32" if use_m32 is True else "lib", lib_name).replace("\\", "/"), 
         @FUZZ_TARGET_LIBRARIES_FILES_LIST@ # type: ignore
         ))
     target_file = os.path.join(output_dir, benchmark_target_name(input_file))
     if _execute(
-            [ "clang++", "-O3", instrumented_ll_file ] +
+            [ "clang++" ] +
+                (["-m32"] if use_m32 is True else []) +
+                [ "-O3", instrumented_ll_file ] +
                 "@FUZZ_TARGET_NEEDED_COMPILATION_FLAGS@".split() +
                 fuzz_target_libraries +
                 [ "-o", target_file ],
@@ -89,6 +93,8 @@ def help(self_dir):
     print("                     instead of shared memory. This option is introduced so that")
     print("                     you do not have to use options 'path_to_target' and")
     print("                     'path_to_client' listed below.")
+    print("m32                  When specified, the source C file will be compiled for")
+    print("                     32-bit machine (cpu). Otherwise, 64-bit machine is assumed.")
     print("\nNext follows a listing of options of tools called from this script. When they are")
     print("passed to the script they will automatically be propagated to the corresponding tool.")
 
@@ -114,6 +120,7 @@ def main():
     output_dir = old_cwd
     skip_building = False
     skip_fuzzing = False
+    use_m32 = False
     options = []
     options_instument = []
     i = 1
@@ -141,6 +148,8 @@ def main():
             skip_fuzzing = True
         elif arg in [ "--save_mapping", "--br_too" ]:
             options_instument.append(arg)
+        elif arg == "--m32":
+            use_m32 = True
         else:
             options.append(arg)
         i += 1
@@ -152,7 +161,7 @@ def main():
     os.chdir(output_dir)
     try:
         if skip_building is False:
-            build(self_dir, input_file, output_dir, options_instument)
+            build(self_dir, input_file, output_dir, options_instument, use_m32)
         if skip_fuzzing is False:
             fuzz(self_dir, input_file, output_dir, options)
     except Exception as e:
