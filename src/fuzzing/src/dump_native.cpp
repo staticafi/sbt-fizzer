@@ -26,6 +26,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     ostr << shift << "\"discovery\": " << ((record.flags & execution_record::BRANCH_DISCOVERED) != 0) << ",\n"
          << shift << "\"coverage\": " << ((record.flags & execution_record::BRANCH_COVERED) != 0) << ",\n"
          << shift << "\"crash\": " << ((record.flags & execution_record::EXECUTION_CRASHES) != 0) << ",\n"
+         << shift << "\"boundary_violation\": " << ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0) << ",\n"
          ;
 
     ostr << shift << "\"num_bytes\": " << record.stdin_bytes.size() << ",\n"
