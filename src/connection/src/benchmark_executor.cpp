@@ -64,16 +64,16 @@ benchmark_executor_via_shared_memory::~benchmark_executor_via_shared_memory()
 
 void benchmark_executor_via_shared_memory::operator()()
 {
-    executor->shared_memory.clear();
-    iomodels::iomanager::instance().get_config().save_target_config(executor->shared_memory);
-    iomodels::iomanager::instance().get_stdin()->save(executor->shared_memory);
-    iomodels::iomanager::instance().get_stdout()->save(executor->shared_memory);
+    executor->get_shared_memory().clear();
+    iomodels::iomanager::instance().get_config().save_target_config(executor->get_shared_memory());
+    iomodels::iomanager::instance().get_stdin()->save(executor->get_shared_memory());
+    iomodels::iomanager::instance().get_stdout()->save(executor->get_shared_memory());
     executor->execute_target();
     iomodels::iomanager::instance().clear_trace();
     iomodels::iomanager::instance().clear_br_instr_trace();
     iomodels::iomanager::instance().get_stdin()->clear();
     iomodels::iomanager::instance().get_stdout()->clear();
-    iomodels::iomanager::instance().load_results(executor->shared_memory);
+    iomodels::iomanager::instance().load_results(executor->get_shared_memory());
 }
 
 

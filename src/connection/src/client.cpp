@@ -20,17 +20,17 @@ void client::run_input_mode(vecu8 input_bytes) {
     iomodels::iomanager& iomanager = iomodels::iomanager::instance();
     
     executor.init_shared_memory(iomanager.get_config().required_shared_memory_size());
-    iomanager.get_config().save_target_config(executor.shared_memory);
+    iomanager.get_config().save_target_config(executor.get_shared_memory());
 
-    executor.shared_memory << (iomodels::stdin_base::byte_count_type) input_bytes.size();
+    executor.get_shared_memory() << (iomodels::stdin_base::byte_count_type) input_bytes.size();
     for (natural_8_bit byte: input_bytes) {
-        executor.shared_memory << byte;
+        executor.get_shared_memory() << byte;
     }
-    executor.shared_memory << (iomodels::stdin_base::byte_count_type) 0;
+    executor.get_shared_memory() << (iomodels::stdin_base::byte_count_type) 0;
     
     executor.execute_target();
 
-    iomodels::iomanager::instance().load_results(executor.shared_memory);
+    iomodels::iomanager::instance().load_results(executor.get_shared_memory());
 
     std::cout << "trace length: " << iomanager.get_trace().size() << '\n';
     std::cout << "stdin_bytes: " << iomanager.get_stdin()->get_bytes().size() << '\n';
@@ -79,7 +79,7 @@ void client::receive_input() {
     executor.timeout_ms = max_exec_milliseconds;
     executor.init_shared_memory(shared_memory_size);
 
-    executor.shared_memory.load(input);
+    executor.get_shared_memory().load(input);
 }
 
 
@@ -87,10 +87,10 @@ void client::execute_program_and_send_results() {
     executor.execute_target();
 
     message results;
-    executor.shared_memory.save(results);
+    executor.get_shared_memory().save(results);
     /* Clean up the shared memory segment. Does not really make sense when 
     fuzzing on the same computer, but that is what the direct mode is for. */
-    executor.shared_memory.remove();
+    executor.get_shared_memory().remove();
     connection_to_server->send_message(results);
 }
 
