@@ -22,7 +22,20 @@ analysis_outcomes  run(
 {
     TMPROF_BLOCK();
 
+    struct  local
+    {
+        static void  fill_record(execution_record&  record)
+        {
+            record.stdin_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
+            record.stdin_types = iomodels::iomanager::instance().get_stdin()->get_types();
+            for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
+                record.path.push_back({ info.id, info.direction });
+        }
+    };
+
     analysis_outcomes  results;
+    std::unordered_set<natural_64_bit>  hashes_of_crashes;
+    std::unordered_set<location_id::id_type>  exit_locations_of_boundary_violations;
 
     fuzzer f{ info };
 
@@ -42,17 +55,44 @@ analysis_outcomes  run(
             }
 
             execution_record  record;
-            if (f.round_end(record))
-            {
-                save_execution_record(record);
+            record.flags = f.round_end();
 
+            if ((record.flags & (execution_record::BRANCH_DISCOVERED  |
+                                 execution_record::BRANCH_COVERED     |
+                                 execution_record::EMPTY_STARTUP_TRACE)) != 0)
+            {
+                local::fill_record(record);
+                save_execution_record(record);
                 ++results.num_generated_tests;
+
                 if ((record.flags & execution_record::EXECUTION_CRASHES) != 0)
+                {
+                    hashes_of_crashes.insert(compute_hash(record.path));
                     ++results.num_crashes;
-                if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
+                }
+                else if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
+                {
+                    exit_locations_of_boundary_violations.insert(record.path.back().first.id);
+                    collector_of_boundary_violations(record);
+                    ++results.num_boundary_violations;
+                }
+            }
+            else if ((record.flags & execution_record::EXECUTION_CRASHES) != 0)
+            {
+                local::fill_record(record);
+                if (hashes_of_crashes.insert(compute_hash(record.path)).second)
+                {
+                    save_execution_record(record);
+                    ++results.num_generated_tests;
+                    ++results.num_crashes;
+                }
+            }
+            else if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
+            {
+                local::fill_record(record);
+                if (exit_locations_of_boundary_violations.insert(record.path.back().first.id).second)
                 {
                     collector_of_boundary_violations(record);
-        
                     ++results.num_boundary_violations;
                 }
             }

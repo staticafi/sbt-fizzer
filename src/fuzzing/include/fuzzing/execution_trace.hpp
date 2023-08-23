@@ -28,6 +28,8 @@ bool  operator==(execution_path const&  left, execution_path const&  right);
 
 inline bool  operator!=(execution_path const&  left, execution_path const&  right) { return !(left == right); }
 
+natural_64_bit  compute_hash(execution_path const&  path);
+
 
 }
 

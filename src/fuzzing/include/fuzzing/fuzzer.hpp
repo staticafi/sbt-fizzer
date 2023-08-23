@@ -68,7 +68,7 @@ struct  fuzzer final
     bool  can_make_progress() const { return state != FINISHED; }
 
     bool  round_begin(TERMINATION_REASON&  termination_reason);
-    bool  round_end(execution_record&  record);
+    execution_record::execution_flags  round_end();
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }

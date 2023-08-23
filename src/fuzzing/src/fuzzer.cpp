@@ -864,31 +864,16 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 }
 
 
-bool  fuzzer::round_end(execution_record&  record)
+execution_record::execution_flags  fuzzer::round_end()
 {
     TMPROF_BLOCK();
 
     execution_record::execution_flags const  flags = process_execution_results();
 
-    bool const  is_path_worth_recording =
-            (flags & (execution_record::BRANCH_DISCOVERED    |
-                      execution_record::BRANCH_COVERED       |
-                      execution_record::EXECUTION_CRASHES    |
-                      execution_record::EMPTY_STARTUP_TRACE  )) != 0;
-
-    if (is_path_worth_recording)
-    {
-        record.flags = flags;
-        record.stdin_bytes = iomodels::iomanager::instance().get_stdin()->get_bytes();
-        record.stdin_types = iomodels::iomanager::instance().get_stdin()->get_types();
-        for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
-            record.path.push_back({ info.id, info.direction });
-    }
-
     time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 
-    return is_path_worth_recording;
+    return flags;
 }
 
 

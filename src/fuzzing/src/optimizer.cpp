@@ -36,6 +36,8 @@ optimization_outcomes  optimizer::run(
     outcomes.termination_type = optimization_outcomes::TERMINATION_TYPE::NORMAL;
     outcomes.termination_reason = TERMINATION_REASON::ALL_TESTS_WERE_PROCESSED;
 
+    std::unordered_set<natural_64_bit>  hashes_of_crashes;
+
     if (!inputs_leading_to_boundary_violation.empty())
     {
 
@@ -139,9 +141,18 @@ optimization_outcomes  optimizer::run(
                     for (branching_coverage_info const&  info : iomodels::iomanager::instance().get_trace())
                         record.path.push_back({ info.id, info.direction });
                 }
-                save_execution_record(record);
 
-                ++statistics.num_extended_tests;
+                bool const  is_saved_crash{
+                        (exe_flags & execution_record::EXECUTION_CRASHES) != 0 &&
+                        !hashes_of_crashes.insert(compute_hash(record.path)).second
+                        };
+
+                if (!is_saved_crash)
+                {
+                    save_execution_record(record);
+
+                    ++statistics.num_extended_tests;
+                }
             }
         }
 
