@@ -6,6 +6,21 @@
 #   include <stdbool.h>
 #endif
 
+static_assert(sizeof(bool) == 1, "sizeof(bool) != 1");
+
+static_assert(sizeof(char) == 1, "sizeof(char) != 1");
+static_assert(sizeof(short) == 2, "sizeof(short) != 2");
+static_assert(sizeof(int) == 4, "sizeof(int) != 4");
+static_assert(sizeof(long) == 4 || sizeof(long) == 8, "sizeof(long) != 4 && sizeof(long) != 8");
+
+static_assert(sizeof(unsigned char) == 1, "sizeof(unsigned char) != 1");
+static_assert(sizeof(unsigned short) == 2, "sizeof(unsigned short) != 2");
+static_assert(sizeof(unsigned int) == 4, "sizeof(unsigned int) != 4");
+static_assert(sizeof(unsigned long) == 4 || sizeof(unsigned long) == 8, "sizeof(unsigned long) != 4 && sizeof(unsigned long) != 8");
+
+static_assert(sizeof(float) == 4, "sizeof(float) != 4");
+static_assert(sizeof(double) == 8, "sizeof(double) != 8");
+
 using namespace instrumentation;
 
 extern "C" {
