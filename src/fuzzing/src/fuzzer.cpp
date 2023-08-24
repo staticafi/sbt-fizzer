@@ -1191,7 +1191,12 @@ void  fuzzer::do_cleanup()
     switch (state)
     {
         case SENSITIVITY:
-            update_close_flags_from(sensitivity.get_node());
+            for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
+                if (!node->is_closed())
+                {
+                    update_close_flags_from(node);
+                    break;
+                }
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
