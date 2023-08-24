@@ -2,6 +2,7 @@
 import subprocess
 import sys
 import os
+import time
 
 
 def _execute(command_and_args, timeout_ = None):
@@ -30,29 +31,40 @@ def  benchmark_target_name(input_file):
     return benchmark_name(input_file) + "_sbt-fizzer_target"
 
 
-def build(self_dir, input_file, output_dir, options, use_m32):
+def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
+
+    if silent_build is False: print("Compiling...", end='')
+    t0 = time.time()
     if _execute(
             [ "clang" ] +
                 (["-m32"] if use_m32 is True else []) +
                 [ "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", "-fbracket-depth=1024", input_file, "-o", ll_file],
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
+    t1 = time.time()
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
 
     instrumented_ll_file = os.path.join(output_dir, benchmark_instrumented_ll_name(input_file))
+    if silent_build is False: print("Instrumenting...", end='')
+    t0 = time.time()
     if _execute(
             [ os.path.join(self_dir, "tools", "@FIZZER_INSTRUMENTER_FILE@") ] +
                 options +
                 ["--input", ll_file, "--output", instrumented_ll_file],
             None).returncode:
         raise Exception("Instrumentation has failed: " + ll_file)
-
+    t1 = time.time()
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
 
     fuzz_target_libraries = list(map( # type: ignore
         lambda lib_name: os.path.join(self_dir, "lib32" if use_m32 is True else "lib", lib_name).replace("\\", "/"), 
         @FUZZ_TARGET_LIBRARIES_FILES_LIST@ # type: ignore
         ))
     target_file = os.path.join(output_dir, benchmark_target_name(input_file))
+
+    if silent_build is False: print("Linking...", end='')
+    t0 = time.time()
     if _execute(
             [ "clang++" ] +
                 (["-m32"] if use_m32 is True else []) +
@@ -62,9 +74,11 @@ def build(self_dir, input_file, output_dir, options, use_m32):
                 [ "-o", target_file ],
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
+    t1 = time.time()
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
 
 
-def fuzz(self_dir, input_file, output_dir, options):
+def fuzz(self_dir, input_file, output_dir, options, start_time):
     target = os.path.join(output_dir, benchmark_target_name(input_file))
     if not os.path.isfile(target):
         target = os.path.join(os.path.dirname(input_file), benchmark_target_name(input_file))
@@ -93,6 +107,8 @@ def help(self_dir):
     print("                     instead of shared memory. This option is introduced so that")
     print("                     you do not have to use options 'path_to_target' and")
     print("                     'path_to_client' listed below.")
+    print("silent_build         When specified, no messages about the building process")
+    print("                     of the passed source C file will be printed.")
     print("m32                  When specified, the source C file will be compiled for")
     print("                     32-bit machine (cpu). Otherwise, 64-bit machine is assumed.")
     print("\nNext follows a listing of options of tools called from this script. When they are")
@@ -114,12 +130,14 @@ def version(self_dir):
 
 
 def main():
+    start_time = time.time()
     self_dir = os.path.normpath(os.path.abspath(os.path.dirname(__file__)))
     old_cwd = os.path.abspath(os.getcwd())
     input_file = None
     output_dir = old_cwd
     skip_building = False
     skip_fuzzing = False
+    silent_build = False
     use_m32 = False
     options = []
     options_instument = []
@@ -146,6 +164,8 @@ def main():
             skip_building = True
         elif arg == "--skip_fuzzing":
             skip_fuzzing = True
+        elif arg == "--silent_build":
+            silent_build = True
         elif arg in [ "--save_mapping", "--br_too" ]:
             options_instument.append(arg)
         elif arg == "--m32":
@@ -161,9 +181,9 @@ def main():
     os.chdir(output_dir)
     try:
         if skip_building is False:
-            build(self_dir, input_file, output_dir, options_instument, use_m32)
+            build(self_dir, input_file, output_dir, options_instument, use_m32, silent_build)
         if skip_fuzzing is False:
-            fuzz(self_dir, input_file, output_dir, options)
+            fuzz(self_dir, input_file, output_dir, options, start_time)
     except Exception as e:
         os.chdir(old_cwd)
         raise e

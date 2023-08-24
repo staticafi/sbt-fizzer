@@ -216,6 +216,7 @@ class Benchmark:
                 "--skip_fuzzing",
                 "--input_file", self.src_file,
                 "--output_dir",  self.work_dir,
+                "--silent_build",
                 "--save_mapping"
             ] + (["--m32"] if "m32" in self.config["args"] and self.config["args"]["m32"] is True else []),
             self.fuzz_target_file,
