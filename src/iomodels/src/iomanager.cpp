@@ -87,7 +87,6 @@ void  iomanager::load_results(Medium& src) {
         while (!src.exhausted()) {
             data_record_id id;
             src >> id;
-            ASSUMPTION(id != data_record_id::invalid);
             switch (id) {
                 case data_record_id::condition: 
                     load_trace_record(src);
@@ -105,7 +104,7 @@ void  iomanager::load_results(Medium& src) {
                 default:
                     /* if the target corrupts the shared memory segment, we might 
                     reach this block */
-                    UNREACHABLE();
+                    throw shared_memory::reading_after_end_exception{};
                     break;
             }
         }
