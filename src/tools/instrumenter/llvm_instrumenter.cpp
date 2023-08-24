@@ -54,13 +54,77 @@ void llvm_instrumenter::renameRedefinedStdFunctions()
 {
     std::string const  renamePrefix{ "__fizzer_rename_prefix__" };
     for (std::string const&  fnName : {
-            "malloc",
-            "calloc",
-            "realloc",
-            "free",
-            "abort",
-            "exit",
-            "atexit"
+            // <cstdlib>
+            "malloc", "calloc", "realloc", "free",
+            "abort", "exit", "atexit", "quick_exit", "at_quick_exit",
+            "system",
+            "atof", "atoi", "atol", "atoll",
+            "strtod", "strtof", "strtol", "strtold", "strtoll", "strtoul", "strtoull",
+            "rand", "srand",
+            "bsearch",
+            "qsort",
+            "abs", "div", "labs", "ldiv", "llabs", "lldiv",
+            "mblen", "mbtowc", "wctomb", "mbstowcs", "wcstombs",
+            // <cstring>
+            "memcpy", "memmove", "memset", "memcmp", "memchr",
+            "strcpy", "strncpy", "strcat", "strncat",
+            "strcmp", "strncmp",
+            "strcoll", "strxfrm",
+            "strchr", "strcspn", "strpbrk", "strrchr", "strspn", "strstr", "strtok", "strerror", "strlen",
+            // <cctype>
+            "isalnum", "isalpha", "isblank", "iscntrl", "isdigit", "isgraph", "islower", "isprint", "ispunct",
+            "isspace", "isupper", "isxdigit", "tolower", "toupper",
+            // <cmath>
+            "cos", "sin", "tan", "acos", "asin", "atan", "atan2",
+            "cosh", "sinh", "tanh", "acosh", "asinh", "atanh",
+            "exp", "frexp", "ldexp", "log", "log10", "modf", "exp2", "expm1", "ilogb", "log1p", "log2", "logb",
+            "scalbn", "scalbln",
+            "pow", "sqrt", "cbrt", "hypot",
+            "erf", "erfc",
+            "tgamma", "lgamma",
+            "ceil", "floor", "fmod", "trunc", "round", "lround", "llround",
+            "rint", "lrint", "llrint", "nearbyint",
+            "remainder", "remquo",
+            "copysign", "nan", "nextafter", "nexttoward",
+            "fdim", "fmax", "fmin", "fabs", "abs", "fma",
+            // <cstdio>
+            "remove", "rename", "tmpfile", "tmpnam",
+            "fclose", "fflush", "fopen", "freopen",
+            "setbuf", "setvbuf",
+            "fprintf", "fscanf", "printf", "scanf", "snprintf", "sprintf", "sscanf", "vfprintf", "vfscanf",
+            "vprintf", "vscanf", "vsnprintf", "vsprintf", "vsscanf",
+            "fgetc", "fgets", "fputc", "fputs", "getc", "getchar", "gets", "putc", "putchar", "puts", "ungetc",
+            "fread", "fwrite", "fgetpos", "fseek", "fsetpos", "ftell", "rewind", "clearerr", "feof",
+            "ferror", "perror",
+            // <ctime>
+            "clock", "difftime", "mktime", "time", "asctime", "ctime", "gmtime", "localtime", "strftime",
+            // <cuchar> 
+            "c16rtomb", "c32rtomb", "mbrtoc16", "mbrtoc32",
+            // <cwchar>
+            "fgetwc", "fgetws", "fputwc", "fputws", "fwide", "fwprintf", "fwscanf",
+            "getwc", "getwchar", "putwc", "putwchar", "swprintf", "swscanf", "ungetwc",
+            "vfwprintf", "vfwscanf", "vswprintf", "vswscanf", "vwprintf", "vwscanf",
+            "wprintf", "wscanf", "wcstod", "wcstof", "wcstol", "wcstold", "wcstoll", "wcstoul", "wcstoull",
+            "btowc",
+            "mbrlen", "mbrtowc", "mbsinit", "mbsrtowcs",
+            "wcrtomb", "wctob", "wcsrtombs", "wcscat", "wcschr", "wcscmp", "wcscoll", "wcscpy", "wcscspn",
+            "wcslen", "wcsncat", "wcsncmp", "wcsncpy", "wcspbrk", "wcsrchr", "wcsspn", "wcsstr", "wcstok", "wcsxfrm",
+            "wmemchr", "wmemcmp", "wmemcpy", "wmemmove", "wmemset",
+            "wcsftime",
+            // <cwctype>
+            "iswalnum", "iswalpha", "iswblank", "iswcntrl", "iswdigit", "iswgraph", "iswlower", "iswprint",
+            "iswpunct", "iswspace", "iswupper", "iswxdigit", "towlower", "towupper", "iswctype",
+            "towctrans",
+            "wctrans", "wctype",
+            // <cfenv>
+            "feclearexcept", "feraiseexcept", "fegetexceptflag", "fesetexceptflag",
+            "fegetround", "fesetround",
+            "fegetenv", "fesetenv", "feupdateenv",
+            "feholdexcept", "fetestexcept",
+            // <csetjmp>
+            "longjmp",
+            // <csignal>
+            "signal", "raise"
             }) {
         Function* const fn = module->getFunction(fnName);
         if (fn != nullptr && !fn->isDeclaration())
