@@ -5,12 +5,15 @@
 #   pragma warning(disable:4624) // LLVM: warning C4624: 'llvm::detail::copy_construction_triviality_helper<T>': destructor was implicitly defined
 #   pragma warning(disable:4146) // LLVM: warning C4146: unary minus operator applied to unsigned type, result still unsigned
 #endif
+#include <utility/timeprof.hpp>
 #include <algorithm>
 #include <unordered_set>
 
 using namespace llvm;
 
 bool llvm_instrumenter::doInitialization(Module *M) {
+    TMPROF_BLOCK();
+
     module = M;
 
     LLVMContext &C = module->getContext();
@@ -52,6 +55,8 @@ bool llvm_instrumenter::doInitialization(Module *M) {
 
 void llvm_instrumenter::renameRedefinedStdFunctions()
 {
+    TMPROF_BLOCK();
+
     std::string const  renamePrefix{ "__fizzer_rename_prefix__" };
     for (std::string const&  fnName : {
             // <cstdlib>
@@ -248,6 +253,8 @@ void llvm_instrumenter::replaceCalls(
     Function &F,
     std::unordered_map<std::string, FunctionCallee> replacements
     ) {
+    TMPROF_BLOCK();
+
     std::vector<std::pair<CallInst*, FunctionCallee>> replaceCalls;
 
     for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
@@ -270,6 +277,8 @@ void llvm_instrumenter::replaceCalls(
 }
 
 void llvm_instrumenter::instrumentCalls(Function &F) {
+    TMPROF_BLOCK();
+
     auto const ignore = [](std::string const& name) {
         return name.find("__sbt_fizzer_") == 0 ||
                name.find("__VERIFIER_nondet_") == 0;
@@ -294,6 +303,8 @@ void llvm_instrumenter::instrumentCalls(Function &F) {
 }
 
 bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
+    TMPROF_BLOCK();
+
     if (F.isDeclaration()) {
         return false;
     }
@@ -348,6 +359,8 @@ bool llvm_instrumenter::runOnFunction(Function &F, bool const br_too) {
 
 void llvm_instrumenter::propagateMissingBasicBlockDbgInfo()
 {
+    TMPROF_BLOCK();
+
     struct local
     {
         using key_type = std::pair<llvm::DILocation const*, int>;
