@@ -264,7 +264,4 @@ void run(int argc, char* argv[])
         fuzzing::log_optimization_outcomes(opt_results);
         fuzzing::save_optimization_outcomes(output_dir, target_name, opt_results);
     }
-
-    if (!get_program_options()->has("silent_mode"))
-        std::cout << "Done." << std::endl;
 }

@@ -3,6 +3,7 @@ import subprocess
 import sys
 import os
 import time
+import shutil
 
 
 def _execute(command_and_args, timeout_ = None):
@@ -34,7 +35,7 @@ def  benchmark_target_name(input_file):
 def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
 
-    if silent_build is False: print("Compiling...", end='')
+    if silent_build is False: print("Compiling...", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ "clang" ] +
@@ -43,10 +44,10 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
 
     instrumented_ll_file = os.path.join(output_dir, benchmark_instrumented_ll_name(input_file))
-    if silent_build is False: print("Instrumenting...", end='')
+    if silent_build is False: print("Instrumenting...", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ os.path.join(self_dir, "tools", "@FIZZER_INSTRUMENTER_FILE@") ] +
@@ -55,7 +56,7 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Instrumentation has failed: " + ll_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
 
     fuzz_target_libraries = list(map( # type: ignore
         lambda lib_name: os.path.join(self_dir, "lib32" if use_m32 is True else "lib", lib_name).replace("\\", "/"), 
@@ -63,7 +64,7 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
         ))
     target_file = os.path.join(output_dir, benchmark_target_name(input_file))
 
-    if silent_build is False: print("Linking...", end='')
+    if silent_build is False: print("Linking...", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ "clang++" ] +
@@ -75,15 +76,46 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)))
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
 
 
-def fuzz(self_dir, input_file, output_dir, options, start_time):
+def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
     target = os.path.join(output_dir, benchmark_target_name(input_file))
     if not os.path.isfile(target):
         target = os.path.join(os.path.dirname(input_file), benchmark_target_name(input_file))
         if not os.path.isfile(target):
             raise Exception("Cannot find the fuzzing target file: " + target)
+
+    time_taken = time.time() - start_time
+    if time_taken > 0.5:
+        def find_option_value_and_index(option):
+            try: idx = options.index(option)
+            except ...: return None, None
+            if idx >= len(options):
+                return None
+            idx += 1
+            try: return int(options[idx]), idx
+            except: return None, None
+        
+        def reduce_option_value(name, value, idx, total_time):
+            if total_time > time_taken:
+                percentage = 1.0 - time_taken / total_time
+            else:
+                percentage = 0.0
+            new_value = int(round(value * percentage))
+            if silent_mode is False: print("Adjusting '" + name + "': " + str(value) + " -> " + str(new_value), flush=True)
+            options[idx] = str(new_value)
+
+        fuzz_value, fuzz_idx = find_option_value_and_index("--max_seconds")
+        opt_value, opt_idx = find_option_value_and_index("--optimizer_max_seconds")
+
+        if fuzz_value is not None and opt_value is not None:
+            reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value + opt_value)
+            reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, fuzz_value + opt_value)
+        elif fuzz_value is not None:
+            reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value)
+        elif opt_value is not None:
+            reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, opt_value)
 
     if _execute(
             [ os.path.join(self_dir, "tools", "@SERVER_FILE@"),
@@ -135,9 +167,12 @@ def main():
     old_cwd = os.path.abspath(os.getcwd())
     input_file = None
     output_dir = old_cwd
+    clear_output_dir = False
     skip_building = False
     skip_fuzzing = False
+    silent_mode = False
     silent_build = False
+    copy_source_file = False
     use_m32 = False
     options = []
     options_instument = []
@@ -150,6 +185,13 @@ def main():
         if arg == "--version":
             version(self_dir)
             return
+
+        if arg == "--silent_mode":
+            silent_build = True
+            silent_mode = True
+        if arg == "--progress_recording":
+            copy_source_file = True
+
         if arg == "--input_file" and i+1 < len(sys.argv) and os.path.isfile(sys.argv[i+1]):
             input_file = os.path.normpath(os.path.abspath(sys.argv[i+1]))
             i += 1
@@ -157,6 +199,8 @@ def main():
             output_dir = os.path.normpath(os.path.abspath(sys.argv[i+1]))
             os.makedirs(output_dir, exist_ok=True)
             i += 1
+        elif arg == "--clear_output_dir":
+            clear_output_dir = True
         elif arg == "--use_network":
             options.append("--path_to_client")
             options.append(os.path.join(self_dir, "tools", "@CLIENT_FILE@"))
@@ -177,16 +221,25 @@ def main():
     if input_file is None:
         raise Exception("Cannot find the input file.")
 
+    if clear_output_dir is True and os.path.isdir(output_dir):
+        shutil.rmtree(output_dir)
+    if copy_source_file is True:
+        os.makedirs(output_dir, exist_ok=True)
+        shutil.copy(input_file, output_dir)
+
     old_cwd = os.getcwd()
     os.chdir(output_dir)
     try:
         if skip_building is False:
             build(self_dir, input_file, output_dir, options_instument, use_m32, silent_build)
         if skip_fuzzing is False:
-            fuzz(self_dir, input_file, output_dir, options, start_time)
+            fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode)
     except Exception as e:
         os.chdir(old_cwd)
         raise e
+
+    if silent_mode is False and ((skip_building is False and silent_build is False) or skip_fuzzing is False):
+        print("Done[%ds]" % int(round(time.time() - start_time)), flush=True)
 
 
 if __name__ == "__main__":
@@ -195,5 +248,5 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         exit_code = 1
-        print("ERROR: " + str(e))
+        print("ERROR: " + str(e), flush=True)
     exit(exit_code)
