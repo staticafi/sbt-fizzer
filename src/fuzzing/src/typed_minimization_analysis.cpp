@@ -15,7 +15,7 @@ bool  typed_minimization_analysis::are_types_of_sensitive_bits_available(
         )
 {
     for (stdin_bit_index  idx : sensitive_bits)
-        if (!is_known_type(bits_and_types->type_of_bit(idx)))
+        if (!is_numeric_type(bits_and_types->type_of_bit(idx)))
             return false;
     return !sensitive_bits.empty();
 }
