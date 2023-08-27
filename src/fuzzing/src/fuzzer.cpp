@@ -1026,6 +1026,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
             if (construction_props.leaf->successor(info.direction).pointer == nullptr)
             {
+                for (branching_node*  node = construction_props.leaf; node != nullptr && node->is_closed(); node = node->predecessor)
+                    node->set_closed(false);
+
                 branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
                 construction_props.leaf->set_successor(info.direction, {
                     branching_node::successor_pointer::VISITED,
@@ -1498,11 +1501,6 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
         branching_node::successor_pointer::LABEL const  label = std::max(node->successor(false).label, node->successor(true).label);
 
         branching_node* const  pred = node->predecessor;
-
-        INVARIANT(sensitivity.is_ready() || sensitivity.get_node() != node);
-        INVARIANT(typed_minimization.is_ready() || typed_minimization.get_node() != node);
-        INVARIANT(minimization.is_ready() || minimization.get_node() != node);
-        INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
 
         primary_coverage_targets.erase(node);
         coverage_failures_with_hope.erase(node);
