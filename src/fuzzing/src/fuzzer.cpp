@@ -1505,6 +1505,27 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
         primary_coverage_targets.erase(node);
         coverage_failures_with_hope.erase(node);
 
+        auto const  it_iid_loc = iid_pivots.find(node->get_location_id());
+        if (it_iid_loc != iid_pivots.end())
+        {
+            iid_location_props&  props = it_iid_loc->second;
+            auto const  it_pivot = props.pivots.find(node);
+            if (it_pivot != props.pivots.end())
+            {
+                props.pivots.erase(it_pivot);
+                if (props.pivots.empty())
+                    iid_pivots.erase(it_iid_loc);
+                else if (node == props.pivot_with_lowest_abs_value)
+                {
+                    props.pivot_with_lowest_abs_value = props.pivots.begin()->first;
+                    for (auto  it = std::next(props.pivots.begin()); it != props.pivots.end(); ++it)
+                        if (std::fabs(it->first->best_coverage_value)
+                                < std::fabs(props.pivot_with_lowest_abs_value->best_coverage_value))
+                            props.pivot_with_lowest_abs_value = it->first;
+                }
+            }
+        }
+
         delete node;
 
         ++statistics.nodes_destroyed;
