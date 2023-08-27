@@ -110,51 +110,6 @@
             //"postDebugTask": "kill clients"
         },
         {
-            "name": "debug instrumenter",
-            // On Windows use this:
-                // "type": "cppvsdbg",
-            // On Linux use this:
-                "type": "cppdbg", "setupCommands": [{ "description": "Enable pretty-printing for gdb", "text": "-enable-pretty-printing", "ignoreFailures": true }],
-            "request": "launch",
-            "program": "${command:cmake.launchTargetPath}",
-            "args": [
-                "--input", "${workspaceFolder}/dist/benchmarks/fast/switch.ll",
-                "--output", "${workspaceFolder}/dist/benchmarks/fast/switch_instrumented.ll",
-                // "--br_too",
-                "--save_mapping"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/dist"
-        },
-        {
-            "name": "debug client",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/dist/benchmarks/pending/standard_vector_difference_ground_sbt-fizzer_target",
-            "args": [
-                "--input", "00",
-                "--max_trace_length", "10000000",
-                "--max_stack_size", "25",
-                "--max_stdin_bytes", "6400000",
-                "--max_exec_milliseconds", "250",
-                "--max_exec_megabytes", "1024",
-                "--stdin_model", "stdin_replay_bytes_then_repeat_85",
-                "--stdout_model", "stdout_void",
-                "--port", "45654"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/dist/benchmarks",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "kill clients",
-            //"postDebugTask": "kill clients"
-        },
-        {
             "name": "Benman @ dbg",
             "type": "python",
             "request": "launch",
@@ -242,6 +197,51 @@
                 ],
             "cwd": "${workspaceFolder}/dist/benchmarks",
             "justMyCode": true
+        },
+        {
+            "name": "debug instrumenter",
+            // On Windows use this:
+                // "type": "cppvsdbg",
+            // On Linux use this:
+                "type": "cppdbg", "setupCommands": [{ "description": "Enable pretty-printing for gdb", "text": "-enable-pretty-printing", "ignoreFailures": true }],
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "--input", "${workspaceFolder}/dist/benchmarks/fast/switch.ll",
+                "--output", "${workspaceFolder}/dist/benchmarks/fast/switch_instrumented.ll",
+                // "--br_too",
+                "--save_mapping"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist"
+        },
+        {
+            "name": "debug client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/dist/benchmarks/pending/standard_vector_difference_ground_sbt-fizzer_target",
+            "args": [
+                "--input", "00",
+                "--max_trace_length", "10000000",
+                "--max_stack_size", "25",
+                "--max_stdin_bytes", "6400000",
+                "--max_exec_milliseconds", "250",
+                "--max_exec_megabytes", "1024",
+                "--stdin_model", "stdin_replay_bytes_then_repeat_85",
+                "--stdout_model", "stdout_void",
+                "--port", "45654"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/benchmarks",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "kill clients",
+            //"postDebugTask": "kill clients"
         },
         {
             "name": "run runner.py",
