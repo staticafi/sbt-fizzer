@@ -99,6 +99,32 @@ bool  is_known_type(type_of_input_bits const  type)
 }
 
 
+bool  is_numeric_type(type_of_input_bits const  type)
+{
+    switch (type)
+    {
+        case type_of_input_bits::UINT8:
+        case type_of_input_bits::SINT8:
+        case type_of_input_bits::UINT16:
+        case type_of_input_bits::SINT16:
+        case type_of_input_bits::UINT32:
+        case type_of_input_bits::SINT32:
+        case type_of_input_bits::FLOAT32:
+        case type_of_input_bits::UINT64:
+        case type_of_input_bits::SINT64:
+        case type_of_input_bits::FLOAT64:
+            return true;
+        case type_of_input_bits::BOOLEAN:
+        case type_of_input_bits::UNTYPED8:
+        case type_of_input_bits::UNTYPED16:
+        case type_of_input_bits::UNTYPED32:
+        case type_of_input_bits::UNTYPED64:
+            return false;
+        default: { UNREACHABLE(); return false; }
+    }
+}
+
+
 std::string  to_string(type_of_input_bits  type)
 {
     switch (type)

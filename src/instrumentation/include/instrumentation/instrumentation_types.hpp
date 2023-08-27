@@ -96,6 +96,7 @@ inline natural_8_bit  to_id(type_of_input_bits const  type) { return (natural_8_
 type_of_input_bits  from_id(natural_8_bit  id);
 
 bool  is_known_type(type_of_input_bits  type);
+bool  is_numeric_type(type_of_input_bits  type);
 
 std::string  to_string(type_of_input_bits  type);
 std::string  to_c_type_string(type_of_input_bits  type);
