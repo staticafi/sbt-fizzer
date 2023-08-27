@@ -268,6 +268,17 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
 }
 
 
+void  fuzzer::histogram_of_hit_counts_per_direction::merge(
+        histogram_of_hit_counts_per_direction const*  histogram,
+        histogram_of_hit_counts_per_direction const* const  end,
+        hit_counts_map&  result
+        )
+{
+    for ( ; histogram != end; histogram = histogram->get_predecessor().get())
+        result.insert(histogram->hit_counts.begin(), histogram->hit_counts.end());
+}
+
+
 fuzzer::probability_generator_all_then_all::probability_generator_all_then_all(
         float_32_bit const  false_direction_probability_,
         natural_32_bit const  total_num_samples_,
@@ -451,18 +462,6 @@ void  fuzzer::compute_loop_boundaries(
 }
 
 
-void  fuzzer::compute_pure_loop_bodies(
-            std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
-            std::unordered_set<location_id>&  pure_loop_bodies
-            )
-{
-    for (auto const&  loc_and_bodies : loop_heads_to_bodies)
-        pure_loop_bodies.insert(loc_and_bodies.second.begin(), loc_and_bodies.second.end());
-    for (auto const&  loc_and_bodies : loop_heads_to_bodies)
-        pure_loop_bodies.erase(loc_and_bodies.first);
-}
-
-
 std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fuzzer::select_best_iid_pivot(
         std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
         natural_32_bit const  max_input_width,
@@ -518,18 +517,6 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
 }
 
 
-void  fuzzer::extend_hit_counts_histogram(
-        branching_node const*  pivot,
-        branching_node const*  end,
-        histogram_of_hit_counts_per_direction&  histogram
-        )
-{
-    ASSUMPTION(pivot != nullptr);
-    for (branching_node const*  node = pivot; node->predecessor != end; node = node->predecessor)
-        ++histogram[node->predecessor->get_location_id().id][node->predecessor->successor_direction(node)];
-}
-
-
 void  fuzzer::compute_histogram_of_false_direction_probabilities(
         natural_32_bit const  input_width,
         std::unordered_set<location_id> const&  pure_loop_bodies,
@@ -540,7 +527,10 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
     std::unordered_map<location_id::id_type, std::multimap<branching_function_value_type, float_32_bit> > hist_pack;
     for (auto  it = pivots.begin(); it != pivots.end(); ++it)
         if (it->first->get_num_stdin_bytes() == input_width)
-            for (auto const& id_and_hits : it->second.histogram)
+        {
+            histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
+            it->second.histogram_ptr->merge(hit_counts);
+            for (auto const& id_and_hits : hit_counts)
             {
                 auto const&  hit_count = id_and_hits.second.hit_count;
                 INVARIANT(hit_count[false] != 0U || hit_count[true] != 0U);
@@ -552,6 +542,7 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
                         (float_32_bit)false_direction_probability
                         });
             }
+        }
     for (auto const&  id_and_pack : hist_pack)
     {
         auto const&  pack = id_and_pack.second;
@@ -605,7 +596,7 @@ branching_node*  fuzzer::select_start_node_for_monte_carlo_search(
 
 std::shared_ptr<fuzzer::probability_generator_random_uniform>  fuzzer::compute_probability_generators_for_locations(
         histogram_of_false_direction_probabilities const&  probabilities,
-        histogram_of_hit_counts_per_direction const&  hit_counts,
+        histogram_of_hit_counts_per_direction::hit_counts_map const&  hit_counts,
         std::unordered_set<location_id> const&  pure_loop_bodies,
         probability_generators_for_locations&  generators,
         random_generator_for_natural_32_bit&  generator_for_generator_selection,
@@ -1309,15 +1300,18 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
             pivot_and_props.second->loop_boundaries.push_back(boundary_node);
         }
 
+        std::unordered_map<location_id, std::unordered_set<location_id> >  pivot_loop_heads_to_bodies;
         for (std::size_t  i = 0U; i != index_for_loop_heads_map.size(); ++i)
         {
             auto const&  node_and_body = index_for_loop_heads_map.at(i);
             if (pivot_and_props.first->get_trace_index() < node_and_body.first->get_trace_index())
                 break;
-            pivot_and_props.second->loop_heads_to_bodies.insert({ node_and_body.first->get_location_id(), *node_and_body.second });
+            pivot_loop_heads_to_bodies.insert({ node_and_body.first->get_location_id(), *node_and_body.second });
         }
-
-        compute_pure_loop_bodies(loop_heads_to_bodies, pivot_and_props.second->pure_loop_bodies);
+        for (auto const&  loc_and_bodies : pivot_loop_heads_to_bodies)
+            pivot_and_props.second->pure_loop_bodies.insert(loc_and_bodies.second.begin(), loc_and_bodies.second.end());
+        for (auto const&  loc_and_bodies : pivot_loop_heads_to_bodies)
+            pivot_and_props.second->pure_loop_bodies.erase(loc_and_bodies.first);
     }
 
     std::sort(pivots.begin(), pivots.end(),
@@ -1325,19 +1319,71 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
                     return left.first->get_trace_index() < right.first->get_trace_index();
                     }
             );
-    extend_hit_counts_histogram(pivots.begin()->first, nullptr, pivots.begin()->second->histogram);
-    for (auto  it_prev = pivots.begin(), it = std::next(it_prev); it != pivots.end(); it_prev = it, ++it)
-    {
-        it->second->histogram = it_prev->second->histogram;
-        extend_hit_counts_histogram(it->first, it_prev->first, it->second->histogram);
-    }
 
-    for (auto const&  pivot_and_props : pivots)
-        for (auto  it = pivot_and_props.second->pure_loop_bodies.begin(); it != pivot_and_props.second->pure_loop_bodies.end(); )
-            if (pivot_and_props.second->histogram.contains(it->id))
-                ++it;
-            else
-                it = pivot_and_props.second->pure_loop_bodies.erase(it);
+    struct  histograms_builder_and_pure_loop_bodies_cleaner
+    {
+        void  run(std::vector<std::pair<branching_node*, iid_pivot_props*> > const&  pivots)
+        {
+            pivots.begin()->second->histogram_ptr = histogram_of_hit_counts_per_direction::create(nullptr);
+            extend_hit_counts_histogram(pivots.begin()->first, nullptr, pivots.begin()->second->histogram_ptr);
+
+            extend_hit_counts_map(pivots.begin()->second->histogram_ptr);
+            prune_pure_loop_bodies(pivots.begin()->second->pure_loop_bodies);
+
+            for (auto  it_prev = pivots.begin(), it = std::next(it_prev); it != pivots.end(); it_prev = it, ++it)
+            {
+                it->second->histogram_ptr = histogram_of_hit_counts_per_direction::create(it_prev->second->histogram_ptr);
+                extend_hit_counts_histogram(it->first, it_prev->first, it->second->histogram_ptr);
+
+                extend_hit_counts_map(it->second->histogram_ptr);
+                prune_pure_loop_bodies(it->second->pure_loop_bodies);
+            }
+        }
+
+    private:
+
+        histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
+
+        void  extend_hit_counts_histogram(
+                branching_node const*  pivot,
+                branching_node const*  end,
+                histogram_of_hit_counts_per_direction::pointer_type const  histogram_ptr
+                )
+        {
+            ASSUMPTION(pivot != nullptr);
+            histogram_of_hit_counts_per_direction::hit_counts_map&  target_hit_counts{ histogram_ptr->local_hit_counts_ref() };
+            for (branching_node const*  node = pivot; node->predecessor != end; node = node->predecessor)
+            {
+                location_id::id_type const  id{ node->predecessor->get_location_id().id };
+                auto const  it_and_state = target_hit_counts.insert({ id, {} });
+                if (it_and_state.second)
+                {
+                    auto const  it_pred = hit_counts.find(id);
+                    if (it_pred != hit_counts.end())
+                        it_and_state.first->second = it_pred->second;
+                }
+                ++it_and_state.first->second[node->predecessor->successor_direction(node)];
+            }
+        }
+
+        void  extend_hit_counts_map(histogram_of_hit_counts_per_direction::pointer_type const  histogram_ptr)
+        {
+            histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts_temp{ histogram_ptr->local_hit_counts() };
+            hit_counts_temp.insert(hit_counts.begin(), hit_counts.end());
+            std::swap(hit_counts, hit_counts_temp);
+        }
+
+        void  prune_pure_loop_bodies(std::unordered_set<location_id>&  pure_loop_bodies)
+        {
+            for (auto  it = pure_loop_bodies.begin(); it != pure_loop_bodies.end(); )
+                if (hit_counts.contains(it->id))
+                    ++it;
+                else
+                    it = pure_loop_bodies.erase(it);
+        }
+    };
+
+    histograms_builder_and_pure_loop_bodies_cleaner{}.run(pivots);
 }
 
 
@@ -1430,10 +1476,13 @@ branching_node*  fuzzer::select_iid_coverage_target() const
             histogram
             );
 
+    histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
+    it_pivot->second.histogram_ptr->merge(hit_counts);
+
     probability_generators_for_locations  generators;
     auto const  random_uniform_generator = compute_probability_generators_for_locations(
             histogram,
-            it_pivot->second.histogram,
+            hit_counts,
             it_pivot->second.pure_loop_bodies,
             generators,
             it_pivot->second.generator_for_monte_carlo,

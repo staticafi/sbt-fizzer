@@ -135,7 +135,28 @@ private:
         natural_32_bit  hit_count[2];
     };
 
-    using  histogram_of_hit_counts_per_direction = std::unordered_map<location_id::id_type, hit_count_per_direction>;
+    struct  histogram_of_hit_counts_per_direction
+    {
+        using  hit_counts_map = std::unordered_map<location_id::id_type, hit_count_per_direction>;
+        using  pointer_type = std::shared_ptr<histogram_of_hit_counts_per_direction>;
+
+        static inline pointer_type  create(pointer_type  predecessor_ptr_)
+        { return std::make_shared<histogram_of_hit_counts_per_direction>(predecessor_ptr_); }
+
+        histogram_of_hit_counts_per_direction(pointer_type const  ptr) : hit_counts{}, predecessor_ptr{ ptr } {}
+        hit_counts_map const&  local_hit_counts() const { return hit_counts; }
+        hit_counts_map&  local_hit_counts_ref() { return hit_counts; }
+        pointer_type  get_predecessor() const { return predecessor_ptr; }
+        void  merge(hit_counts_map&  result) const { merge(this, nullptr, result); }
+    private:
+        static void  merge(
+                histogram_of_hit_counts_per_direction const*  histogram,
+                histogram_of_hit_counts_per_direction const* const  end,
+                hit_counts_map&  result
+                );
+        hit_counts_map  hit_counts;
+        pointer_type  predecessor_ptr;
+    };
 
     struct  probability_generator
     {
@@ -174,9 +195,8 @@ private:
     struct  iid_pivot_props
     {
         std::vector<branching_node*>  loop_boundaries;
-        std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
         std::unordered_set<location_id>  pure_loop_bodies;
-        histogram_of_hit_counts_per_direction  histogram;
+        histogram_of_hit_counts_per_direction::pointer_type  histogram_ptr;
         mutable random_generator_for_natural_32_bit  generator_for_start_node_selection;
         mutable random_generator_for_natural_32_bit  generator_for_monte_carlo;
     };
@@ -204,10 +224,6 @@ private:
             std::vector<loop_boundary_props> const&  loops,
             std::vector<branching_node*>&  loop_boundaries
             );
-    static void  compute_pure_loop_bodies(
-            std::unordered_map<location_id, std::unordered_set<location_id> > const&  loop_heads_to_bodies,
-            std::unordered_set<location_id>&  pure_loop_bodies
-            );
 
     static std::unordered_map<branching_node*, iid_pivot_props>::const_iterator  select_best_iid_pivot(
             std::unordered_map<branching_node*, iid_pivot_props> const&  pivots,
@@ -216,11 +232,6 @@ private:
             float_32_bit const  LIMIT_STEP = 0.5f
             );
 
-    static void  extend_hit_counts_histogram(
-            branching_node const*  pivot,
-            branching_node const*  end,
-            histogram_of_hit_counts_per_direction&  histogram
-            );
     static void  compute_histogram_of_false_direction_probabilities(
             natural_32_bit const  input_width,
             std::unordered_set<location_id> const&  pure_loop_bodies,
@@ -237,7 +248,7 @@ private:
 
     static std::shared_ptr<probability_generator_random_uniform>  compute_probability_generators_for_locations(
             histogram_of_false_direction_probabilities const&  probabilities,
-            histogram_of_hit_counts_per_direction const&  hit_counts,
+            histogram_of_hit_counts_per_direction::hit_counts_map const&  hit_counts,
             std::unordered_set<location_id> const&  pure_loop_bodies,
             probability_generators_for_locations&  generators,
             random_generator_for_natural_32_bit&  generator_for_generator_selection,
