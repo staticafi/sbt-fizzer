@@ -49,7 +49,7 @@ struct llvm_instrumenter {
 
     bool doInitialization(llvm::Module *M);
 
-    void renameRedefinedStdFunctions();
+    void renameFunctions();
 
     void replaceCalls(
         llvm::Function &F, 
