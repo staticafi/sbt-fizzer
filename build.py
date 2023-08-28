@@ -73,7 +73,7 @@ def main():
         if arg == "--help":
             help(self_dir)
             return
-        if arg == "--vcpkg" and i+1 < len(sys.argv) and os.path.isfile(sys.argv[i+1]):
+        if arg == "--vcpkg" and i+1 < len(sys.argv) and os.path.isdir(sys.argv[i+1]):
             vcpkg_toolchain_file = os.path.join(os.path.normpath(os.path.abspath(sys.argv[i+1])),
                                                 "scripts", "buildsystems", "vcpkg.cmake")
             i += 1
