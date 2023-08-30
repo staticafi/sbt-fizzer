@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import shutil
+from datetime import datetime
 
 
 def _execute(command_and_args, timeout_ = None):
@@ -77,6 +78,26 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
         raise Exception("Compilation has failed: " + input_file)
     t1 = time.time()
     if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
+
+
+def generate_testcomp_metadata_xml(input_file, output_dir, use_m32):
+    test_suite_dir = os.path.join(output_dir, "test-suite")
+    os.makedirs(test_suite_dir, exist_ok=True)
+    with open(os.path.join(test_suite_dir, "metadata.xml"), "w") as f:
+        f.write("<?xml version='1.0' encoding='UTF-8' standalone='no'?>\n")
+        f.write("<!DOCTYPE test-metadata PUBLIC \"+//IDN sosy-lab.org//DTD "
+                    "test-format test-metadata 1.1//EN\" "
+                    "\"https://sosy-lab.org/test-format/test-metadata-1.1.dtd\">\n")
+        f.write("<test-metadata>\n")
+        f.write("  <sourcecodelang>C</sourcecodelang>\n")
+        f.write("  <producer>sbt-fizzer</producer>\n")
+        f.write("  <specification>COVER( init(main()), FQL(COVER EDGES(@DECISIONEDGE)) )</specification>\n")
+        f.write("  <programfile>" + os.path.basename(input_file) + "</programfile>\n")
+        f.write("  <programhash>null</programhash>\n")
+        f.write("  <entryfunction>main</entryfunction>\n")
+        f.write("  <architecture>" + ("32" if use_m32 is True else "64") + "bit</architecture>\n")
+        f.write("  <creationtime>" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "</creationtime>\n")
+        f.write("</test-metadata>\n")
 
 
 def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
@@ -173,6 +194,7 @@ def main():
     silent_mode = False
     silent_build = False
     copy_source_file = False
+    generate_testcomp_metadata = False
     use_m32 = False
     options = []
     options_instument = []
@@ -189,8 +211,10 @@ def main():
         if arg == "--silent_mode":
             silent_build = True
             silent_mode = True
-        if arg == "--progress_recording":
+        elif arg == "--progress_recording":
             copy_source_file = True
+        elif arg == "--test_type":
+            generate_testcomp_metadata = i+1 < len(sys.argv) and sys.argv[i+1] == "testcomp"
 
         if arg == "--input_file" and i+1 < len(sys.argv) and os.path.isfile(sys.argv[i+1]):
             input_file = os.path.normpath(os.path.abspath(sys.argv[i+1]))
@@ -233,6 +257,8 @@ def main():
         if skip_building is False:
             build(self_dir, input_file, output_dir, options_instument, use_m32, silent_build)
         if skip_fuzzing is False:
+            if generate_testcomp_metadata is True:
+                generate_testcomp_metadata_xml(input_file, output_dir, use_m32)
             fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode)
     except Exception as e:
         os.chdir(old_cwd)
