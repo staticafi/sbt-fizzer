@@ -262,6 +262,7 @@ def main():
             fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode)
     except Exception as e:
         os.chdir(old_cwd)
+        print("Stopped[%ds]" % int(round(time.time() - start_time)), flush=True)
         raise e
 
     if silent_mode is False and ((skip_building is False and silent_build is False) or skip_fuzzing is False):
