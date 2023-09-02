@@ -105,7 +105,8 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr && entry_branching_ptr != nullptr);
 
-    stdin_bit_index const low_bit_idx = ((mutated_bit_index - 1) / 8) * 8;
+    natural_32_bit const low_byte_idx = (mutated_bit_index - 1) / 8;
+    stdin_bit_index const low_bit_idx = low_byte_idx * 8;
     branching_node*  n = entry_branching_ptr;
     for (trace_index_type  i = 0U, end = std::min(node->get_trace_index() + 1U, (trace_index_type)trace_ptr->size()); i < end; ++i)
     {
@@ -114,7 +115,7 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
 
         INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->id);
 
-        if (info_orig.value != info_curr.value)
+        if (low_byte_idx < n->num_stdin_bytes && info_orig.value != info_curr.value)
         {
             for (stdin_bit_index i = 0; i != 8; ++i)
             {
