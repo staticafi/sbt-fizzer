@@ -469,6 +469,8 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
         float_32_bit const  LIMIT_STEP
         )
 {
+    TMPROF_BLOCK();
+
     struct  iid_pivot_with_less_than
     {
         iid_pivot_with_less_than(branching_node* const  pivot_, natural_32_bit const  max_input_width)
@@ -524,25 +526,31 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
         histogram_of_false_direction_probabilities&  histogram
         )
 {
+    TMPROF_BLOCK();
+
     std::unordered_map<location_id::id_type, std::multimap<branching_function_value_type, float_32_bit> > hist_pack;
-    for (auto  it = pivots.begin(); it != pivots.end(); ++it)
-        if (it->first->get_num_stdin_bytes() == input_width)
-        {
-            histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
-            it->second.histogram_ptr->merge(hit_counts);
-            for (auto const& id_and_hits : hit_counts)
-            {
-                auto const&  hit_count = id_and_hits.second.hit_count;
-                INVARIANT(hit_count[false] != 0U || hit_count[true] != 0U);
-                float_64_bit const  false_direction_probability {
-                        (float_64_bit)hit_count[false] / ((float_64_bit)hit_count[false] + (float_64_bit)hit_count[true])
-                        };
-                hist_pack[id_and_hits.first].insert({
-                        std::fabs(it->first->best_coverage_value),
-                        (float_32_bit)false_direction_probability
-                        });
-            }
-        }
+    {
+        std::unordered_set<histogram_of_hit_counts_per_direction const*>  processed_histograms;
+        for (auto  it = pivots.begin(); it != pivots.end(); ++it)
+            if (it->first->get_num_stdin_bytes() == input_width)
+                for (histogram_of_hit_counts_per_direction const*  hist_ptr = it->second.histogram_ptr.get();
+                            hist_ptr != nullptr && processed_histograms.insert(hist_ptr).second;
+                            hist_ptr = hist_ptr->get_predecessor().get())
+                    for (auto const& id_and_hits : hist_ptr->local_hit_counts())
+                    {
+                        auto const&  hit_count = id_and_hits.second.hit_count;
+                        INVARIANT(hit_count[false] != 0U || hit_count[true] != 0U);
+                        float_64_bit const  false_direction_probability {
+                                (float_64_bit)hit_count[false] / ((float_64_bit)hit_count[false] + (float_64_bit)hit_count[true])
+                                };
+                        hist_pack[id_and_hits.first].insert({
+                                std::fabs(it->first->best_coverage_value),
+                                (float_32_bit)false_direction_probability
+                                });
+                    }
+
+    }
+
     for (auto const&  id_and_pack : hist_pack)
     {
         auto const&  pack = id_and_pack.second;
