@@ -15,7 +15,7 @@ bool  typed_minimization_analysis::are_types_of_sensitive_bits_available(
         )
 {
     for (stdin_bit_index  idx : sensitive_bits)
-        if (!is_numeric_type(bits_and_types->type_of_bit(idx)))
+        if (!is_known_type(bits_and_types->type_of_bit(idx)))
             return false;
     return !sensitive_bits.empty();
 }
@@ -633,6 +633,9 @@ void  typed_minimization_analysis::compute_step_variables()
             branching_function_value_type const  partial = gradient.at(i);
             switch (types_of_variables.at(i))
             {
+                case type_of_input_bits::BOOLEAN:
+                    var.value_boolean = std::fmod(t * partial, 1.0) >= 0.5;
+                    break;
                 case type_of_input_bits::UINT8:
                     var.value_uint8 = (natural_8_bit)std::round(var0.value_uint8 - t * partial);
                     break;
