@@ -30,7 +30,7 @@ std::string  compute_timestamp()
     sstr << "--"
          << ptm->tm_year + 1900 << "-"
          << std::setfill('0') << std::setw(2)
-         << ptm->tm_mon << "-"
+         << ptm->tm_mon + 1 << "-"
          << std::setfill('0') << std::setw(2)
          << ptm->tm_mday << "--"
          << std::setfill('0') << std::setw(2)
