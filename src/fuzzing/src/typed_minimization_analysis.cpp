@@ -399,14 +399,13 @@ template<typename float_type>
 static float_type  find_best_floating_point_variable_delta(float_type const v0_target, float_64_bit const f0)
 {
     float_64_bit constexpr  under_linear_estimate{ (float_64_bit)0.1 };
+    float_64_bit const  f0_abs_under_linear_estimate{ std::fabs(under_linear_estimate * f0) };
     float_64_bit constexpr  half{ (float_64_bit)0.5 };
-    float_64_bit const  v0{ (float_64_bit)v0_target }; 
-    float_64_bit const  v0_abs{ std::fabs(v0) }; 
+    float_64_bit const  v0_abs{ std::max(std::fabs((float_64_bit)v0_target), 0.0001) }; 
     float_64_bit  mult{ half };
-    while (v0_target + (float_type)((half * mult) * v0_abs) != v0_target
-                && std::fabs((half * mult) * v0_abs) >= std::fabs(under_linear_estimate * f0))
+    while (v0_target + (float_type)((half * mult) * v0_abs) != v0_target && (half * mult) * v0_abs >= f0_abs_under_linear_estimate)
         mult *= half;
-    float_type retval = (float_type)(mult * std::fabs(v0));
+    float_type retval = (float_type)(mult * v0_abs);
     INVARIANT(v0_target + retval != v0_target);
     return retval;
 }
