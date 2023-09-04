@@ -11,7 +11,8 @@ namespace  fuzzing {
 
 fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
         std::function<bool(location_id)> const&  is_covered_,
-        std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_
+        std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_,
+        performance_statistics* const  statistics_ptr_
         )
     : loop_heads{}
     , sensitive{}
@@ -19,6 +20,7 @@ fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
     , iid_twins{}
     , is_covered{ is_covered_ }
     , iid_pivot_with_lowest_abs_value{ iid_pivot_with_lowest_abs_value_ }
+    , statistics{ statistics_ptr_ }
 {}
 
 
@@ -162,6 +164,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     if (!loop_heads.empty())
     {
         best_node = *loop_heads.begin();
+        ++statistics->strategy_primary_loop_head;
         recorder().on_strategy_turn_primary_loop_head();
         return best_node;
     }
@@ -171,6 +174,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     {
         if (!loop_heads.empty())
             return get_best(max_input_width);
+        ++statistics->strategy_primary_sensitive;
         recorder().on_strategy_turn_primary_sensitive();
         return best_node;
     }
@@ -180,6 +184,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     {
         if (!loop_heads.empty())
             return get_best(max_input_width);
+        ++statistics->strategy_primary_untouched;
         recorder().on_strategy_turn_primary_untouched();
         return best_node;
     }
@@ -194,6 +199,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
             if (!loop_heads.empty())
                 return get_best(max_input_width);
         }
+        ++statistics->strategy_primary_iid_twins;
         recorder().on_strategy_turn_primary_iid_twins();
         return it->second.first;
     }
@@ -766,7 +772,8 @@ fuzzer::fuzzer(termination_info const&  info)
             [this](location_id const  loc_id) {
                     auto const  it = iid_pivots.find(loc_id);
                     return it == iid_pivots.end() ? nullptr : it->second.pivot_with_lowest_abs_value;
-                    }                    
+                    },
+            &statistics
             }
     , iid_pivots{}
 
@@ -1529,6 +1536,7 @@ branching_node*  fuzzer::select_iid_coverage_target() const
 
         winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
 
+        ++statistics.strategy_monte_carlo;
         recorder().on_strategy_turn_monte_carlo();
     }
     

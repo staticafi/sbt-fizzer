@@ -45,6 +45,11 @@ struct  fuzzer final
         std::size_t  longest_branch{ 0 };
         std::size_t  traces_to_crash{ 0 };
         std::size_t  traces_to_boundary_violation{ 0 };
+        std::size_t  strategy_primary_loop_head{ 0 };
+        std::size_t  strategy_primary_sensitive{ 0 };
+        std::size_t  strategy_primary_untouched{ 0 };
+        std::size_t  strategy_primary_iid_twins{ 0 };
+        std::size_t  strategy_monte_carlo{ 0 };
         std::size_t  coverage_failure_resets{ 0 };
     };
 
@@ -101,7 +106,8 @@ private:
     {
         primary_coverage_target_branchings(
                 std::function<bool(location_id)> const&  is_covered_,
-                std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_
+                std::function<branching_node*(location_id)> const&  iid_pivot_with_lowest_abs_value_,
+                performance_statistics*  statistics_ptr_
                 );
 
         void  collect_loop_heads_along_path_to_node(branching_node* const  end_node);
@@ -123,6 +129,7 @@ private:
         std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #4
         std::function<bool(location_id)>  is_covered;
         std::function<branching_node*(location_id)>  iid_pivot_with_lowest_abs_value;
+        performance_statistics*  statistics;
     };
 
     struct  hit_count_per_direction
@@ -316,7 +323,7 @@ private:
     mutable random_generator_for_natural_32_bit  generator_for_iid_approach_selection;
     mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
-    performance_statistics  statistics;
+    mutable performance_statistics  statistics;
 };
 
 
