@@ -87,7 +87,8 @@
                     // "pending/tree_del_iter.c"
                     // "pending/standard_vector_difference_ground.i"
                     // "pending/avg.i"
- 
+                    // "pending/__debug__.c"
+
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]
         },
@@ -186,6 +187,7 @@
                 // "pending/tree_del_iter.c"
                 // "pending/standard_vector_difference_ground.i"
                 // "pending/avg.i"
+                // "pending/__debug__.c"
             ]
         },
         {

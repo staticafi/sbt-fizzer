@@ -75,6 +75,7 @@
                     // "pending/tree_del_iter_sbt-fizzer_target",
                     // "pending/tree_del_iter_sbt-fizzer_target",
                     // "pending/standard_vector_difference_ground_sbt-fizzer_target",
+                    // "pending/__debug___sbt-fizzer_target",
 
                 "--max_executions", "1000000",
                 "--max_seconds", "300",
@@ -194,6 +195,7 @@
                     // "pending/tree_del_iter.c"
                     // "pending/standard_vector_difference_ground.i"
                     // "pending/avg.i"
+                    // "pending/__debug__.c"
                 ],
             "cwd": "${workspaceFolder}/dist/benchmarks",
             "justMyCode": true
@@ -351,6 +353,7 @@
                     // "pending/tree_del_iter.c"
                     // "pending/standard_vector_difference_ground.i"
                     // "pending/avg.i"
+                    // "pending/__debug__.c"
                 ]
         }
     ]
