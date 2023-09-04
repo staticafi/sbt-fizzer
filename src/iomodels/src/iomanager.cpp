@@ -55,11 +55,12 @@ void  iomanager::clear_br_instr_trace()
 template <typename Medium>
 void  iomanager::load_trace_record(Medium& src) {
     branching_coverage_info  info { invalid_location_id() };
+    natural_8_bit uchr;
     src >> info.id;
-    src >> info.direction;
+    src >> uchr; info.direction = uchr != 0U;
     src >> info.value;
     src >> info.idx_to_br_instr;
-    src >> info.xor_like_branching_function;
+    src >> uchr; info.xor_like_branching_function = uchr != 0U;
     info.num_input_bytes = (natural_32_bit)get_stdin()->get_bytes().size();
     trace.push_back(info);
 }
@@ -71,8 +72,9 @@ template void iomanager::load_trace_record(message&);
 template <typename Medium>
 void  iomanager::load_br_instr_trace_record(Medium& src) {
     br_instr_coverage_info  info { invalid_location_id() };
+    natural_8_bit uchr;
     src >> info.br_instr_id;
-    src >> info.covered_branch;
+    src >> uchr; info.covered_branch = uchr != 0U;
     br_instr_trace.push_back(info);
 }
 
