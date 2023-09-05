@@ -44,16 +44,20 @@ void shared_memory::remove() {
     bip::shared_memory_object::remove(segment_name);
 }
 
+bool shared_memory::can_accept_bytes(size_t const n) const {
+    return !(memory == nullptr || get_size() < *saved + n);
+}
+
+bool shared_memory::can_deliver_bytes(size_t const n) const {
+    return !(memory == nullptr || *saved < cursor + n);
+}
+
 void shared_memory::accept_bytes(const void* src, size_t n) {
-    if (memory == nullptr || get_size() < *saved + n)
-        throw writing_after_end_exception{};
     memcpy(memory + *saved, src, n);
     *saved += (natural_32_bit)n;
 }
 
 void shared_memory::deliver_bytes(void* dest, size_t n) {
-    if (memory == nullptr || *saved < cursor + n)
-        throw reading_after_end_exception{};
     memcpy(dest, memory + cursor, n);
     cursor += (natural_32_bit)n;
 }

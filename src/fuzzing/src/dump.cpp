@@ -186,6 +186,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"longest_branch\": " << results.statistics.longest_branch << ",\n"
          << shift << shift << "\"traces_to_crash\": " << results.statistics.traces_to_crash << ",\n"
          << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << ",\n"
+         << shift << shift << "\"traces_to_medium_overflow\": " << results.statistics.traces_to_medium_overflow << ",\n"
          << shift << shift << "\"strategy_primary_loop_head\": " << results.statistics.strategy_primary_loop_head << ",\n"
          << shift << shift << "\"strategy_primary_sensitive\": " << results.statistics.strategy_primary_sensitive << ",\n"
          << shift << shift << "\"strategy_primary_untouched\": " << results.statistics.strategy_primary_untouched << ",\n"

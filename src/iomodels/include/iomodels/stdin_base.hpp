@@ -23,8 +23,8 @@ struct  stdin_base
     virtual void  save(connection::shared_memory&  dest) const = 0;
     virtual void  load(connection::message&  src) = 0;
     virtual void  load(connection::shared_memory&  src) = 0;
-    virtual void  load_record(connection::message&  src) = 0;
-    virtual void  load_record(connection::shared_memory&  src) = 0;
+    virtual bool  load_record(connection::message&  src) = 0;
+    virtual bool  load_record(connection::shared_memory&  src) = 0;
     virtual size_t min_flattened_size() const = 0;
     virtual void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::shared_memory&  dest) = 0;
 

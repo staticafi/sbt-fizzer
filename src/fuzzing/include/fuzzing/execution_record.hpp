@@ -16,7 +16,8 @@ struct  execution_record
     static execution_flags constexpr  BRANCH_COVERED      = 1 << 1;
     static execution_flags constexpr  EXECUTION_CRASHES   = 1 << 2;
     static execution_flags constexpr  BOUNDARY_CONDITION_VIOLATION = 1 << 3;
-    static execution_flags constexpr  EMPTY_STARTUP_TRACE = 1 << 4;
+    static execution_flags constexpr  MEDIUM_OVERFLOW = 1 << 4;
+    static execution_flags constexpr  EMPTY_STARTUP_TRACE = 1 << 5;
 
     execution_flags  flags { 0 }; 
     vecu8  stdin_bytes {};

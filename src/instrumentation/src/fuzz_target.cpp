@@ -31,6 +31,11 @@ void fuzz_target::process_condition(location_id id, bool direction, branching_fu
         exit(0);
     }
     
+    if (!shared_memory.can_accept_bytes(branching_coverage_info::flattened_size())) {
+        shared_memory.set_termination(target_termination::medium_overflow);
+        exit(0);
+    }
+
     if (std::isnan(value)) {
         value = std::numeric_limits<branching_function_value_type>::max();
     }
@@ -47,6 +52,11 @@ void fuzz_target::process_br_instr(location_id id, bool covered_branch) {
 
     if (br_instr_trace_length >= config.max_br_instr_trace_length) {
         shared_memory.set_termination(target_termination::boundary_condition_violation);
+        exit(0);
+    }
+
+    if (!shared_memory.can_accept_bytes(br_instr_coverage_info::flattened_size())) {
+        shared_memory.set_termination(target_termination::medium_overflow);
         exit(0);
     }
 

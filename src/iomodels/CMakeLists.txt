@@ -20,8 +20,6 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/iomodels/configuration.hpp
     ./src/configuration.cpp
-    
-    ./include/iomodels/ioexceptions.hpp
     )
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES

@@ -16,8 +16,8 @@ struct stdin_replay_bytes_then_repeat_byte : public stdin_base
     void  save(connection::shared_memory&  dest) const override;
     void  load(connection::message&  src) override;
     void  load(connection::shared_memory&  src) override;
-    void  load_record(connection::message&  src) override;
-    void  load_record(connection::shared_memory&  src) override;
+    bool  load_record(connection::message&  src) override;
+    bool  load_record(connection::shared_memory&  src) override;
     std::size_t min_flattened_size() const override;
     void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::shared_memory& dest) override;
 
@@ -33,7 +33,7 @@ private:
     template <typename Medium>
     void  save_(Medium& dest) const;
     template <typename Medium>
-    void  load_record_(Medium& src);
+    bool  load_record_(Medium& src);
 
     byte_count_type  cursor;
     vecu8  bytes;

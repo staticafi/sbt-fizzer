@@ -23,6 +23,8 @@ struct  message
 
     void clear();
     bool empty();
+    bool can_accept_bytes(size_t n) const;
+    bool can_deliver_bytes(size_t n) const;
     void accept_bytes(const void* src, size_t n);
     void deliver_bytes(void* dest, size_t n);
 

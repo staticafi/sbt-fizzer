@@ -2,7 +2,6 @@
 #include <iomodels/models_map.hpp>
 #include <iomodels/stdin_replay_bytes_then_repeat_byte.hpp>
 #include <iomodels/stdout_void.hpp>
-#include <iomodels/ioexceptions.hpp>
 #include <instrumentation/data_record_id.hpp>
 #include <utility/hash_combine.hpp>
 #include <utility/assumptions.hpp>
@@ -53,7 +52,9 @@ void  iomanager::clear_br_instr_trace()
 
 
 template <typename Medium>
-void  iomanager::load_trace_record(Medium& src) {
+bool  iomanager::load_trace_record(Medium& src) {
+    if (!src.can_deliver_bytes(branching_coverage_info::flattened_size()))
+        return false;
     branching_coverage_info  info { invalid_location_id() };
     natural_8_bit uchr;
     src >> info.id;
@@ -63,58 +64,56 @@ void  iomanager::load_trace_record(Medium& src) {
     src >> uchr; info.xor_like_branching_function = uchr != 0U;
     info.num_input_bytes = (natural_32_bit)get_stdin()->get_bytes().size();
     trace.push_back(info);
+    return true;
 }
 
-template void iomanager::load_trace_record(shared_memory&);
-template void iomanager::load_trace_record(message&);
+template bool iomanager::load_trace_record(shared_memory&);
+template bool iomanager::load_trace_record(message&);
 
 
 template <typename Medium>
-void  iomanager::load_br_instr_trace_record(Medium& src) {
+bool  iomanager::load_br_instr_trace_record(Medium& src) {
+    if (!src.can_deliver_bytes(br_instr_coverage_info::flattened_size()))
+        return false;
     br_instr_coverage_info  info { invalid_location_id() };
     natural_8_bit uchr;
     src >> info.br_instr_id;
     src >> uchr; info.covered_branch = uchr != 0U;
     br_instr_trace.push_back(info);
+    return true;
 }
 
-template void iomanager::load_br_instr_trace_record(shared_memory&);
-template void iomanager::load_br_instr_trace_record(message&);
+template bool iomanager::load_br_instr_trace_record(shared_memory&);
+template bool iomanager::load_br_instr_trace_record(message&);
 
 
 template <typename Medium>
 void  iomanager::load_results(Medium& src) {
     TMPROF_BLOCK();
-    try {
-        while (!src.exhausted()) {
-            data_record_id id;
-            src >> id;
-            switch (id) {
-                case data_record_id::condition: 
-                    load_trace_record(src);
-                    break;
-                case data_record_id::br_instr:
-                    load_br_instr_trace_record(src);
-                    break;
-                case data_record_id::stdin_bytes:
-                    get_stdin()->load_record(src);
-                    break;
-                case data_record_id::termination:
-                    src >> termination;
-                    break;
-                case data_record_id::invalid:
-                default:
-                    /* if the target corrupts the shared memory segment, we might 
-                    reach this block */
-                    throw shared_memory::reading_after_end_exception{};
-                    break;
-            }
+    bool  invalid_record_reached{ false };
+    while (!invalid_record_reached && !src.exhausted()) {
+        data_record_id id;
+        src >> id;
+        switch (id) {
+            case data_record_id::condition: 
+                invalid_record_reached = !load_trace_record(src);
+                break;
+            case data_record_id::br_instr:
+                invalid_record_reached = !load_br_instr_trace_record(src);
+                break;
+            case data_record_id::stdin_bytes:
+                invalid_record_reached = !get_stdin()->load_record(src);
+                break;
+            case data_record_id::termination:
+                src >> termination;
+                ASSUMPTION(valid_termination(termination));
+                break;
+            case data_record_id::invalid:
+            default:
+                INVARIANT(termination == target_termination::timeout);
+                invalid_record_reached = true;
+                break;
         }
-    }
-    catch(shared_memory::reading_after_end_exception const&) {
-        // Just stop reading. The last record was only partially saved due to
-        // an expiration of the execution timeout for the target.
-        INVARIANT(termination == target_termination::timeout);
     }
 }
 

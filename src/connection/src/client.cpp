@@ -1,7 +1,6 @@
 #include <connection/client.hpp>
 #include <connection/message.hpp>
 #include <connection/connection.hpp>
-#include <iomodels/ioexceptions.hpp>
 #include <iomodels/stdin_base.hpp>
 #include <iomodels/iomanager.hpp>
 

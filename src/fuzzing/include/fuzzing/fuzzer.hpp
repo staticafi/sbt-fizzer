@@ -45,6 +45,7 @@ struct  fuzzer final
         std::size_t  longest_branch{ 0 };
         std::size_t  traces_to_crash{ 0 };
         std::size_t  traces_to_boundary_violation{ 0 };
+        std::size_t  traces_to_medium_overflow{ 0 };
         std::size_t  strategy_primary_loop_head{ 0 };
         std::size_t  strategy_primary_sensitive{ 0 };
         std::size_t  strategy_primary_untouched{ 0 };

@@ -492,7 +492,9 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
     {
     case instrumentation::target_termination::normal: ostr << "NORMAL"; break;
     case instrumentation::target_termination::crash: ostr << "CRASH"; break;
+    case instrumentation::target_termination::timeout: ostr << "TIMEOUT"; break;
     case instrumentation::target_termination::boundary_condition_violation: ostr << "BOUNDARY_CONDITION_VIOLATION"; break;
+    case instrumentation::target_termination::medium_overflow: ostr << "MEDIUM_OVERFLOW"; break;
     default: UNREACHABLE(); break;
     }
 

@@ -120,6 +120,9 @@ optimization_outcomes  optimizer::run(
                 if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::boundary_condition_violation)
                     exe_flags |= execution_record::BOUNDARY_CONDITION_VIOLATION;
 
+                if (iomodels::iomanager::instance().get_termination() == instrumentation::target_termination::medium_overflow)
+                    exe_flags |= execution_record::MEDIUM_OVERFLOW;
+
                 if (trace_any_location_discovered)
                     exe_flags |= execution_record::BRANCH_DISCOVERED;
 

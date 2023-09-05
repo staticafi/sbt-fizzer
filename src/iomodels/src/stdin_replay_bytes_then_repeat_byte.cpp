@@ -1,5 +1,4 @@
 #include <iomodels/stdin_replay_bytes_then_repeat_byte.hpp>
-#include <iomodels/ioexceptions.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <instrumentation/data_record_id.hpp>
@@ -85,28 +84,33 @@ void  stdin_replay_bytes_then_repeat_byte::load(shared_memory&  src)
 
 
 template <typename Medium>
-void  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
+bool  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
+    if (!src.can_deliver_bytes(1))
+        return false;
     natural_8_bit type_id;
     src >> type_id;
     type_of_input_bits const type = from_id(type_id);
     natural_8_bit const count = num_bytes(type);
+    if (!src.can_deliver_bytes(count))
+        return false;
     types.push_back(type);
     size_t old_size = bytes.size();
     bytes.resize(old_size + count);
     src.deliver_bytes(bytes.data() + old_size, count);
+    return true;
 }
 
 
-template void stdin_replay_bytes_then_repeat_byte::load_record_(shared_memory&);
-template void stdin_replay_bytes_then_repeat_byte::load_record_(message&);
+template bool stdin_replay_bytes_then_repeat_byte::load_record_(shared_memory&);
+template bool stdin_replay_bytes_then_repeat_byte::load_record_(message&);
 
 
-void  stdin_replay_bytes_then_repeat_byte::load_record(message&  src) {
-    load_record_(src);
+bool  stdin_replay_bytes_then_repeat_byte::load_record(message&  src) {
+    return load_record_(src);
 }
 
-void  stdin_replay_bytes_then_repeat_byte::load_record(shared_memory&  src) {
-    load_record_(src);
+bool  stdin_replay_bytes_then_repeat_byte::load_record(shared_memory&  src) {
+    return load_record_(src);
 }
 
 
@@ -123,6 +127,10 @@ void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr,
     natural_8_bit const count = num_bytes(type);
     if (cursor + count > max_bytes()) {
         dest.set_termination(target_termination::boundary_condition_violation);
+        exit(0);
+    }
+    if (!dest.can_accept_bytes(count + 2)) {
+        dest.set_termination(target_termination::medium_overflow);
         exit(0);
     }
     if (cursor + count > bytes.size()) {

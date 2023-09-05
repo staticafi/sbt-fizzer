@@ -31,6 +31,9 @@ public:
     void map_region();
     static void remove();
 
+    bool can_accept_bytes(size_t n) const;
+    bool can_deliver_bytes(size_t n) const;
+
     void accept_bytes(const void* src, size_t n);
     void deliver_bytes(void* dest, size_t n);
 
@@ -38,9 +41,6 @@ public:
     void deliver_bytes(message& dest);
 
     bool exhausted() const;
-
-    struct  reading_after_end_exception : public std::exception {};
-    struct  writing_after_end_exception : public std::exception {};
 
     /*Interprets the first two bytes as termination type*/
     std::optional<instrumentation::target_termination> get_termination() const;

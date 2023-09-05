@@ -30,10 +30,10 @@ struct  iomanager
     void  load_results(Medium& src);
 
     template <typename Medium>
-    void  load_trace_record(Medium& src);
+    bool  load_trace_record(Medium& src);
 
     template <typename Medium>
-    void  load_br_instr_trace_record(Medium& src);
+    bool  load_br_instr_trace_record(Medium& src);
 
     std::vector<instrumentation::branching_coverage_info> const&  get_trace() const { return trace; }
     void  clear_trace();
