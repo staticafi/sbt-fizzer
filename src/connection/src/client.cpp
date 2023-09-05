@@ -79,7 +79,7 @@ void client::receive_input() {
     executor.timeout_ms = max_exec_milliseconds;
     executor.init_shared_memory(shared_memory_size);
 
-    executor.get_shared_memory().load(input);
+    executor.get_shared_memory().accept_bytes(input);
 }
 
 
@@ -87,7 +87,7 @@ void client::execute_program_and_send_results() {
     executor.execute_target();
 
     message results;
-    executor.get_shared_memory().save(results);
+    executor.get_shared_memory().deliver_bytes(results);
     /* Clean up the shared memory segment. Does not really make sense when 
     fuzzing on the same computer, but that is what the direct mode is for. */
     executor.get_shared_memory().remove();

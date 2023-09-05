@@ -23,15 +23,15 @@ struct  message
 
     void clear();
     bool empty();
-    void load(const void* src, size_t n);
-    void save(void* dest, size_t n);
+    void accept_bytes(const void* src, size_t n);
+    void deliver_bytes(void* dest, size_t n);
 
     bool exhausted() const;
 
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     message&  operator<<(const T& src)
     {
-        load(&src, sizeof(T));
+        accept_bytes(&src, sizeof(T));
         return *this;
     }
 
@@ -40,7 +40,7 @@ struct  message
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     message&  operator>>(T& dest)
     {
-        save(&dest, sizeof(T));
+        deliver_bytes(&dest, sizeof(T));
         return *this;
     }
 

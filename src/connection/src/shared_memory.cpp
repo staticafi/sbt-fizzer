@@ -44,14 +44,14 @@ void shared_memory::remove() {
     bip::shared_memory_object::remove(segment_name);
 }
 
-void shared_memory::load(const void* src, size_t n) {
+void shared_memory::accept_bytes(const void* src, size_t n) {
     if (memory == nullptr || get_size() < *saved + n)
         throw writing_after_end_exception{};
     memcpy(memory + *saved, src, n);
     *saved += (natural_32_bit)n;
 }
 
-void shared_memory::save(void* dest, size_t n) {
+void shared_memory::deliver_bytes(void* dest, size_t n) {
     if (memory == nullptr || *saved < cursor + n)
         throw reading_after_end_exception{};
     memcpy(dest, memory + cursor, n);
@@ -60,7 +60,7 @@ void shared_memory::save(void* dest, size_t n) {
 
 shared_memory& shared_memory::operator<<(const std::string& src) {
     *this << (natural_32_bit) src.size();
-    load(src.data(), (natural_32_bit) src.size());
+    accept_bytes(src.data(), (natural_32_bit) src.size());
     return *this;
 }
 
@@ -68,7 +68,7 @@ shared_memory& shared_memory::operator>>(std::string& dest) {
     natural_32_bit size;
     *this >> size;
     dest.resize(size);
-    save(dest.data(), (size));
+    deliver_bytes(dest.data(), (size));
     return *this;
 }
 
@@ -92,16 +92,16 @@ void shared_memory::set_termination(target_termination termination) {
 }
 
 
-void shared_memory::save(message& dest) {
-    dest.load(memory, *saved);
-    cursor += *saved;
+void shared_memory::accept_bytes(message& src) {
+    size_t src_size = src.size();
+    src.deliver_bytes(memory, src_size);
+    *saved += (natural_32_bit)src_size;
 }
 
 
-void shared_memory::load(message& src) {
-    size_t src_size = src.size();
-    src.save(memory, src_size);
-    *saved += (natural_32_bit)src_size;
+void shared_memory::deliver_bytes(message& dest) {
+    dest.accept_bytes(memory, *saved);
+    cursor += *saved;
 }
 
 

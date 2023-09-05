@@ -31,11 +31,11 @@ public:
     void map_region();
     static void remove();
 
-    void load(const void* src, size_t n);
-    void save(void* dest, size_t n);
+    void accept_bytes(const void* src, size_t n);
+    void deliver_bytes(void* dest, size_t n);
 
-    void load(message& src);
-    void save(message& dest);
+    void accept_bytes(message& src);
+    void deliver_bytes(message& dest);
 
     bool exhausted() const;
 
@@ -50,7 +50,7 @@ public:
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     shared_memory& operator<<(const T& src)
     {
-        load(&src, sizeof(T));
+        accept_bytes(&src, sizeof(T));
         return *this;
     }
 
@@ -59,7 +59,7 @@ public:
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     shared_memory& operator>>(T& dest)
     {
-        save(&dest, sizeof(T));
+        deliver_bytes(&dest, sizeof(T));
         return *this;
     }
 

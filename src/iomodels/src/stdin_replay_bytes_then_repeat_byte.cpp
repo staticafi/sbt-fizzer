@@ -33,10 +33,10 @@ void  stdin_replay_bytes_then_repeat_byte::save_(Medium& dest) const
     INVARIANT(bytes.size() <= max_bytes());
 
     dest << (byte_count_type)bytes.size();
-    dest.load(bytes.data(),(byte_count_type)bytes.size());
+    dest.accept_bytes(bytes.data(),(byte_count_type)bytes.size());
 
     dest << (byte_count_type)types.size();
-    dest.load(types.data(), (byte_count_type)types.size());
+    dest.accept_bytes(types.data(), (byte_count_type)types.size());
 }
 
 template void stdin_replay_bytes_then_repeat_byte::save_(shared_memory&) const;
@@ -59,14 +59,14 @@ void  stdin_replay_bytes_then_repeat_byte::load_(Medium&  src)
     byte_count_type  num_bytes;
     src >> num_bytes;
     bytes.resize(num_bytes);
-    src.save(bytes.data(), num_bytes);
+    src.deliver_bytes(bytes.data(), num_bytes);
 
     ASSUMPTION(bytes.size() <= max_bytes());
 
     byte_count_type  num_types;
     src >> num_types;
     types.resize(num_types);
-    src.save(types.data(), num_types);
+    src.deliver_bytes(types.data(), num_types);
 }
 
 template void stdin_replay_bytes_then_repeat_byte::load_(shared_memory&);
@@ -93,7 +93,7 @@ void  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
     types.push_back(type);
     size_t old_size = bytes.size();
     bytes.resize(old_size + count);
-    src.save(bytes.data() + old_size, count);
+    src.deliver_bytes(bytes.data() + old_size, count);
 }
 
 
@@ -130,7 +130,7 @@ void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr,
     }
     memcpy(ptr, bytes.data() + cursor, count);
     dest << data_record_id::stdin_bytes << to_id(type);
-    dest.load(bytes.data() + cursor, count);
+    dest.accept_bytes(bytes.data() + cursor, count);
     cursor += count;
     types.push_back(type);
 }
