@@ -25,17 +25,7 @@ struct  sensitivity_analysis
         std::size_t  stop_calls_early{ 0 };
     };
 
-    sensitivity_analysis()
-        : state{ READY }
-        , bits_and_types{ nullptr }
-        , trace{ nullptr }
-        , mutated_bit_index{ invalid_stdin_bit_index }
-        , node{ nullptr }
-        , execution_id{ 0 }
-        , changed_nodes{}
-        , stopped_early{ false }
-        , statistics{}
-    {}
+    sensitivity_analysis();
 
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
@@ -54,10 +44,21 @@ struct  sensitivity_analysis
 
 private:
 
+    bool  is_mutated_bit_index_valid() const;
+    bool  is_mutated_type_index_valid() const;
+    bool  generate_next_typed_value(vecb&  bits_ref);
+
+    template<typename T, int N>
+    bool  write_bits(vecb&  bits_ref, T const  (&values)[N]);
+
     STATE  state;
     stdin_bits_and_types_pointer  bits_and_types;
     execution_trace_pointer  trace;
     stdin_bit_index  mutated_bit_index;
+    natural_32_bit  mutated_type_index;
+    natural_32_bit  mutated_value_index;
+    stdin_bit_index  probed_bit_start_index;
+    stdin_bit_index  probed_bit_end_index;
     branching_node*  node;
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  changed_nodes;

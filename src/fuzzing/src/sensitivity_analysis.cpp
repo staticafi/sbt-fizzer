@@ -7,6 +7,36 @@
 namespace  fuzzing {
 
 
+sensitivity_analysis::sensitivity_analysis()
+    : state{ READY }
+    , bits_and_types{ nullptr }
+    , trace{ nullptr }
+    , mutated_bit_index{ 0 }
+    , mutated_type_index{ 0 }
+    , mutated_value_index{ 0 }
+    , probed_bit_start_index{ 0 }
+    , probed_bit_end_index{ 0 }
+    , node{ nullptr }
+    , execution_id{ 0 }
+    , changed_nodes{}
+    , stopped_early{ false }
+    , statistics{}
+{}
+
+
+bool  sensitivity_analysis::is_mutated_bit_index_valid() const
+{
+    return mutated_bit_index < node->get_num_stdin_bits();
+}
+
+
+bool  sensitivity_analysis::is_mutated_type_index_valid() const
+{
+    return mutated_type_index < node->best_stdin->types.size() &&
+                node->best_stdin->type_end_bit_index(mutated_type_index) < node->get_num_stdin_bits();
+}
+
+
 void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
@@ -30,6 +60,8 @@ void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bi
     bits_and_types = node_ptr->best_stdin;
     trace = node_ptr->best_trace;
     mutated_bit_index = 0;
+    mutated_type_index = 0;
+    mutated_value_index = 0;
     node = node_ptr;
     execution_id = execution_id_;
     changed_nodes.clear();
@@ -47,7 +79,7 @@ void  sensitivity_analysis::stop()
     if (!is_busy())
         return;
 
-    if (mutated_bit_index < node->get_num_stdin_bits())
+    if (is_mutated_bit_index_valid() || is_mutated_type_index_valid())
     {
         stopped_early = true;
 
@@ -73,7 +105,17 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    if (mutated_bit_index == node->get_num_stdin_bits())
+    if (is_mutated_bit_index_valid())
+    {
+        bits_ref = bits_and_types->bits;
+        bits_ref.at(mutated_bit_index) = !bits_ref.at(mutated_bit_index);
+
+        probed_bit_start_index = 8 * (mutated_bit_index / 8);
+        probed_bit_end_index = probed_bit_start_index + 8;
+
+        ++mutated_bit_index;
+    }
+    else if (!generate_next_typed_value(bits_ref))
     {
         for (branching_node* n = node; n != nullptr; n = n->predecessor)
         {
@@ -87,15 +129,92 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    bits_ref = bits_and_types->bits;
-    bits_ref.at(mutated_bit_index) = !bits_ref.at(mutated_bit_index);
-
-    ++mutated_bit_index;
-
     ++statistics.generated_inputs;
 
     return true;
 }
+
+
+template<typename T, int N>
+bool  sensitivity_analysis::write_bits(vecb&  bits_ref, T const  (&values)[N])
+{
+    if (mutated_value_index >= N)
+    {
+        mutated_value_index = 0U;
+        return false;
+    }
+
+    probed_bit_start_index = node->best_stdin->type_start_bit_index(mutated_type_index);
+    probed_bit_end_index = probed_bit_start_index + 8 * sizeof(T);
+
+    vecb  bits;
+    natural_8_bit const* const  value_ptr = (natural_8_bit const*)&values[mutated_value_index];
+    bytes_to_bits(value_ptr, value_ptr + sizeof(T), bits);
+
+    bits_ref = bits_and_types->bits;
+    std::copy(bits.begin(), bits.end(), std::next(bits_ref.begin(), probed_bit_start_index));
+
+    ++mutated_value_index;
+    return true;
+}
+
+
+bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
+{
+    for ( ; is_mutated_type_index_valid(); ++mutated_type_index)
+        switch (node->best_stdin->types.at(mutated_type_index))
+        {
+        case type_of_input_bits::BOOLEAN:
+        case type_of_input_bits::SINT8:
+        case type_of_input_bits::UINT8:
+        case type_of_input_bits::UNTYPED8:
+        case type_of_input_bits::SINT16:
+        case type_of_input_bits::UINT16:
+        case type_of_input_bits::UNTYPED16:
+        case type_of_input_bits::SINT32:
+        case type_of_input_bits::UINT32:
+        case type_of_input_bits::UNTYPED32:
+        case type_of_input_bits::SINT64:
+        case type_of_input_bits::UINT64:
+        case type_of_input_bits::UNTYPED64:
+            break;
+
+        case type_of_input_bits::FLOAT32:
+            {
+                static float_32_bit const  values[] = {
+                        std::numeric_limits<float_32_bit>::min(),
+                        std::numeric_limits<float_32_bit>::max(),
+                        std::numeric_limits<float_32_bit>::quiet_NaN(),
+                        std::numeric_limits<float_32_bit>::signaling_NaN(),
+                        std::numeric_limits<float_32_bit>::epsilon(),
+                        std::numeric_limits<float_32_bit>::infinity(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
+        case type_of_input_bits::FLOAT64:
+            {
+                static float_64_bit const  values[] = {
+                        std::numeric_limits<float_64_bit>::min(),
+                        std::numeric_limits<float_64_bit>::max(),
+                        std::numeric_limits<float_64_bit>::quiet_NaN(),
+                        std::numeric_limits<float_64_bit>::signaling_NaN(),
+                        std::numeric_limits<float_64_bit>::epsilon(),
+                        std::numeric_limits<float_64_bit>::infinity(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
+
+        default:
+            UNREACHABLE();
+            break;
+        }
+    return false;
+}
+
 
 
 void  sensitivity_analysis::process_execution_results(execution_trace_pointer const  trace_ptr, branching_node* const  entry_branching_ptr)
@@ -105,8 +224,6 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr && entry_branching_ptr != nullptr);
 
-    natural_32_bit const low_byte_idx = (mutated_bit_index - 1) / 8;
-    stdin_bit_index const low_bit_idx = low_byte_idx * 8;
     branching_node*  n = entry_branching_ptr;
     for (trace_index_type  i = 0U, end = std::min(node->get_trace_index() + 1U, (trace_index_type)trace_ptr->size()); i < end; ++i)
     {
@@ -115,15 +232,14 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
 
         INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->id);
 
-        if (low_byte_idx < n->num_stdin_bytes && info_orig.value != info_curr.value)
-        {
-            for (stdin_bit_index i = 0; i != 8; ++i)
+        if (info_orig.value != info_curr.value)
+            for (stdin_bit_index i = probed_bit_start_index; i != probed_bit_end_index; ++i)
             {
-                auto const  it_and_state = n->sensitive_stdin_bits.insert(low_bit_idx + i);
+                auto const  it_and_state = n->sensitive_stdin_bits.insert(i);
                 if (it_and_state.second)
                     changed_nodes.insert(n);
             }
-        }
+
         if (info_orig.direction != info_curr.direction)
             break;        
         n = n->successor(info_orig.direction).pointer;
