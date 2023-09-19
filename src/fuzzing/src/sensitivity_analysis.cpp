@@ -165,29 +165,105 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         switch (node->best_stdin->types.at(mutated_type_index))
         {
         case type_of_input_bits::BOOLEAN:
+            break;
+
         case type_of_input_bits::SINT8:
+            {
+                static integer_8_bit const  values[] = {
+                        std::numeric_limits<integer_8_bit>::min(),
+                        std::numeric_limits<integer_8_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
         case type_of_input_bits::UINT8:
         case type_of_input_bits::UNTYPED8:
+            {
+                static natural_8_bit const  values[] = {
+                        std::numeric_limits<natural_8_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
+
         case type_of_input_bits::SINT16:
+            {
+                static integer_16_bit const  values[] = {
+                        std::numeric_limits<integer_16_bit>::min(),
+                        std::numeric_limits<integer_16_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
         case type_of_input_bits::UINT16:
         case type_of_input_bits::UNTYPED16:
+            {
+                static natural_16_bit const  values[] = {
+                        std::numeric_limits<natural_16_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
+
         case type_of_input_bits::SINT32:
+            {
+                static integer_32_bit const  values[] = {
+                        std::numeric_limits<integer_32_bit>::min(),
+                        std::numeric_limits<integer_32_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
         case type_of_input_bits::UINT32:
         case type_of_input_bits::UNTYPED32:
+            {
+                static natural_32_bit const  values[] = {
+                        std::numeric_limits<natural_32_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
+
         case type_of_input_bits::SINT64:
+            {
+                static integer_64_bit const  values[] = {
+                        std::numeric_limits<integer_64_bit>::min(),
+                        std::numeric_limits<integer_64_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
+            break;
         case type_of_input_bits::UINT64:
         case type_of_input_bits::UNTYPED64:
+            {
+                static natural_64_bit const  values[] = {
+                        std::numeric_limits<natural_64_bit>::max(),
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
             break;
 
         case type_of_input_bits::FLOAT32:
             {
                 static float_32_bit const  values[] = {
+                        -std::numeric_limits<float_32_bit>::infinity(),
+                        std::numeric_limits<float_32_bit>::lowest(),
+                        -std::numeric_limits<float_32_bit>::min(),
+                        -std::numeric_limits<float_32_bit>::epsilon(),
+                        std::numeric_limits<float_32_bit>::epsilon(),
                         std::numeric_limits<float_32_bit>::min(),
                         std::numeric_limits<float_32_bit>::max(),
+                        std::numeric_limits<float_32_bit>::infinity(),
                         std::numeric_limits<float_32_bit>::quiet_NaN(),
                         std::numeric_limits<float_32_bit>::signaling_NaN(),
-                        std::numeric_limits<float_32_bit>::epsilon(),
-                        std::numeric_limits<float_32_bit>::infinity(),
                         };
                 if (write_bits(bits_ref, values))
                     return true;
@@ -196,12 +272,16 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::FLOAT64:
             {
                 static float_64_bit const  values[] = {
+                        -std::numeric_limits<float_64_bit>::infinity(),
+                        std::numeric_limits<float_64_bit>::lowest(),
+                        -std::numeric_limits<float_64_bit>::min(),
+                        -std::numeric_limits<float_64_bit>::epsilon(),
+                        std::numeric_limits<float_64_bit>::epsilon(),
                         std::numeric_limits<float_64_bit>::min(),
                         std::numeric_limits<float_64_bit>::max(),
+                        std::numeric_limits<float_64_bit>::infinity(),
                         std::numeric_limits<float_64_bit>::quiet_NaN(),
                         std::numeric_limits<float_64_bit>::signaling_NaN(),
-                        std::numeric_limits<float_64_bit>::epsilon(),
-                        std::numeric_limits<float_64_bit>::infinity(),
                         };
                 if (write_bits(bits_ref, values))
                     return true;

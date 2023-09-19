@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 40,
+        "num_executions": 41,
         "num_covered_branchings": 1,
         "covered_branchings": [
             4,0
