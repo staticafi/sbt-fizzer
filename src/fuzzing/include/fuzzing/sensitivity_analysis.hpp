@@ -44,7 +44,6 @@ struct  sensitivity_analysis
 
 private:
 
-    bool  is_mutated_bit_index_valid() const;
     bool  is_mutated_type_index_valid() const;
     bool  generate_next_typed_value(vecb&  bits_ref);
 
@@ -54,7 +53,6 @@ private:
     STATE  state;
     stdin_bits_and_types_pointer  bits_and_types;
     execution_trace_pointer  trace;
-    stdin_bit_index  mutated_bit_index;
     natural_32_bit  mutated_type_index;
     natural_32_bit  mutated_value_index;
     stdin_bit_index  probed_bit_start_index;

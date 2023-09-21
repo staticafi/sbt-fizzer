@@ -11,7 +11,6 @@ sensitivity_analysis::sensitivity_analysis()
     : state{ READY }
     , bits_and_types{ nullptr }
     , trace{ nullptr }
-    , mutated_bit_index{ 0 }
     , mutated_type_index{ 0 }
     , mutated_value_index{ 0 }
     , probed_bit_start_index{ 0 }
@@ -22,12 +21,6 @@ sensitivity_analysis::sensitivity_analysis()
     , stopped_early{ false }
     , statistics{}
 {}
-
-
-bool  sensitivity_analysis::is_mutated_bit_index_valid() const
-{
-    return mutated_bit_index < node->get_num_stdin_bits();
-}
 
 
 bool  sensitivity_analysis::is_mutated_type_index_valid() const
@@ -59,7 +52,6 @@ void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bi
     state = BUSY;
     bits_and_types = node_ptr->best_stdin;
     trace = node_ptr->best_trace;
-    mutated_bit_index = 0;
     mutated_type_index = 0;
     mutated_value_index = 0;
     node = node_ptr;
@@ -79,7 +71,7 @@ void  sensitivity_analysis::stop()
     if (!is_busy())
         return;
 
-    if (is_mutated_bit_index_valid() || is_mutated_type_index_valid())
+    if (is_mutated_type_index_valid())
     {
         stopped_early = true;
 
@@ -105,17 +97,7 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    if (is_mutated_bit_index_valid())
-    {
-        bits_ref = bits_and_types->bits;
-        bits_ref.at(mutated_bit_index) = !bits_ref.at(mutated_bit_index);
-
-        probed_bit_start_index = 8 * (mutated_bit_index / 8);
-        probed_bit_end_index = probed_bit_start_index + 8;
-
-        ++mutated_bit_index;
-    }
-    else if (!generate_next_typed_value(bits_ref))
+    if (!generate_next_typed_value(bits_ref))
     {
         for (branching_node* n = node; n != nullptr; n = n->predecessor)
         {
@@ -165,12 +147,23 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         switch (node->best_stdin->types.at(mutated_type_index))
         {
         case type_of_input_bits::BOOLEAN:
+            {
+                static natural_8_bit const  values[] = {
+                        (natural_8_bit)(node->best_stdin->bits.at(node->best_stdin->type_end_bit_index(mutated_type_index)) ? 0U : 1U)
+                        };
+                if (write_bits(bits_ref, values))
+                    return true;
+            }
             break;
+
+        // NOTE: 55 hex = 01010101 bin, AA hex = 10101010 bin.
 
         case type_of_input_bits::SINT8:
             {
                 static integer_8_bit const  values[] = {
                         std::numeric_limits<integer_8_bit>::min(),
+                        static_cast<integer_8_bit>(0x55),
+                        static_cast<integer_8_bit>(0xAA),
                         std::numeric_limits<integer_8_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -181,6 +174,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::UNTYPED8:
             {
                 static natural_8_bit const  values[] = {
+                        std::numeric_limits<natural_8_bit>::min(),
+                        static_cast<natural_8_bit>(0x55),
+                        static_cast<natural_8_bit>(0xAA),
                         std::numeric_limits<natural_8_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -192,6 +188,8 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
             {
                 static integer_16_bit const  values[] = {
                         std::numeric_limits<integer_16_bit>::min(),
+                        static_cast<integer_16_bit>(0x5555),
+                        static_cast<integer_16_bit>(0xAAAA),
                         std::numeric_limits<integer_16_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -202,6 +200,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::UNTYPED16:
             {
                 static natural_16_bit const  values[] = {
+                        std::numeric_limits<natural_16_bit>::min(),
+                        static_cast<natural_16_bit>(0x5555),
+                        static_cast<natural_16_bit>(0xAAAA),
                         std::numeric_limits<natural_16_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -213,6 +214,8 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
             {
                 static integer_32_bit const  values[] = {
                         std::numeric_limits<integer_32_bit>::min(),
+                        static_cast<integer_32_bit>(0x55555555),
+                        static_cast<integer_32_bit>(0xAAAAAAAA),
                         std::numeric_limits<integer_32_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -223,6 +226,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::UNTYPED32:
             {
                 static natural_32_bit const  values[] = {
+                        std::numeric_limits<natural_32_bit>::min(),
+                        static_cast<natural_32_bit>(0x55555555),
+                        static_cast<natural_32_bit>(0xAAAAAAAA),
                         std::numeric_limits<natural_32_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -234,6 +240,8 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
             {
                 static integer_64_bit const  values[] = {
                         std::numeric_limits<integer_64_bit>::min(),
+                        static_cast<integer_64_bit>(0x5555555555555555),
+                        static_cast<integer_64_bit>(0xAAAAAAAAAAAAAAAA),
                         std::numeric_limits<integer_64_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -244,6 +252,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::UNTYPED64:
             {
                 static natural_64_bit const  values[] = {
+                        std::numeric_limits<natural_64_bit>::min(),
+                        static_cast<natural_64_bit>(0x5555555555555555),
+                        static_cast<natural_64_bit>(0xAAAAAAAAAAAAAAAA),
                         std::numeric_limits<natural_64_bit>::max(),
                         };
                 if (write_bits(bits_ref, values))
@@ -254,6 +265,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::FLOAT32:
             {
                 static float_32_bit const  values[] = {
+                        -1.0f, 0.0f, 1.0f,
+                        std::numbers::pi_v<float_32_bit>,
+                        std::numbers::e_v<float_32_bit>,
                         -std::numeric_limits<float_32_bit>::infinity(),
                         std::numeric_limits<float_32_bit>::lowest(),
                         -std::numeric_limits<float_32_bit>::min(),
@@ -272,6 +286,9 @@ bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
         case type_of_input_bits::FLOAT64:
             {
                 static float_64_bit const  values[] = {
+                        -1.0, 0.0, 1.0,
+                        std::numbers::pi_v<float_64_bit>,
+                        std::numbers::e_v<float_64_bit>,
                         -std::numeric_limits<float_64_bit>::infinity(),
                         std::numeric_limits<float_64_bit>::lowest(),
                         -std::numeric_limits<float_64_bit>::min(),
