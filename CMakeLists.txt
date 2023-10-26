@@ -114,5 +114,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_subdirectory(./src)
 
 install(DIRECTORY ./benchmarks DESTINATION .)
+install(FILES ./LICENSE.txt DESTINATION .)
 
 message("Generating build files ...")
