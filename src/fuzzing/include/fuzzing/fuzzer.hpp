@@ -7,6 +7,7 @@
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
+#   include <fuzzing/klee.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
@@ -325,6 +326,8 @@ private:
     mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
     mutable performance_statistics  statistics;
+
+    klee klee_instance;
 };
 
 

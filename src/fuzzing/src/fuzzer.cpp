@@ -792,7 +792,9 @@ fuzzer::fuzzer(termination_info const&  info)
     , generator_for_generator_selection{}
 
     , statistics{}
-{}
+{
+    // klee_instance = klee("file_for_klee.ll");
+}
 
 
 fuzzer::~fuzzer()

@@ -1,0 +1,3 @@
+[submodule "JetKlee"]
+	path = JetKlee
+	url = https://github.com/staticafi/JetKlee

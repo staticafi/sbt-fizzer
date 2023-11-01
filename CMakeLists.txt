@@ -70,7 +70,7 @@ find_package(Threads REQUIRED)
 
 # find and add Boost
 message("Searching for Boost library ...")
-find_package(Boost 1.69 REQUIRED COMPONENTS filesystem)
+find_package(Boost 1.69 REQUIRED COMPONENTS thread filesystem)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
     Libs ${Boost_LIBRARIES}
@@ -78,7 +78,7 @@ message("Boost STATUS:
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM 14 REQUIRED CONFIG)
 llvm_map_components_to_libnames(LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH Core Passes)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
