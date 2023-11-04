@@ -17,7 +17,8 @@ analysis_outcomes  run(
         connection::benchmark_executor&  benchmark_executor,
         execution_record_writer&  save_execution_record,
         std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
-        fuzzing::termination_info const&  info
+        fuzzing::termination_info const&  info,
+        fuzzing::jetklee& jetklee
         )
 {
     TMPROF_BLOCK();
@@ -37,7 +38,7 @@ analysis_outcomes  run(
     std::unordered_set<natural_64_bit>  hashes_of_crashes;
     std::unordered_set<location_id::id_type>  exit_locations_of_boundary_violations;
 
-    fuzzer f{ info };
+    fuzzer f{ info, jetklee };
 
     try
     {

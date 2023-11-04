@@ -1,9 +1,7 @@
-#include <fuzzing/klee.hpp>
-#include <boost/asio.hpp>
+#include <fuzzing/jetklee.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/process.hpp>
 #include <boost/process/child.hpp>
-#include <boost/asio.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
@@ -12,18 +10,19 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <exception>
 
 namespace fuzzing {
 
-klee::klee()
+jetklee::jetklee()
 {
 }
 
-klee::klee(const std::string& program_path)
+jetklee::jetklee(const std::string& program_path)
 {
     auto installation_dir = boost::dll::program_location().parent_path();
-    auto klee_executable_path = installation_dir/"JetKlee/build/bin/klee";
-    auto klee_libs_path = installation_dir/"JetKlee/build/Release+Asserts/lib";
+    auto jetklee_executable_path = installation_dir/"JetKlee/build/bin/klee";
+    auto jetklee_libs_path = installation_dir/"JetKlee/build/runtime/lib";
     auto traces = std::string("traces");
     auto models = std::string("models");
 
@@ -43,49 +42,48 @@ klee::klee(const std::string& program_path)
     }
 
     auto env = boost::this_process::environment();
-    env["KLEE_RUNTIME_LIBRARY_PATH"] = klee_libs_path.string();
+    env["KLEE_RUNTIME_LIBRARY_PATH"] = jetklee_libs_path.string();
 
-    this->klee_thread = std::thread([&]() {
-        try
+    this->jetklee_thread = std::thread([&]() {
+        running = true;
+        auto process = boost::process::child(
+            jetklee_executable_path,
+            env,
+            boost::process::args({
+                "--output-dir", output_dir.string(),
+                "--use-interactive-search",
+                "--interactive-search-file", traces_path.string(),
+                "--write-ktests=false",
+                "--dump-states-on-halt=false",
+                "--write-json",
+                "--json-path", models, // relative to `output_dir`
+                program_path,
+            }));
+        process.wait();
+        running = false;
+        if (process.exit_code() != 0)
         {
-            auto process = boost::process::child(
-                klee_executable_path,
-                env,
-                boost::process::args({
-                    "--output-dir", output_dir.string(),
-                    "--use-interactive-search",
-                    "--interactive-search-file", traces_path.string(),
-                    "--write-ktests=false",
-                    "--dump-states-on-halt=false",
-                    "--write-json",
-                    "--json-path", models, // relative to `output_dir`
-                    "--suppress-intermediate-queries",
-                    "--keep-finalized-states",
-                    program_path,
-                }));
-            process.wait();
-            if (process.exit_code() != 0)
-            {
-                throw std::runtime_error("Klee exited with non-zero code");
-            }
-        }
-        catch(const std::exception& e)
-        {
-            std::cerr << e.what() << '\n';
+            std::cerr << "JetKlee exited with non-zero code" << std::endl;
         }
     });
-
     this->models = std::move(std::ifstream(models_path));
     this->traces = std::move(std::ofstream(traces_path));
 }
 
-
-void klee::join()
+bool jetklee::is_running()
 {
-    klee_thread.join();
+    return running;
 }
 
-bool klee::get_model(const std::vector<bool> trace, std::vector<uint8_t>& model)
+
+void jetklee::join()
+{
+    models.close();
+    traces.close();
+    jetklee_thread.join();
+}
+
+bool jetklee::get_model(const std::vector<bool> trace, std::vector<uint8_t>& model)
 {
     std::cout << "Received following trace:" << std::endl;
     for (bool dir : trace)
@@ -97,7 +95,7 @@ bool klee::get_model(const std::vector<bool> trace, std::vector<uint8_t>& model)
 
     std::cout << std::endl;
 
-    std::cout << "Klee responded with following JSON:" << std::endl;
+    std::cout << "jetklee responded with following JSON:" << std::endl;
     std::string json_string;
     std::getline(models, json_string);
     std::cout << json_string << std::endl;

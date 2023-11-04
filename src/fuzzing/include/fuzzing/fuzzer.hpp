@@ -6,8 +6,9 @@
 #   include <fuzzing/typed_minimization_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
+#   include <fuzzing/jetklee_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
-#   include <fuzzing/klee.hpp>
+#   include <fuzzing/jetklee.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
@@ -55,7 +56,7 @@ struct  fuzzer final
         std::size_t  coverage_failure_resets{ 0 };
     };
 
-    explicit fuzzer(termination_info const&  info);
+    explicit fuzzer(termination_info const&  info, jetklee& jetklee);
     ~fuzzer();
 
     void  terminate();
@@ -91,6 +92,7 @@ private:
         SENSITIVITY,
         TYPED_MINIMIZATION,
         MINIMIZATION,
+        JETKLEE_QUERY,
         BITSHARE,
         FINISHED
     };
@@ -318,6 +320,7 @@ private:
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
+    jetklee_analysis  jetklee;
 
     natural_32_bit  max_input_width;
 
@@ -326,8 +329,6 @@ private:
     mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
     mutable performance_statistics  statistics;
-
-    klee klee_instance;
 };
 
 

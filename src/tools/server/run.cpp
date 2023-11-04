@@ -201,6 +201,8 @@ void run(int argc, char* argv[])
             terminator
             );
 
+    fuzzing::jetklee jetklee (get_program_options()->value("path_to_ll"));
+
     if (!get_program_options()->has("silent_mode"))
         std::cout << "Fuzzing was started..." << std::endl;
 
@@ -212,7 +214,8 @@ void run(int argc, char* argv[])
                 if (optimizer_config.max_seconds > 0)
                     inputs_leading_to_boundary_violation.push_back(record.stdin_bytes);
                 },
-        terminator
+        terminator,
+        jetklee
         );
 
     if (!get_program_options()->has("silent_mode"))
@@ -264,4 +267,5 @@ void run(int argc, char* argv[])
         fuzzing::log_optimization_outcomes(opt_results);
         fuzzing::save_optimization_outcomes(output_dir, target_name, opt_results);
     }
+    jetklee.join();
 }

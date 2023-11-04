@@ -61,6 +61,7 @@ struct  branching_node
         , sensitivity_performed{ false }
         , minimization_performed{ false }
         , bitshare_performed{ false }
+        , jetklee_performed{ false }
 
         , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
         , minimization_start_execution{ std::numeric_limits<natural_32_bit>::max() }
@@ -126,6 +127,7 @@ struct  branching_node
     bool sensitivity_performed;
     bool minimization_performed;
     bool bitshare_performed;
+    bool jetklee_performed;
 
     natural_32_bit  sensitivity_start_execution;
     natural_32_bit  minimization_start_execution;

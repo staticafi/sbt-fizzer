@@ -102,6 +102,7 @@ def generate_testcomp_metadata_xml(input_file, output_dir, use_m32):
 
 def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
     target = os.path.join(output_dir, benchmark_target_name(input_file))
+    ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
     if not os.path.isfile(target):
         target = os.path.join(os.path.dirname(input_file), benchmark_target_name(input_file))
         if not os.path.isfile(target):
@@ -141,6 +142,7 @@ def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
     if _execute(
             [ os.path.join(self_dir, "tools", "@SERVER_FILE@"),
                 "--path_to_target", target,
+                "--path_to_ll", ll_file,
                 "--output_dir", output_dir] +
                 options,
             None).returncode:
@@ -241,6 +243,7 @@ def main():
         else:
             options.append(arg)
         i += 1
+    options_instument.append("--br_too")
 
     if input_file is None:
         raise Exception("Cannot find the input file.")

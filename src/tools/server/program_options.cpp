@@ -67,7 +67,9 @@ program_options::program_options(int argc, char* argv[])
         "execute only the fuzzing targets, skipping network communication.",
         "1");
 
-    add_option("path_to_target", "Path to target executable.", "1");
+    add_option("path_to_target", "Path to target executable.", "1");\
+
+    add_option("path_to_ll", "Path to llvm file to be used by JetKlee.", "1");
 
     add_option("test_type", "Output type (native, testcomp)", "1");
     add_value("test_type", "native");

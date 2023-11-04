@@ -15,7 +15,8 @@ analysis_outcomes  run(
         connection::benchmark_executor&  benchmark_executor,
         execution_record_writer&  save_execution_record,
         std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
-        fuzzing::termination_info const&  info
+        fuzzing::termination_info const&  info,
+        fuzzing::jetklee& jetklee
         );
 
 

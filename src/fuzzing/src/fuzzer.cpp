@@ -1,10 +1,16 @@
 #include <fuzzing/fuzzer.hpp>
 #include <fuzzing/progress_recorder.hpp>
 #include <iomodels/iomanager.hpp>
-#include <utility/assumptions.hpp>
-#include <utility/invariants.hpp>
+// #include <utility/assumptions.hpp>
+// #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
 #include <map>
+
+// disable assumptions and invariants
+#define INVARIANT(x)
+#define ASSUMPTION(x)
+#define UNREACHABLE(x)
+
 
 namespace  fuzzing {
 
@@ -753,7 +759,7 @@ branching_node*  fuzzer::monte_carlo_step(
 }
 
 
-fuzzer::fuzzer(termination_info const&  info)
+fuzzer::fuzzer(termination_info const&  info, fuzzing::jetklee& jetklee)
     : termination_props{ info }
 
     , num_driver_executions{ 0U }
@@ -783,6 +789,8 @@ fuzzer::fuzzer(termination_info const&  info)
     , sensitivity{}
     , typed_minimization{}
     , minimization{}
+    , jetklee{ jetklee }
+
     , bitshare{}
 
     , max_input_width{ 0U }
@@ -793,7 +801,6 @@ fuzzer::fuzzer(termination_info const&  info)
 
     , statistics{}
 {
-    // klee_instance = klee("file_for_klee.ll");
 }
 
 
@@ -915,6 +922,11 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
             case BITSHARE:
                 if (bitshare.generate_next_input(stdin_bits))
+                    return;
+                break;
+
+            case JETKLEE_QUERY:
+                if (jetklee.generate_next_input(stdin_bits))
                     return;
                 break;
 
@@ -1192,6 +1204,15 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 bitshare.stop();
             break;
 
+        case JETKLEE_QUERY:
+            INVARIANT(sensitivity.is_ready() && minimization.is_ready() && jetklee.is_busy());
+            jetklee.process_execution_results(trace);
+            if (jetklee.get_node()->is_direction_explored(false) && jetklee.get_node()->is_direction_explored(true))
+            {
+                jetklee.stop();
+            }
+            break;
+
         default: UNREACHABLE(); break;
     }
 
@@ -1462,6 +1483,12 @@ void  fuzzer::select_next_state()
         INVARIANT(!winner->sensitive_stdin_bits.empty());
         bitshare.start(winner, num_driver_executions);
         state = BITSHARE;
+    }
+    else if (jetklee.is_worth_processing(winner))
+    {
+        INVARIANT(!winner->jetklee_performed);
+        jetklee.start(winner);
+        state = JETKLEE_QUERY;
     }
     else if (!winner->xor_like_branching_function &&
         typed_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
