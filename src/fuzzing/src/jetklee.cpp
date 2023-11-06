@@ -100,7 +100,7 @@ bool jetklee::get_model(const std::vector<bool> trace, std::vector<uint8_t>& mod
     std::getline(models, json_string);
     std::cout << json_string << std::endl;
 
-    auto json_stream = std::basic_istringstream(json_string);
+    auto json_stream = std::stringstream(json_string);
     boost::property_tree::ptree json;
     boost::property_tree::json_parser::read_json(json_stream, json);
     bool feasible = json.get<bool>("feasible");
