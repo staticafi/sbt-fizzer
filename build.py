@@ -41,6 +41,21 @@ def help(self_dir):
     print("More information can be found in the ./README.md file.")
 
 
+def init(build_dir, build_config, vcpkg_toolchain_file):
+    os.chdir(build_dir)
+    _execute(
+        [ "cmake",
+            "..",
+            "--no-warn-unused-cli",
+            "-G Ninja",
+            "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+            "-DCMAKE_C_COMPILER:FILEPATH=clang",
+            "-DCMAKE_CXX_COMPILER:FILEPATH=clang++",
+            "-DCMAKE_BUILD_TYPE:STRING=" + build_config ] +
+            ([] if vcpkg_toolchain_file is None else ["-DCMAKE_TOOLCHAIN_FILE:STRING=" + vcpkg_toolchain_file])
+        )
+
+
 def build(build_dir, build_config, vcpkg_toolchain_file, use_m32):
     os.chdir(build_dir)
     _execute(
@@ -107,7 +122,9 @@ def main():
             shutil.rmtree(install_dir)
 
     os.makedirs(install_dir, exist_ok=True)
-    os.makedirs(build_dir, exist_ok=True)
+    if not os.path.isdir(build_dir):
+        os.makedirs(build_dir, exist_ok=True)
+        init(build_dir, build_config, vcpkg_toolchain_file)
 
     build(build_dir, build_config, vcpkg_toolchain_file, True)
     if only_m32 is False:
