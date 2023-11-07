@@ -85,37 +85,44 @@ void jetklee::join()
 
 bool jetklee::get_model(const std::vector<bool> trace, std::vector<uint8_t>& model)
 {
-    std::cout << "Received following trace:" << std::endl;
-    for (bool dir : trace)
+    try
     {
-        std::cout << dir;
-        traces << (dir ? "1" : "0");
-    }
-    traces << std::endl << std::flush;
-
-    std::cout << std::endl;
-
-    std::cout << "jetklee responded with following JSON:" << std::endl;
-    std::string json_string;
-    std::getline(models, json_string);
-    std::cout << json_string << std::endl;
-
-    auto json_stream = std::stringstream(json_string);
-    boost::property_tree::ptree json;
-    boost::property_tree::json_parser::read_json(json_stream, json);
-    bool feasible = json.get<bool>("feasible");
-    if (!feasible)
-        return false;
-
-    if (feasible)
-    {
-        BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
-                    json.get_child("input_tc").get_child("bytes"))
+        std::cout << "Received following trace:" << std::endl;
+        for (bool dir : trace)
         {
-            model.push_back(v.second.get_value<uint8_t>());
+            std::cout << dir;
+            traces << (dir ? "1" : "0");
         }
+        traces << std::endl << std::flush;
+
+        std::cout << std::endl;
+
+        std::cout << "jetklee responded with following JSON:" << std::endl;
+        std::string json_string;
+        std::getline(models, json_string);
+        std::cout << json_string << std::endl;
+
+        auto json_stream = std::stringstream(json_string);
+        boost::property_tree::ptree json;
+        boost::property_tree::json_parser::read_json(json_stream, json);
+        bool feasible = json.get<bool>("feasible");
+        if (!feasible)
+            return false;
+
+        if (feasible)
+        {
+            BOOST_FOREACH(const boost::property_tree::ptree::value_type &v,
+                        json.get_child("input_tc").get_child("bytes"))
+            {
+                model.push_back(v.second.get_value<uint8_t>());
+            }
+        }
+        return true;
     }
-    return true;
+    catch (...)
+    {
+        return false;
+    }
 }
 
 }

@@ -19,7 +19,8 @@ bitshare_analysis::bitshare_analysis()
 void  bitshare_analysis::start(branching_node*  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin != nullptr && !node_ptr->sensitive_stdin_bits.empty());
+    if (!(node_ptr != nullptr && node_ptr->best_stdin != nullptr && !node_ptr->sensitive_stdin_bits.empty()))
+        return;
 
     state = BUSY;
     processed_node = node_ptr;
