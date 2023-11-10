@@ -113,7 +113,7 @@ bool  jetklee_analysis::generate_next_input(vecb&  bits_ref)
 
     std::vector<bool> jetklee_trace = prepare_trace(node_ptr);
     std::vector<uint8_t> bytes;
-    if (jetklee.get_model(jetklee_trace, bytes))
+    if (!jetklee.get_model(jetklee_trace, bytes))
         return true;
 
     for (natural_8_bit const  byte : bytes)
