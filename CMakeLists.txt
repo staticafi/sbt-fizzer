@@ -70,6 +70,7 @@ find_package(Threads REQUIRED)
 
 # find and add Boost
 message("Searching for Boost library ...")
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.69 REQUIRED COMPONENTS thread filesystem)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
