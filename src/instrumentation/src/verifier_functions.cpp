@@ -5,6 +5,7 @@
 #else
 #   include <stdbool.h>
 #endif
+#include <stddef.h>
 
 static_assert(sizeof(bool) == 1, "sizeof(bool) != 1");
 
@@ -31,12 +32,6 @@ char __VERIFIER_nondet_char() {
 }
 
 unsigned char __VERIFIER_nondet_uchar() {
-    unsigned char n;
-    sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::UINT8);
-    return n;
-}
-
-unsigned char __VERIFIER_nondet_unsigned_char() {
     unsigned char n;
     sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::UINT8);
     return n;
@@ -87,6 +82,40 @@ unsigned long __VERIFIER_nondet_ulong() {
     return n;
 }
 
+long __VERIFIER_nondet_longlong() {
+    long long int n;
+    sbt_fizzer_target->on_read((natural_8_bit*) &n, sizeof(n) == 4 ? type_of_input_bits::SINT32 : type_of_input_bits::SINT64);
+    return n;
+}
+
+unsigned long __VERIFIER_nondet_ulonglong() {
+    unsigned long long int n;
+    sbt_fizzer_target->on_read((natural_8_bit*) &n, sizeof(n) == 4 ? type_of_input_bits::UINT32 : type_of_input_bits::UINT64);
+    return n;
+}
+
+size_t __VERIFIER_nondet_size_t() {
+    size_t n;
+    sbt_fizzer_target->on_read((natural_8_bit*) &n, sizeof(n) == 4 ? type_of_input_bits::UINT32 : type_of_input_bits::UINT64);
+    return n;
+}
+
+#if CPU_TYPE() == CPU64()
+    unsigned __int128 __VERIFIER_nondet_int128() {
+        __int128 n;
+        sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::SINT64);
+        sbt_fizzer_target->on_read(((natural_8_bit*) &n) + 8, type_of_input_bits::SINT64);
+        return n;
+    }
+
+    unsigned __int128 __VERIFIER_nondet_uint128() {
+        __int128 n;
+        sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::UINT64);
+        sbt_fizzer_target->on_read(((natural_8_bit*) &n) + 8, type_of_input_bits::UINT64);
+        return n;
+    }
+#endif
+
 float __VERIFIER_nondet_float() {
     float n;
     sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::FLOAT32);
@@ -98,4 +127,16 @@ double __VERIFIER_nondet_double() {
     sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::FLOAT64);
     return n;
 }
+
+// aliases --------------
+
+unsigned char __VERIFIER_nondet_u8() { return __VERIFIER_nondet_uchar(); }
+unsigned char __VERIFIER_nondet_unsigned_char() { return __VERIFIER_nondet_uchar(); }
+
+unsigned short __VERIFIER_nondet_u16() { return __VERIFIER_nondet_ushort(); }
+unsigned short __VERIFIER_nondet_unsigned_short() { return __VERIFIER_nondet_ushort(); }
+
+unsigned int __VERIFIER_nondet_u32() { return __VERIFIER_nondet_uint(); }
+unsigned int __VERIFIER_nondet_unsigned_int() { return __VERIFIER_nondet_uint(); }
+
 }

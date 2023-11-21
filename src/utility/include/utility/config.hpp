@@ -40,6 +40,15 @@ Configuration is available through pre-defined macros:
 #       error "Unsuported platform."
 #   endif
 
+#   define CPU32()     1
+#   define CPU64()     2
+
+#   if defined(_WIN64) || defined(__x86_64__)
+#       define CPU_TYPE()       CPU64()
+#   else
+#       define CPU_TYPE()       CPU32()
+#   endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 #   define COMPILER_UNKNOWN()     0
