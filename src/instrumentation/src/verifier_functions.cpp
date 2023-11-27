@@ -2,8 +2,12 @@
 #include <utility/config.hpp>
 #if COMPILER() == COMPILER_VC()
 #   define _Bool bool
+    struct INT128 { std::int64_t _[2]; }; 
+    struct UINT128 { std::uint64_t _[2]; }; 
 #else
 #   include <stdbool.h>
+#   define INT128 __int128 
+#   define INT128 unsigned __int128 
 #endif
 #include <stddef.h>
 
@@ -82,13 +86,13 @@ unsigned long __VERIFIER_nondet_ulong() {
     return n;
 }
 
-long __VERIFIER_nondet_longlong() {
+long long int __VERIFIER_nondet_longlong() {
     long long int n;
     sbt_fizzer_target->on_read((natural_8_bit*) &n, sizeof(n) == 4 ? type_of_input_bits::SINT32 : type_of_input_bits::SINT64);
     return n;
 }
 
-unsigned long __VERIFIER_nondet_ulonglong() {
+unsigned long long int __VERIFIER_nondet_ulonglong() {
     unsigned long long int n;
     sbt_fizzer_target->on_read((natural_8_bit*) &n, sizeof(n) == 4 ? type_of_input_bits::UINT32 : type_of_input_bits::UINT64);
     return n;
@@ -101,15 +105,15 @@ size_t __VERIFIER_nondet_size_t() {
 }
 
 #if CPU_TYPE() == CPU64()
-    unsigned __int128 __VERIFIER_nondet_int128() {
-        __int128 n;
+    INT128 __VERIFIER_nondet_int128() {
+        INT128 n;
         sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::SINT64);
         sbt_fizzer_target->on_read(((natural_8_bit*) &n) + 8, type_of_input_bits::SINT64);
         return n;
     }
 
-    unsigned __int128 __VERIFIER_nondet_uint128() {
-        __int128 n;
+    UINT128 __VERIFIER_nondet_uint128() {
+        UINT128 n;
         sbt_fizzer_target->on_read((natural_8_bit*) &n, type_of_input_bits::UINT64);
         sbt_fizzer_target->on_read(((natural_8_bit*) &n) + 8, type_of_input_bits::UINT64);
         return n;
