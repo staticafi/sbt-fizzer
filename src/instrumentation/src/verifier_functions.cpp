@@ -7,7 +7,7 @@
 #else
 #   include <stdbool.h>
 #   define INT128 __int128 
-#   define INT128 unsigned __int128 
+#   define UINT128 unsigned __int128 
 #endif
 #include <stddef.h>
 
