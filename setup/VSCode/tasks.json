@@ -93,6 +93,55 @@
             ]
         },
         {
+            "label": "salat.py",
+            "type": "shell",
+            "command": "${command:python.interpreterPath}",
+            "options": {
+                "cwd": "${workspaceFolder}/dist/benchmarks/salatd"
+            },
+            "args": [
+                "salat.py",
+                "--salac_dir", "../../tools/salac",
+                "--salat_dir", "../../tools/salat",
+                "--output_dir", "../../output",
+                // "--verbose",
+                "--input",
+                    //"compile"
+                    //"interpret"
+                    "inputflow"
+
+                    //"compile/array01.c",
+                    //"compile/array02.c",
+                    //"compile/array03.c",
+                    //"compile/assign00.c",
+                    //"compile/assign01.c",
+                    //"compile/assign02.c",
+                    //"compile/assign03.c",
+                    //"compile/bitfield01.c",
+                    //"compile/cast01.c",
+                    //"compile/cast02.c",
+                    //"compile/cast03.c",
+                    //"compile/cmp01.c",
+                    //"compile/cmp02.c",
+                    //"compile/enum01.c",
+                    //"compile/extern01.c",
+                    //"compile/func_call00.c",
+                    //"compile/func_call01.c",
+                    //"compile/func_call02.c",
+                    //"compile/func_call03.c",
+                    //"compile/heap01.c",
+                    //"compile/math01.c",
+                    //"compile/math02.c",
+                    //"compile/struct01.c",
+                    //"compile/struct02.c",
+                    //"compile/union01.c",
+
+                    //"analyze/int8_if_x_equal_c.c",
+
+                    //"interpret/int8_if_x_equal_c.c",
+            ]
+        },
+        {
             "label": "kill clients",
             "type": "shell",
             "linux": {
