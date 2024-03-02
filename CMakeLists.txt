@@ -114,7 +114,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # Add project specific sources
 add_subdirectory(./src)
 
-install(DIRECTORY ./benchmarks DESTINATION .)
-install(FILES ./LICENSE.txt DESTINATION .)
+if(FIZZ_BUILD_LIBS_32_BIT STREQUAL "No")
+    install(DIRECTORY ./benchmarks DESTINATION .)
+    install(FILES ./LICENSE.txt DESTINATION .)
+endif()
 
 message("Generating build files ...")
