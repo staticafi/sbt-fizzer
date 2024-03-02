@@ -355,6 +355,317 @@
                     // "pending/avg.i"
                     // "pending/__debug__.c"
                 ]
+        },
+        {
+            "name": "salac.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/tools/salac/salac.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/dist/benchmarks/salatd",
+            "justMyCode": true,
+            "args": [
+                "--bin", "${workspaceFolder}/dist/tools/salac/",
+                "--jsonx",
+                "--verbose",
+                "--input",
+                    //"compile/array01.c",
+                    //"compile/array02.c",
+                    //"compile/array03.c",
+                    //"compile/assign00.c",
+                    //"compile/assign01.c",
+                    //"compile/assign02.c",
+                    //"compile/assign03.c",
+                    //"compile/bitfield01.c",
+                    //"compile/cast01.c",
+                    //"compile/cast02.c",
+                    //"compile/cast03.c",
+                    //"compile/cmp01.c",
+                    //"compile/cmp02.c",
+                    //"compile/enum01.c",
+                    //"compile/extern01.c",
+                    //"compile/func_call00.c",
+                    //"compile/func_call01.c",
+                    //"compile/func_call02.c",
+                    //"compile/func_call03.c",
+                    //"compile/func_call04.c",
+                    "compile/func_call05.c",
+                    //"compile/halt.c",
+                    //"compile/heap01.c",
+                    //"compile/label.c",
+                    //"compile/math01.c",
+                    //"compile/math02.c",
+                    //"compile/select.c",
+                    //"compile/struct01.c",
+                    //"compile/struct02.c",
+                    //"compile/union01.c",
+
+                    //"analyze/int8_if_x_equal_c.c",
+
+                "--output",
+                    "${workspaceFolder}/dist/output"
+            ]
+        },
+        {
+            "name": "llvm2llvm",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": [
+                "--input",
+                    "array01.ll",
+                    //"array02.ll",
+                    //"array03.ll",
+                    //"assign00.ll",
+                    //"assign01.ll",
+                    //"assign02.ll",
+                    //"assign03.ll",
+                    //"bitfield01.ll",
+                    //"cast01.ll",
+                    //"cast02.ll",
+                    //"cast03.ll",
+                    //"cmp01.ll",
+                    //"cmp02.ll",
+                    //"enum01.ll",
+                    //"extern01.ll",
+                    //"func_call00.ll",
+                    //"func_call01.ll",
+                    //"func_call02.ll",
+                    //"func_call03.ll",
+                    //"heap01.ll",
+                    //"math01.ll",
+                    //"math02.ll",
+                    //"struct.ll",
+                    //"struct02.ll",
+                    //"union01.ll",
+
+                    //"int8_if_x_equal_c.ll",
+                ]
+        },
+        {
+            "name": "llvm2sala",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": [
+                "--jsonx",
+                "--input",
+                    //"array01.sim.ll",
+                    //"array02.sim.ll",
+                    //"array03.sim.ll",
+                    //"assign00.sim.ll",
+                    //"assign01.sim.ll",
+                    //"assign02.sim.ll",
+                    //"assign03.sim.ll",
+                    //"bitfield01.sim.ll",
+                    //"cast01.sim.ll",
+                    //"cast02.sim.ll",
+                    //"cast03.sim.ll",
+                    //"cmp01.sim.ll",
+                    //"cmp02.sim.ll",
+                    //"enum01.sim.ll",
+                    //"extern01.sim.ll",
+                    //"func_call00.sim.ll",
+                    //"func_call01.sim.ll",
+                    //"func_call02.sim.ll",
+                    //"func_call03.sim.ll",
+                    "func_call05.sim.ll",
+                    //"heap01.sim.ll",
+                    //"label.sim.ll",
+                    //"math01.sim.ll",
+                    //"math02.sim.ll",
+                    //"struct01.sim.ll",
+                    //"struct02.sim.ll",
+                    //"union01.sim.ll",
+
+                    //"int8_if_x_equal_c.sim.ll",
+                ]
+        },
+        {
+            "name": "sala2sala",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": [
+                "--input",
+                    //"array01.raw.json",
+                    //"array02.raw.json",
+                    //"array03.raw.json",
+                    //"assign00.raw.json",
+                    //"assign01.raw.json",
+                    //"assign02.raw.json",
+                    //"assign03.raw.json",
+                    //"bitfield01.raw.json",
+                    //"cast01.raw.json",
+                    //"cast02.raw.json",
+                    //"cast03.raw.json",
+                    //"cmp01.raw.json",
+                    //"cmp02.raw.json",
+                    //"enum01.raw.json",
+                    //"extern01.raw.json",
+                    //"func_call00.raw.json",
+                    //"func_call01.raw.json",
+                    //"func_call02.raw.json",
+                    //"func_call03.raw.json",
+                    "halt.raw.json",
+                    //"heap01.raw.json",
+                    //"math01.raw.json",
+                    //"math02.raw.json",
+                    //"struct01.raw.json",
+                    //"struct02.raw.json",
+                    //"union01.raw.json",
+
+                    //"int8_if_x_equal_c.raw.json",
+
+                "--output", "."
+                ]
+        },
+        {
+            "name": "test_interpretation",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output/interpret",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": [
+                "--input", "int8_if_x_equal_c.json", "--data", "../../benchmarks/salatd/interpret/int8_if_x_equal_c.00.txt"
+                ]
+        },
+        {
+            "name": "test_builder_for_interpretation",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "test_input_flow",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output/inputflow",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": [
+                "--input", "assign01.json", "--data", "../../benchmarks/salatd/inputflow/assign01.00.txt"
+                ]
+        },
+        {
+            "name": "test_builder_for_input_flow",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dist/output",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "salat.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/benchmarks/salatd/salat.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/dist/benchmarks/salatd",
+            "justMyCode": true,
+            "args": [
+                "--salac_dir", "../../tools/salac",
+                "--salat_dir", "../../tools/salat",
+                "--output_dir", "../../output",
+
+                //"--jsonx",
+                // "--verbose",
+                "--input",
+                    //"analyze"
+                    //"compile"
+                    //"interpret"
+                    //"inputflow"
+
+                    "compile/array01.c",
+                    //"compile/array02.c",
+                    //"compile/array03.c",
+                    //"compile/assign00.c",
+                    //"compile/assign01.c",
+                    //"compile/assign02.c",
+                    //"compile/assign03.c",
+                    //"compile/bitfield01.c",
+                    //"compile/cast01.c",
+                    //"compile/cast02.c",
+                    //"compile/cast03.c",
+                    //"compile/cmp01.c",
+                    //"compile/cmp02.c",
+                    //"compile/enum01.c",
+                    //"compile/extern01.c",
+                    //"compile/func_call00.c",
+                    //"compile/func_call01.c",
+                    //"compile/func_call02.c",
+                    //"compile/func_call03.c",
+                    //"compile/heap01.c",
+                    //"compile/math01.c",
+                    //"compile/math02.c",
+                    //"compile/struct01.c",
+                    //"compile/struct02.c",
+                    //"compile/union01.c",
+
+                    //"analyze/int8_if_x_equal_c.c",
+
+                    //"interpret/int8_if_x_equal_c.c",
+                ]
         }
     ]
 }
