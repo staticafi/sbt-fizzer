@@ -2,6 +2,7 @@
 #   define FUZZING_FUZZER_HPP_INCLUDED
 
 #   include <fuzzing/termination_info.hpp>
+#   include <fuzzing/sensitivity_flow_analysis.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/typed_minimization_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
@@ -90,6 +91,7 @@ private:
     enum STATE
     {
         STARTUP,
+        SENSITIVITY_FLOW,
         SENSITIVITY,
         TYPED_MINIMIZATION,
         MINIMIZATION,
@@ -290,7 +292,7 @@ private:
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
-    void  collect_iid_pivots_from_sensitivity_results();
+    void  collect_iid_pivots_from_sensitivity_results(std::unordered_set<branching_node*> const&  changed_nodes);
     void  select_next_state();
     branching_node*  select_iid_coverage_target() const;
 
@@ -318,6 +320,7 @@ private:
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     STATE  state;
+    sensitivity_flow_analysis  sensitivity_flow;
     sensitivity_analysis  sensitivity;
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;

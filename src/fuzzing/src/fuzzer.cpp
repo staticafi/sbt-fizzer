@@ -782,6 +782,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
+    , sensitivity_flow{ sala_program_ptr }
     , sensitivity{}
     , typed_minimization{}
     , minimization{}
@@ -896,6 +897,10 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
             case STARTUP:
                 if (get_performed_driver_executions() == 0U)
                     return;
+                break;
+
+            case SENSITIVITY_FLOW:
+                sensitivity_flow.compute_sensitive_bits();
                 break;
 
             case SENSITIVITY:
@@ -1158,6 +1163,10 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             recorder().on_execution_results_available();
             break;
 
+        case SENSITIVITY_FLOW:
+            UNREACHABLE(); // This analysis does not generate inputs. It interprets the sala program for a given input. 
+            break;
+
         case SENSITIVITY:
             INVARIANT(sensitivity.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             recorder().on_execution_results_available();
@@ -1213,6 +1222,9 @@ void  fuzzer::do_cleanup()
 
     switch (state)
     {
+        case SENSITIVITY_FLOW:
+            collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
+            break;
         case SENSITIVITY:
             for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
                 if (!node->is_closed())
@@ -1220,7 +1232,7 @@ void  fuzzer::do_cleanup()
                     update_close_flags_from(node);
                     break;
                 }
-            collect_iid_pivots_from_sensitivity_results();
+            collect_iid_pivots_from_sensitivity_results(sensitivity.get_changed_nodes());
             break;
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
@@ -1265,14 +1277,12 @@ void  fuzzer::do_cleanup()
 }
 
 
-void  fuzzer::collect_iid_pivots_from_sensitivity_results()
+void  fuzzer::collect_iid_pivots_from_sensitivity_results(std::unordered_set<branching_node*> const&  changed_nodes)
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(state == SENSITIVITY && sensitivity.get_node() != nullptr);
-
     std::vector<std::pair<branching_node*, iid_pivot_props*> >  pivots;
-    for (branching_node* node : sensitivity.get_changed_nodes())
+    for (branching_node* node : changed_nodes)
         if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
         {
             iid_location_props&  loc_props = iid_pivots[node->get_location_id()];
@@ -1454,8 +1464,16 @@ void  fuzzer::select_next_state()
             else
                 break;
         }
-        sensitivity.start(winner, num_driver_executions);
-        state = SENSITIVITY;
+        if (sensitivity_flow.is_disabled() || sensitivity_flow.failed_on(winner))
+        {
+            sensitivity.start(winner, num_driver_executions);
+            state = SENSITIVITY;
+        }
+        else
+        {
+            sensitivity_flow.start(winner, num_driver_executions);
+            state = SENSITIVITY_FLOW;
+        }
     }
     else if (!winner->bitshare_performed)
     {
