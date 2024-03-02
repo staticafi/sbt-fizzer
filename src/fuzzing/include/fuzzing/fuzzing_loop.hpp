@@ -6,6 +6,7 @@
 #   include <fuzzing/execution_record.hpp>
 #   include <fuzzing/execution_record_writer.hpp>
 #   include <connection/benchmark_executor.hpp>
+#   include <sala/program.hpp>
 #   include <functional>
 
 namespace  fuzzing {
@@ -13,6 +14,7 @@ namespace  fuzzing {
 
 analysis_outcomes  run(
         connection::benchmark_executor&  benchmark_executor,
+        sala::Program const* sala_program_ptr,
         execution_record_writer&  save_execution_record,
         std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
         fuzzing::termination_info const&  info
