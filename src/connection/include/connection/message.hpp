@@ -1,6 +1,7 @@
 #ifndef CONNECTION_MESSAGE_HPP_INCLUDED
 #   define CONNECTION_MESSAGE_HPP_INCLUDED
 
+#   include <connection/medium.hpp>
 #   include <utility/math.hpp>
 
 #   include <cstdint>
@@ -17,16 +18,18 @@ friend struct message;
 };
 
 
-struct  message
+struct  message : public medium 
 {
+    message() : medium() {}
+
     natural_32_bit size();
 
-    void clear();
+    void clear() override;
     bool empty();
-    bool can_accept_bytes(size_t n) const;
-    bool can_deliver_bytes(size_t n) const;
-    void accept_bytes(const void* src, size_t n);
-    void deliver_bytes(void* dest, size_t n);
+    bool can_accept_bytes(size_t n) const override;
+    bool can_deliver_bytes(size_t n) const override;
+    void accept_bytes(const void* src, size_t n) override;
+    void deliver_bytes(void* dest, size_t n) override;
 
     bool exhausted() const;
 
@@ -49,9 +52,9 @@ struct  message
     message& operator>>(std::string& dest);
 
 
-    message_header header;
+    message_header header{};
 private:
-    vecu8  bytes;
+    vecu8  bytes{};
     natural_32_bit  cursor = 0;
     
 friend struct connection;
