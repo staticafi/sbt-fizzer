@@ -87,7 +87,7 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     t0 = time.time()
     if _execute(
             [ os.path.join(self_dir, "tools", "salac", "salac.py") ] +
-            [ "--input", instrumented_ll_file, "--output", output_dir ],
+            [ "--input", instrumented_ll_file, "--output", output_dir, "--entry", "__sbt_fizzer_method_under_test" ],
             None).returncode:
         raise Exception("Compilation[LLVM->sala] has failed: " + ll_file)
     t1 = time.time()
