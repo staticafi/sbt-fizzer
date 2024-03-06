@@ -80,6 +80,7 @@ struct  fuzzer final
     bool  round_begin(TERMINATION_REASON&  termination_reason);
     execution_record::execution_flags  round_end();
 
+    sensitivity_flow_analysis::performance_statistics const&  get_sensitivity_flow_statistics() const { return sensitivity_flow.get_statistics(); }
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
