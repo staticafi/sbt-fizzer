@@ -54,45 +54,44 @@ void terminator_medium::set_termination(instrumentation::target_termination  ter
 }
 
 
-struct ExternCode : public sala::ExternCodeCStd
+struct sensitivity_flow_analysis::extern_code : public sala::ExternCodeCStd
 {
-    ExternCode(
+    extern_code(
+            sensitivity_flow_analysis*  analysis,
             sala::ExecState*  state,
-            branching_node*  node,
-            sala::InputFlow*  input_flow,
-            std::unordered_set<branching_node*>&  changed_nodes
+            sala::InputFlow*  input_flow
             );
+    bool  target_reached() const { return target_reached_; }
 
 private:
     void read(std::size_t count);
     void on_process_condition();
 
-    branching_node*  node_;
+    sensitivity_flow_analysis*  analysis_;
     std::vector<branching_node*>  path_nodes_;
     std::vector<bool>  path_directions_;
     std::size_t  path_index_;
     sala::InputFlow* input_flow_;
     terminator_medium medium_;
-    std::unordered_set<branching_node*>&  changed_nodes_;
+    bool  target_reached_;
 };
 
 
-ExternCode::ExternCode(
+sensitivity_flow_analysis::extern_code::extern_code(
+        sensitivity_flow_analysis* const  analysis,
         sala::ExecState* const  state,
-        branching_node* const  node,
-        sala::InputFlow* const  input_flow,
-        std::unordered_set<branching_node*>&  changed_nodes
+        sala::InputFlow* const  input_flow
         )
     : sala::ExternCodeCStd{ state }
-    , node_{ node }
+    , analysis_{ analysis }
     , path_nodes_{}
     , path_directions_{}
     , path_index_{ 0ULL }
     , input_flow_{ input_flow }
     , medium_{ state }
-    , changed_nodes_{ changed_nodes }
+    , target_reached_{ false }
 {
-    for (branching_node* n = node_; n != nullptr; n = n->predecessor)
+    for (branching_node* n = analysis_->node; n != nullptr; n = n->predecessor)
         path_nodes_.push_back(n);
     std::reverse(path_nodes_.begin(), path_nodes_.end());
     for (std::size_t i = 1ULL; i < path_nodes_.size(); ++i)
@@ -115,7 +114,7 @@ ExternCode::ExternCode(
 }
 
 
-void ExternCode::read(std::size_t const count)
+void sensitivity_flow_analysis::extern_code::read(std::size_t const count)
 {
     std::size_t desc{ iomodels::iomanager::instance().get_stdin()->num_bytes_read() };
     sala::MemPtr ptr{ parameters().front().as<sala::MemPtr>() };
@@ -136,7 +135,7 @@ void ExternCode::read(std::size_t const count)
 }
 
 
-void ExternCode::on_process_condition()
+void sensitivity_flow_analysis::extern_code::on_process_condition()
 {
     INVARIANT(path_index_ < path_nodes_.size());
 
@@ -168,7 +167,12 @@ void ExternCode::on_process_condition()
         for (auto const& desc : input_flow_->read(ptr + i)->descriptors())
             for (std::size_t j = 0ULL; j != 8ULL; ++j)
                 if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second)
-                    changed_nodes_.insert(current_node);
+                    analysis_->changed_nodes.insert(current_node);
+
+    if (!current_node->sensitivity_performed)
+        analysis_->changed_nodes.insert(current_node);
+    current_node->sensitivity_performed = true;
+    current_node->sensitivity_start_execution = analysis_->execution_id;
 
     ++path_index_;
     if (path_index_ == path_nodes_.size())
@@ -179,6 +183,8 @@ void ExternCode::on_process_condition()
             "sensitivity_flow_analysis[extern_code]",
             "Execution reached the last node of the expected path in the tree."
             );
+
+        target_reached_ = true;
     }
 }
 
@@ -238,14 +244,20 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
     iomodels::iomanager::instance().get_stdout()->clear();
     iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
 
-    sala::ExecState state{ program_ptr };
-    sala::Sanitizer sanitizer{ &state };
-    sala::InputFlow input_flow{ &state };
-    ExternCode externals{ &state, node, &input_flow, changed_nodes };
-    sala::Interpreter interpreter{ &state, &externals, { &sanitizer, &input_flow } };
+    sala::ExecState  state{ program_ptr };
+    sala::Sanitizer  sanitizer{ &state };
+    sala::InputFlow  input_flow{ &state };
+    extern_code  externals{ this, &state, &input_flow };
+    sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &input_flow } };
 
     while (!interpreter.done())
         interpreter.step();
+
+    if (!externals.target_reached())
+    {
+        failures.insert(node);
+        ++statistics.num_failures;
+    }
 }
 
 

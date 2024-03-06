@@ -25,7 +25,7 @@ struct  sensitivity_flow_analysis
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
 
-    bool  is_disabled() const { return true; } // { return program_ptr == nullptr || program_ptr->num_cpu_bits() != 64U; }
+    bool  is_disabled() const { return program_ptr == nullptr || program_ptr->num_cpu_bits() != 64U; }
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
@@ -40,6 +40,8 @@ struct  sensitivity_flow_analysis
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
+
+    struct extern_code;
 
     STATE  state;
     sala::Program const* program_ptr;
