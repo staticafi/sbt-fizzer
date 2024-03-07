@@ -223,6 +223,7 @@ private:
     };
 
     static void  update_close_flags_from(branching_node*  node);
+    static void  update_close_flags_from_root_to_node(branching_node*  node);
 
     static std::vector<natural_32_bit> const&  get_input_width_classes();
     static std::unordered_set<natural_32_bit> const&  get_input_width_classes_set();
