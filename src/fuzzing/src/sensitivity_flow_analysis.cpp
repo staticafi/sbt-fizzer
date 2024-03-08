@@ -147,7 +147,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
     {
         INVARIANT(path_index_ < path_nodes_.size());
 
-        if (path_nodes_.at(path_index_)->get_location_id() != parameters().front().as<instrumentation::location_id::id_type>())
+        if (path_nodes_.at(path_index_)->get_location_id().id != parameters().front().as<instrumentation::location_id>().id)
         {
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
