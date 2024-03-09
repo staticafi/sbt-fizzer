@@ -78,7 +78,7 @@ struct  fuzzer final
     bool  can_make_progress() const { return state != FINISHED; }
 
     bool  round_begin(TERMINATION_REASON&  termination_reason);
-    execution_record::execution_flags  round_end();
+    std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
     sensitivity_flow_analysis::performance_statistics const&  get_sensitivity_flow_statistics() const { return sensitivity_flow.get_statistics(); }
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
@@ -221,6 +221,8 @@ private:
         branching_node*  pivot_with_lowest_abs_value{ nullptr };
         mutable random_generator_for_natural_32_bit  generator_for_pivot_selection;
     };
+
+    static std::string const&  get_analysis_name_from_state(STATE state);
 
     static void  update_close_flags_from(branching_node*  node);
     static void  update_close_flags_from_root_to_node(branching_node*  node);
