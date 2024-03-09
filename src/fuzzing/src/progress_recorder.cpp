@@ -51,6 +51,7 @@ progress_recorder::progress_recorder()
     , program_name{}
 
     , analysis{ NONE }
+    , sensitivity_flow{}
     , sensitivity{}
     , typed_minimization{}
     , minimization{}
@@ -141,6 +142,33 @@ void  progress_recorder::stop()
     leaf = nullptr;
 
     post_data.clear();
+}
+
+
+void  progress_recorder::on_sensitivity_flow_start(branching_node* const  node_ptr)
+{
+    if (!is_started())
+        return;
+
+    on_analysis_start(SENSITIVITY_FLOW, sensitivity_flow, node_ptr);
+}
+
+
+void  progress_recorder::on_sensitivity_flow_stop()
+{
+    if (!is_started())
+        return;
+    
+    ++counter_results;
+
+    std::filesystem::path const  record_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
+    std::filesystem::create_directories(record_dir);
+    if (!std::filesystem::is_directory(record_dir))
+        throw std::runtime_error("Cannot create directory: " + record_dir.string());
+
+    sensitivity_flow.stop_attribute = REGULAR;
+    sensitivity_flow.save();
+    on_analysis_stop();
 }
 
 
@@ -521,7 +549,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
 std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
 {
-    static std::string const  names[] { "NONE","SENSITIVITY","TYPED_MINIMIZATION","MINIMIZATION","BITSHARE" };
+    static std::string const  names[] { "NONE","SENSITIVITY_FLOW","SENSITIVITY","TYPED_MINIMIZATION","MINIMIZATION","BITSHARE" };
     ASSUMPTION((int)a < sizeof(names)/sizeof(names[0]));
     return names[(int)a];
 }
