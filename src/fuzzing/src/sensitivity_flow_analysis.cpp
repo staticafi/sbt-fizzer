@@ -94,7 +94,7 @@ void extern_code::read(std::size_t const count)
         case 8ULL: type = type_of_input_bits::UNTYPED64; break;
         default: UNREACHABLE(); break;
     }
-    sala::MemPtr const ptr{ parameters().front().as<sala::MemPtr>() };
+    sala::MemPtr const ptr{ parameters().front().read<sala::MemPtr>() };
     iomodels::iomanager::instance().get_stdin()->read(ptr, type, medium_);
 }
 
@@ -152,7 +152,7 @@ sensitivity_flow_analysis::input_flow::input_flow(
 void sensitivity_flow_analysis::input_flow::start_input_flow(std::size_t const count)
 {
     std::size_t desc{ iomodels::iomanager::instance().get_stdin()->num_bytes_read() - count };
-    sala::MemPtr ptr{ parameters().front().as<sala::MemPtr>() };
+    sala::MemPtr ptr{ parameters().front().read<sala::MemPtr>() };
     for (std::size_t i = 0ULL; i != count; ++i, ++desc)
         start(ptr + i, (sala::InputFlow::InputDescriptor)desc);
 }
@@ -164,7 +164,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
     {
         INVARIANT(path_index_ < path_nodes_.size());
 
-        if (path_nodes_.at(path_index_)->get_location_id().id != parameters().front().as<instrumentation::location_id>().id)
+        if (path_nodes_.at(path_index_)->get_location_id().id != parameters().front().read<instrumentation::location_id>().id)
         {
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
@@ -175,7 +175,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
             return;
         }
 
-        if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).as<bool>())
+        if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).read<bool>())
         {
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
