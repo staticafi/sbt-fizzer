@@ -233,7 +233,7 @@ sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const 
 bool  sensitivity_flow_analysis::is_disabled() const
 {
     // return true;
-    return program_ptr == nullptr || program_ptr->num_cpu_bits() != 64U;
+    return program_ptr == nullptr;
 }
 
 
