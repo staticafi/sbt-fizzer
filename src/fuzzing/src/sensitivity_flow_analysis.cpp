@@ -96,7 +96,15 @@ void extern_code::read(std::size_t const count)
         default: UNREACHABLE(); break;
     }
     sala::MemPtr const ptr{ parameters().front().read<sala::MemPtr>() };
-    iomodels::iomanager::instance().get_stdin()->read(ptr, type, medium_);
+    if (!iomodels::iomanager::instance().get_stdin()->read_bytes(ptr, type, medium_))
+    {
+        state().set_stage(sala::ExecState::Stage::FINISHED);
+        state().set_termination(
+            sala::ExecState::Termination::ERROR,
+            "sensitivity_flow_analysis[extern_code]",
+            state().current_location_message() + ": Call to 'iomodels::iomanager::instance().get_stdin()->read_bytes()' has failed."
+            );
+    }
 }
 
 
