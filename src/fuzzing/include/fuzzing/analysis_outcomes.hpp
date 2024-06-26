@@ -35,7 +35,7 @@ struct analysis_outcomes
         };
     std::string  error_message{}; // Valid only if 'termination_type != NORMAL'.
     natural_32_bit  num_executions{ 0U };
-    long  num_elapsed_seconds{ 0 };
+    float_64_bit  num_elapsed_seconds{ 0.0 };
     std::vector<location_id> covered_branchings{};
     std::vector<branching_location_and_direction>  uncovered_branchings{};
     sensitivity_flow_analysis::performance_statistics   sensitivity_flow_statistics{};
