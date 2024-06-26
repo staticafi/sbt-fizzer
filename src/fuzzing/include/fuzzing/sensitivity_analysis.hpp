@@ -4,6 +4,8 @@
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
 #   include <unordered_set>
+#   include <map>
+#   include <set>
 
 namespace  fuzzing {
 
@@ -23,6 +25,7 @@ struct  sensitivity_analysis
         std::size_t  start_calls{ 0 };
         std::size_t  stop_calls_regular{ 0 };
         std::size_t  stop_calls_early{ 0 };
+        std::map<std::pair<trace_index_type,natural_32_bit>, std::set<float_64_bit> >  complexity{};
     };
 
     sensitivity_analysis();
@@ -63,6 +66,8 @@ private:
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  changed_nodes;
     bool  stopped_early;
+
+    std::chrono::system_clock::time_point  start_time;
 
     performance_statistics  statistics;
 };

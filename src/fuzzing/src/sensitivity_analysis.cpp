@@ -20,6 +20,7 @@ sensitivity_analysis::sensitivity_analysis()
     , execution_id{ 0 }
     , changed_nodes{}
     , stopped_early{ false }
+    , start_time{}
     , statistics{}
 {}
 
@@ -67,6 +68,8 @@ void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bi
     changed_nodes.clear();
     stopped_early = false;
 
+    start_time = std::chrono::system_clock::now();
+
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, (std::size_t)node->get_num_stdin_bits());
 
@@ -92,6 +95,12 @@ void  sensitivity_analysis::stop()
         recorder().on_sensitivity_stop(progress_recorder::REGULAR);
 
         ++statistics.stop_calls_regular;
+    }
+
+    {
+        std::pair<natural_32_bit,trace_index_type> const key{ node->get_trace_index(), node->get_num_stdin_bytes() };
+        float_64_bit const  value = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time).count();
+        statistics.complexity[key].insert(value);
     }
 
     state = READY;

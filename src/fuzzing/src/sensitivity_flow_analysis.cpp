@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
+#include <chrono>
 
 namespace  fuzzing {
 
@@ -112,6 +113,7 @@ struct sensitivity_flow_analysis::input_flow : public sala::InputFlow
 {
     input_flow(sensitivity_flow_analysis*  analysis, sala::ExecState*  state);
     bool  target_reached() const { return target_reached_; }
+    branching_node*  get_last_visited_path_node() const { return path_index_ < path_nodes_.size() ? path_nodes_.at(path_index_) : path_nodes_.back(); }
 
 private:
     void start_input_flow(std::size_t const count);
@@ -315,6 +317,8 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
     iomodels::iomanager::instance().get_stdout()->clear();
     iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
 
+    std::chrono::system_clock::time_point const  start_time = std::chrono::system_clock::now();
+
     sala::ExecState  state{ program_ptr };
     sala::Sanitizer  sanitizer{ &state };
     input_flow  flow{ this, &state };
@@ -323,6 +327,13 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
 
     while (!interpreter.done())
         interpreter.step();
+
+    {
+        branching_node const* const  last_visited_node = flow.get_last_visited_path_node();
+        std::pair<natural_32_bit,trace_index_type> const key{ last_visited_node->get_trace_index(), last_visited_node->get_num_stdin_bytes() };
+        float_64_bit const  value = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time).count();
+        statistics.complexity[key].insert(value);
+    }
 
     if (!flow.target_reached())
     {

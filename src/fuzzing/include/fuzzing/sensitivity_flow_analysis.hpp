@@ -5,6 +5,8 @@
 #   include <fuzzing/branching_node.hpp>
 #   include <sala/program.hpp>
 #   include <unordered_set>
+#   include <map>
+#   include <set>
 
 namespace  fuzzing {
 
@@ -24,6 +26,7 @@ struct  sensitivity_flow_analysis
         std::size_t  num_failures{ 0 };
         std::unordered_set<std::string>  errors{};
         std::unordered_set<std::string>  warnings{};
+        std::map<std::pair<trace_index_type,natural_32_bit>, std::set<float_64_bit> >  complexity{};
     };
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
