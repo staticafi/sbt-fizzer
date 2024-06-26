@@ -22,6 +22,7 @@ struct  sensitivity_flow_analysis
         std::size_t  start_calls{ 0 };
         std::size_t  stop_calls{ 0 };
         std::size_t  num_failures{ 0 };
+        std::unordered_set<std::string>  errors{};
     };
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
@@ -42,6 +43,8 @@ struct  sensitivity_flow_analysis
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
+
+    std::string  make_problem_message(std::string const&  content) const;
 
     struct input_flow;
 
