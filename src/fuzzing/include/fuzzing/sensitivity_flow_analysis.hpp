@@ -23,6 +23,7 @@ struct  sensitivity_flow_analysis
         std::size_t  stop_calls{ 0 };
         std::size_t  num_failures{ 0 };
         std::unordered_set<std::string>  errors{};
+        std::unordered_set<std::string>  warnings{};
     };
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
