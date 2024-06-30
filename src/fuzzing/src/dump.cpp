@@ -140,13 +140,27 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"start_calls\": " << results.sensitivity_flow_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls\": " << results.sensitivity_flow_statistics.stop_calls << ",\n"
          << shift << shift << "\"num_failures\": " << results.sensitivity_flow_statistics.num_failures << ",\n"
-         << shift << shift << "\"errors\": [" << "\n";
-    for (std::string const& error : results.sensitivity_flow_statistics.errors) 
-        ostr << shift << shift << shift << error << "\n";
+         << shift << shift << "\"errors\": [";
+    {
+        bool first1{ true };
+        for (std::string const&  error : results.sensitivity_flow_statistics.errors)
+        {
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n" << shift << shift << shift << error;
+        }
+        ostr << "\n";
+    }
     ostr << shift << shift << "],\n"
-         << shift << shift << "\"warnings\": [" << "\n";
-    for (std::string const& warning : results.sensitivity_flow_statistics.warnings) 
-        ostr << shift << shift << shift << warning << "\n";
+         << shift << shift << "\"warnings\": [";
+    {
+        bool first1{ true };
+        for (std::string const& warning : results.sensitivity_flow_statistics.warnings) 
+        {
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n" << shift << shift << shift << warning;
+        }
+        ostr << "\n";
+    }
     ostr << shift << shift << "],\n"
          << shift << shift << "\"complexity\": [";
     {
