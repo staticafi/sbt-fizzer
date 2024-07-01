@@ -927,7 +927,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 break;
 
             case SENSITIVITY_FLOW:
-                sensitivity_flow.compute_sensitive_bits();
+                sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
                 break;
 
             case SENSITIVITY:

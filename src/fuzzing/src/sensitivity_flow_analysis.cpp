@@ -197,7 +197,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
         if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).read<bool>())
         {
             bool const expected{ path_directions_.at(path_index_) };
-            bool const obtained{ parameters().at(1).read<bool>() };
+            natural_8_bit const obtained{ parameters().at(1).read<natural_8_bit>() };
             auto const& loc{ path_nodes_.at(path_index_)->get_location_id() };
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
@@ -206,7 +206,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
                 "Execution diverged from the expected path in the tree."
                     " At path index " + std::to_string(path_index_) + ": Unexpected direction taken."
                     " [Expected: " + std::to_string(expected) +
-                    ", obtained: " + std::to_string(obtained) + "]"
+                    ", obtained: " + std::to_string((natural_32_bit)obtained) + "]"
                     "[NOTE: location ID: " + std::to_string(loc.id) + "]"
                 );
             return;
@@ -303,7 +303,7 @@ void  sensitivity_flow_analysis::stop()
 }
 
 
-void  sensitivity_flow_analysis::compute_sensitive_bits()
+void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_seconds)
 {
     TMPROF_BLOCK();
 
@@ -319,14 +319,21 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
 
     std::chrono::system_clock::time_point const  start_time = std::chrono::system_clock::now();
 
-    sala::ExecState  state{ program_ptr };
+    sala::ExecState  state{ program_ptr, iomodels::iomanager::instance().get_config().max_exec_megabytes * 1024ULL * 1024ULL };
     sala::Sanitizer  sanitizer{ &state };
     input_flow  flow{ this, &state };
     extern_code  externals{ &state };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
-    while (!interpreter.done())
-        interpreter.step();
+    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 10.0 };
+    float_64_bit const  run_time{
+            std::min(
+                remaining_seconds,
+                native_vs_interpreter_speed_ratio * (iomodels::iomanager::instance().get_config().max_exec_milliseconds * 0.001)
+                )
+    };
+
+    interpreter.run(run_time);
 
     {
         branching_node const* const  last_visited_node = flow.get_last_visited_path_node();
