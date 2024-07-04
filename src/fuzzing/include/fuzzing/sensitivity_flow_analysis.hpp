@@ -31,11 +31,8 @@ struct  sensitivity_flow_analysis
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
 
-    bool  is_disabled() const;
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
-
-    bool failed_on(branching_node*  node_ptr) const { return failures.contains(node_ptr); }
 
     void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
     void  stop();
@@ -54,7 +51,6 @@ private:
 
     STATE  state;
     sala::Program const* program_ptr;
-    std::unordered_set<branching_node*>  failures;
     execution_trace_pointer  trace;
     branching_node*  node;
     natural_32_bit  execution_id;

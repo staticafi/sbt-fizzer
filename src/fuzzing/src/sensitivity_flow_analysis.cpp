@@ -197,7 +197,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
         if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).read<bool>())
         {
             bool const expected{ path_directions_.at(path_index_) };
-            natural_8_bit const obtained{ parameters().at(1).read<natural_8_bit>() };
+            std::stringstream obtained; obtained << (integer_32_bit)parameters().at(1).read<natural_8_bit>();
             auto const& loc{ path_nodes_.at(path_index_)->get_location_id() };
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
@@ -206,7 +206,7 @@ void sensitivity_flow_analysis::input_flow::do_ret()
                 "Execution diverged from the expected path in the tree."
                     " At path index " + std::to_string(path_index_) + ": Unexpected direction taken."
                     " [Expected: " + std::to_string(expected) +
-                    ", obtained: " + std::to_string((natural_32_bit)obtained) + "]"
+                    ", obtained: " + obtained.str() + "]"
                     "[NOTE: location ID: " + std::to_string(loc.id) + "]"
                 );
             return;
@@ -219,11 +219,6 @@ void sensitivity_flow_analysis::input_flow::do_ret()
                 for (std::size_t j = 0ULL; j != 8ULL; ++j)
                     if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second)
                         analysis_->changed_nodes.insert(current_node);
-
-        if (!current_node->sensitivity_performed)
-            analysis_->changed_nodes.insert(current_node);
-        current_node->sensitivity_performed = true;
-        current_node->sensitivity_start_execution = analysis_->execution_id;
 
         ++path_index_;
         if (path_index_ == path_nodes_.size())
@@ -247,7 +242,6 @@ void sensitivity_flow_analysis::input_flow::do_ret()
 sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const sala_program_ptr)
     : state{ READY }
     , program_ptr{ sala_program_ptr }
-    , failures{}
     , trace{ nullptr }
     , node{ nullptr }
     , execution_id{ 0 }
@@ -256,16 +250,9 @@ sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const 
 {}
 
 
-bool  sensitivity_flow_analysis::is_disabled() const
-{
-    // return true;
-    return program_ptr == nullptr;
-}
-
-
 void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
-    ASSUMPTION(is_ready() && !is_disabled());
+    ASSUMPTION(is_ready());
     ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
     ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
     ASSUMPTION(
@@ -307,7 +294,7 @@ void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  rema
 {
     TMPROF_BLOCK();
 
-    if (!is_busy() || is_disabled())
+    if (!is_busy())
         return;
 
     vecu8 stdin_bytes;
@@ -325,7 +312,7 @@ void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  rema
     extern_code  externals{ &state };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
-    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 10.0 };
+    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 1.0 };
     float_64_bit const  run_time{
             std::min(
                 remaining_seconds,
@@ -344,7 +331,6 @@ void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  rema
 
     if (!flow.target_reached())
     {
-        failures.insert(node);
         statistics.errors.insert(make_problem_message(state.report(
             (state.error_message().empty() ? state.current_location_message() : " ") +
             "Unexpected divergence from the path."

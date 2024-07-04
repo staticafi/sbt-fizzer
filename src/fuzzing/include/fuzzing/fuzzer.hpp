@@ -92,7 +92,6 @@ private:
     enum STATE
     {
         STARTUP,
-        SENSITIVITY_FLOW,
         SENSITIVITY,
         TYPED_MINIMIZATION,
         MINIMIZATION,

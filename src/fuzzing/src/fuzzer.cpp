@@ -322,7 +322,6 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
 {
     static std::unordered_map<STATE, std::string> const  map {
         { STARTUP, "STARTUP" },
-        { SENSITIVITY_FLOW, "sensitivity_flow_analysis" },
         { SENSITIVITY, "sensitivity_analysis" },
         { TYPED_MINIMIZATION, "typed_minimization_analysis" },
         { MINIMIZATION, "minimization_analysis" },
@@ -926,13 +925,11 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                     return true;
                 break;
 
-            case SENSITIVITY_FLOW:
-                sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
-                break;
-
             case SENSITIVITY:
                 if (sensitivity.generate_next_input(stdin_bits))
                     return true;
+                sensitivity_flow.start(sensitivity.get_node(), num_driver_executions);
+                sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
                 break;
 
             case TYPED_MINIMIZATION:
@@ -1190,10 +1187,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             recorder().on_execution_results_available();
             break;
 
-        case SENSITIVITY_FLOW:
-            UNREACHABLE(); // This analysis does not generate inputs. It interprets the sala program for a given input. 
-            break;
-
         case SENSITIVITY:
             INVARIANT(sensitivity.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             recorder().on_execution_results_available();
@@ -1240,6 +1233,7 @@ void  fuzzer::do_cleanup()
     TMPROF_BLOCK();
 
     INVARIANT(
+        sensitivity_flow.is_ready() &&
         sensitivity.is_ready() &&
         bitshare.is_ready() &&
         typed_minimization.is_ready() &&
@@ -1249,13 +1243,10 @@ void  fuzzer::do_cleanup()
 
     switch (state)
     {
-        case SENSITIVITY_FLOW:
-            update_close_flags_from_root_to_node(sensitivity_flow.get_node());
-            collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
-            break;
         case SENSITIVITY:
             update_close_flags_from_root_to_node(sensitivity.get_node());
             collect_iid_pivots_from_sensitivity_results(sensitivity.get_changed_nodes());
+            collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
             break;
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
@@ -1453,7 +1444,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+    INVARIANT(sensitivity_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = nullptr;
     winner = primary_coverage_targets.get_best(max_input_width);
@@ -1487,16 +1478,9 @@ void  fuzzer::select_next_state()
             else
                 break;
         }
-        if (sensitivity_flow.is_disabled() || sensitivity_flow.failed_on(winner))
-        {
-            sensitivity.start(winner, num_driver_executions);
-            state = SENSITIVITY;
-        }
-        else
-        {
-            sensitivity_flow.start(winner, num_driver_executions);
-            state = SENSITIVITY_FLOW;
-        }
+
+        sensitivity.start(winner, num_driver_executions);
+        state = SENSITIVITY;
     }
     else if (!winner->bitshare_performed)
     {
