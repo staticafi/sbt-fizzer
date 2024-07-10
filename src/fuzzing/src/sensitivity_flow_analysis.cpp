@@ -250,9 +250,15 @@ sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const 
 {}
 
 
+bool  sensitivity_flow_analysis::is_disabled() const
+{
+    return program_ptr == nullptr;
+}
+
+
 void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
-    ASSUMPTION(is_ready());
+    ASSUMPTION(is_ready() && !is_disabled());
     ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
     ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
     ASSUMPTION(
@@ -294,7 +300,7 @@ void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  rema
 {
     TMPROF_BLOCK();
 
-    if (!is_busy())
+    if (!is_busy() || is_disabled())
         return;
 
     vecu8 stdin_bytes;

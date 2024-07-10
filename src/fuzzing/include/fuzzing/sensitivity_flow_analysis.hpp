@@ -31,6 +31,7 @@ struct  sensitivity_flow_analysis
 
     explicit sensitivity_flow_analysis(sala::Program const* sala_program_ptr);
 
+    bool  is_disabled() const;
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 

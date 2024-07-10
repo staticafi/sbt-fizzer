@@ -928,8 +928,11 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             case SENSITIVITY:
                 if (sensitivity.generate_next_input(stdin_bits))
                     return true;
-                sensitivity_flow.start(sensitivity.get_node(), num_driver_executions);
-                sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
+                if (!sensitivity_flow.is_disabled())
+                {
+                    sensitivity_flow.start(sensitivity.get_node(), num_driver_executions);
+                    sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
+                }
                 break;
 
             case TYPED_MINIMIZATION:
@@ -1233,7 +1236,6 @@ void  fuzzer::do_cleanup()
     TMPROF_BLOCK();
 
     INVARIANT(
-        sensitivity_flow.is_ready() &&
         sensitivity.is_ready() &&
         bitshare.is_ready() &&
         typed_minimization.is_ready() &&
@@ -1246,7 +1248,8 @@ void  fuzzer::do_cleanup()
         case SENSITIVITY:
             update_close_flags_from_root_to_node(sensitivity.get_node());
             collect_iid_pivots_from_sensitivity_results(sensitivity.get_changed_nodes());
-            collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
+            if (!sensitivity_flow.is_disabled())
+                collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
             break;
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
@@ -1444,7 +1447,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+    INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = nullptr;
     winner = primary_coverage_targets.get_best(max_input_width);
