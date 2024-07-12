@@ -47,6 +47,8 @@ enum BRANCHING_PREDICATE : natural_8_bit
     BP_GREATER_EQUAL   = 5
 };
 
+BRANCHING_PREDICATE opposite_predicate(BRANCHING_PREDICATE  predicate);
+
 
 struct  branching_coverage_info
 {
