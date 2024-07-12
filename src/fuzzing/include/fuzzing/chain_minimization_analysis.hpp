@@ -55,6 +55,14 @@ struct  chain_minimization_analysis
         std::vector<natural_8_bit>  value_bit_indices;
     };
 
+    struct  branching_info
+    {
+        branching_node*  node_ptr;
+        bool  direction;
+        BRANCHING_PREDICATE  predicate;
+        std::vector<natural_32_bit>  variable_indices;
+    };
+
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
@@ -111,7 +119,7 @@ private:
     branching_node*  node;
     stdin_bits_and_types_pointer  bits_and_types;
     natural_32_bit  execution_id;
-    execution_path  path;
+    std::vector<branching_info>  path;
     std::vector<mapping_to_input_bits>  from_variables_to_input;
     std::vector<type_of_input_bits>  types_of_variables;
 

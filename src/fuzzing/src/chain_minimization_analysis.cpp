@@ -65,6 +65,7 @@ void  chain_minimization_analysis::start(
 
     ASSUMPTION(is_ready());
     ASSUMPTION(node_ptr != nullptr && bits_and_types_ptr != nullptr);
+    ASSUMPTION(node_ptr->is_direction_unexplored(false) || node_ptr->is_direction_unexplored(true));
 
     state = BUSY;
     node = node_ptr;
@@ -72,23 +73,37 @@ void  chain_minimization_analysis::start(
     execution_id = execution_id_;
 
     path.clear();
+    path.push_back({
+            node,
+            node->is_direction_unexplored(false) ? false : true,
+            node->is_direction_unexplored(false) ? opposite_predicate(node->branching_predicate) : node->branching_predicate,
+            {}
+            });
     for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
-        path.push_back({ n->id, n->successor_direction(s) });
+        path.push_back({
+                n,
+                n->successor_direction(s),
+                n->successor_direction(s) ? n->branching_predicate : opposite_predicate(n->branching_predicate),
+                {}
+                });
     std::reverse(path.begin(), path.end());
 
-    std::map<natural_32_bit, std::pair<type_of_input_bits, std::vector<natural_8_bit> > >  start_bits_to_indices;
-    for (stdin_bit_index  idx : node->sensitive_stdin_bits)
-    {
-        natural_32_bit const  type_index = bits_and_types->type_index(idx);
-        natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
-        auto const  it_and_state = start_bits_to_indices.insert({ start_bit_idx, { bits_and_types->types.at(type_index), {} } });
-        it_and_state.first->second.second.push_back(idx - start_bit_idx);
-    }
+    std::map<natural_32_bit, std::pair<type_of_input_bits, std::vector<natural_8_bit> > >  start_bits_to_bit_indices;
+    for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
+        for (stdin_bit_index  idx : path.at(i).node_ptr->sensitive_stdin_bits)
+        {
+            natural_32_bit const  type_index = bits_and_types->type_index(idx);
+            natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
+            auto const  it_and_state = start_bits_to_bit_indices.insert({ start_bit_idx, { bits_and_types->types.at(type_index), {} } });
+            it_and_state.first->second.second.push_back(idx - start_bit_idx);
+        }
 
+    std::unordered_map<natural_32_bit, natural_32_bit>  start_bits_to_variable_indices;
     types_of_variables.clear();
     from_variables_to_input.clear();
-    for (auto&  start_and_type_and_indices : start_bits_to_indices)
+    for (auto&  start_and_type_and_indices : start_bits_to_bit_indices)
     {
+        start_bits_to_variable_indices.insert({ start_and_type_and_indices.first, (natural_32_bit)from_variables_to_input.size() });
         types_of_variables.push_back(start_and_type_and_indices.second.first);
         from_variables_to_input.push_back({ start_and_type_and_indices.first, {} });
         std::swap(from_variables_to_input.back().value_bit_indices, start_and_type_and_indices.second.second);
@@ -96,6 +111,20 @@ void  chain_minimization_analysis::start(
     }
 
     INVARIANT(!types_of_variables.empty());
+
+    for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
+    {
+        branching_info&  info = path.at(i);
+        std::unordered_set<natural_32_bit>  variable_indices;
+        for (stdin_bit_index  idx : info.node_ptr->sensitive_stdin_bits)
+        {
+            natural_32_bit const  type_index = bits_and_types->type_index(idx);
+            natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
+            variable_indices.insert(start_bits_to_variable_indices.at(start_bit_idx));
+        }
+        info.variable_indices.assign(variable_indices.begin(), variable_indices.end());
+        std::sort(info.variable_indices.begin(), info.variable_indices.end());
+    }
 
     progress_stage = SEED;
     current_variable_values.clear();
@@ -218,7 +247,7 @@ void  chain_minimization_analysis::process_execution_results(execution_trace_poi
 
     auto  it = trace_ptr->begin();
     auto  it_path = path.begin();
-    while (it != trace_ptr->end() && it_path != path.end() && it->id == it_path->first && it->direction == it_path->second)
+    while (it != trace_ptr->end() && it_path != path.end() && it->id == it_path->node_ptr->id && it->direction == it_path->direction)
     {
         ++it;
         ++it_path;
