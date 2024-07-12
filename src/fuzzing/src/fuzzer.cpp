@@ -1010,7 +1010,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     std::numeric_limits<branching_function_value_type>::max(),
                     std::numeric_limits<branching_function_value_type>::max(),
                     num_driver_executions,
-                    trace->front().xor_like_branching_function
+                    trace->front().xor_like_branching_function,
+                    trace->front().predicate
                     );
             construction_props.diverging_node = entry_branching;
 
@@ -1092,7 +1093,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value,
                         succ_info.value * succ_info.value,
                         num_driver_executions,
-                        succ_info.xor_like_branching_function
+                        succ_info.xor_like_branching_function,
+                        succ_info.predicate
                         )
                 });
 
