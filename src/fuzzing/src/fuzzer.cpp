@@ -1209,7 +1209,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
         case CHAIN_MINIMIZATION:
             INVARIANT(sensitivity.is_ready() && chain_minimization.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
-            chain_minimization.process_execution_results(trace);
+            chain_minimization.process_execution_results(trace, bits_and_types);
             if (chain_minimization.get_node()->is_direction_explored(false) && chain_minimization.get_node()->is_direction_explored(true))
             {
                 chain_minimization.stop();
@@ -1517,7 +1517,7 @@ void  fuzzer::select_next_state()
         bitshare.start(winner, num_driver_executions);
         state = BITSHARE;
     }
-    else if (!chain_minimization.is_disabled() &&
+    else if (!chain_minimization.is_disabled() && !chain_minimization.failed_on(winner) && 
              chain_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
     {
         INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
