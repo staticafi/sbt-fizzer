@@ -69,7 +69,7 @@ void  chain_minimization_analysis::start(
     path.clear();
     path.push_back({
             node,
-            node->best_trace->front().value,
+            node->best_trace->at(node->trace_index).value,
             node->is_direction_unexplored(false) ? false : true,
             node->is_direction_unexplored(false) ? opposite_predicate(node->branching_predicate) : node->branching_predicate,
             {}
@@ -84,14 +84,14 @@ void  chain_minimization_analysis::start(
                 });
     std::reverse(path.begin(), path.end());
 
-    std::map<natural_32_bit, std::pair<type_of_input_bits, std::vector<natural_8_bit> > >  start_bits_to_bit_indices;
+    std::map<natural_32_bit, std::pair<type_of_input_bits, std::unordered_set<natural_8_bit> > >  start_bits_to_bit_indices;
     for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
         for (stdin_bit_index  idx : path.at(i).node_ptr->sensitive_stdin_bits)
         {
             natural_32_bit const  type_index = bits_and_types->type_index(idx);
             natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
             auto const  it_and_state = start_bits_to_bit_indices.insert({ start_bit_idx, { bits_and_types->types.at(type_index), {} } });
-            it_and_state.first->second.second.push_back(idx - start_bit_idx);
+            it_and_state.first->second.second.insert(idx - start_bit_idx);
         }
 
     std::unordered_map<natural_32_bit, natural_32_bit>  start_bits_to_variable_indices;
@@ -102,7 +102,10 @@ void  chain_minimization_analysis::start(
         start_bits_to_variable_indices.insert({ start_and_type_and_indices.first, (natural_32_bit)from_variables_to_input.size() });
         types_of_variables.push_back(start_and_type_and_indices.second.first);
         from_variables_to_input.push_back({ start_and_type_and_indices.first, {} });
-        std::swap(from_variables_to_input.back().value_bit_indices, start_and_type_and_indices.second.second);
+        from_variables_to_input.back().value_bit_indices.assign(
+                start_and_type_and_indices.second.second.begin(),
+                start_and_type_and_indices.second.second.end()
+                );
         std::sort(from_variables_to_input.back().value_bit_indices.begin(), from_variables_to_input.back().value_bit_indices.end());
     }
 
@@ -225,9 +228,13 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 transform_shift(local_spaces.size() - 1UL);
                 break;
             }
-
-            stop_with_failure();
-            return false;
+            if (apply_best_gradient_step())
+                progress_stage = PARTIALS;
+            else
+            {
+                stop_with_failure();
+                return false;
+            }
         }
     }
 
@@ -256,7 +263,7 @@ void  chain_minimization_analysis::process_execution_results(
     {
         INVARIANT(trace_ptr->at(i).id == path.at(i).node_ptr->id);
         local_spaces.at(i).sample_value = trace_ptr->at(i).value;
-        if (trace_ptr->at(i).direction != path.at(i).direction)
+        if (i < local_spaces.size() - 1UL && trace_ptr->at(i).direction != path.at(i).direction)
         {
             NOT_IMPLEMENTED_YET();
             break;
@@ -278,7 +285,10 @@ void  chain_minimization_analysis::process_execution_results(
                 if (local_spaces.size() < path.size())
                     insert_next_local_space();
                 else
+                {
                     progress_stage = STEP;
+                    compute_gradient_step_shifts();
+                }
             }
             break;
         case STEP:
@@ -288,8 +298,6 @@ void  chain_minimization_analysis::process_execution_results(
                 for (auto const&  space : local_spaces)
                     gradient_step_results.back().values.push_back(space.sample_value);
             }
-            else if (apply_best_gradient_step())
-                progress_stage = PARTIALS;
             break;
         default: { UNREACHABLE(); } break;
     }
@@ -304,18 +312,14 @@ void  chain_minimization_analysis::process_execution_results(
 
 
 template<typename float_type>
-static float_type  find_best_floating_point_variable_delta(float_type const v0_target, float_64_bit const f0)
+static float_type  find_best_floating_point_variable_delta(float_type const x)
 {
-    float_64_bit constexpr  under_linear_estimate{ (float_64_bit)0.1 };
-    float_64_bit const  f0_abs_under_linear_estimate{ std::fabs(under_linear_estimate * f0) };
-    float_64_bit constexpr  half{ (float_64_bit)0.5 };
-    float_64_bit const  v0_abs{ std::max(std::fabs((float_64_bit)v0_target), 0.0001) }; 
-    float_64_bit  mult{ half };
-    while (v0_target + (float_type)((half * mult) * v0_abs) != v0_target && (half * mult) * v0_abs >= f0_abs_under_linear_estimate)
-        mult *= half;
-    float_type retval = (float_type)(mult * v0_abs);
-    INVARIANT(v0_target + retval != v0_target);
-    return retval;
+    int  x_exponent;
+    std::frexp(x, &x_exponent);
+    int const  delta_exponent{ x_exponent - (std::numeric_limits<decltype(x)>::digits >> 2) };
+    float_64_bit const  delta{ std::exp(delta_exponent) };
+    INVARIANT(x + delta != x);
+    return delta;
 }
 
 
@@ -353,10 +357,10 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
                 switch (types_of_variables.at(smallest_var_idx))
                 {
                     case type_of_input_bits::FLOAT32:
-                        shift = find_best_floating_point_variable_delta((float_32_bit)origin_in_reals.at(smallest_var_idx), path.at(space_index).value);
+                        shift = find_best_floating_point_variable_delta((float_32_bit)origin_in_reals.at(smallest_var_idx));
                         break;
                     case type_of_input_bits::FLOAT64:
-                        shift = find_best_floating_point_variable_delta(origin_in_reals.at(smallest_var_idx), path.at(space_index).value);
+                        shift = find_best_floating_point_variable_delta(origin_in_reals.at(smallest_var_idx));
                         break;
                     default:
                         shift = 1.0;
@@ -412,8 +416,7 @@ void  chain_minimization_analysis::insert_first_local_space()
     for (natural_32_bit  i = 0U, i_end = (natural_32_bit)types_of_variables.size(); i != i_end; ++i)
     {
         local_spaces.back().orthogonal_basis.push_back({});
-        reset(local_spaces.back().orthogonal_basis.back(), types_of_variables.size(), 0.0);
-        local_spaces.back().orthogonal_basis.back().at(i) = 1.0;
+        axis(local_spaces.back().orthogonal_basis.back(), types_of_variables.size(), i);
         local_spaces.back().variable_indices.push_back({ i });
     }
     reset(local_spaces.back().sample_shift, columns(local_spaces.back().orthogonal_basis), 0.0);
@@ -424,9 +427,10 @@ void  chain_minimization_analysis::insert_next_local_space()
 {
     ASSUMPTION(local_spaces.size() < path.size() && size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
 
-    local_space_of_branching const&  src_space{ local_spaces.back() };
     local_spaces.push_back({});
-    local_space_of_branching&  dst_space{ local_spaces.back() };
+
+    local_space_of_branching const&  src_space{ local_spaces.at(local_spaces.size() - 2UL) };
+    local_space_of_branching&  dst_space{ local_spaces.at(local_spaces.size() - 1UL) };
 
     float_64_bit const  gg{ dot_product(src_space.gradient, src_space.gradient) };
     if (!std::isfinite(gg) || gg < 1e-6)
@@ -434,8 +438,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         for (natural_32_bit  i = 0U; i != columns(src_space.orthogonal_basis); ++i)
         {
             dst_space.orthogonal_basis.push_back({});
-            reset(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), 0.0);
-            dst_space.orthogonal_basis.back().at(i) = 1.0;
+            axis(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), i);
             dst_space.variable_indices.push_back(dst_space.variable_indices.at(i));
         }
         dst_space.constraints = src_space.constraints;
@@ -447,20 +450,21 @@ void  chain_minimization_analysis::insert_next_local_space()
     auto const& collect_varible_indices_for_last_basis_vector = [&src_space, &dst_space]() {
         std::unordered_set<natural_32_bit>  indices;
         for (std::size_t  i = 0UL; i != columns(src_space.orthogonal_basis); ++i)
-            if (std::fabs(dot_product(dst_space.orthogonal_basis.back(), column(src_space.orthogonal_basis, i))) > 1e-6f)
+            if (std::fabs(at(dst_space.orthogonal_basis.back(), i)) > 1e-6f)
                 indices.insert(src_space.variable_indices.at(i).begin(), src_space.variable_indices.at(i).end());
 
-        while (dst_space.variable_indices.size() <= dst_space.orthogonal_basis.size())
+        while (dst_space.variable_indices.size() < dst_space.orthogonal_basis.size())
             dst_space.variable_indices.push_back({});
 
         dst_space.variable_indices.back().assign(indices.begin(), indices.end());
         std::sort(dst_space.variable_indices.back().begin(), dst_space.variable_indices.back().end());
     };
 
-    for (vecf64 const&  u : src_space.orthogonal_basis)
+    for (std::size_t  i = 0UL; i < columns(src_space.orthogonal_basis); ++i)
     {
-        vecf64  w{ u };
-        
+        vecf64  w;
+        axis(w, columns(src_space.orthogonal_basis), i);
+
         float_64_bit wg{ dot_product(w, src_space.gradient) };
         if (std::fabs(wg) < 1e-6)
         {
@@ -553,6 +557,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
     ASSUMPTION(local_spaces.size() == path.size() && size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
 
     gradient_step_shifts.clear();
+    gradient_step_results.clear();
 
     local_space_of_branching const&  space{ local_spaces.back() };
     float_64_bit const  gg{ dot_product(space.gradient, space.gradient) };
@@ -608,7 +613,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
 bool  chain_minimization_analysis::apply_best_gradient_step()
 {
     std::size_t  i_best{ gradient_step_results.size() };
-    for (std::size_t  i = 1UL; i < gradient_step_results.size(); ++i)
+    for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
     {
         {
             ASSUMPTION(gradient_step_results.at(i).values.size() == path.size());
