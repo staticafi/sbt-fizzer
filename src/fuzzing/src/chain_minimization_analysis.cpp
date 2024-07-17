@@ -314,12 +314,20 @@ void  chain_minimization_analysis::process_execution_results(
 template<typename float_type>
 static float_type  find_best_floating_point_variable_delta(float_type const x)
 {
+    ASSUMPTION(std::isfinite(x) && !std::isnan(x));
     int  x_exponent;
     std::frexp(x, &x_exponent);
     int const  delta_exponent{ x_exponent - (std::numeric_limits<decltype(x)>::digits >> 2) };
-    float_64_bit const  delta{ std::exp(delta_exponent) };
-    INVARIANT(x + delta != x);
-    return delta;
+    float_64_bit const  delta{ std::pow(2.0, delta_exponent) };
+    INVARIANT(std::isfinite(delta) && !std::isnan(delta));
+    if (std::isfinite(x + delta))
+    {
+        INVARIANT(x + delta != x);
+        return delta;
+    }
+    INVARIANT(std::isfinite(x - delta));
+    INVARIANT(x - delta != x);
+    return -delta;
 }
 
 
@@ -439,7 +447,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         {
             dst_space.orthogonal_basis.push_back({});
             axis(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), i);
-            dst_space.variable_indices.push_back(dst_space.variable_indices.at(i));
+            dst_space.variable_indices.push_back(src_space.variable_indices.at(i));
         }
         dst_space.constraints = src_space.constraints;
         reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
@@ -447,7 +455,7 @@ void  chain_minimization_analysis::insert_next_local_space()
     }
     float_64_bit const  g_len{ std::sqrt(gg) };
 
-    auto const& collect_varible_indices_for_last_basis_vector = [&src_space, &dst_space]() {
+    auto const& collect_variable_indices_for_last_basis_vector = [&src_space, &dst_space]() {
         std::unordered_set<natural_32_bit>  indices;
         for (std::size_t  i = 0UL; i != columns(src_space.orthogonal_basis); ++i)
             if (std::fabs(at(dst_space.orthogonal_basis.back(), i)) > 1e-6f)
@@ -469,7 +477,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         if (std::fabs(wg) < 1e-6)
         {
             dst_space.orthogonal_basis.push_back(w);
-            collect_varible_indices_for_last_basis_vector();
+            collect_variable_indices_for_last_basis_vector();
         }
         else
         {
@@ -482,7 +490,7 @@ void  chain_minimization_analysis::insert_next_local_space()
                 float_64_bit const  w_len{ std::sqrt(ww) };
                 scale(w, g_len / w_len);
                 dst_space.orthogonal_basis.push_back(w);
-                collect_varible_indices_for_last_basis_vector();
+                collect_variable_indices_for_last_basis_vector();
             }
         }
     }
@@ -491,10 +499,9 @@ void  chain_minimization_analysis::insert_next_local_space()
     if (src_info.predicate != BP_EQUAL)
     {
         dst_space.orthogonal_basis.push_back(src_space.gradient);
-        collect_varible_indices_for_last_basis_vector();
+        collect_variable_indices_for_last_basis_vector();
         vecf64  normal;
-        reset(normal, columns(src_space.orthogonal_basis), 0.0);
-        at(normal, columns(src_space.orthogonal_basis) - 1UL) = 1.0;
+        axis(normal, columns(src_space.orthogonal_basis), columns(src_space.orthogonal_basis) - 1UL);
         dst_space.constraints.push_back({
             normal,
             -src_info.value / gg,
@@ -505,13 +512,15 @@ void  chain_minimization_analysis::insert_next_local_space()
     for (spatial_constraint const&  constraint : src_space.constraints)
     {
         vecf64  normal;
-        for (vecf64 const&  u : src_space.orthogonal_basis)
+        for (vecf64 const&  u : dst_space.orthogonal_basis)
             normal.push_back(dot_product(constraint.normal, u) / length(u));
-        dst_space.constraints.push_back({
-            normal,
-            constraint.param,
-            constraint.predicate
-        });
+        float_64_bit const  denom{ dot_product(constraint.normal, mul(dst_space.orthogonal_basis, normal)) };
+        if (std::fabs(denom) > 1e-6f)
+            dst_space.constraints.push_back({
+                normal,
+                constraint.param * (dot_product(constraint.normal, constraint.normal) / denom),
+                constraint.predicate
+            });
     }
 
     reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
@@ -552,6 +561,82 @@ bool  chain_minimization_analysis::are_constraints_satisfied(std::vector<spatial
 }
 
 
+bool  chain_minimization_analysis::clip_shift_by_constraints(
+        std::vector<spatial_constraint> const& constraints,
+        vecf64 const&  gradient,
+        vecf64&  shift,
+        std::size_t const  max_iterations
+        ) const
+{
+    for (std::size_t  iteration = 0UL; iteration != max_iterations; ++iteration)
+    {
+        bool  clipped{ false };
+        for (spatial_constraint const&  constraint : constraints)
+        {
+            vecf64  direction{ component_of_first_orthogonal_to_second(constraint.normal, gradient) };
+            if (dot_product(direction, direction) < 0.01 * dot_product(constraint.normal, constraint.normal))
+                direction = constraint.normal;
+
+            float_64_bit const  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
+            float_64_bit const  delta{ constraint.param - param };
+            float_64_bit const  scale{ dot_product(constraint.normal, constraint.normal) / dot_product(direction, constraint.normal) };
+            switch (constraint.predicate)
+            {
+                case BP_UNEQUAL:
+                    if (delta == 0.0)
+                    {
+                        add_scaled(shift, (iteration % 2) == 0 ? 0.1 : -0.1, direction);
+                        clipped = true;
+                    }
+                    break;
+                case BP_LESS:
+                    if (delta == 0.0)
+                    {
+                        add_scaled(shift, -0.1, direction);
+                        clipped = true;
+                    }
+                    else if (delta < 0.0)
+                    {
+                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        clipped = true;
+                    }
+                    break;
+                case BP_LESS_EQUAL:
+                    if (delta < 0.0)
+                    {
+                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        clipped = true;
+                    }
+                    break;
+                case BP_GREATER:
+                    if (delta == 0.0)
+                    {
+                        add_scaled(shift, 0.1, direction);
+                        clipped = true;
+                    }
+                    else if (delta > 0.0)
+                    {
+                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        clipped = true;
+                    }
+                    break;
+                case BP_GREATER_EQUAL:
+                    if (delta > 0.0)
+                    {
+                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        clipped = true;
+                    }
+                    break;
+                default: { UNREACHABLE(); } break;
+            }
+        }
+        if (!clipped)
+            return true;
+    }
+    return false;
+}
+
+
 bool  chain_minimization_analysis::compute_gradient_step_shifts()
 {
     ASSUMPTION(local_spaces.size() == path.size() && size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
@@ -565,44 +650,65 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
         return false;
 
     float_64_bit  lambda0{ -path.back().value / gg };
+    INVARIANT(std::isfinite(lambda0) && !std::isnan(lambda0) && ([&space, lambda0]() -> bool {
+        for (auto const coord : space.gradient)
+        {
+            float_64_bit const  x{ coord * lambda0 };
+            if (!std::isfinite(x) || std::isnan(x))
+                return false;
+        }
+        return true;
+    }()));
+
     std::vector<float_64_bit>  lambdas;
-    switch (path.back().predicate)
     {
-        case BP_EQUAL:
-            ASSUMPTION(path.back().value != 0.0 && lambda0 != 0.0);
-            lambdas.assign({ lambda0 });
-            break;
-        case BP_UNEQUAL:
-            ASSUMPTION(path.back().value == 0.0);
-            lambdas.assign({ 1000.0, 100.0, 10.0, -10.0, -100.0, -1000.0 });
-            break;
-        case BP_LESS:
-            ASSUMPTION(path.back().value >= 0.0 && lambda0 <= 0.0);
-            lambdas.assign({ 1000.0, 100.0, 10.0 });
-            scale(lambdas, lambda0 > -1e-6 ? -1.0 : lambda0);
-            break;
-        case BP_LESS_EQUAL:
-            ASSUMPTION(path.back().value > 0.0 && lambda0 < 0.0);
-            lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
-            scale(lambdas, lambda0);
-            break;
-        case BP_GREATER:
-            ASSUMPTION(path.back().value <= 0.0 && lambda0 >= 0.0);
-            lambdas.assign({ 1000.0, 100.0, 10.0 });
-            scale(lambdas, lambda0 < 1e-6 ? 1.0 : lambda0);
-            break;
-        case BP_GREATER_EQUAL:
-            ASSUMPTION(path.back().value < 0.0 && lambda0 > 0.0);
-            lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
-            scale(lambdas, lambda0);
-            break;
-        default: { UNREACHABLE(); } break;
+        std::vector<float_64_bit>  raw_lambdas;
+        switch (path.back().predicate)
+        {
+            case BP_EQUAL:
+                ASSUMPTION(path.back().value != 0.0 && lambda0 != 0.0);
+                raw_lambdas.assign({ lambda0 });
+                break;
+            case BP_UNEQUAL:
+                ASSUMPTION(path.back().value == 0.0);
+                raw_lambdas.assign({ 1000.0, 100.0, 10.0, -10.0, -100.0, -1000.0 });
+                break;
+            case BP_LESS:
+                ASSUMPTION(path.back().value >= 0.0 && lambda0 <= 0.0);
+                raw_lambdas.assign({ 1000.0, 100.0, 10.0 });
+                scale(raw_lambdas, lambda0 > -1e-6 ? -1.0 : lambda0);
+                break;
+            case BP_LESS_EQUAL:
+                ASSUMPTION(path.back().value > 0.0 && lambda0 < 0.0);
+                raw_lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
+                scale(raw_lambdas, lambda0);
+                break;
+            case BP_GREATER:
+                ASSUMPTION(path.back().value <= 0.0 && lambda0 >= 0.0);
+                raw_lambdas.assign({ 1000.0, 100.0, 10.0 });
+                scale(raw_lambdas, lambda0 < 1e-6 ? 1.0 : lambda0);
+                break;
+            case BP_GREATER_EQUAL:
+                ASSUMPTION(path.back().value < 0.0 && lambda0 > 0.0);
+                raw_lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
+                scale(raw_lambdas, lambda0);
+                break;
+            default: { UNREACHABLE(); } break;
+        }
+
+        for (auto const  lambda : raw_lambdas)
+            if (std::isfinite(lambda) && !std::isnan(lambda))
+                lambdas.push_back(lambda);
+        if (lambdas.empty())
+            lambdas.push_back(0.5 * lambda0); // This is for numerical stability - when the numbers are big - to make them smaller.
+
+        std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
     }
 
     for (float_64_bit const  lambda : lambdas)
     {
-        vecf64 const  shift{ scale_cp(space.gradient, lambda) };
-        if (are_constraints_satisfied(space.constraints, shift))
+        vecf64  shift{ scale_cp(space.gradient, lambda) };
+        if (clip_shift_by_constraints(space.constraints, space.gradient, shift))
             gradient_step_shifts.push_back(shift);
     }
 
