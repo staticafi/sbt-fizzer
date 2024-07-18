@@ -220,7 +220,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"gradient_steps\": " << results.chain_minimization_statistics.gradient_steps << ",\n"
          << shift << shift << "\"start_calls\": " << results.chain_minimization_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls_regular\": " << results.chain_minimization_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.chain_minimization_statistics.stop_calls_early << "\n"
+         << shift << shift << "\"stop_calls_early\": " << results.chain_minimization_statistics.stop_calls_early << ",\n"
          << shift << shift << "\"stop_calls_failed\": " << results.chain_minimization_statistics.stop_calls_failed << "\n"
          << shift << "},\n"
          << shift << "\"typed_minimization_analysis\": {\n"
