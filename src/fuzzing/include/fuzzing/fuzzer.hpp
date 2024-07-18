@@ -83,6 +83,7 @@ struct  fuzzer final
 
     sensitivity_flow_analysis::performance_statistics const&  get_sensitivity_flow_statistics() const { return sensitivity_flow.get_statistics(); }
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
+    chain_minimization_analysis::performance_statistics const&  get_chain_minimization_statistics() const { return chain_minimization.get_statistics(); }
     typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
