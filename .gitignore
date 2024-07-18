@@ -11,4 +11,7 @@
 /CMakeSettings.json
 /cmake-build-*
 **/__pycache__
-/benchmarks/pending/__debug__*
+/benchmarks/fast/_*
+/benchmarks/medium/_*
+/benchmarks/slow/_*
+/benchmarks/pending/_*
