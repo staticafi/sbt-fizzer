@@ -177,7 +177,7 @@ void  chain_minimization_analysis::stop_with_failure()
         return;
 
     stopped_early = true;
-    failed_nodes.insert(node);
+    // failed_nodes.insert(node);
 
     node->minimization_performed = true;
     node->minimization_start_execution = execution_id;
