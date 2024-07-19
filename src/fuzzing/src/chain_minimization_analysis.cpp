@@ -39,6 +39,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , local_spaces{}
     , gradient_step_shifts{}
     , gradient_step_results{}
+    , recovery{}
     , statistics{}
 {}
 
@@ -135,6 +136,8 @@ void  chain_minimization_analysis::start(
     gradient_step_shifts.clear();
     gradient_step_results.clear();
 
+    recovery = {};
+
     ++statistics.start_calls;
 
     // recorder().on_typed_minimization_start(node, from_variables_to_input, types_of_variables, bits_and_types);
@@ -220,7 +223,7 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
             progress_stage = STEP;
             gradient_step_results.clear();
         }
-        else // progress_stage == STEP
+        else if (progress_stage == STEP)
         {
             if (gradient_step_results.size() < gradient_step_shifts.size())
             {
@@ -235,6 +238,24 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 stop_with_failure();
                 return false;
             }
+        }
+        else // progress_stage == RECOVERY
+        {
+            if (__compute_gradient_step_shifts(
+                    recovery.sample_shifts,
+                    local_spaces.at(recovery.space_index),
+                    recovery.value,
+                    path.at(recovery.space_index).predicate,
+                    &recovery.shift
+                    ))
+            {
+                local_spaces.at(recovery.space_index).sample_shift = recovery.sample_shifts.at(recovery.sample_values.size());
+                transform_shift(recovery.space_index);
+                break;
+            }
+
+            stop_with_failure();
+            return false;
         }
     }
 
@@ -258,22 +279,43 @@ void  chain_minimization_analysis::process_execution_results(
 
     ++num_executions;
 
-    std::size_t  i = 0UL;
-    for (std::size_t const  n = std::min(local_spaces.size(), trace_ptr->size()); i != n; ++i)
+    if (trace_ptr->empty())
     {
-        INVARIANT(trace_ptr->at(i).id == path.at(i).node_ptr->id);
-        local_spaces.at(i).sample_value = trace_ptr->at(i).value;
-        if (i < local_spaces.size() - 1UL && trace_ptr->at(i).direction != path.at(i).direction)
-        {
-            NOT_IMPLEMENTED_YET();
-            break;
-        }
+        // We diverged even before the first branching in the program (perhaps due to some crash, like division by zero).
+        NOT_IMPLEMENTED_YET();
     }
 
-    if (i == 0UL)
+    std::size_t  space_index;
     {
-        // The trace is empty => we diverged even before the first branching in the program (perhaps due to some crash, like division by zero).
-        NOT_IMPLEMENTED_YET();
+        std::size_t  i = 0UL;
+        for (std::size_t const  n = std::min(local_spaces.size(), trace_ptr->size()); i != n; ++i)
+        {
+            INVARIANT(trace_ptr->at(i).id == path.at(i).node_ptr->id);
+            local_spaces.at(i).sample_value = trace_ptr->at(i).value;
+            if (i < local_spaces.size() - 1UL && trace_ptr->at(i).direction != path.at(i).direction)
+            {
+                if (progress_stage == RECOVERY)
+                    NOT_IMPLEMENTED_YET();
+                
+                recovery.stage_backup = progress_stage;
+                recovery.space_index = i;
+                recovery.shift = local_spaces.at(i).sample_shift;
+                recovery.value = local_spaces.at(i).sample_value;
+                recovery.sample_shifts.clear();
+                recovery.sample_values.clear();
+
+                progress_stage = RECOVERY;
+
+                break;
+            }
+        }
+
+        space_index = i;
+    }
+
+    if (progress_stage == RECOVERY && space_index == local_spaces.size())
+    {
+        progress_stage = recovery.stage_backup;
     }
 
     switch (progress_stage)
@@ -300,6 +342,8 @@ void  chain_minimization_analysis::process_execution_results(
                     gradient_step_results.back().values.push_back(space.sample_value);
             }
             ++statistics.gradient_steps;
+            break;
+        case RECOVERY:
             break;
         default: { UNREACHABLE(); } break;
     }
@@ -696,6 +740,89 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
     }
 
     return !gradient_step_shifts.empty();
+}
+
+
+bool  chain_minimization_analysis::__compute_gradient_step_shifts(
+        std::vector<vecf64>&  resulting_shifts,
+        local_space_of_branching const&  space,
+        float_64_bit const  value,
+        BRANCHING_PREDICATE const  predicate,
+        vecf64 const* const  shift_ptr
+        )
+{
+    float_64_bit const  gg{ dot_product(space.gradient, space.gradient) };
+    if (!std::isfinite(gg) || gg < 1e-6)
+        return false;
+
+    float_64_bit const  lambda0{ -value / gg };
+    INVARIANT(std::isfinite(lambda0) && !std::isnan(lambda0) && ([&space, lambda0]() -> bool {
+        for (auto const coord : space.gradient)
+        {
+            float_64_bit const  x{ coord * lambda0 };
+            if (!std::isfinite(x) || std::isnan(x))
+                return false;
+        }
+        return true;
+    }()));
+    float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
+
+    std::vector<float_64_bit>  lambdas;
+    {
+        std::vector<float_64_bit>  raw_lambdas;
+        switch (predicate)
+        {
+            case BP_EQUAL:
+                ASSUMPTION(value != 0.0 && lambda0 != 0.0);
+                raw_lambdas.assign({ lambda0 });
+                break;
+            case BP_UNEQUAL:
+                ASSUMPTION(value == 0.0);
+                raw_lambdas.assign({ lambda0 - delta, lambda0 + delta });
+                break;
+            case BP_LESS:
+                ASSUMPTION(value >= 0.0 && lambda0 <= 0.0);
+                raw_lambdas.assign({ lambda0 - delta });
+                break;
+            case BP_LESS_EQUAL:
+                ASSUMPTION(value > 0.0 && lambda0 < 0.0);
+                raw_lambdas.assign({ lambda0 - delta, lambda0 });
+                break;
+            case BP_GREATER:
+                ASSUMPTION(value <= 0.0 && lambda0 >= 0.0);
+                raw_lambdas.assign({ lambda0 + delta });
+                break;
+            case BP_GREATER_EQUAL:
+                ASSUMPTION(value < 0.0 && lambda0 > 0.0);
+                raw_lambdas.assign({ lambda0, lambda0 + delta });
+                break;
+            default: { UNREACHABLE(); } break;
+        }
+
+        for (auto const  lambda : raw_lambdas)
+            if (std::isfinite(lambda) && !std::isnan(lambda))
+                lambdas.push_back(lambda);
+        if (lambdas.empty())
+            lambdas.push_back(0.5 * lambda0); // This is for numerical stability - when the numbers are big - to make them smaller.
+
+        std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
+    }
+
+    for (float_64_bit const  lambda : lambdas)
+    {
+        vecf64  shift;
+        if (shift_ptr != nullptr)
+        {
+            shift = *shift_ptr;
+            add_scaled(shift, lambda, space.gradient);
+        }
+        else
+            shift = scale_cp(space.gradient, lambda);
+        if (clip_shift_by_constraints(space.constraints, space.gradient, shift))
+            resulting_shifts.push_back(shift);
+    }
+
+    return !resulting_shifts.empty();
 }
 
 
