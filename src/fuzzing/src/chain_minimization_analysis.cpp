@@ -241,15 +241,10 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
         }
         else // progress_stage == RECOVERY
         {
-            if (__compute_gradient_step_shifts(
-                    recovery.sample_shifts,
-                    local_spaces.at(recovery.space_index),
-                    recovery.value,
-                    path.at(recovery.space_index).predicate,
-                    &recovery.shift
-                    ))
+            if (!recovery.sample_shifts.empty())
             {
-                local_spaces.at(recovery.space_index).sample_shift = recovery.sample_shifts.at(recovery.sample_values.size());
+                local_spaces.at(recovery.space_index).sample_shift = recovery.sample_shifts.back();
+                recovery.sample_shifts.pop_back();
                 transform_shift(recovery.space_index);
                 break;
             }
@@ -282,41 +277,82 @@ void  chain_minimization_analysis::process_execution_results(
     if (trace_ptr->empty())
     {
         // We diverged even before the first branching in the program (perhaps due to some crash, like division by zero).
-        NOT_IMPLEMENTED_YET();
+        stop_with_failure();
+        return;
     }
 
-    std::size_t  space_index;
+    std::size_t  last_index{ 0UL };
+    for (std::size_t const  n = std::min({ local_spaces.size(), trace_ptr->size() }); last_index != n; ++last_index)
     {
-        std::size_t  i = 0UL;
-        for (std::size_t const  n = std::min(local_spaces.size(), trace_ptr->size()); i != n; ++i)
+        if (trace_ptr->at(last_index).id != path.at(last_index).node_ptr->id)
+            break;
+        local_spaces.at(last_index).sample_value = trace_ptr->at(last_index).value;
+        if (last_index < local_spaces.size() - 1UL && trace_ptr->at(last_index).direction != path.at(last_index).direction)
+            break;
+    }
+
+    if (last_index != local_spaces.size())
+    {
+        if (progress_stage != RECOVERY)
         {
-            INVARIANT(trace_ptr->at(i).id == path.at(i).node_ptr->id);
-            local_spaces.at(i).sample_value = trace_ptr->at(i).value;
-            if (i < local_spaces.size() - 1UL && trace_ptr->at(i).direction != path.at(i).direction)
+            recovery = {};
+            recovery.stage_backup = progress_stage;
+            recovery.shift_backup = local_spaces.at(last_index).sample_shift;
+            recovery.value_backup = local_spaces.at(last_index).sample_value;
+            recovery.space_index = last_index;
+            recovery.shift_best = recovery.shift_backup;
+            recovery.value_best = recovery.value_backup;
+            __compute_gradient_step_shifts(
+                    recovery.sample_shifts,
+                    local_spaces.at(recovery.space_index),
+                    recovery.value_best,
+                    path.at(recovery.space_index).predicate,
+                    &recovery.shift_best
+                    );
+            std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
+
+            progress_stage = RECOVERY;
+        }
+        else
+        {
+            if (recovery.space_index == last_index)
             {
-                if (progress_stage == RECOVERY)
-                    NOT_IMPLEMENTED_YET();
-                
-                recovery.stage_backup = progress_stage;
-                recovery.space_index = i;
-                recovery.shift = local_spaces.at(i).sample_shift;
-                recovery.value = local_spaces.at(i).sample_value;
+                if (std::fabs(local_spaces.at(recovery.space_index).sample_value) <= std::fabs(recovery.value_best))
+                {
+                    recovery.shift_best = local_spaces.at(last_index).sample_shift;
+                    recovery.value_best = local_spaces.at(last_index).sample_value;
+                    std::size_t const  old_size{ recovery.sample_shifts.size() };
+                    __compute_gradient_step_shifts(
+                            recovery.sample_shifts,
+                            local_spaces.at(recovery.space_index),
+                            recovery.value_best,
+                            path.at(recovery.space_index).predicate,
+                            &recovery.shift_best
+                            );
+                    std::reverse(std::next(recovery.sample_shifts.begin(), old_size), recovery.sample_shifts.end());
+                }
+            }
+            else if (recovery.space_index < last_index)
+            {
+                recovery.shift_backup = local_spaces.at(last_index).sample_shift;
+                recovery.value_backup = local_spaces.at(last_index).sample_value;
+                recovery.space_index = last_index;
+                recovery.shift_best = recovery.shift_backup;
+                recovery.value_best = recovery.value_backup;
                 recovery.sample_shifts.clear();
-                recovery.sample_values.clear();
-
-                progress_stage = RECOVERY;
-
-                break;
+                __compute_gradient_step_shifts(
+                        recovery.sample_shifts,
+                        local_spaces.at(recovery.space_index),
+                        recovery.value_best,
+                        path.at(recovery.space_index).predicate,
+                        &recovery.shift_best
+                        );
+                std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
             }
         }
-
-        space_index = i;
     }
-
-    if (progress_stage == RECOVERY && space_index == local_spaces.size())
-    {
+    else if (progress_stage == RECOVERY)
         progress_stage = recovery.stage_backup;
-    }
 
     switch (progress_stage)
     {

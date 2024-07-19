@@ -85,11 +85,12 @@ struct  chain_minimization_analysis
     struct  divergence_recovery_props
     {
         PROGRESS_STAGE  stage_backup{ RECOVERY };
-        std::size_t  space_index{ 0UL };
-        vecf64  shift{};
-        float_64_bit  value{ 0.0 };
+        vecf64  shift_backup{};
+        float_64_bit  value_backup{ 0.0 };
+        std::size_t  space_index{ std::numeric_limits<std::size_t>::max() };
+        vecf64  shift_best{};
+        float_64_bit  value_best{ std::numeric_limits<float_64_bit>::max() };
         std::vector<vecf64>  sample_shifts{};
-        std::vector<float_64_bit>  sample_values{};
     };
 
     struct  performance_statistics
