@@ -834,6 +834,37 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
             if (!all_finite)
                 continue;
         }
+
+        float_64_bit const  i_value{ gradient_step_results.at(i).values.back() };
+
+        {
+            bool  is_improving{ false };
+            switch (path.back().predicate)
+            {
+                case BP_EQUAL:
+                    if (std::fabs(i_value) < std::fabs(path.back().value))
+                        is_improving = true;
+                    break;
+                case BP_UNEQUAL:
+                    if (std::fabs(i_value) > std::fabs(path.back().value))
+                        is_improving = true;
+                    break;
+                case BP_LESS:
+                case BP_LESS_EQUAL:
+                    if (i_value < path.back().value)
+                        is_improving = true;
+                    break;
+                case BP_GREATER:
+                case BP_GREATER_EQUAL:
+                    if (i_value > path.back().value)
+                        is_improving = true;
+                    break;
+                default: { UNREACHABLE(); } break;
+            }
+            if (!is_improving)
+                continue;
+        }
+
         if (i_best == gradient_step_results.size())
         {
             i_best = i;
@@ -841,29 +872,8 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
         }
 
         float_64_bit const  i_best_value{ gradient_step_results.at(i_best).values.back() };
-        float_64_bit const  i_value{ gradient_step_results.at(i).values.back() };
-        switch (path.back().predicate)
-        {
-            case BP_EQUAL:
-                if (std::fabs(i_value) < std::fabs(path.back().value) && std::fabs(i_value) < std::fabs(i_best_value))
-                    i_best = i;
-                break;
-            case BP_UNEQUAL:
-                if (std::fabs(i_value) > std::fabs(path.back().value) && std::fabs(i_value) < std::fabs(i_best_value))
-                    i_best = i;
-                break;
-            case BP_LESS:
-            case BP_LESS_EQUAL:
-                if (i_value < path.back().value && std::fabs(i_value) < std::fabs(i_best_value))
-                    i_best = i;
-                break;
-            case BP_GREATER:
-            case BP_GREATER_EQUAL:
-                if (i_value > path.back().value && std::fabs(i_value) < std::fabs(i_best_value))
-                    i_best = i;
-                break;
-            default: { UNREACHABLE(); } break;
-        }
+        if (std::fabs(i_value) < std::fabs(i_best_value))
+            i_best = i;
     }
 
     if (i_best == gradient_step_results.size())
