@@ -427,13 +427,20 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
             {
                 set(space.sample_shift, 0.0);
                 float_64_bit&  shift{ at(space.sample_shift, partial_index) };
+
+                auto const  float_shift_pivot = [this](natural_32_bit const  i) {
+                    float_64_bit const  x{ std::fabs(origin_in_reals.at(i)) };
+                    float_64_bit const  fx{ std::fabs(path.at(local_spaces.size() - 1UL).value) };
+                    return x + 0.1 * (fx - x);
+                };
+
                 switch (types_of_variables.at(smallest_var_idx))
                 {
                     case type_of_input_bits::FLOAT32:
-                        shift = small_delta_around((float_32_bit)origin_in_reals.at(smallest_var_idx));
+                        shift = small_delta_around((float_32_bit)float_shift_pivot(smallest_var_idx));
                         break;
                     case type_of_input_bits::FLOAT64:
-                        shift = small_delta_around(origin_in_reals.at(smallest_var_idx));
+                        shift = small_delta_around(float_shift_pivot(smallest_var_idx));
                         break;
                     default:
                         shift = 1.0;
@@ -506,7 +513,8 @@ void  chain_minimization_analysis::insert_next_local_space()
     local_space_of_branching&  dst_space{ local_spaces.at(local_spaces.size() - 1UL) };
 
     float_64_bit const  gg{ dot_product(src_space.gradient, src_space.gradient) };
-    if (!std::isfinite(gg) || gg < 1e-6)
+    float_64_bit const  gg_inv{ 1.0 / gg };
+    if (!std::isfinite(gg) || std::isnan(gg) || !std::isfinite(gg_inv) || std::isnan(gg_inv))
     {
         for (natural_32_bit  i = 0U; i != columns(src_space.orthogonal_basis); ++i)
         {
@@ -546,7 +554,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         }
         else
         {
-            add_scaled(w, -dot_product(w, src_space.gradient) / gg, src_space.gradient);
+            add_scaled(w, -wg * gg_inv, src_space.gradient);
             for (vecf64 const&  v : dst_space.orthogonal_basis)
                 add_scaled(w, -dot_product(w, v) / dot_product(v, v), v);
             float_64_bit const  ww{ dot_product(w, w) };
@@ -569,7 +577,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         axis(normal, columns(src_space.orthogonal_basis), columns(src_space.orthogonal_basis) - 1UL);
         dst_space.constraints.push_back({
             normal,
-            -src_info.value / gg,
+            -src_info.value * gg_inv,
             src_info.predicate
         });
     }
@@ -713,21 +721,34 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
     gradient_step_shifts.clear();
     gradient_step_results.clear();
 
+    // __compute_gradient_step_shifts(
+    //         gradient_step_shifts,
+    //         local_spaces.back(),
+    //         path.back().value,
+    //         path.back().predicate,
+    //         nullptr
+    //         );
+
     local_space_of_branching const&  space{ local_spaces.back() };
-    float_64_bit const  gg{ dot_product(space.gradient, space.gradient) };
-    if (!std::isfinite(gg) || gg < 1e-6)
+    float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
+    if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
         return false;
 
-    float_64_bit const  lambda0{ -path.back().value / gg };
-    INVARIANT(std::isfinite(lambda0) && !std::isnan(lambda0) && ([&space, lambda0]() -> bool {
-        for (auto const coord : space.gradient)
-        {
-            float_64_bit const  x{ coord * lambda0 };
-            if (!std::isfinite(x) || std::isnan(x))
-                return false;
-        }
-        return true;
-    }()));
+    float_64_bit const  lambda0{ -path.back().value * gg_inv };
+    if (!std::isfinite(lambda0)
+            || std::isnan(lambda0)
+            || ![&space, lambda0]() -> bool {
+                    for (auto const coord : space.gradient)
+                    {
+                        float_64_bit const  x{ coord * lambda0 };
+                        if (!std::isfinite(x) || std::isnan(x))
+                            return false;
+                    }
+                    return true;
+                }()
+            )
+        return false;
+
     float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
 
     std::vector<float_64_bit>  lambdas;
@@ -790,20 +811,24 @@ bool  chain_minimization_analysis::__compute_gradient_step_shifts(
         vecf64 const* const  shift_ptr
         )
 {
-    float_64_bit const  gg{ dot_product(space.gradient, space.gradient) };
-    if (!std::isfinite(gg) || gg < 1e-6)
+    float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
+    if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
         return false;
 
-    float_64_bit const  lambda0{ -value / gg };
-    INVARIANT(std::isfinite(lambda0) && !std::isnan(lambda0) && ([&space, lambda0]() -> bool {
-        for (auto const coord : space.gradient)
-        {
-            float_64_bit const  x{ coord * lambda0 };
-            if (!std::isfinite(x) || std::isnan(x))
-                return false;
-        }
-        return true;
-    }()));
+    float_64_bit const  lambda0{ -value * gg_inv };
+    if (!std::isfinite(lambda0)
+            || std::isnan(lambda0)
+            || ![&space, lambda0]() -> bool {
+                    for (auto const coord : space.gradient)
+                    {
+                        float_64_bit const  x{ coord * lambda0 };
+                        if (!std::isfinite(x) || std::isnan(x))
+                            return false;
+                    }
+                    return true;
+                }()
+            )
+        return false;
     float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
 
     std::vector<float_64_bit>  lambdas;
