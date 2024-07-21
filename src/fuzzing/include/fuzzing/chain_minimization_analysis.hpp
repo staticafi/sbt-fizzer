@@ -25,7 +25,8 @@ struct  chain_minimization_analysis
     {
         PARTIALS,
         STEP,
-        RECOVERY
+        RECOVERY,
+        STABILITY
     };
 
     union  typed_value_storage
@@ -93,6 +94,13 @@ struct  chain_minimization_analysis
         std::vector<vecf64>  sample_shifts{};
     };
 
+    struct  stability_increasing_props
+    {
+        vecf64  origin_in_reals_backup{};
+        std::size_t  step_index{ std::numeric_limits<std::size_t>::max() };
+        vecf64  shift{};
+    };
+
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
@@ -153,7 +161,11 @@ private:
             vecf64 const*  shift_ptr = nullptr
             );
     bool  apply_best_gradient_step();
+    bool  compute_stability_shift_for_origin();
+    void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, std::vector<float_64_bit> const&  values);
     void  load_origin(vecb const&  bits);
+    void  load_origin_to(vecb const&  bits, std::vector<typed_value_storage>&  out_origin, vecf64&  out_origin_in_reals);
+
     void  store_shifted_origin(vecb&  bits);
 
     STATE  state;
@@ -174,6 +186,7 @@ private:
     std::vector<vecf64>  gradient_step_shifts;
     std::vector<gradient_step_result>  gradient_step_results;
     divergence_recovery_props  recovery;
+    stability_increasing_props  stability;
 
     performance_statistics  statistics;
 };

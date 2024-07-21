@@ -40,6 +40,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , gradient_step_shifts{}
     , gradient_step_results{}
     , recovery{}
+    , stability{}
     , statistics{}
 {}
 
@@ -137,6 +138,7 @@ void  chain_minimization_analysis::start(
     gradient_step_results.clear();
 
     recovery = {};
+    stability = {};
 
     ++statistics.start_calls;
 
@@ -246,13 +248,15 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
             }
             if (apply_best_gradient_step())
                 progress_stage = PARTIALS;
+            else if (compute_stability_shift_for_origin())
+                progress_stage = STABILITY;
             else
             {
                 stop_with_failure();
                 return false;
             }
         }
-        else // progress_stage == RECOVERY
+        else if (progress_stage == RECOVERY)
         {
             if (!recovery.sample_shifts.empty())
             {
@@ -265,6 +269,18 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
             stop_with_failure();
             return false;
         }
+        else if (progress_stage == STABILITY)
+        {
+            if (stability.step_index >= gradient_step_shifts.size())
+            {
+                stop_with_failure();
+                return false;
+            }
+            local_spaces.at(recovery.space_index).sample_shift = stability.shift;
+            transform_shift(local_spaces.size() - 1UL);
+            break;
+        }
+        else { UNREACHABLE(); }
     }
 
     store_shifted_origin(bits_ref);
@@ -396,6 +412,19 @@ void  chain_minimization_analysis::process_execution_results(
             ++statistics.gradient_steps;
             break;
         case RECOVERY:
+            // Nothing to do.
+            break;
+        case STABILITY:
+            {
+                std::vector<float_64_bit>  values;
+                for (auto const&  space : local_spaces)
+                    values.push_back(space.sample_value);
+                commit_execution_results(bits_and_types_ptr, values);
+                if (std::equal(origin_in_reals.cbegin(), origin_in_reals.cend(), stability.origin_in_reals_backup.cbegin()))
+                    stability = {}; // We failed to stabilize the computation by shifting the origin towards the zero vector.
+                else
+                    progress_stage = PARTIALS;
+            }
             break;
         default: { UNREACHABLE(); } break;
     }
@@ -879,23 +908,55 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
     if (i_best == gradient_step_results.size())
         return false;
 
-    progress_stage = PARTIALS;
-
     gradient_step_result const&  best_result{ gradient_step_results.at(i_best) };
+    commit_execution_results(best_result.bits_and_types_ptr, best_result.values);
 
-    bits_and_types = best_result.bits_and_types_ptr;
+    return true;
+}
+
+
+bool  chain_minimization_analysis::compute_stability_shift_for_origin()
+{
+    stability = {};
+    stability.origin_in_reals_backup = origin_in_reals;
+
+    for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
+    {
+        std::vector<typed_value_storage>  origin_i;
+        vecf64  origin_in_reals_i;
+        load_origin_to(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i, origin_in_reals_i);
+        if (std::equal(origin_in_reals_i.cbegin(), origin_in_reals_i.cend(), origin_in_reals.cbegin()))
+        {
+            stability.step_index = i;
+            break;
+        }
+    }
+
+    if (stability.step_index >= gradient_step_results.size())
+        return false;
+
+    // TODO!
+
+    return false; // TODO!
+}
+
+
+void   chain_minimization_analysis::commit_execution_results(
+        stdin_bits_and_types_pointer const  bits_and_types_ptr,
+        std::vector<float_64_bit> const&  values
+        )
+{
+    bits_and_types = bits_and_types_ptr;
     load_origin(bits_and_types->bits);
 
     for (std::size_t  i = 0UL; i != path.size(); ++i)
-        path.at(i).value = best_result.values.at(i);
+        path.at(i).value = values.at(i);
 
     local_spaces.clear();
     insert_first_local_space();
 
     gradient_step_shifts.clear();
     gradient_step_results.clear();
-
-    return true;
 }
 
 
@@ -903,46 +964,52 @@ void  chain_minimization_analysis::load_origin(vecb const&  bits)
 {
     origin.clear();
     origin_in_reals.clear();
+    load_origin_to(bits, origin, origin_in_reals);
+}
+
+
+void  chain_minimization_analysis::load_origin_to(vecb const&  bits, std::vector<typed_value_storage>&  out_origin, vecf64&  out_origin_in_reals)
+{
     for (std::size_t  i = 0UL, i_end = (natural_32_bit)from_variables_to_input.size(); i != i_end; ++i)
     {
-        origin.push_back({});
+        out_origin.push_back({});
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            set_bit((natural_8_bit*)&origin.back(), idx, bits.at(mapping.input_start_bit_index + idx));
+            set_bit((natural_8_bit*)&out_origin.back(), idx, bits.at(mapping.input_start_bit_index + idx));
         switch (types_of_variables.at(i))
         {
             case type_of_input_bits::BOOLEAN:
-                origin_in_reals.push_back((float_64_bit)origin.back()._boolean);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._boolean);
                 break;
             case type_of_input_bits::UINT8:
-                origin_in_reals.push_back((float_64_bit)origin.back()._uint8);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint8);
                 break;
             case type_of_input_bits::SINT8:
-                origin_in_reals.push_back((float_64_bit)origin.back()._sint8);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint8);
                 break;
             case type_of_input_bits::UINT16:
-                origin_in_reals.push_back((float_64_bit)origin.back()._uint16);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint16);
                 break;
             case type_of_input_bits::SINT16:
-                origin_in_reals.push_back((float_64_bit)origin.back()._sint16);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint16);
                 break;
             case type_of_input_bits::UINT32:
-                origin_in_reals.push_back((float_64_bit)origin.back()._uint32);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint32);
                 break;
             case type_of_input_bits::SINT32:
-                origin_in_reals.push_back((float_64_bit)origin.back()._sint32);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint32);
                 break;
             case type_of_input_bits::UINT64:
-                origin_in_reals.push_back((float_64_bit)origin.back()._uint64);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint64);
                 break;
             case type_of_input_bits::SINT64:
-                origin_in_reals.push_back((float_64_bit)origin.back()._sint64);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint64);
                 break;
             case type_of_input_bits::FLOAT32:
-                origin_in_reals.push_back((float_64_bit)origin.back()._float32);
+                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._float32);
                 break;
             case type_of_input_bits::FLOAT64:
-                origin_in_reals.push_back(origin.back()._float64);
+                out_origin_in_reals.push_back(out_origin.back()._float64);
                 break;
             default: { UNREACHABLE(); }
         }
