@@ -29,6 +29,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
          << shift << "\"boundary_violation\": " << ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0) << ",\n"
          << shift << "\"medium_overflow\": " << ((record.flags & execution_record::MEDIUM_OVERFLOW) != 0) << ",\n"
          << shift << "\"empty_startup_trace\": " << ((record.flags & execution_record::EMPTY_STARTUP_TRACE) != 0) << ",\n"
+         << shift << "\"analysis_name\": \"" << record.analysis_name << "\",\n"
          ;
 
     ostr << shift << "\"num_bytes\": " << record.stdin_bytes.size() << ",\n"
