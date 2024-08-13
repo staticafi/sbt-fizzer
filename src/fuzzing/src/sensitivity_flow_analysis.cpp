@@ -289,6 +289,9 @@ void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_
 
 void  sensitivity_flow_analysis::stop()
 {
+    if (!is_busy())
+        return;
+
     state = READY;
     ++statistics.stop_calls;
 
