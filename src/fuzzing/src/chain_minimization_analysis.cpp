@@ -10,124 +10,6 @@
 namespace  fuzzing {
 
 
-template<typename T>
-bool compare(T const  v1, T const  v2, BRANCHING_PREDICATE const  predicate)
-{
-    switch (predicate)
-    {
-        case BP_EQUAL:          return v1 == v2;
-        case BP_UNEQUAL:        return v1 != v2;
-        case BP_LESS:           return v1 < v2;
-        case BP_LESS_EQUAL:     return v1 <= v2;
-        case BP_GREATER:        return v1 > v2;
-        case BP_GREATER_EQUAL:  return v1 >= v2;
-        default: { UNREACHABLE(); } return false;
-    }
-}
-
-
-bool compare(
-        chain_minimization_analysis::typed_value_storage const  v1,
-        chain_minimization_analysis::typed_value_storage const  v2,
-        type_of_input_bits const  type,
-        BRANCHING_PREDICATE const  predicate
-        )
-{
-    switch (type)
-    {
-        case type_of_input_bits::BOOLEAN:   return compare(v1._boolean, v2._boolean, predicate);
-        case type_of_input_bits::UINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
-        case type_of_input_bits::SINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
-        case type_of_input_bits::UINT16:    return compare(v1._uint16,  v2._uint16,  predicate);
-        case type_of_input_bits::SINT16:    return compare(v1._sint16,  v2._sint16,  predicate);
-        case type_of_input_bits::UINT32:    return compare(v1._uint32,  v2._uint32,  predicate);
-        case type_of_input_bits::SINT32:    return compare(v1._sint32,  v2._sint32,  predicate);
-        case type_of_input_bits::UINT64:    return compare(v1._sint32,  v2._sint32,  predicate);
-        case type_of_input_bits::SINT64:    return compare(v1._sint64,  v2._sint64,  predicate);
-        case type_of_input_bits::FLOAT32:   return compare(v1._float32, v2._float32, predicate);
-        case type_of_input_bits::FLOAT64:   return compare(v1._float64, v2._float64, predicate);
-        default: { UNREACHABLE(); } return false;
-    }
-}
-
-
-std::size_t  hash(
-        chain_minimization_analysis::typed_value_storage const  value,
-        type_of_input_bits const  type
-        )
-{
-    switch (type)
-    {
-        case type_of_input_bits::BOOLEAN:   return (std::size_t)value._boolean;
-        case type_of_input_bits::UINT8:     return (std::size_t)value._uint8;
-        case type_of_input_bits::SINT8:     return (std::size_t)value._uint8;
-        case type_of_input_bits::UINT16:    return (std::size_t)value._uint16;
-        case type_of_input_bits::SINT16:    return (std::size_t)value._sint16;
-        case type_of_input_bits::UINT32:    return (std::size_t)value._uint32;
-        case type_of_input_bits::SINT32:    return (std::size_t)value._sint32;
-        case type_of_input_bits::UINT64:    return (std::size_t)value._sint32;
-        case type_of_input_bits::SINT64:    return (std::size_t)value._sint64;
-        case type_of_input_bits::FLOAT32:   return (std::size_t)value._float32;
-        case type_of_input_bits::FLOAT64:   return (std::size_t)value._float64;
-        default: { UNREACHABLE(); } return 0UL;
-    }
-}
-
-
-bool compare(
-        std::vector<chain_minimization_analysis::typed_value_storage> const&  o1,
-        std::vector<chain_minimization_analysis::typed_value_storage> const&  o2,
-        std::vector<type_of_input_bits> const&  types,
-        BRANCHING_PREDICATE const  predicate
-        )
-{
-    ASSUMPTION(o1.size() == o2.size() && o1.size() == types.size());
-    auto  it1 = o1.begin();
-    auto  it2 = o2.begin();
-    auto  itt = types.begin();
-    for ( ; it1 != o1.end(); ++it1, ++it2, ++itt)
-        if (!compare(*it1, *it2, *itt, predicate))
-            return false;
-    return true;
-}
-
-
-std::size_t  hash(
-        std::vector<chain_minimization_analysis::typed_value_storage> const&  origin,
-        std::vector<type_of_input_bits> const&  types
-        )
-{
-    ASSUMPTION(origin.size() == types.size());
-    auto  ito = origin.begin();
-    auto  itt = types.begin();
-    std::size_t  result{ 0UL };
-    for ( ; ito != origin.end(); ++ito, ++itt)
-        ::hash_combine(result, hash(*ito, *itt));
-    return result;
-}
-
-
-std::size_t  chain_minimization_analysis::origin_set::hash::operator()(std::vector<typed_value_storage> const&  origin) const
-{
-    return fuzzing::hash(origin, *types_);
-}
-
-
-bool  chain_minimization_analysis::origin_set::equal::operator()(
-        std::vector<typed_value_storage> const&  o1,
-        std::vector<typed_value_storage> const&  o2
-        ) const
-{
-    return fuzzing::compare(o1, o2, *types_, BP_EQUAL);
-}
-
-
-chain_minimization_analysis::origin_set::origin_set(std::vector<type_of_input_bits> const*  types)
-    : types_{ types }
-    , origins_{ 0UL, hash{ types_},  equal{ types_ } }
-{}
-
-
 bool  chain_minimization_analysis::are_types_of_sensitive_bits_available(
         stdin_bits_and_types_pointer  bits_and_types,
         std::unordered_set<stdin_bit_index> const&  sensitive_bits
@@ -248,7 +130,7 @@ void  chain_minimization_analysis::start(
 
     progress_stage = PARTIALS;
 
-    load_origin(bits_and_types->bits);
+    bits_to_origin(bits_and_types->bits, origin, origin_in_reals);
 
     local_spaces.clear();
     insert_first_local_space();
@@ -405,7 +287,9 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
         else { UNREACHABLE(); }
     }
 
-    store_shifted_origin(bits_ref);
+    vector_overlay const  shifted_origin{ add_cp(origin, types_of_variables, local_spaces.front().sample_shift) };
+    origin_to_bits(shifted_origin, bits_ref);
+    tested_origins.insert(shifted_origin);
 
     ++statistics.generated_inputs;
 
@@ -905,14 +789,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
         )
 {
     local_space_of_branching const&  space{ local_spaces.at(space_index) };
-    BRANCHING_PREDICATE const  predicate{ path.at(space_index).predicate };
-
-    vecf64  gradient_in_world_space;
-    {
-        space.sample_shift = space.gradient;
-        transform_shift(space_index);
-        gradient_in_world_space = local_spaces.front().sample_shift;
-    }
+    comparator_type const  predicate{ path.at(space_index).predicate };
 
     float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
     if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
@@ -976,6 +853,14 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
         std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
     }
 
+    vecf64  gradient_in_world_space;
+    {
+        space.sample_shift = space.gradient;
+        transform_shift(space_index);
+        gradient_in_world_space = local_spaces.front().sample_shift;
+    }
+
+    std::vector<vecf64>  candidate_shifts;
     for (float_64_bit const  lambda : lambdas)
     {
         vecf64  shift;
@@ -987,7 +872,20 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
         else
             shift = scale_cp(space.gradient, lambda);
         if (clip_shift_by_constraints(space.constraints, space.gradient, shift))
+            candidate_shifts.push_back(shift);
+    }
+
+    origin_set  used_origins{ tested_origins };
+    for (vecf64 const&  shift : candidate_shifts)
+    {
+        space.sample_shift = shift;
+        transform_shift(space_index);
+        vector_overlay const  point{ add_cp(origin, types_of_variables, local_spaces.front().sample_shift) };
+        if (!tested_origins.contains(point))
+        {
             resulting_shifts.push_back(shift);
+            used_origins.insert(point);
+        }
     }
 
     return !resulting_shifts.empty();
@@ -1070,9 +968,9 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
 
     for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
     {
-        std::vector<typed_value_storage>  origin_i;
+        vector_overlay  origin_i;
         vecf64  origin_in_reals_i;
-        load_origin_to(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i, origin_in_reals_i);
+        bits_to_origin(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i, origin_in_reals_i);
         if (std::equal(origin_in_reals_i.cbegin(), origin_in_reals_i.cend(), origin_in_reals.cbegin()))
         {
             stability.step_index = i;
@@ -1099,13 +997,13 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
 }
 
 
-void   chain_minimization_analysis::commit_execution_results(
+void  chain_minimization_analysis::commit_execution_results(
         stdin_bits_and_types_pointer const  bits_and_types_ptr,
         std::vector<float_64_bit> const&  values
         )
 {
     bits_and_types = bits_and_types_ptr;
-    load_origin(bits_and_types->bits);
+    bits_to_origin(bits_and_types->bits, origin, origin_in_reals);
 
     for (std::size_t  i = 0UL; i != path.size(); ++i)
         path.at(i).value = values.at(i);
@@ -1118,111 +1016,29 @@ void   chain_minimization_analysis::commit_execution_results(
 }
 
 
-void  chain_minimization_analysis::load_origin(vecb const&  bits)
+void  chain_minimization_analysis::bits_to_origin(vecb const&  bits_, vector_overlay&  origin_, vecf64&  origin_in_reals_)
 {
-    origin.clear();
-    origin_in_reals.clear();
-    load_origin_to(bits, origin, origin_in_reals);
-}
-
-
-void  chain_minimization_analysis::load_origin_to(vecb const&  bits, std::vector<typed_value_storage>&  out_origin, vecf64&  out_origin_in_reals)
-{
+    origin_.clear();
+    origin_in_reals_.clear();
     for (std::size_t  i = 0UL, i_end = (natural_32_bit)from_variables_to_input.size(); i != i_end; ++i)
     {
-        out_origin.push_back({});
+        origin_.push_back({});
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            set_bit((natural_8_bit*)&out_origin.back(), idx, bits.at(mapping.input_start_bit_index + idx));
-        switch (types_of_variables.at(i))
-        {
-            case type_of_input_bits::BOOLEAN:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._boolean);
-                break;
-            case type_of_input_bits::UINT8:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint8);
-                break;
-            case type_of_input_bits::SINT8:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint8);
-                break;
-            case type_of_input_bits::UINT16:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint16);
-                break;
-            case type_of_input_bits::SINT16:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint16);
-                break;
-            case type_of_input_bits::UINT32:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint32);
-                break;
-            case type_of_input_bits::SINT32:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint32);
-                break;
-            case type_of_input_bits::UINT64:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._uint64);
-                break;
-            case type_of_input_bits::SINT64:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._sint64);
-                break;
-            case type_of_input_bits::FLOAT32:
-                out_origin_in_reals.push_back((float_64_bit)out_origin.back()._float32);
-                break;
-            case type_of_input_bits::FLOAT64:
-                out_origin_in_reals.push_back(out_origin.back()._float64);
-                break;
-            default: { UNREACHABLE(); }
-        }
+            set_bit((natural_8_bit*)&origin_.back(), idx, bits_.at(mapping.input_start_bit_index + idx));
+        origin_in_reals_.push_back(as<float_64_bit>(origin_.back(), types_of_variables.at(i)));
     }
 }
 
 
-void  chain_minimization_analysis::store_shifted_origin(vecb&  bits)
+void  chain_minimization_analysis::origin_to_bits(vector_overlay const&  origin_, vecb&  bits_)
 {
-    bits = bits_and_types->bits;
+    bits_ = bits_and_types->bits;
     for (std::size_t  i = 0ULL; i != origin.size(); ++i)
     {
-        typed_value_storage  value{ origin.at(i) };
-        float_64_bit const  delta{ at(local_spaces.front().sample_shift, i) };
-        switch (types_of_variables.at(i))
-        {
-            case type_of_input_bits::BOOLEAN:
-                value._boolean = std::fabs(delta) < 0.5 ? false : true;
-                break;
-            case type_of_input_bits::UINT8:
-                value._uint8 = (natural_8_bit)((integer_8_bit)value._uint8 + (integer_8_bit)std::round(delta));
-                break;
-            case type_of_input_bits::SINT8:
-                value._sint8 += (integer_8_bit)std::round(delta);
-                break;
-            case type_of_input_bits::UINT16:
-                value._uint16 = (natural_16_bit)((integer_16_bit)value._uint16 + (integer_16_bit)std::round(delta));
-                break;
-            case type_of_input_bits::SINT16:
-                value._sint16 += (integer_16_bit)std::round(delta);
-                break;
-            case type_of_input_bits::UINT32:
-                value._uint32 = (natural_32_bit)((integer_32_bit)value._uint32 + (integer_32_bit)std::round(delta));
-                break;
-            case type_of_input_bits::SINT32:
-                value._sint32 += (integer_32_bit)std::round(delta);
-                break;
-            case type_of_input_bits::UINT64:
-                value._uint64 = (natural_64_bit)((integer_64_bit)value._uint64 + (integer_64_bit)std::round(delta));
-                break;
-            case type_of_input_bits::SINT64:
-                value._sint64 += (integer_64_bit)std::round(delta);
-                break;
-            case type_of_input_bits::FLOAT32:
-                value._float32 += (float_32_bit)delta;
-                break;
-            case type_of_input_bits::FLOAT64:
-                value._float64 += delta;
-                break;
-            default: { UNREACHABLE(); }
-        }
-
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            bits.at(mapping.input_start_bit_index + idx) = get_bit((natural_8_bit const*)&value, idx);
+            bits_.at(mapping.input_start_bit_index + idx) = get_bit((natural_8_bit const*)&origin_.at(i), idx);
     }
 }
 

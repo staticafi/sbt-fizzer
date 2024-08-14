@@ -3,7 +3,7 @@
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/number_overlay.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <vector>
@@ -29,22 +29,6 @@ struct  chain_minimization_analysis
         STABILITY
     };
 
-    union  typed_value_storage
-    {
-        typed_value_storage() : _uint64{ 0ULL } {}
-        bool  _boolean;
-        natural_8_bit  _uint8;
-        integer_8_bit  _sint8;
-        natural_16_bit  _uint16;
-        integer_16_bit  _sint16;
-        natural_32_bit  _uint32;
-        integer_32_bit  _sint32;
-        natural_64_bit  _uint64;
-        integer_64_bit  _sint64;
-        float_32_bit  _float32;
-        float_64_bit  _float64;
-    };
-
     struct  mapping_to_input_bits
     {
         natural_32_bit  input_start_bit_index;
@@ -56,7 +40,7 @@ struct  chain_minimization_analysis
         branching_node*  node_ptr{ nullptr };
         float_64_bit  value{ 0.0 };
         bool  direction{ false };
-        BRANCHING_PREDICATE  predicate{ BP_EQUAL };
+        comparator_type  predicate{ BP_EQUAL };
         std::unordered_set<natural_32_bit>  variable_indices{};
     };
 
@@ -64,7 +48,7 @@ struct  chain_minimization_analysis
     {
         vecf64  normal{};
         float_64_bit  param{ 0.0 };
-        BRANCHING_PREDICATE  predicate{ BP_EQUAL };
+        comparator_type  predicate{ BP_EQUAL };
     };
 
     struct  local_space_of_branching
@@ -105,23 +89,7 @@ struct  chain_minimization_analysis
 
     struct  origin_set
     {
-        struct  hash
-        {
-            hash(std::vector<type_of_input_bits> const*  types) : types_{ types } {}
-            std::size_t  operator()(std::vector<typed_value_storage> const&  origin) const;
-            std::vector<type_of_input_bits> const*  types_;
-        };
-
-        struct  equal
-        {
-            equal(std::vector<type_of_input_bits> const*  types) : types_{ types } {}
-            bool  operator()(std::vector<typed_value_storage> const&  o1, std::vector<typed_value_storage> const&  o2) const;
-            std::vector<type_of_input_bits> const*  types_;
-        };
-
-        using set_type = std::unordered_set<std::vector<typed_value_storage>, hash, equal>;
-
-        origin_set(std::vector<type_of_input_bits> const*  types);
+        origin_set(type_vector const*  types) : types_{ types }, origins_{ 0UL, hash{ types_},  equal{ types_ } } {}
         origin_set(origin_set const&  other) : origin_set(other.types_) { origins_ = other.origins_; }
         origin_set&  operator=(origin_set const&  other) { clear(); types_ = other.types_; origins_ = other.origins_; return *this; }
         ~origin_set() { clear(); types_ = nullptr;}
@@ -130,11 +98,28 @@ struct  chain_minimization_analysis
         bool  empty() const { return origins_.empty(); }
         std::size_t  size() const { return origins_.size(); }
 
-        void  insert(std::vector<typed_value_storage> const&  origin) { origins_.insert(origin); }
-        bool  contains(std::vector<typed_value_storage> const&  origin) const  { return origins_.contains(origin); }
+        void  insert(vector_overlay const&  origin) { origins_.insert(origin); }
+        bool  contains(vector_overlay const&  origin) const  { return origins_.contains(origin); }
 
     private:
-        std::vector<type_of_input_bits> const*  types_;
+
+        struct  hash
+        {
+            hash(type_vector const*  types) : types_{ types } {}
+            std::size_t  operator()(vector_overlay const&  origin) const { return fuzzing::hash(origin, *types_); }
+            type_vector const*  types_;
+        };
+
+        struct  equal
+        {
+            equal(type_vector const*  types) : types_{ types } {}
+            bool  operator()(vector_overlay const&  o1, vector_overlay const&  o2) const { return fuzzing::compare(o1, o2, *types_, BP_EQUAL); }
+            type_vector const*  types_;
+        };
+
+        using set_type = std::unordered_set<vector_overlay, hash, equal>;
+
+        type_vector const*  types_;
         set_type  origins_;
     };
 
@@ -199,10 +184,8 @@ private:
     bool  apply_best_gradient_step();
     bool  compute_stability_shift_for_origin();
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, std::vector<float_64_bit> const&  values);
-    void  load_origin(vecb const&  bits);
-    void  load_origin_to(vecb const&  bits, std::vector<typed_value_storage>&  out_origin, vecf64&  out_origin_in_reals);
-
-    void  store_shifted_origin(vecb&  bits);
+    void  bits_to_origin(vecb const&  bits, vector_overlay&  origin_, vecf64&  origin_in_reals_);
+    void  origin_to_bits(vector_overlay const&  origin_, vecb&  bits_);
 
     STATE  state;
     branching_node*  node;
@@ -210,13 +193,13 @@ private:
     natural_32_bit  execution_id;
     std::vector<branching_info>  path;
     std::vector<mapping_to_input_bits>  from_variables_to_input;
-    std::vector<type_of_input_bits>  types_of_variables;
+    type_vector  types_of_variables;
     bool stopped_early;
     std::unordered_set<branching_node const*>  failed_nodes;
     natural_32_bit  num_executions;
 
     PROGRESS_STAGE  progress_stage;
-    std::vector<typed_value_storage>  origin;
+    vector_overlay  origin;
     vecf64  origin_in_reals;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
