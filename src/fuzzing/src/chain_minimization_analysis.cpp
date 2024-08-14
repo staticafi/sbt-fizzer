@@ -229,7 +229,7 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
 
             gradient_step_shifts.clear();
             gradient_step_results.clear();
-            if (!compute_gradient_step_shifts(gradient_step_shifts, local_spaces.back(), path.back().value, path.back().predicate, nullptr))
+            if (!compute_gradient_step_shifts(gradient_step_shifts, local_spaces.size() - 1UL, path.back().value, nullptr))
             {
                 stop_with_failure();
                 return false;
@@ -333,9 +333,8 @@ void  chain_minimization_analysis::process_execution_results(
             recovery.value_best = recovery.value_backup;
             compute_gradient_step_shifts(
                     recovery.sample_shifts,
-                    local_spaces.at(recovery.space_index),
+                    recovery.space_index,
                     recovery.value_best,
-                    path.at(recovery.space_index).predicate,
                     &recovery.shift_best
                     );
             std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
@@ -353,9 +352,8 @@ void  chain_minimization_analysis::process_execution_results(
                     std::size_t const  old_size{ recovery.sample_shifts.size() };
                     compute_gradient_step_shifts(
                             recovery.sample_shifts,
-                            local_spaces.at(recovery.space_index),
+                            recovery.space_index,
                             recovery.value_best,
-                            path.at(recovery.space_index).predicate,
                             &recovery.shift_best
                             );
                     std::reverse(std::next(recovery.sample_shifts.begin(), old_size), recovery.sample_shifts.end());
@@ -371,9 +369,8 @@ void  chain_minimization_analysis::process_execution_results(
                 recovery.sample_shifts.clear();
                 compute_gradient_step_shifts(
                         recovery.sample_shifts,
-                        local_spaces.at(recovery.space_index),
+                        recovery.space_index,
                         recovery.value_best,
-                        path.at(recovery.space_index).predicate,
                         &recovery.shift_best
                         );
                 std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
@@ -397,7 +394,7 @@ void  chain_minimization_analysis::process_execution_results(
 
                     gradient_step_shifts.clear();
                     gradient_step_results.clear();
-                    compute_gradient_step_shifts(gradient_step_shifts, local_spaces.back(), path.back().value, path.back().predicate, nullptr);
+                    compute_gradient_step_shifts(gradient_step_shifts, local_spaces.size() - 1UL, path.back().value, nullptr);
                 }
             }
             ++statistics.partials;
@@ -541,9 +538,10 @@ void  chain_minimization_analysis::insert_first_local_space()
     {
         local_spaces.back().orthogonal_basis.push_back({});
         axis(local_spaces.back().orthogonal_basis.back(), types_of_variables.size(), i);
-        local_spaces.back().scales_of_basis_vectors_in_world_space.push_back(1.0);
         local_spaces.back().variable_indices.push_back({ i });
     }
+    local_spaces.back().basis_vectors_in_world_space = local_spaces.back().orthogonal_basis;
+    reset(local_spaces.back().scales_of_basis_vectors_in_world_space, columns(local_spaces.back().orthogonal_basis), 1.0);
     reset(local_spaces.back().sample_shift, columns(local_spaces.back().orthogonal_basis), 0.0);
 }
 
@@ -554,8 +552,10 @@ void  chain_minimization_analysis::insert_next_local_space()
 
     local_spaces.push_back({});
 
-    local_space_of_branching const&  src_space{ local_spaces.at(local_spaces.size() - 2UL) };
-    local_space_of_branching&  dst_space{ local_spaces.at(local_spaces.size() - 1UL) };
+    auto const src_space_index{ local_spaces.size() - 2UL };
+    auto const dst_space_index{ local_spaces.size() - 1UL };
+    local_space_of_branching const&  src_space{ local_spaces.at(src_space_index) };
+    local_space_of_branching&  dst_space{ local_spaces.at(dst_space_index) };
 
     float_64_bit const  gg{ dot_product(src_space.gradient, src_space.gradient) };
     float_64_bit const  gg_inv{ 1.0 / gg };
@@ -565,9 +565,10 @@ void  chain_minimization_analysis::insert_next_local_space()
         {
             dst_space.orthogonal_basis.push_back({});
             axis(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), i);
-            local_spaces.back().scales_of_basis_vectors_in_world_space.push_back(1.0);
             dst_space.variable_indices.push_back(src_space.variable_indices.at(i));
         }
+        dst_space.basis_vectors_in_world_space = dst_space.orthogonal_basis;
+        reset(dst_space.scales_of_basis_vectors_in_world_space, columns(dst_space.orthogonal_basis), 1.0);
         dst_space.constraints = src_space.constraints;
         reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
         return;
@@ -587,18 +588,12 @@ void  chain_minimization_analysis::insert_next_local_space()
         std::sort(dst_space.variable_indices.back().begin(), dst_space.variable_indices.back().end());
     };
 
-    auto const& compute_scale_of_basis_vectors_in_world_space = [this] (vecf64 const&  basis_vector) -> float_64_bit {
-        auto const index { local_spaces.size() - 2UL };
-        local_spaces.at(index).sample_shift = basis_vector;
-        this->transform_shift(index);
-        vecf64 const& basis_vector_in_world{ local_spaces.front().sample_shift };
-        float_64_bit scale{ max_abs(basis_vector_in_world) };
-        if (scale > 10000000)
-        {
-            int iii = 0;
-        }
-        INVARIANT(scale > 1e-9);
-        return scale;
+    auto const& push_back_basis_vector_props_in_world_space = [this, src_space_index, &src_space, &dst_space] (vecf64 const&  basis_vector) -> void {
+        src_space.sample_shift = basis_vector;
+        this->transform_shift(src_space_index);
+        dst_space.basis_vectors_in_world_space.push_back(local_spaces.front().sample_shift);
+        dst_space.scales_of_basis_vectors_in_world_space.push_back( max_abs(dst_space.basis_vectors_in_world_space.back()) );
+        INVARIANT(dst_space.scales_of_basis_vectors_in_world_space.back() > 1e-9);
     };
 
     for (std::size_t  i = 0UL; i < columns(src_space.orthogonal_basis); ++i)
@@ -610,8 +605,8 @@ void  chain_minimization_analysis::insert_next_local_space()
         if (std::fabs(wg) < 1e-6)
         {
             dst_space.orthogonal_basis.push_back(w);
-            dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(w));
             collect_variable_indices_for_last_basis_vector();
+            push_back_basis_vector_props_in_world_space(w);
         }
         else
         {
@@ -624,18 +619,18 @@ void  chain_minimization_analysis::insert_next_local_space()
                 float_64_bit const  w_len{ std::sqrt(ww) };
                 scale(w, g_len / w_len);
                 dst_space.orthogonal_basis.push_back(w);
-                dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(w));
                 collect_variable_indices_for_last_basis_vector();
+                push_back_basis_vector_props_in_world_space(w);
             }
         }
     }
 
-    branching_info const&  src_info{ path.at(local_spaces.size() - 2UL) };
+    branching_info const&  src_info{ path.at(src_space_index) };
     if (src_info.predicate != BP_EQUAL)
     {
         dst_space.orthogonal_basis.push_back(src_space.gradient);
-        dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(src_space.gradient));
         collect_variable_indices_for_last_basis_vector();
+        push_back_basis_vector_props_in_world_space(src_space.gradient);
         vecf64  normal;
         axis(normal, columns(src_space.orthogonal_basis), columns(src_space.orthogonal_basis) - 1UL);
         dst_space.constraints.push_back({
@@ -782,12 +777,21 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
 
 bool  chain_minimization_analysis::compute_gradient_step_shifts(
         std::vector<vecf64>&  resulting_shifts,
-        local_space_of_branching const&  space,
+        std::size_t const  space_index,
         float_64_bit const  value,
-        BRANCHING_PREDICATE const  predicate,
         vecf64 const* const  shift_ptr
         )
 {
+    local_space_of_branching const&  space{ local_spaces.at(space_index) };
+    BRANCHING_PREDICATE const  predicate{ path.at(space_index).predicate };
+
+    vecf64  gradient_in_world_space;
+    {
+        space.sample_shift = space.gradient;
+        transform_shift(space_index);
+        gradient_in_world_space = local_spaces.front().sample_shift;
+    }
+
     float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
     if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
         return false;
@@ -807,6 +811,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
             )
         return false;
     float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
+    // TODO: delta above does not work for INT variables (the shift is too small; rounding cancels it)
 
     std::vector<float_64_bit>  lambdas;
     {
@@ -956,11 +961,17 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
     if (stability.step_index >= gradient_step_results.size())
         return false;
 
+    // TODO: 
+    //  1. transform origin_in_reals to local_spaces.back().orthogonal_basis and denote it as S.
+    //  2. Update the code below to find the shift to S.
+
     float_64_bit const  gg_inv{ 1.0 / dot_product(local_spaces.back().gradient, local_spaces.back().gradient) };
     float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_in_reals_backup) };
     stability.shift = gradient_step_shifts.at(stability.step_index);
     add_scaled(stability.shift, gO * gg_inv, local_spaces.back().gradient);
     add_scaled(stability.shift, -1, stability.origin_in_reals_backup);
+
+    //  3. Clip the shipt according to the constraints in local_spaces.back().constraints.
 
     return true;
 }

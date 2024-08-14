@@ -72,10 +72,11 @@ struct  chain_minimization_analysis
         matf64  orthogonal_basis{};
         std::vector<spatial_constraint>  constraints{};
         std::vector<std::vector<natural_32_bit> >  variable_indices{};
+        matf64  basis_vectors_in_world_space{};
         vecf64  scales_of_basis_vectors_in_world_space{};
         vecf64  gradient{};
-        vecf64  sample_shift{};
-        float_64_bit  sample_value{ 0.0 };
+        mutable vecf64  sample_shift{};
+        mutable float_64_bit  sample_value{ 0.0 };
     };
 
     struct  gradient_step_result
@@ -156,9 +157,8 @@ private:
             ) const;
     bool  compute_gradient_step_shifts(
             std::vector<vecf64>&  resulting_shifts,
-            local_space_of_branching const&  space,
+            std::size_t  space_index,
             float_64_bit  value,
-            BRANCHING_PREDICATE  predicate,
             vecf64 const*  shift_ptr = nullptr
             );
     bool  apply_best_gradient_step();
