@@ -103,6 +103,41 @@ struct  chain_minimization_analysis
         vecf64  shift{};
     };
 
+    struct  origin_set
+    {
+        struct  hash
+        {
+            hash(std::vector<type_of_input_bits> const*  types) : types_{ types } {}
+            std::size_t  operator()(std::vector<typed_value_storage> const&  origin) const;
+            std::vector<type_of_input_bits> const*  types_;
+        };
+
+        struct  equal
+        {
+            equal(std::vector<type_of_input_bits> const*  types) : types_{ types } {}
+            bool  operator()(std::vector<typed_value_storage> const&  o1, std::vector<typed_value_storage> const&  o2) const;
+            std::vector<type_of_input_bits> const*  types_;
+        };
+
+        using set_type = std::unordered_set<std::vector<typed_value_storage>, hash, equal>;
+
+        origin_set(std::vector<type_of_input_bits> const*  types);
+        origin_set(origin_set const&  other) : origin_set(other.types_) { origins_ = other.origins_; }
+        origin_set&  operator=(origin_set const&  other) { clear(); types_ = other.types_; origins_ = other.origins_; return *this; }
+        ~origin_set() { clear(); types_ = nullptr;}
+
+        void  clear() { origins_.clear(); }
+        bool  empty() const { return origins_.empty(); }
+        std::size_t  size() const { return origins_.size(); }
+
+        void  insert(std::vector<typed_value_storage> const&  origin) { origins_.insert(origin); }
+        bool  contains(std::vector<typed_value_storage> const&  origin) const  { return origins_.contains(origin); }
+
+    private:
+        std::vector<type_of_input_bits> const*  types_;
+        set_type  origins_;
+    };
+
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
@@ -183,6 +218,7 @@ private:
     PROGRESS_STAGE  progress_stage;
     std::vector<typed_value_storage>  origin;
     vecf64  origin_in_reals;
+    origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
     std::vector<vecf64>  gradient_step_shifts;
     std::vector<gradient_step_result>  gradient_step_results;
