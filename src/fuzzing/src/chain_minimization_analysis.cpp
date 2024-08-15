@@ -498,7 +498,7 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
                     return true;
 
                 shift = -shift;
-                if (!are_constraints_satisfied(space.constraints, space.sample_shift))
+                if (are_constraints_satisfied(space.constraints, space.sample_shift))
                     return true;
             }
 
