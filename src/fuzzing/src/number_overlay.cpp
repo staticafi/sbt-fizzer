@@ -5,18 +5,40 @@
 namespace  fuzzing {
 
 
+number_overlay  make_number_overlay(float_64_bit const  value, type_identifier const  type)
+{
+    number_overlay  result;
+    switch (type)
+    {
+        case type_identifier::BOOLEAN:   result._boolean = value < 0.5 ? false : true; break;
+        case type_identifier::UINT8:     result._uint8 = cast_float_value<natural_8_bit>(value); break;
+        case type_identifier::SINT8:     result._sint8 = cast_float_value<integer_8_bit>(value); break;
+        case type_identifier::UINT16:    result._uint16 = cast_float_value<natural_16_bit>(value); break;
+        case type_identifier::SINT16:    result._sint16 = cast_float_value<integer_16_bit>(value); break;
+        case type_identifier::UINT32:    result._uint32 = cast_float_value<natural_32_bit>(value); break;
+        case type_identifier::SINT32:    result._sint32 = cast_float_value<integer_32_bit>(value); break;
+        case type_identifier::UINT64:    result._uint64 = cast_float_value<natural_64_bit>(value); break;
+        case type_identifier::SINT64:    result._sint64 = cast_float_value<integer_64_bit>(value); break;
+        case type_identifier::FLOAT32:   result._float32 = cast_float_value<float_32_bit>(value); break;
+        case type_identifier::FLOAT64:   result._float64 = value; break;
+        default: { UNREACHABLE(); } break;
+    }
+    return result;
+}
+
+
 bool compare(number_overlay const  v1, number_overlay const  v2, type_identifier const  type, comparator_type const  predicate)
 {
     switch (type)
     {
         case type_identifier::BOOLEAN:   return compare(v1._boolean, v2._boolean, predicate);
         case type_identifier::UINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
-        case type_identifier::SINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
+        case type_identifier::SINT8:     return compare(v1._sint8,   v2._sint8,   predicate);
         case type_identifier::UINT16:    return compare(v1._uint16,  v2._uint16,  predicate);
         case type_identifier::SINT16:    return compare(v1._sint16,  v2._sint16,  predicate);
         case type_identifier::UINT32:    return compare(v1._uint32,  v2._uint32,  predicate);
         case type_identifier::SINT32:    return compare(v1._sint32,  v2._sint32,  predicate);
-        case type_identifier::UINT64:    return compare(v1._sint32,  v2._sint32,  predicate);
+        case type_identifier::UINT64:    return compare(v1._uint64,  v2._uint64,  predicate);
         case type_identifier::SINT64:    return compare(v1._sint64,  v2._sint64,  predicate);
         case type_identifier::FLOAT32:   return compare(v1._float32, v2._float32, predicate);
         case type_identifier::FLOAT64:   return compare(v1._float64, v2._float64, predicate);
@@ -31,12 +53,12 @@ std::size_t  hash(number_overlay const  value, type_identifier const  type)
     {
         case type_identifier::BOOLEAN:   return (std::size_t)value._boolean;
         case type_identifier::UINT8:     return (std::size_t)value._uint8;
-        case type_identifier::SINT8:     return (std::size_t)value._uint8;
+        case type_identifier::SINT8:     return (std::size_t)value._sint8;
         case type_identifier::UINT16:    return (std::size_t)value._uint16;
         case type_identifier::SINT16:    return (std::size_t)value._sint16;
         case type_identifier::UINT32:    return (std::size_t)value._uint32;
         case type_identifier::SINT32:    return (std::size_t)value._sint32;
-        case type_identifier::UINT64:    return (std::size_t)value._sint32;
+        case type_identifier::UINT64:    return (std::size_t)value._uint64;
         case type_identifier::SINT64:    return (std::size_t)value._sint64;
         case type_identifier::FLOAT32:   return (std::size_t)value._float32;
         case type_identifier::FLOAT64:   return (std::size_t)value._float64;
@@ -45,46 +67,13 @@ std::size_t  hash(number_overlay const  value, type_identifier const  type)
 }
 
 
-number_overlay  add(number_overlay  value, type_identifier const  type, float_64_bit const  delta)
+vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types)
 {
-    switch (type)
-    {
-        case type_identifier::BOOLEAN:
-            value._boolean = std::fabs(delta) < 0.5 ? false : true;
-            break;
-        case type_identifier::UINT8:
-            value._uint8 = (natural_8_bit)((integer_8_bit)value._uint8 + (integer_8_bit)std::round(delta));
-            break;
-        case type_identifier::SINT8:
-            value._sint8 += (integer_8_bit)std::round(delta);
-            break;
-        case type_identifier::UINT16:
-            value._uint16 = (natural_16_bit)((integer_16_bit)value._uint16 + (integer_16_bit)std::round(delta));
-            break;
-        case type_identifier::SINT16:
-            value._sint16 += (integer_16_bit)std::round(delta);
-            break;
-        case type_identifier::UINT32:
-            value._uint32 = (natural_32_bit)((integer_32_bit)value._uint32 + (integer_32_bit)std::round(delta));
-            break;
-        case type_identifier::SINT32:
-            value._sint32 += (integer_32_bit)std::round(delta);
-            break;
-        case type_identifier::UINT64:
-            value._uint64 = (natural_64_bit)((integer_64_bit)value._uint64 + (integer_64_bit)std::round(delta));
-            break;
-        case type_identifier::SINT64:
-            value._sint64 += (integer_64_bit)std::round(delta);
-            break;
-        case type_identifier::FLOAT32:
-            value._float32 += (float_32_bit)delta;
-            break;
-        case type_identifier::FLOAT64:
-            value._float64 += delta;
-            break;
-        default: { UNREACHABLE(); }
-    }
-    return value;
+    ASSUMPTION(size(v) == types.size());
+    vector_overlay  result;
+    for (std::size_t  i = 0UL; i != size(v); ++i)
+        result.push_back(make_number_overlay(at(v, i), types.at(i)));
+    return result;
 }
 
 
@@ -109,26 +98,6 @@ std::size_t  hash(vector_overlay const&  v, type_vector const&  types)
     std::size_t  result{ 0UL };
     for ( ; ito != v.end(); ++ito, ++itt)
         ::hash_combine(result, hash(*ito, *itt));
-    return result;
-}
-
-
-void  add(vector_overlay&  v, type_vector const&  types, vecf64 const&  delta)
-{
-    ASSUMPTION(v.size() == types.size() && v.size() == delta.size());
-    auto  ito = v.begin();
-    auto  itt = types.begin();
-    auto  itd = delta.begin();
-    std::size_t  result{ 0UL };
-    for ( ; ito != v.end(); ++ito, ++itt, ++itd)
-        *ito = add(*ito, *itt, *itd);
-}
-
-
-vector_overlay  add_cp(vector_overlay const&  v, type_vector const&  types, vecf64 const&  delta)
-{
-    vector_overlay  result{ v };
-    add(result, types, delta);
     return result;
 }
 

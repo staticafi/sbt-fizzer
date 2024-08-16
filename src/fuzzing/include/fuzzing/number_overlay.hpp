@@ -37,6 +37,19 @@ using  vector_overlay = std::vector<number_overlay>;
 
 
 template<typename T>
+T  cast_float_value(float_64_bit  value)
+{
+    if (std::numeric_limits<T>::is_integer)
+        value = std::round(value);
+    if (value <= (float_64_bit)std::numeric_limits<T>::lowest())
+        return std::numeric_limits<T>::lowest();
+    if (value >= (float_64_bit)std::numeric_limits<T>::max())
+        return std::numeric_limits<T>::max();
+    return (T)value;
+}
+
+
+template<typename T>
 bool compare(T const  v1, T const  v2, comparator_type const  predicate)
 {
     switch (predicate)
@@ -59,12 +72,12 @@ T as(number_overlay const  value, type_identifier const  type)
     {
         case type_identifier::BOOLEAN:   return (T)value._boolean;
         case type_identifier::UINT8:     return (T)value._uint8;
-        case type_identifier::SINT8:     return (T)value._uint8;
+        case type_identifier::SINT8:     return (T)value._sint8;
         case type_identifier::UINT16:    return (T)value._uint16;
         case type_identifier::SINT16:    return (T)value._sint16;
         case type_identifier::UINT32:    return (T)value._uint32;
         case type_identifier::SINT32:    return (T)value._sint32;
-        case type_identifier::UINT64:    return (T)value._sint32;
+        case type_identifier::UINT64:    return (T)value._uint64;
         case type_identifier::SINT64:    return (T)value._sint64;
         case type_identifier::FLOAT32:   return (T)value._float32;
         case type_identifier::FLOAT64:   return (T)value._float64;
@@ -72,15 +85,13 @@ T as(number_overlay const  value, type_identifier const  type)
     }
 }
 
-
+number_overlay  make_number_overlay(float_64_bit const  value, type_identifier const  type);
 bool compare(number_overlay  v1, number_overlay  v2, type_identifier  type, comparator_type  predicate);
 std::size_t  hash(number_overlay  value, type_identifier  type);
-number_overlay  add(number_overlay  value, type_identifier  type, float_64_bit  delta);
 
+vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types);
 bool compare(vector_overlay const&  v1, vector_overlay const&  v2, type_vector const&  types, comparator_type  predicate);
 std::size_t  hash(vector_overlay const&  v, type_vector const&  types);
-void  add(vector_overlay&  v, type_vector const&  types, vecf64 const&  delta);
-vector_overlay  add_cp(vector_overlay const&  v, type_vector const&  types, vecf64 const&  delta);
 
 
 }
