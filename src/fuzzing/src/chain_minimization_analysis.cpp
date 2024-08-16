@@ -960,6 +960,45 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
 }
 
 
+float_64_bit  chain_minimization_analysis::compute_best_shift_along_ray(
+        vecf64 const&  ray_start,
+        vecf64 const&  ray_dir,
+        float_64_bit  param,
+        origin_set const&  excluded_points,
+        natural_8_bit  max_num_samples
+        ) const
+{
+    ASSUMPTION(size(ray_start) == size(ray_dir) && size(ray_start) == types_of_variables.size());
+
+    float_64_bit const  dd{ dot_product(ray_dir, ray_dir) };
+    ASSUMPTION(std::fabs(dd) > 1e-9);
+    float_64_bit const  dd_inv{ 1.0 / dd };
+
+    using  error_and_param = std::pair<float_64_bit, float_64_bit>;
+    std::vector<error_and_param>  samples;
+
+    vecf64  point{ ray_start };
+    vecf64 const  ray_dir_inv{ invert(ray_dir) };
+
+    for (natural_8_bit  iter = 0U; iter != max_num_samples; ++iter)
+    {
+        add_scaled(point, param, ray_dir);
+
+        vector_overlay  point_overlay{ make_vector_overlay(point, types_of_variables) };
+        if (!excluded_points.contains(point_overlay))
+            samples.push_back({
+                    dot_product(ray_dir, sub_cp(as<float_64_bit>(point_overlay, types_of_variables), point)) * dd_inv,
+                    dot_product(ray_dir, sub_cp(point, ray_start)) * dd_inv
+                    });
+
+        vecf64 const  params{ modulate(smallest_step(point, types_of_variables, ray_dir), ray_dir_inv) };
+        param = *std::min_element(params.begin(), params.end());
+    }
+    std::sort(samples.begin(), samples.end());
+    return samples.empty() ? 0.0 : samples.front().second;
+}
+
+
 bool  chain_minimization_analysis::compute_stability_shift_for_origin()
 {
     stability = {};
