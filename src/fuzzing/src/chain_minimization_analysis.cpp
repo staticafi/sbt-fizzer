@@ -34,7 +34,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , failed_nodes{}
     , num_executions{ 0U }
     , progress_stage{ PARTIALS }
-    , origin_in_reals{}
+    , origin{}
     , tested_origins{ &types_of_variables }
     , local_spaces{}
     , gradient_step_shifts{}
@@ -129,7 +129,7 @@ void  chain_minimization_analysis::start(
 
     progress_stage = PARTIALS;
 
-    bits_to_point(bits_and_types->bits, origin_in_reals);
+    bits_to_point(bits_and_types->bits, origin);
 
     local_spaces.clear();
     insert_first_local_space();
@@ -140,7 +140,7 @@ void  chain_minimization_analysis::start(
     recovery = {};
     stability = {};
 
-    tested_origins.insert(make_vector_overlay(origin_in_reals, types_of_variables));
+    tested_origins.insert(make_vector_overlay(origin, types_of_variables));
 
     ++statistics.start_calls;
 
@@ -285,7 +285,7 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
         else { UNREACHABLE(); }
     }
 
-    vecf64 const  shifted_origin{ add_cp(origin_in_reals, local_spaces.front().sample_shift) };
+    vecf64 const  shifted_origin{ add_cp(origin, local_spaces.front().sample_shift) };
     vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
     tested_origins.insert(shifted_origin_overlay);
 
@@ -421,7 +421,7 @@ void  chain_minimization_analysis::process_execution_results(
                 for (auto const&  space : local_spaces)
                     values.push_back(space.sample_value);
                 commit_execution_results(bits_and_types_ptr, values);
-                if (std::equal(origin_in_reals.cbegin(), origin_in_reals.cend(), stability.origin_in_reals_backup.cbegin()))
+                if (std::equal(origin.cbegin(), origin.cend(), stability.origin_backup.cbegin()))
                     stability = {}; // We failed to stabilize the computation by shifting the origin towards the zero vector.
                 else
                     progress_stage = PARTIALS;
@@ -472,7 +472,7 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
                 float_64_bit&  shift{ at(space.sample_shift, partial_index) };
 
                 auto const  float_shift_pivot = [this](natural_32_bit const  i) {
-                    float_64_bit const  x{ std::fabs(origin_in_reals.at(i)) };
+                    float_64_bit const  x{ std::fabs(origin.at(i)) };
                     float_64_bit const  fx{ std::fabs(path.at(local_spaces.size() - 1UL).value) };
                     return x + 0.1 * (fx - x);
                 };
@@ -878,7 +878,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
     {
         space.sample_shift = shift;
         transform_shift(space_index);
-        vecf64 const  point{ add_cp(origin_in_reals, local_spaces.front().sample_shift) };
+        vecf64 const  point{ add_cp(origin, local_spaces.front().sample_shift) };
         vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
         if (!tested_origins.contains(point_overlay))
         {
@@ -963,13 +963,13 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
 bool  chain_minimization_analysis::compute_stability_shift_for_origin()
 {
     stability = {};
-    stability.origin_in_reals_backup = origin_in_reals;
+    stability.origin_backup = origin;
 
     for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
     {
-        vecf64  origin_in_reals_i;
-        bits_to_point(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_in_reals_i);
-        if (std::equal(origin_in_reals_i.cbegin(), origin_in_reals_i.cend(), origin_in_reals.cbegin()))
+        vecf64  origin_i;
+        bits_to_point(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i);
+        if (std::equal(origin_i.cbegin(), origin_i.cend(), origin.cbegin()))
         {
             stability.step_index = i;
             break;
@@ -980,14 +980,14 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
         return false;
 
     // TODO: 
-    //  1. transform origin_in_reals to local_spaces.back().orthogonal_basis and denote it as S.
+    //  1. transform origin to local_spaces.back().orthogonal_basis and denote it as S.
     //  2. Update the code below to find the shift to S.
 
     float_64_bit const  gg_inv{ 1.0 / dot_product(local_spaces.back().gradient, local_spaces.back().gradient) };
-    float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_in_reals_backup) };
+    float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_backup) };
     stability.shift = gradient_step_shifts.at(stability.step_index);
     add_scaled(stability.shift, gO * gg_inv, local_spaces.back().gradient);
-    add_scaled(stability.shift, -1, stability.origin_in_reals_backup);
+    add_scaled(stability.shift, -1, stability.origin_backup);
 
     //  3. Clip the shipt according to the constraints in local_spaces.back().constraints.
 
@@ -1001,7 +1001,7 @@ void  chain_minimization_analysis::commit_execution_results(
         )
 {
     bits_and_types = bits_and_types_ptr;
-    bits_to_point(bits_and_types->bits, origin_in_reals);
+    bits_to_point(bits_and_types->bits, origin);
 
     for (std::size_t  i = 0UL; i != path.size(); ++i)
         path.at(i).value = values.at(i);
