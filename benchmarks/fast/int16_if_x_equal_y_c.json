@@ -1,6 +1,6 @@
 {
     "args": {
-        "max_executions": 10000,
+        "max_executions": 200,
         "max_seconds": 300,
         "max_trace_length": 10000,
         "max_stack_size": 25,
@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 39,
+        "num_executions": 37,
         "num_covered_branchings": 1,
         "covered_branchings": [
             1,0
