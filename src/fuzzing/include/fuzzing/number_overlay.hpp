@@ -89,9 +89,24 @@ number_overlay  make_number_overlay(float_64_bit const  value, type_identifier c
 bool compare(number_overlay  v1, number_overlay  v2, type_identifier  type, comparator_type  predicate);
 std::size_t  hash(number_overlay  value, type_identifier  type);
 
+
+template<typename T>
+vec<T> as(vector_overlay const&  v, type_vector const&  types)
+{
+    ASSUMPTION(size(v) == types.size());
+    vec<T>  result;
+    for (std::size_t  i = 0UL; i != size(v); ++i)
+        result.push_back(as<T>(at(v, i), types.at(i)));
+    return result;
+}
+
 vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types);
 bool compare(vector_overlay const&  v1, vector_overlay const&  v2, type_vector const&  types, comparator_type  predicate);
 std::size_t  hash(vector_overlay const&  v, type_vector const&  types);
+
+
+float_64_bit  smallest_step(float_64_bit  from, type_identifier  type, bool  negative);
+vecf64  smallest_step(vecf64 const&  from, type_vector const&  types, vecf64 const&  direction);
 
 
 }
