@@ -516,7 +516,7 @@ void  chain_minimization_analysis::compute_partial_derivative()
 }
 
 
-void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_index)
+void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_index) const
 {
     for (std::size_t  i = src_space_index; i > 0UL; --i)
     {
@@ -526,6 +526,15 @@ void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_
         for (std::size_t  j = 0UL; j < columns(space.orthogonal_basis); ++j)
             add_scaled(shift, at(space.sample_shift, j), column(space.orthogonal_basis, j));
     }
+}
+
+
+vecf64 const&  chain_minimization_analysis::transform_shift(vecf64 const&  shift, std::size_t  space_index) const
+{
+    ASSUMPTION(space_index < local_spaces.size());
+    local_spaces.at(space_index).sample_shift = shift;
+    transform_shift(space_index);
+    return local_spaces.front().sample_shift;
 }
 
 
@@ -589,9 +598,7 @@ void  chain_minimization_analysis::insert_next_local_space()
     };
 
     auto const& push_back_basis_vector_props_in_world_space = [this, src_space_index, &src_space, &dst_space] (vecf64 const&  basis_vector) -> void {
-        src_space.sample_shift = basis_vector;
-        this->transform_shift(src_space_index);
-        dst_space.basis_vectors_in_world_space.push_back(local_spaces.front().sample_shift);
+        dst_space.basis_vectors_in_world_space.push_back(this->transform_shift(basis_vector, src_space_index));
         dst_space.scales_of_basis_vectors_in_world_space.push_back( max_abs(dst_space.basis_vectors_in_world_space.back()) );
         INVARIANT(dst_space.scales_of_basis_vectors_in_world_space.back() > 1e-9);
     };
@@ -847,12 +854,12 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
         std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
     }
 
-    vecf64  gradient_in_world_space;
-    {
-        space.sample_shift = space.gradient;
-        transform_shift(space_index);
-        gradient_in_world_space = local_spaces.front().sample_shift;
-    }
+    vecf64 const  gradient_in_world_space{ transform_shift(space.gradient, space_index) };
+    vecf64  origin_shift_in_world_space;
+    if (shift_ptr == nullptr)
+        reset(origin_shift_in_world_space, size(origin), 0.0);
+    else
+        origin_shift_in_world_space = transform_shift(*shift_ptr, space_index);
 
     std::vector<vecf64>  candidate_shifts;
     for (float_64_bit const  lambda : lambdas)
@@ -872,9 +879,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
     origin_set  used_origins{ tested_origins };
     for (vecf64 const&  shift : candidate_shifts)
     {
-        space.sample_shift = shift;
-        transform_shift(space_index);
-        vecf64 const  point{ add_cp(origin, local_spaces.front().sample_shift) };
+        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
         vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
         if (!tested_origins.contains(point_overlay))
         {

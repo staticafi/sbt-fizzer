@@ -163,7 +163,8 @@ private:
 
     bool  compute_shift_of_next_partial();
     void  compute_partial_derivative();
-    void  transform_shift(std::size_t  src_space_index);
+    void  transform_shift(std::size_t  src_space_index) const;
+    vecf64 const&  transform_shift(vecf64 const&  shift, std::size_t  space_index) const;
     void  insert_first_local_space();
     void  insert_next_local_space();
     bool  are_constraints_satisfied(std::vector<spatial_constraint> const&  constraints, vecf64 const&  shift) const;
