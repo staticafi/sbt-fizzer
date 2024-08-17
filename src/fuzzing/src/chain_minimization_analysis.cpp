@@ -330,16 +330,14 @@ void  chain_minimization_analysis::process_execution_results(
         {
             recovery = {};
             recovery.stage_backup = progress_stage;
-            recovery.shift_backup = local_spaces.at(last_index).sample_shift;
-            recovery.value_backup = local_spaces.at(last_index).sample_value;
             recovery.space_index = last_index;
-            recovery.shift_best = recovery.shift_backup;
-            recovery.value_best = recovery.value_backup;
+            recovery.shift = local_spaces.at(last_index).sample_shift;
+            recovery.value = local_spaces.at(last_index).sample_value;
             compute_gradient_step_shifts(
                     recovery.sample_shifts,
                     recovery.space_index,
-                    recovery.value_best,
-                    &recovery.shift_best
+                    recovery.value,
+                    &recovery.shift
                     );
             std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
 
@@ -349,33 +347,31 @@ void  chain_minimization_analysis::process_execution_results(
         {
             if (recovery.space_index == last_index)
             {
-                if (std::fabs(local_spaces.at(recovery.space_index).sample_value) <= std::fabs(recovery.value_best))
+                if (std::fabs(local_spaces.at(recovery.space_index).sample_value) <= std::fabs(recovery.value))
                 {
-                    recovery.shift_best = local_spaces.at(last_index).sample_shift;
-                    recovery.value_best = local_spaces.at(last_index).sample_value;
+                    recovery.shift = local_spaces.at(last_index).sample_shift;
+                    recovery.value = local_spaces.at(last_index).sample_value;
                     std::size_t const  old_size{ recovery.sample_shifts.size() };
                     compute_gradient_step_shifts(
                             recovery.sample_shifts,
                             recovery.space_index,
-                            recovery.value_best,
-                            &recovery.shift_best
+                            recovery.value,
+                            &recovery.shift
                             );
                     std::reverse(std::next(recovery.sample_shifts.begin(), old_size), recovery.sample_shifts.end());
                 }
             }
             else if (recovery.space_index < last_index)
             {
-                recovery.shift_backup = local_spaces.at(last_index).sample_shift;
-                recovery.value_backup = local_spaces.at(last_index).sample_value;
                 recovery.space_index = last_index;
-                recovery.shift_best = recovery.shift_backup;
-                recovery.value_best = recovery.value_backup;
+                recovery.shift = local_spaces.at(last_index).sample_shift;
+                recovery.value = local_spaces.at(last_index).sample_value;
                 recovery.sample_shifts.clear();
                 compute_gradient_step_shifts(
                         recovery.sample_shifts,
                         recovery.space_index,
-                        recovery.value_best,
-                        &recovery.shift_best
+                        recovery.value,
+                        &recovery.shift
                         );
                 std::reverse(recovery.sample_shifts.begin(), recovery.sample_shifts.end());
             }
