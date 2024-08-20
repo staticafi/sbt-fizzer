@@ -127,10 +127,10 @@ float_64_bit  smallest_step(float_64_bit  from, type_identifier  type, bool  neg
         case type_identifier::FLOAT32:
             return (float_64_bit)std::nextafter(make_number_overlay(from, type)._float32, 
                                                 negative ? -std::numeric_limits<float_32_bit>::infinity() :
-                                                            std::numeric_limits<float_32_bit>::infinity());
+                                                            std::numeric_limits<float_32_bit>::infinity()) - from;
         case type_identifier::FLOAT64:
             return std::nextafter(from, negative ? -std::numeric_limits<float_64_bit>::infinity() :
-                                                    std::numeric_limits<float_64_bit>::infinity());
+                                                    std::numeric_limits<float_64_bit>::infinity()) - from;
         default: { UNREACHABLE(); } return 0UL;
     }
 }
