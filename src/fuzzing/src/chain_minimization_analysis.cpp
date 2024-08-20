@@ -694,23 +694,23 @@ bool  chain_minimization_analysis::are_constraints_satisfied(std::vector<spatial
         switch (constraint.predicate)
         {
             case BP_UNEQUAL:
-                if (std::fabs(param - constraint.param) < 1e-6f)
+                if (!(param != constraint.param))
                     return false;
                 break;
             case BP_LESS:
-                if (param >= constraint.param)
+                if (!(param < constraint.param))
                     return false;
                 break;
             case BP_LESS_EQUAL:
-                if (param > constraint.param)
+                if (!(param <= constraint.param))
                     return false;
                 break;
             case BP_GREATER:
-                if (param <= constraint.param)
+                if (!(param > constraint.param))
                     return false;
                 break;
             case BP_GREATER_EQUAL:
-                if (param < constraint.param)
+                if (!(param >= constraint.param))
                     return false;
                 break;
             default: { UNREACHABLE(); } break;
@@ -732,61 +732,52 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
         bool  clipped{ false };
         for (spatial_constraint const&  constraint : constraints)
         {
-            vecf64  direction{ component_of_first_orthogonal_to_second(constraint.normal, gradient) };
-            if (dot_product(direction, direction) < 0.01 * dot_product(constraint.normal, constraint.normal))
-                direction = constraint.normal;
-
+            vecf64  direction{ constraint.normal };
+            if (iteration == 0UL)
+            {
+                vecf64 const  component{ component_of_first_orthogonal_to_second(constraint.normal, gradient) };
+                if (dot_product(component, component) >= 0.01 * dot_product(constraint.normal, constraint.normal))
+                {
+                    direction = component;
+                    scale(direction, dot_product(constraint.normal, constraint.normal) / dot_product(direction, constraint.normal));
+                }
+            }
             float_64_bit const  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
-            float_64_bit const  delta{ constraint.param - param };
-            float_64_bit const  scale{ dot_product(constraint.normal, constraint.normal) / dot_product(direction, constraint.normal) };
-            float_64_bit const  scale_delta{ scale * delta };
-            float_64_bit const  direction_length{ length(direction) };
-            float_64_bit const  step{ std::fabs(small_delta_around(scale_delta * direction_length)) / direction_length };
-            float_64_bit const  scale_delta_step{ scale_delta < 0.0 ? scale_delta - step : scale_delta + step };
+            float_64_bit const  epsilon{ small_delta_around(param) };
             switch (constraint.predicate)
             {
                 case BP_UNEQUAL:
-                    if (delta == 0.0)
+                    if (!(constraint.param != param))
                     {
-                        add_scaled(shift, (iteration % 2) == 0 ? 0.1 : -0.1, direction);
+                        add_scaled(shift, (constraint.param + epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
                 case BP_LESS:
-                    if (delta == 0.0)
+                    if (!(param < constraint.param))
                     {
-                        add_scaled(shift, -step, direction);
-                        clipped = true;
-                    }
-                    else if (delta < 0.0)
-                    {
-                        add_scaled(shift, scale_delta_step, direction);
+                        add_scaled(shift, (constraint.param - epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
                 case BP_LESS_EQUAL:
-                    if (delta < 0.0)
+                    if (!(param <= constraint.param))
                     {
-                        add_scaled(shift, scale_delta_step, direction);
+                        add_scaled(shift, constraint.param - param, direction);
                         clipped = true;
                     }
                     break;
                 case BP_GREATER:
-                    if (delta == 0.0)
+                    if (!(param > constraint.param))
                     {
-                        add_scaled(shift, step, direction);
-                        clipped = true;
-                    }
-                    else if (delta > 0.0)
-                    {
-                        add_scaled(shift, scale_delta_step, direction);
+                        add_scaled(shift, (constraint.param + epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
                 case BP_GREATER_EQUAL:
-                    if (delta > 0.0)
+                    if (!(param >= constraint.param))
                     {
-                        add_scaled(shift, scale_delta_step, direction);
+                        add_scaled(shift, constraint.param - param, direction);
                         clipped = true;
                     }
                     break;
