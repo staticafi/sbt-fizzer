@@ -134,6 +134,8 @@ void  chain_minimization_analysis::start(
     local_spaces.clear();
     insert_first_local_space();
 
+    tested_origins.clear();
+
     gradient_step_shifts.clear();
     gradient_step_results.clear();
 
@@ -448,52 +450,43 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
             std::size_t const  partial_index{ size(space.gradient) };
     
             bool  has_sensitive_var{ false };
-            natural_32_bit  smallest_var_idx;
-            {
-                auto const&  sensitive_vars{ path.at(space_index).variable_indices };
-                auto const&  vars{ space.variable_indices.at(partial_index) };
-                smallest_var_idx = vars.front();
-                for (natural_32_bit  var_idx : vars)
+            for (natural_32_bit  var_idx : space.variable_indices.at(partial_index))
+                if (path.at(space_index).variable_indices.contains(var_idx))
                 {
-                    if (sensitive_vars.contains(var_idx))
-                        has_sensitive_var = true;
-                    if (to_id(types_of_variables.at(var_idx)) < to_id(types_of_variables.at(smallest_var_idx)))
-                        smallest_var_idx = var_idx;
+                    has_sensitive_var = true;
+                    break;
                 }
-            }
-
             if (has_sensitive_var)
             {
-                set(space.sample_shift, 0.0);
-                float_64_bit&  shift{ at(space.sample_shift, partial_index) };
+                vecf64  shift;
+                axis(shift, columns(space.orthogonal_basis), partial_index);
 
-                auto const  float_shift_pivot = [this](natural_32_bit const  i) {
-                    float_64_bit const  x{ std::fabs(origin.at(i)) };
-                    float_64_bit const  fx{ std::fabs(path.at(local_spaces.size() - 1UL).value) };
-                    return x + 0.1 * (fx - x);
-                };
-
-                switch (types_of_variables.at(smallest_var_idx))
+                float_64_bit  param;
                 {
-                    case type_of_input_bits::FLOAT32:
-                        shift = small_delta_around((float_32_bit)float_shift_pivot(smallest_var_idx));
-                        break;
-                    case type_of_input_bits::FLOAT64:
-                        shift = small_delta_around(float_shift_pivot(smallest_var_idx));
-                        break;
-                    default:
-                        shift = 1.0;
-                        break;
+                    float_64_bit constexpr  coef{ 0.01 };
+                    float_64_bit const  value{ (1.0 - coef) * max_abs(origin) + coef * std::fabs(path.at(space_index).value) };
+                    param = small_delta_around(value);
+                    param /= at(space.scales_of_basis_vectors_in_world_space, partial_index);
                 }
 
-                shift /= at(space.scales_of_basis_vectors_in_world_space, partial_index);
+                origin_set  ignore_origin{ &types_of_variables };
+                ignore_origin.insert(make_vector_overlay(origin, types_of_variables));
 
-                if (are_constraints_satisfied(space.constraints, space.sample_shift))
-                    return true;
+                float_64_bit const  lambda{
+                        compute_best_shift_along_ray(origin, at(space.basis_vectors_in_world_space, partial_index), param, ignore_origin)
+                        };
+                if (lambda != 0.0)
+                {
+                    space.sample_shift = scale_cp(shift, lambda);
 
-                shift = -shift;
-                if (are_constraints_satisfied(space.constraints, space.sample_shift))
-                    return true;
+                    if (are_constraints_satisfied(space.constraints, space.sample_shift))
+                        return true;
+
+                    negate(space.sample_shift);
+
+                    if (are_constraints_satisfied(space.constraints, space.sample_shift))
+                        return true;
+                }
             }
 
             space.gradient.push_back(0.0);
@@ -518,6 +511,7 @@ void  chain_minimization_analysis::compute_partial_derivative()
 
 void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_index) const
 {
+    ASSUMPTION(src_space_index < local_spaces.size());
     for (std::size_t  i = src_space_index; i > 0UL; --i)
     {
         vecf64&  shift{ local_spaces.at(i - 1UL).sample_shift };
@@ -576,8 +570,8 @@ void  chain_minimization_analysis::insert_next_local_space()
             axis(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), i);
             dst_space.variable_indices.push_back(src_space.variable_indices.at(i));
         }
-        dst_space.basis_vectors_in_world_space = dst_space.orthogonal_basis;
-        reset(dst_space.scales_of_basis_vectors_in_world_space, columns(dst_space.orthogonal_basis), 1.0);
+        dst_space.basis_vectors_in_world_space = src_space.basis_vectors_in_world_space;
+        dst_space.scales_of_basis_vectors_in_world_space = src_space.scales_of_basis_vectors_in_world_space;
         dst_space.constraints = src_space.constraints;
         reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
         return;
@@ -810,58 +804,62 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
                 }()
             )
         return false;
-    float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
-    // TODO: delta above does not work for INT variables (the shift is too small; rounding cancels it)
 
     std::vector<float_64_bit>  lambdas;
     {
-        std::vector<float_64_bit>  raw_lambdas;
+        vecf64 const  ray_dir{ transform_shift(space.gradient, space_index) };
+
+        vecf64  ray_start;
+        if (shift_ptr == nullptr)
+            ray_start = add_scaled_cp(origin, lambda0, ray_dir);
+        else
+            ray_start = add_scaled_cp(add_cp(origin, transform_shift(*shift_ptr, space_index)), lambda0, ray_dir);
+
+        float_64_bit  param;
+        {
+            float_64_bit constexpr  coef{ 0.01 };
+            float_64_bit const  value{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
+            param = small_delta_around(value);
+            param /= length(ray_dir);
+        }
+
+        origin_set  ignored_points{ tested_origins };
+        ignored_points.insert(make_vector_overlay(ray_start, types_of_variables));
+
         switch (predicate)
         {
             case BP_EQUAL:
                 ASSUMPTION(value != 0.0 && lambda0 != 0.0);
-                raw_lambdas.assign({ lambda0 });
+                lambdas.push_back(lambda0);
                 break;
             case BP_UNEQUAL:
                 ASSUMPTION(value == 0.0);
-                raw_lambdas.assign({ lambda0 - delta, lambda0 + delta });
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
             case BP_LESS:
                 ASSUMPTION(value >= 0.0 && lambda0 <= 0.0);
-                raw_lambdas.assign({ lambda0 - delta });
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
             case BP_LESS_EQUAL:
                 ASSUMPTION(value > 0.0 && lambda0 < 0.0);
-                raw_lambdas.assign({ lambda0 - delta, lambda0 });
+                lambdas.push_back(lambda0);
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
             case BP_GREATER:
                 ASSUMPTION(value <= 0.0 && lambda0 >= 0.0);
-                raw_lambdas.assign({ lambda0 + delta });
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                 break;
             case BP_GREATER_EQUAL:
                 ASSUMPTION(value < 0.0 && lambda0 > 0.0);
-                raw_lambdas.assign({ lambda0, lambda0 + delta });
+                lambdas.push_back(lambda0);
+                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                 break;
             default: { UNREACHABLE(); } break;
         }
-
-        for (auto const  lambda : raw_lambdas)
-            if (std::isfinite(lambda) && !std::isnan(lambda))
-                lambdas.push_back(lambda);
-        if (lambdas.empty())
-            lambdas.push_back(0.5 * lambda0); // This is for numerical stability - when the numbers are big - to make them smaller.
-
-        std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
     }
 
-    vecf64 const  gradient_in_world_space{ transform_shift(space.gradient, space_index) };
-    vecf64  origin_shift_in_world_space;
-    if (shift_ptr == nullptr)
-        reset(origin_shift_in_world_space, size(origin), 0.0);
-    else
-        origin_shift_in_world_space = transform_shift(*shift_ptr, space_index);
-
-    std::vector<vecf64>  candidate_shifts;
+    origin_set  used_origins{ &types_of_variables };
     for (float_64_bit const  lambda : lambdas)
     {
         vecf64  shift;
@@ -872,20 +870,18 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
         }
         else
             shift = scale_cp(space.gradient, lambda);
-        if (clip_shift_by_constraints(space.constraints, space.gradient, shift))
-            candidate_shifts.push_back(shift);
-    }
 
-    origin_set  used_origins{ tested_origins };
-    for (vecf64 const&  shift : candidate_shifts)
-    {
+        if (!clip_shift_by_constraints(space.constraints, space.gradient, shift))
+            continue;
+
         vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
         vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-        if (!tested_origins.contains(point_overlay))
-        {
-            resulting_shifts.push_back(shift);
-            used_origins.insert(point_overlay);
-        }
+
+        if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
+            continue;
+
+        resulting_shifts.push_back(shift);
+        used_origins.insert(point_overlay);
     }
 
     return !resulting_shifts.empty();
@@ -963,40 +959,60 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
 
 float_64_bit  chain_minimization_analysis::compute_best_shift_along_ray(
         vecf64 const&  ray_start,
-        vecf64 const&  ray_dir,
+        vecf64  ray_dir,
         float_64_bit  param,
-        origin_set const&  excluded_points,
-        natural_8_bit  max_num_samples
+        origin_set const&  excluded_points
         ) const
 {
     ASSUMPTION(size(ray_start) == size(ray_dir) && size(ray_start) == types_of_variables.size());
 
+    float_64_bit  sign{ 1.0 };
+    if (param < 0.0)
+    {
+        param = -param;
+        negate(ray_dir);
+        sign = -1.0;
+    }
+
     float_64_bit const  dd{ dot_product(ray_dir, ray_dir) };
-    ASSUMPTION(std::fabs(dd) > 1e-9);
-    float_64_bit const  dd_inv{ 1.0 / dd };
+    float_64_bit  dd_inv{ 1.0 / dd };
+    if (!std::isfinite(dd_inv) || std::isnan(dd_inv))
+        dd_inv = std::numeric_limits<float_64_bit>::infinity();
 
     using  error_and_param = std::pair<float_64_bit, float_64_bit>;
     std::vector<error_and_param>  samples;
 
     vecf64  point{ ray_start };
-    vecf64 const  ray_dir_inv{ invert(ray_dir) };
+    add_scaled(point, param, ray_dir);
 
-    for (natural_8_bit  iter = 0U; iter != max_num_samples; ++iter)
+    vecf64  ray_dir_inv{ invert(ray_dir) };
+    for (float_64_bit& x : ray_dir_inv)
+        if (!std::isfinite(x) || std::isnan(x))
+            x = std::numeric_limits<float_64_bit>::infinity();
+
+    for (std::size_t  iter = 0UL, max_num_samples = 2UL * size(ray_start); iter != max_num_samples; ++iter)
     {
+        vecf64 const  steps{ smallest_step(point, types_of_variables, ray_dir) };
+        vecf64 const  params{ modulate(steps, ray_dir_inv) };
+        param = *std::min_element(params.begin(), params.end());
+        if (!std::isfinite(param) || std::isnan(param))
+            break;
+
         add_scaled(point, param, ray_dir);
 
         vector_overlay  point_overlay{ make_vector_overlay(point, types_of_variables) };
         if (!excluded_points.contains(point_overlay))
+        {
+            vecf64 const  diff{ sub_cp(as<float_64_bit>(point_overlay, types_of_variables), point) };
+            vecf64 const  error{ add_scaled_cp(diff, -dot_product(ray_dir, diff) * dd_inv, ray_dir) };
             samples.push_back({
-                    dot_product(ray_dir, sub_cp(as<float_64_bit>(point_overlay, types_of_variables), point)) * dd_inv,
+                    dot_product(error, error),
                     dot_product(ray_dir, sub_cp(point, ray_start)) * dd_inv
                     });
-
-        vecf64 const  params{ modulate(smallest_step(point, types_of_variables, ray_dir), ray_dir_inv) };
-        param = *std::min_element(params.begin(), params.end());
+        }
     }
     std::sort(samples.begin(), samples.end());
-    return samples.empty() ? 0.0 : samples.front().second;
+    return samples.empty() ? 0.0 : sign * samples.front().second;
 }
 
 
