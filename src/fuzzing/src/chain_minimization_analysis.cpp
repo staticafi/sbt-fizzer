@@ -523,12 +523,36 @@ void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_
 }
 
 
-vecf64 const&  chain_minimization_analysis::transform_shift(vecf64 const&  shift, std::size_t  space_index) const
+vecf64 const&  chain_minimization_analysis::transform_shift(vecf64 const&  shift, std::size_t const  src_space_index) const
 {
-    ASSUMPTION(space_index < local_spaces.size());
-    local_spaces.at(space_index).sample_shift = shift;
-    transform_shift(space_index);
+    ASSUMPTION(src_space_index < local_spaces.size());
+    local_spaces.at(src_space_index).sample_shift = shift;
+    transform_shift(src_space_index);
     return local_spaces.front().sample_shift;
+}
+
+
+void  chain_minimization_analysis::transform_shift_back(std::size_t const  dst_space_index) const
+{
+    ASSUMPTION(dst_space_index < local_spaces.size());
+    for (std::size_t  i = 0UL; i < dst_space_index; ++i)
+    {
+        vecf64 const&  shift{ local_spaces.at(i).sample_shift };
+        local_space_of_branching const&  space{ local_spaces.at(i + 1UL) };
+        for (std::size_t  j = 0UL; j < columns(space.orthogonal_basis); ++j)
+            at(space.sample_shift, j) = dot_product(shift, at(space.orthogonal_basis, j)) /
+                                        dot_product(at(space.orthogonal_basis, j), at(space.orthogonal_basis, j));
+    }
+
+}
+
+
+vecf64 const&  chain_minimization_analysis::transform_shift_back(vecf64 const&  shift, std::size_t  dst_space_index) const
+{
+    ASSUMPTION(dst_space_index < local_spaces.size());
+    local_spaces.front().sample_shift = shift;
+    transform_shift_back(dst_space_index);
+    return local_spaces.at(dst_space_index).sample_shift;
 }
 
 
