@@ -33,6 +33,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , stopped_early{ false }
     , failed_nodes{}
     , num_executions{ 0U }
+    , max_executions{ 0U }
     , progress_stage{ PARTIALS }
     , origin{}
     , tested_origins{ &types_of_variables }
@@ -40,7 +41,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , gradient_step_shifts{}
     , gradient_step_results{}
     , recovery{}
-    , stability{}
+    // , stability{}
     , statistics{}
 {}
 
@@ -127,6 +128,15 @@ void  chain_minimization_analysis::start(
     stopped_early = false;
     num_executions = 0U;
 
+    max_executions = 0U;
+    {
+        natural_32_bit  nbits{ 0U };
+        for (type_identifier const tid : types_of_variables)
+            nbits += num_bits(tid);
+
+        max_executions = (natural_32_bit)std::round((float_64_bit)(100U * nbits) + std::pow((float_64_bit)(path.size() + 2U), 2.5));
+    }
+
     progress_stage = PARTIALS;
 
     bits_to_point(bits_and_types->bits, origin);
@@ -140,7 +150,7 @@ void  chain_minimization_analysis::start(
     gradient_step_results.clear();
 
     recovery = {};
-    stability = {};
+    // stability = {};
 
     tested_origins.insert(make_vector_overlay(origin, types_of_variables));
 
@@ -194,12 +204,6 @@ void  chain_minimization_analysis::stop_with_failure()
 }
 
 
-natural_32_bit  chain_minimization_analysis::max_num_executions() const
-{
-    return (natural_32_bit)(100U * node->num_stdin_bytes);
-}
-
-
 bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
 {
     TMPROF_BLOCK();
@@ -240,7 +244,6 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
             }
 
             progress_stage = STEP;
-            gradient_step_results.clear();
         }
         else if (progress_stage == STEP)
         {
@@ -250,15 +253,13 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 transform_shift(local_spaces.size() - 1UL);
                 break;
             }
-            if (apply_best_gradient_step())
-                progress_stage = PARTIALS;
-            else if (compute_stability_shift_for_origin())
-                progress_stage = STABILITY;
-            else
+            if (!apply_best_gradient_step())
             {
                 stop_with_failure();
                 return false;
             }
+
+            progress_stage = PARTIALS;
         }
         else if (progress_stage == RECOVERY)
         {
@@ -270,20 +271,36 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 break;
             }
 
-            stop_with_failure();
-            return false;
-        }
-        else if (progress_stage == STABILITY)
-        {
-            if (stability.step_index >= gradient_step_shifts.size())
+            if (recovery.stage_backup == PARTIALS)
+            {
+                INVARIANT(size(local_spaces.back().gradient) < size(local_spaces.back().orthogonal_basis));
+                local_spaces.back().gradient.push_back(0.0);
+            }
+            else if (recovery.stage_backup == STEP)
+            {
+                INVARIANT(gradient_step_results.size() < gradient_step_shifts.size());
+                gradient_step_results.push_back({ nullptr, {} });
+                reset(gradient_step_results.back().values, local_spaces.size(), INFINITY);
+            }
+            else
             {
                 stop_with_failure();
                 return false;
             }
-            local_spaces.back().sample_shift = stability.shift;
-            transform_shift(local_spaces.size() - 1UL);
-            break;
+
+            progress_stage = recovery.stage_backup;
         }
+        // else if (progress_stage == STABILITY)
+        // {
+        //     if (stability.step_index >= gradient_step_shifts.size())
+        //     {
+        //         stop_with_failure();
+        //         return false;
+        //     }
+        //     local_spaces.back().sample_shift = stability.shift;
+        //     transform_shift(local_spaces.size() - 1UL);
+        //     break;
+        // }
         else { UNREACHABLE(); }
     }
 
@@ -330,11 +347,11 @@ void  chain_minimization_analysis::process_execution_results(
     {
         if (progress_stage != RECOVERY)
         {
-            recovery = {};
             recovery.stage_backup = progress_stage;
             recovery.space_index = last_index;
             recovery.shift = local_spaces.at(last_index).sample_shift;
             recovery.value = local_spaces.at(last_index).sample_value;
+            recovery.sample_shifts.clear();
             compute_gradient_step_shifts(
                     recovery.sample_shifts,
                     recovery.space_index,
@@ -380,7 +397,15 @@ void  chain_minimization_analysis::process_execution_results(
         }
     }
     else if (progress_stage == RECOVERY)
+    {
+        if (recovery.stage_backup == STEP)
+        {
+            transform_shift_back(local_spaces.size() - 1UL);
+            gradient_step_shifts.at(gradient_step_results.size()) = local_spaces.back().sample_shift;
+        }
+
         progress_stage = recovery.stage_backup;
+    }
 
     switch (progress_stage)
     {
@@ -413,18 +438,18 @@ void  chain_minimization_analysis::process_execution_results(
         case RECOVERY:
             // Nothing to do.
             break;
-        case STABILITY:
-            {
-                std::vector<float_64_bit>  values;
-                for (auto const&  space : local_spaces)
-                    values.push_back(space.sample_value);
-                commit_execution_results(bits_and_types_ptr, values);
-                if (std::equal(origin.cbegin(), origin.cend(), stability.origin_backup.cbegin()))
-                    stability = {}; // We failed to stabilize the computation by shifting the origin towards the zero vector.
-                else
-                    progress_stage = PARTIALS;
-            }
-            break;
+        // case STABILITY:
+        //     {
+        //         std::vector<float_64_bit>  values;
+        //         for (auto const&  space : local_spaces)
+        //             values.push_back(space.sample_value);
+        //         commit_execution_results(bits_and_types_ptr, values);
+        //         if (std::equal(origin.cbegin(), origin.cend(), stability.origin_backup.cbegin()))
+        //             stability = {}; // We failed to stabilize the computation by shifting the origin towards the zero vector.
+        //         else
+        //             progress_stage = PARTIALS;
+        //     }
+        //     break;
         default: { UNREACHABLE(); } break;
     }
 
@@ -463,9 +488,47 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
 
                 float_64_bit  param;
                 {
-                    float_64_bit constexpr  coef{ 0.01 };
-                    float_64_bit const  value{ (1.0 - coef) * max_abs(origin) + coef * std::fabs(path.at(space_index).value) };
-                    param = small_delta_around(value);
+                    // param = small_delta_around(max_abs(origin));
+
+                    
+
+                    int constexpr  num_shift_digits{ std::numeric_limits<float_64_bit>::digits >> 2 };
+                    float_64_bit const  value{ max_abs(origin) };
+                    int  exponent;
+                    std::frexp(value, &exponent);
+                    int const  exponent_shift{ (exponent < -num_shift_digits ? 1 : -1) * num_shift_digits };
+                    param = std::pow(2.0, exponent + exponent_shift);
+
+
+
+                    // float_64_bit const  var_value{ max_abs(origin) };
+                    // int  var_exponent;
+                    // std::frexp(var_value, &var_exponent);
+
+                    // float_64_bit const  func_value{ std::fabs(path.at(space_index).value) };
+                    // int  func_exponent;
+                    // std::frexp(func_value, &func_exponent);
+
+                    // param = small_delta_around(std::abs(var_exponent) < std::abs(func_exponent) ? var_value : func_value);
+
+
+
+
+
+                    // int  origin_exponent;
+                    // float_64_bit const  origin_fraction{ std::frexp(max_abs(origin), &origin_exponent) };
+                    // int  value_exponent;
+                    // float_64_bit const  value_fraction{ std::frexp(std::fabs(path.at(space_index).value), &value_exponent) };
+
+                    // float_64_bit constexpr  coef{ 0.9 };
+                    // float_64_bit const  interpolant_exponent{ (1.0 - coef) * value_exponent + coef * origin_exponent };
+                    // float_64_bit const  interpolant{ origin_fraction * std::pow(2.0, interpolant_exponent) };
+
+                    // param = small_delta_around(interpolant);
+
+
+
+
                     param /= at(space.scales_of_basis_vectors_in_world_space, partial_index);
                 }
 
@@ -505,7 +568,10 @@ void  chain_minimization_analysis::compute_partial_derivative()
     local_space_of_branching&  space{ local_spaces.back() };
     ASSUMPTION(size(space.gradient) < columns(space.orthogonal_basis));
     float_64_bit const partial{ (space.sample_value - path.at(local_spaces.size() - 1UL).value) / at(space.sample_shift, size(space.gradient)) };
-    space.gradient.push_back(std::isfinite(partial) ? partial : 0.0);
+    if (!std::isfinite(partial) || std::isnan(partial))
+        space.gradient.push_back(0.0);
+    else
+        space.gradient.push_back(partial);
 }
 
 
@@ -801,103 +867,136 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
     local_space_of_branching const&  space{ local_spaces.at(space_index) };
     comparator_type const  predicate{ path.at(space_index).predicate };
 
-    float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
-    if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
-        return false;
-
-    float_64_bit const  lambda0{ -value * gg_inv };
-    if (!std::isfinite(lambda0)
-            || std::isnan(lambda0)
-            || ![&space, lambda0]() -> bool {
-                    for (auto const coord : space.gradient)
-                    {
-                        float_64_bit const  x{ coord * lambda0 };
-                        if (!std::isfinite(x) || std::isnan(x))
-                            return false;
-                    }
-                    return true;
-                }()
-            )
-        return false;
-
-    std::vector<float_64_bit>  lambdas;
-    {
-        vecf64 const  ray_dir{ transform_shift(space.gradient, space_index) };
-
-        vecf64  ray_start;
-        if (shift_ptr == nullptr)
-            ray_start = add_scaled_cp(origin, lambda0, ray_dir);
-        else
-            ray_start = add_scaled_cp(add_cp(origin, transform_shift(*shift_ptr, space_index)), lambda0, ray_dir);
-
-        float_64_bit  param;
-        {
-            float_64_bit constexpr  coef{ 0.01 };
-            float_64_bit const  value{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
-            param = small_delta_around(value);
-            param /= length(ray_dir);
-        }
-
-        origin_set  ignored_points{ tested_origins };
-        ignored_points.insert(make_vector_overlay(ray_start, types_of_variables));
-
-        switch (predicate)
-        {
-            case BP_EQUAL:
-                ASSUMPTION(value != 0.0 && lambda0 != 0.0);
-                lambdas.push_back(lambda0);
-                break;
-            case BP_UNEQUAL:
-                ASSUMPTION(value == 0.0);
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
-                break;
-            case BP_LESS:
-                ASSUMPTION(value >= 0.0 && lambda0 <= 0.0);
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
-                break;
-            case BP_LESS_EQUAL:
-                ASSUMPTION(value > 0.0 && lambda0 < 0.0);
-                lambdas.push_back(lambda0);
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
-                break;
-            case BP_GREATER:
-                ASSUMPTION(value <= 0.0 && lambda0 >= 0.0);
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
-                break;
-            case BP_GREATER_EQUAL:
-                ASSUMPTION(value < 0.0 && lambda0 > 0.0);
-                lambdas.push_back(lambda0);
-                lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
-                break;
-            default: { UNREACHABLE(); } break;
-        }
-    }
-
     origin_set  used_origins{ &types_of_variables };
-    for (float_64_bit const  lambda : lambdas)
+
+    for (std::size_t  i = 0UL; i <= size(space.gradient); ++i)
     {
-        vecf64  shift;
-        if (shift_ptr != nullptr)
+        vecf64  g{ space.gradient };
+        if (i != 0UL)
         {
-            shift = *shift_ptr;
-            add_scaled(shift, lambda, space.gradient);
+            if (at(g, i - 1UL) == 0.0)
+                continue;
+            at(g, i - 1UL) = 0.0;
         }
-        else
-            shift = scale_cp(space.gradient, lambda);
-
-        if (!clip_shift_by_constraints(space.constraints, space.gradient, shift))
+    
+        float_64_bit const  gg_inv{ 1.0 / dot_product(g, g) };
+        if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
             continue;
 
-        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
-        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-
-        if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
+        float_64_bit const  lambda0{ -value * gg_inv };
+        if (!std::isfinite(lambda0)
+                || std::isnan(lambda0)
+                || ![&space, &g, lambda0]() -> bool {
+                        for (auto const coord : g)
+                        {
+                            float_64_bit const  x{ coord * lambda0 };
+                            if (!std::isfinite(x) || std::isnan(x))
+                                return false;
+                        }
+                        return true;
+                    }()
+                )
             continue;
 
-        resulting_shifts.push_back(shift);
-        used_origins.insert(point_overlay);
+        vecf64  lambdas;
+        {
+            vecf64 const  ray_dir{ transform_shift(g, space_index) };
+
+            vecf64  ray_start;
+            if (shift_ptr == nullptr)
+                ray_start = add_scaled_cp(origin, lambda0, ray_dir);
+            else
+                ray_start = add_scaled_cp(add_cp(origin, transform_shift(*shift_ptr, space_index)), lambda0, ray_dir);
+
+            float_64_bit  param;
+            {
+                float_64_bit constexpr  coef{ 0.01 };
+                float_64_bit const  value{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
+                param = small_delta_around(value);
+                param /= length(ray_dir);
+            }
+
+            origin_set  ignored_points{ tested_origins };
+            ignored_points.insert(make_vector_overlay(ray_start, types_of_variables));
+
+            switch (predicate)
+            {
+                case BP_EQUAL:
+                    ASSUMPTION(value != 0.0 && lambda0 != 0.0);
+                    lambdas.push_back(lambda0);
+                    break;
+                case BP_UNEQUAL:
+                    ASSUMPTION(value == 0.0);
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
+                    break;
+                case BP_LESS:
+                    ASSUMPTION(value >= 0.0 && lambda0 <= 0.0);
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
+                    break;
+                case BP_LESS_EQUAL:
+                    ASSUMPTION(value > 0.0 && lambda0 < 0.0);
+                    lambdas.push_back(lambda0);
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
+                    break;
+                case BP_GREATER:
+                    ASSUMPTION(value <= 0.0 && lambda0 >= 0.0);
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
+                    break;
+                case BP_GREATER_EQUAL:
+                    ASSUMPTION(value < 0.0 && lambda0 > 0.0);
+                    lambdas.push_back(lambda0);
+                    lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
+                    break;
+                default: { UNREACHABLE(); } break;
+            }
+
+            static vecf64 const multipliers {
+                // 10000.0,
+                1000.0,
+                100.0,
+                10.0,
+                1.0,
+                0.1,
+                0.01,
+                0.001,
+                // 0.0001,
+                };
+            for (float_64_bit const  m : multipliers)
+                lambdas.push_back(m * lambda0);
+        }
+
+        // TODO: add shift moving the origin towards zero (as in compute_stability_shift_for_origin).
+
+        for (float_64_bit const  lambda : lambdas)
+        {
+            vecf64  shift;
+            if (shift_ptr != nullptr)
+            {
+                shift = *shift_ptr;
+                add_scaled(shift, lambda, g);
+            }
+            else
+                shift = scale_cp(g, lambda);
+
+            if (!clip_shift_by_constraints(space.constraints, g, shift))
+                continue;
+
+            vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+            vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+
+            if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
+                continue;
+
+            resulting_shifts.push_back(shift);
+            used_origins.insert(point_overlay);
+        }
     }
+
+if (resulting_shifts.empty())
+{
+    int iii = 0;
+}
 
     return !resulting_shifts.empty();
 }
@@ -921,36 +1020,6 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
                 continue;
         }
 
-        float_64_bit const  i_value{ gradient_step_results.at(i).values.back() };
-
-        {
-            bool  is_improving{ false };
-            switch (path.back().predicate)
-            {
-                case BP_EQUAL:
-                    if (std::fabs(i_value) < std::fabs(path.back().value))
-                        is_improving = true;
-                    break;
-                case BP_UNEQUAL:
-                    if (std::fabs(i_value) > std::fabs(path.back().value))
-                        is_improving = true;
-                    break;
-                case BP_LESS:
-                case BP_LESS_EQUAL:
-                    if (i_value < path.back().value)
-                        is_improving = true;
-                    break;
-                case BP_GREATER:
-                case BP_GREATER_EQUAL:
-                    if (i_value > path.back().value)
-                        is_improving = true;
-                    break;
-                default: { UNREACHABLE(); } break;
-            }
-            if (!is_improving)
-                continue;
-        }
-
         if (i_best == gradient_step_results.size())
         {
             i_best = i;
@@ -958,7 +1027,49 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
         }
 
         float_64_bit const  i_best_value{ gradient_step_results.at(i_best).values.back() };
-        if (std::fabs(i_value) < std::fabs(i_best_value))
+        float_64_bit const  i_value{ gradient_step_results.at(i).values.back() };
+
+        auto const&  moves_origin_closer_to_zero = [this, i, i_best]() {
+            vecf64 const  point_best{ add_cp(origin, transform_shift(gradient_step_shifts.at(i_best), local_spaces.size() - 1UL)) };
+            vecf64 const  point_i{ add_cp(origin, transform_shift(gradient_step_shifts.at(i), local_spaces.size() - 1UL)) };
+            float_64_bit const  len_best{ length(point_best) };
+            float_64_bit const  len_i{ length(point_i) };
+            return len_i < len_best;
+        };
+
+        bool  is_improving{ false };
+        switch (path.back().predicate)
+        {
+            case BP_EQUAL:
+                if (std::fabs(i_value) < std::fabs(i_best_value))
+                    is_improving = true;
+                else if (std::fabs(i_value) == std::fabs(i_best_value) && moves_origin_closer_to_zero())
+                    is_improving = true;
+                break;
+            case BP_UNEQUAL:
+                if (std::fabs(i_value) > std::fabs(i_best_value))
+                    is_improving = true;
+                else if (std::fabs(i_value) == std::fabs(i_best_value) && moves_origin_closer_to_zero())
+                    is_improving = true;
+                break;
+            case BP_LESS:
+            case BP_LESS_EQUAL:
+                if (i_value < i_best_value)
+                    is_improving = true;
+                else if (i_value == i_best_value && moves_origin_closer_to_zero())
+                    is_improving = true;
+                break;
+            case BP_GREATER:
+            case BP_GREATER_EQUAL:
+                if (i_value > i_best_value)
+                    is_improving = true;
+                else if (i_value == i_best_value && moves_origin_closer_to_zero())
+                    is_improving = true;
+                break;
+            default: { UNREACHABLE(); } break;
+        }
+
+        if (is_improving)
             i_best = i;
     }
 
@@ -1031,44 +1142,44 @@ float_64_bit  chain_minimization_analysis::compute_best_shift_along_ray(
 }
 
 
-bool  chain_minimization_analysis::compute_stability_shift_for_origin()
-{
-    stability = {};
-    stability.origin_backup = origin;
+// bool  chain_minimization_analysis::compute_stability_shift_for_origin()
+// {
+//     stability = {};
+//     stability.origin_backup = origin;
 
-    for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
-    {
-        vecf64  origin_i;
-        bits_to_point(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i);
-        if (std::equal(origin_i.cbegin(), origin_i.cend(), origin.cbegin()))
-        {
-            stability.step_index = i;
-            break;
-        }
-    }
+//     for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
+//     {
+//         vecf64  origin_i;
+//         bits_to_point(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i);
+//         if (std::equal(origin_i.cbegin(), origin_i.cend(), origin.cbegin()))
+//         {
+//             stability.step_index = i;
+//             break;
+//         }
+//     }
 
-    if (stability.step_index >= gradient_step_results.size())
-        return false;
+//     if (stability.step_index >= gradient_step_results.size())
+//         return false;
 
-    // TODO: 
-    //  1. transform origin to local_spaces.back().orthogonal_basis and denote it as S.
-    //  2. Update the code below to find the shift to S.
+//     // TODO: 
+//     //  1. transform origin to local_spaces.back().orthogonal_basis and denote it as S.
+//     //  2. Update the code below to find the shift to S.
 
-    float_64_bit const  gg_inv{ 1.0 / dot_product(local_spaces.back().gradient, local_spaces.back().gradient) };
-    float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_backup) };
-    stability.shift = gradient_step_shifts.at(stability.step_index);
-    add_scaled(stability.shift, gO * gg_inv, local_spaces.back().gradient);
-    add_scaled(stability.shift, -1, stability.origin_backup);
+//     float_64_bit const  gg_inv{ 1.0 / dot_product(local_spaces.back().gradient, local_spaces.back().gradient) };
+//     float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_backup) };
+//     stability.shift = gradient_step_shifts.at(stability.step_index);
+//     add_scaled(stability.shift, gO * gg_inv, local_spaces.back().gradient);
+//     add_scaled(stability.shift, -1, stability.origin_backup);
 
-    //  3. Clip the shipt according to the constraints in local_spaces.back().constraints.
+//     //  3. Clip the shipt according to the constraints in local_spaces.back().constraints.
 
-    return true;
-}
+//     return true;
+// }
 
 
 void  chain_minimization_analysis::commit_execution_results(
         stdin_bits_and_types_pointer const  bits_and_types_ptr,
-        std::vector<float_64_bit> const&  values
+        vecf64 const&  values
         )
 {
     bits_and_types = bits_and_types_ptr;
