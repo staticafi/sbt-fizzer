@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 3564,
+        "num_executions": 4040,
         "num_covered_branchings": 35,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    
@@ -32,7 +32,12 @@
         ],
         "output_statistics": {
             "bitshare_analysis": {
-                "num_generated_tests": 11,
+                "num_generated_tests": 10,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "chain_minimization_analysis": {
+                "num_generated_tests": 15,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },

@@ -17,12 +17,17 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 70,
+        "num_executions": 535,
         "num_covered_branchings": 1,
         "covered_branchings": [
             1,0
         ],
         "output_statistics": {
+            "chain_minimization_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
             "STARTUP": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,

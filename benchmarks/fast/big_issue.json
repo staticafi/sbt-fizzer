@@ -16,20 +16,20 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 355,
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "num_executions": 500,
         "num_covered_branchings": 4,
         "covered_branchings": [
             2,0,    3,0,    4,0,    5,0
         ],
         "output_statistics": {
             "chain_minimization_analysis": {
-                "num_generated_tests": 3,
+                "num_generated_tests": 2,
                 "num_crashes": 0,
-                "num_boundary_violations": 1
+                "num_boundary_violations": 0
             },
             "sensitivity_analysis": {
-                "num_generated_tests": 1,
+                "num_generated_tests": 2,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
