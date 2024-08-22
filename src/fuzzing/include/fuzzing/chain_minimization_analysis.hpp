@@ -62,6 +62,12 @@ struct  chain_minimization_analysis
         mutable float_64_bit  sample_value{ 0.0 };
     };
 
+    struct  partials_stage_props
+    {
+        void clear() { *this = {}; }
+        std::vector<vecf64>  shifts{};
+    };
+
     struct  gradient_descent_props
     {
         struct  execution_result
@@ -69,7 +75,7 @@ struct  chain_minimization_analysis
             stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
             vecf64  values{};
         };
-        void clear() { shifts.clear(); results.clear(); }
+        void clear() { *this = {}; }
         std::vector<vecf64>  shifts{};
         std::vector<execution_result>  results{};
     };
@@ -82,6 +88,7 @@ struct  chain_minimization_analysis
 
     struct  divergence_recovery_props
     {
+        void clear() { *this = {}; }
         PROGRESS_STAGE  stage_backup{ RECOVERY };
         std::size_t  space_index{ std::numeric_limits<std::size_t>::max() };
         vecf64  shift{};
@@ -165,7 +172,7 @@ struct  chain_minimization_analysis
 
 private:
 
-    bool  compute_shift_of_next_partial();
+    void  compute_shifts_of_next_partial();
     void  compute_partial_derivative();
     void  transform_shift(std::size_t  src_space_index) const;
     vecf64 const&  transform_shift(vecf64 const&  shift, std::size_t  src_space_index) const;
@@ -213,6 +220,7 @@ private:
     vecf64  origin;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
+    partials_stage_props  partials_props;
     gradient_descent_props  descent_props;
     divergence_recovery_props  recovery_props;
 
