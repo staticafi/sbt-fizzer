@@ -67,6 +67,30 @@ std::size_t  hash(number_overlay const  value, type_identifier const  type)
 }
 
 
+bool is_finite(number_overlay const  value, type_identifier const  type)
+{
+    switch (type)
+    {
+        case type_identifier::BOOLEAN:
+            return *(natural_8_bit*)&value._boolean < 2U;
+        case type_identifier::UINT8:
+        case type_identifier::SINT8:
+        case type_identifier::UINT16:
+        case type_identifier::SINT16:
+        case type_identifier::UINT32:
+        case type_identifier::SINT32:
+        case type_identifier::UINT64:
+        case type_identifier::SINT64:
+            return true;
+        case type_identifier::FLOAT32:
+            return std::isfinite(value._float32) || !std::isnan(value._float32);
+        case type_identifier::FLOAT64:
+            return std::isfinite(value._float64) || !std::isnan(value._float64);
+        default: { UNREACHABLE(); } return 0UL;
+    }
+}
+
+
 vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types)
 {
     ASSUMPTION(size(v) == types.size());
@@ -99,6 +123,18 @@ std::size_t  hash(vector_overlay const&  v, type_vector const&  types)
     for ( ; ito != v.end(); ++ito, ++itt)
         ::hash_combine(result, hash(*ito, *itt));
     return result;
+}
+
+
+bool is_finite(vector_overlay const&  v, type_vector const&  types)
+{
+    ASSUMPTION(v.size() == types.size());
+    auto  ito = v.begin();
+    auto  itt = types.begin();
+    for ( ; ito != v.end(); ++ito, ++itt)
+        if (!is_finite(*ito, *itt))
+            return false;
+    return true;
 }
 
 
