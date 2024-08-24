@@ -297,6 +297,10 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
     vecf64 const  shifted_origin{ add_cp(origin, local_spaces.front().sample_shift) };
     vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
     tested_origins.insert(shifted_origin_overlay);
+    if (!is_finite(shifted_origin_overlay, types_of_variables))
+    {
+        int iii = 0;
+    }
 
     ++statistics.generated_inputs;
 
@@ -328,7 +332,7 @@ void  chain_minimization_analysis::process_execution_results(
     {
         if (trace_ptr->at(last_index).id != path.at(last_index).node_ptr->id)
             break;
-        local_spaces.at(last_index).sample_value = trace_ptr->at(last_index).value;
+        local_spaces.at(last_index).sample_value = cast_float_value<float_64_bit>(trace_ptr->at(last_index).value);
         if (last_index < local_spaces.size() - 1UL && trace_ptr->at(last_index).direction != path.at(last_index).direction)
             break;
     }
@@ -360,14 +364,14 @@ void  chain_minimization_analysis::process_execution_results(
                 {
                     recovery_props.shift = local_spaces.at(last_index).sample_shift;
                     recovery_props.value = local_spaces.at(last_index).sample_value;
-                    std::size_t const  old_size{ recovery_props.sample_shifts.size() };
+                    recovery_props.sample_shifts.clear();
                     compute_descent_shifts(
                             recovery_props.sample_shifts,
                             recovery_props.space_index,
                             recovery_props.value,
                             &recovery_props.shift
                             );
-                    std::reverse(std::next(recovery_props.sample_shifts.begin(), old_size), recovery_props.sample_shifts.end());
+                    std::reverse(recovery_props.sample_shifts.begin(), recovery_props.sample_shifts.end());
                 }
             }
             else if (recovery_props.space_index < last_index)
@@ -698,13 +702,12 @@ void  chain_minimization_analysis::insert_next_local_space()
         vecf64  normal;
         for (vecf64 const&  u : dst_space.orthogonal_basis)
             normal.push_back(dot_product(constraint.normal, u) / dot_product(u, u));
-        float_64_bit const  denom{ dot_product(constraint.normal, mul(dst_space.orthogonal_basis, normal)) };
-        if (std::fabs(denom) > 1e-6f)
-            dst_space.constraints.push_back({
-                normal,
-                constraint.param * (dot_product(constraint.normal, constraint.normal) / denom),
-                constraint.predicate
-            });
+        float_64_bit const  scale{
+            dot_product(constraint.normal, constraint.normal) / dot_product(constraint.normal, mul(dst_space.orthogonal_basis, normal))
+        };
+        float_64_bit const  param{ cast_float_value<float_64_bit>(constraint.param * scale) };
+        if (std::isfinite(param) && !std::isnan(param))
+            dst_space.constraints.push_back({ normal, param, constraint.predicate });
     }
 
     reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
@@ -767,8 +770,11 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
                     scale(direction, dot_product(constraint.normal, constraint.normal) / dot_product(direction, constraint.normal));
                 }
             }
-            float_64_bit const  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
-            float_64_bit const  epsilon{ small_delta_around(param) };
+            float_64_bit  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
+            if (!std::isfinite(param) || std::isnan(param))
+                return false;
+
+            float_64_bit const  epsilon{ small_delta_around(cast_float_value<float_64_bit>(param)) };
             switch (constraint.predicate)
             {
                 case BP_UNEQUAL:
@@ -878,7 +884,7 @@ bool  chain_minimization_analysis::compute_descent_shifts(
             {
                 float_64_bit constexpr  coef{ 0.01 };
                 float_64_bit const  value{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
-                param = small_delta_around(value);
+                param = small_delta_around(cast_float_value<float_64_bit>(value));
                 param /= length(ray_dir);
             }
 
@@ -930,9 +936,11 @@ bool  chain_minimization_analysis::compute_descent_shifts(
                 lambdas.push_back(m * lambda0);
         }
 
-        // TODO: add shift moving the origin towards zero (as in compute_stability_shift_for_origin).
-
+        vecf64  lambdas_filtered;
         for (float_64_bit const  lambda : lambdas)
+            lambdas_filtered.push_back(cast_float_value<float_64_bit>(lambda));
+
+        for (float_64_bit const  lambda : lambdas_filtered)
         {
             vecf64  shift;
             if (shift_ptr != nullptr)
@@ -952,7 +960,8 @@ bool  chain_minimization_analysis::compute_descent_shifts(
 
             vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
             vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-
+            if (!is_finite(point_overlay, types_of_variables))
+                continue;
             if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
                 continue;
 
@@ -1134,7 +1143,7 @@ void  chain_minimization_analysis::bits_to_point(vecb const&  bits, vecf64&  poi
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
             set_bit((natural_8_bit*)&value, idx, bits.at(mapping.input_start_bit_index + idx));
-        point.push_back(as<float_64_bit>(value, types_of_variables.at(i)));
+        point.push_back(cast_float_value<float_64_bit>(as<float_64_bit>(value, types_of_variables.at(i))));
     }
 }
 
