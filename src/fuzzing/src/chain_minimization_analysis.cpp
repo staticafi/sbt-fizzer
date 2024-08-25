@@ -90,6 +90,7 @@ void  chain_minimization_analysis::start(
             node->best_trace->at(node->trace_index).value,
             node->is_direction_unexplored(false) ? false : true,
             node->is_direction_unexplored(false) ? opposite_predicate(node->branching_predicate) : node->branching_predicate,
+            node->xor_like_branching_function,
             {}
             });
     for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
@@ -98,6 +99,7 @@ void  chain_minimization_analysis::start(
                 node->best_trace->at(n->trace_index).value,
                 n->successor_direction(s),
                 n->successor_direction(s) ? n->branching_predicate : opposite_predicate(n->branching_predicate),
+                n->xor_like_branching_function,
                 {}
                 });
     std::reverse(path.begin(), path.end());
@@ -857,7 +859,11 @@ bool  chain_minimization_analysis::compute_descent_shifts(
                 gradients.back().push_back(get_random_integer_32_bit_in_range(-10001, 10000, rnd_generator) < 0 ? -1.0 : 1.0);
         }
         else
+        {
             gradients.push_back(grad_orig);
+            if (path.at(space_index).xor_like_branching_function)
+                gradients.push_back(negate_cp(grad_orig));
+        }
     }
 
     origin_set  used_origins{ &types_of_variables };
