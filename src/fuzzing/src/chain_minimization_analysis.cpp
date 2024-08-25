@@ -864,6 +864,20 @@ bool  chain_minimization_analysis::compute_descent_shifts(
     for (vecf64 const&  grad : gradients)
         compute_descent_shifts(resulting_shifts, space_index, grad, value, used_origins, shift_ptr);
 
+    if (!gradients.empty() && (max_abs(origin) > 1e20 ||
+                               has_high_extreme_coordinate(make_vector_overlay(origin, types_of_variables), types_of_variables)))
+    {
+        vecf64 const  T{ transform_shift_back(origin, space_index) };
+        vecf64  shift{ scale_cp(T, -1.0) };
+
+        clip_shift_by_constraints(local_spaces.at(space_index).constraints, gradients.front(), shift);
+
+        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+        if (is_finite(point_overlay, types_of_variables) && !tested_origins.contains(point_overlay) && !used_origins.contains(point_overlay))
+            resulting_shifts.push_back(shift);
+    }
+
     return !resulting_shifts.empty();
 }
 
