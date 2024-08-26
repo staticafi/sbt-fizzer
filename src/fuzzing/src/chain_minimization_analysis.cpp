@@ -862,7 +862,11 @@ bool  chain_minimization_analysis::compute_descent_shifts(
         {
             gradients.push_back(grad_orig);
             if (path.at(space_index).xor_like_branching_function)
+            {
                 gradients.push_back(negate_cp(grad_orig));
+                gradients.push_back(scale_cp(grad_orig, +1.0 / max_abs(grad_orig)));
+                gradients.push_back(scale_cp(grad_orig, -1.0 / max_abs(grad_orig)));
+            }
         }
     }
 
