@@ -1,4 +1,4 @@
-extern unsigned int __VERIFIER_nondet_uint();
+extern unsigned int __VERIFIER_nondet_uchar();
 
 
 static void hash_combine(unsigned int* seed, char const  x)
@@ -12,9 +12,9 @@ int main()
     char x,y,z;
     unsigned int seed0, seed1;
 
-    x = __VERIFIER_nondet_uint();
-    y = __VERIFIER_nondet_uint();
-    z = __VERIFIER_nondet_uint();
+    x = __VERIFIER_nondet_uchar();
+    y = __VERIFIER_nondet_uchar();
+    z = __VERIFIER_nondet_uchar();
 
     seed0 = 73910U;
     hash_combine(&seed0, -24);
