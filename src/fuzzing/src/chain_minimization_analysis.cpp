@@ -300,10 +300,6 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
     vecf64 const  shifted_origin{ add_cp(origin, local_spaces.front().sample_shift) };
     vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
     tested_origins.insert(shifted_origin_overlay);
-    if (!is_finite(shifted_origin_overlay, types_of_variables))
-    {
-        int iii = 0;
-    }
 
     ++statistics.generated_inputs;
 
@@ -544,7 +540,7 @@ void  chain_minimization_analysis::compute_partial_derivative()
 
 void  chain_minimization_analysis::transform_shift(std::size_t const  src_space_index) const
 {
-    ASSUMPTION(src_space_index < local_spaces.size());
+    ASSUMPTION(src_space_index < local_spaces.size() && isfinite(local_spaces.at(src_space_index).sample_shift));
     for (std::size_t  i = src_space_index; i > 0UL; --i)
     {
         vecf64&  shift{ local_spaces.at(i - 1UL).sample_shift };
@@ -567,7 +563,7 @@ vecf64 const&  chain_minimization_analysis::transform_shift(vecf64 const&  shift
 
 void  chain_minimization_analysis::transform_shift_back(std::size_t const  dst_space_index) const
 {
-    ASSUMPTION(dst_space_index < local_spaces.size());
+    ASSUMPTION(dst_space_index < local_spaces.size() && isfinite(local_spaces.front().sample_shift));
     for (std::size_t  i = 0UL; i < dst_space_index; ++i)
     {
         vecf64 const&  shift{ local_spaces.at(i).sample_shift };
@@ -882,10 +878,13 @@ bool  chain_minimization_analysis::compute_descent_shifts(
 
         clip_shift_by_constraints(local_spaces.at(space_index).constraints, gradients.front(), shift);
 
-        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
-        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-        if (is_finite(point_overlay, types_of_variables) && !tested_origins.contains(point_overlay) && !used_origins.contains(point_overlay))
-            resulting_shifts.push_back(shift);
+        if (isfinite(shift))
+        {
+            vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+            vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+            if (is_finite(point_overlay, types_of_variables) && !tested_origins.contains(point_overlay) && !used_origins.contains(point_overlay))
+                resulting_shifts.push_back(shift);
+        }
     }
 
     return !resulting_shifts.empty();
@@ -1005,6 +1004,9 @@ void  chain_minimization_analysis::compute_descent_shifts(
                 // => We use the (partially clipped) shift anyway.
                 int iii = 0;
             }
+
+            if (!isfinite(shift))
+                continue;
 
             vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
             vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
@@ -1148,11 +1150,11 @@ float_64_bit  chain_minimization_analysis::compute_best_shift_along_ray(
         if (!excluded_points.contains(point_overlay))
         {
             vecf64 const  diff{ sub_cp(as<float_64_bit>(point_overlay, types_of_variables), point) };
-            vecf64 const  error{ add_scaled_cp(diff, -dot_product(ray_dir, diff) * dd_inv, ray_dir) };
-            samples.push_back({
-                    dot_product(error, error),
-                    dot_product(ray_dir, sub_cp(point, ray_start)) * dd_inv
-                    });
+            vecf64 const  error_vec{ add_scaled_cp(diff, -dot_product(ray_dir, diff) * dd_inv, ray_dir) };
+            float_64_bit const  error{ dot_product(error_vec, error_vec) };
+            float_64_bit const  sample{ dot_product(ray_dir, sub_cp(point, ray_start)) * dd_inv };
+            if (std::isfinite(error) && !std::isnan(error) && std::isfinite(sample) && !std::isnan(sample))
+                samples.push_back({ error, sample });
         }
     }
     std::sort(samples.begin(), samples.end());
