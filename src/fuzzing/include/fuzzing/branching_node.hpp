@@ -103,8 +103,6 @@ struct  branching_node
     bool  is_did_branching() const { return sensitivity_performed && !sensitive_stdin_bits.empty(); }
     bool  is_iid_branching() const { return sensitivity_performed && sensitive_stdin_bits.empty(); }
 
-    bool  is_direction_explored(bool const  direction) const
-    { successor_pointer const&  succ = successor(direction); return succ.label == successor_pointer::VISITED || succ.label == successor_pointer::END_NORMAL; }
     bool  is_direction_unexplored(bool const  direction) const { return successor(direction).label == successor_pointer::NOT_VISITED; }
 
     bool  is_closed() const { return closed; }

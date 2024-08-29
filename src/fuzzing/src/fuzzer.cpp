@@ -1236,7 +1236,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case CHAIN_MINIMIZATION:
             INVARIANT(sensitivity.is_ready() && chain_minimization.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             chain_minimization.process_execution_results(trace, bits_and_types);
-            if (chain_minimization.get_node()->is_direction_explored(false) && chain_minimization.get_node()->is_direction_explored(true))
+            if (!chain_minimization.get_node()->is_direction_unexplored(false) && !chain_minimization.get_node()->is_direction_unexplored(true))
             {
                 chain_minimization.stop();
                 bitshare.bits_available_for_branching(chain_minimization.get_node(), trace, bits_and_types);
@@ -1246,7 +1246,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case TYPED_MINIMIZATION:
             INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
             typed_minimization.process_execution_results(trace);
-            if (typed_minimization.get_node()->is_direction_explored(false) && typed_minimization.get_node()->is_direction_explored(true))
+            if (!typed_minimization.get_node()->is_direction_unexplored(false) && !typed_minimization.get_node()->is_direction_unexplored(true))
             {
                 typed_minimization.stop();
                 bitshare.bits_available_for_branching(typed_minimization.get_node(), trace, bits_and_types);
@@ -1256,7 +1256,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         case MINIMIZATION:
             INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
             minimization.process_execution_results(trace);
-            if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
+            if (!minimization.get_node()->is_direction_unexplored(false) && !minimization.get_node()->is_direction_unexplored(true))
             {
                 minimization.stop();
                 bitshare.bits_available_for_branching(minimization.get_node(), trace, bits_and_types);
@@ -1267,7 +1267,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
-            if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
+            if (!bitshare.get_node()->is_direction_unexplored(false) && !bitshare.get_node()->is_direction_unexplored(true))
                 bitshare.stop();
             break;
 
