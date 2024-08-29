@@ -298,6 +298,7 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
     }
 
     vecf64 const  shifted_origin{ add_cp(origin, local_spaces.front().sample_shift) };
+    ASSUMPTION(isfinite(shifted_origin));
     vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
     tested_origins.insert(shifted_origin_overlay);
 
@@ -484,6 +485,7 @@ void  chain_minimization_analysis::compute_shifts_of_next_partial()
                 origin_set  ignore_origin{ &types_of_variables };
                 ignore_origin.insert(make_vector_overlay(origin, types_of_variables));
 
+                std::vector<vecf64>  shifts;
                 for (float_64_bit const  param : params)
                 {
                     float_64_bit const  lambda{
@@ -497,14 +499,21 @@ void  chain_minimization_analysis::compute_shifts_of_next_partial()
                     if (isfinite(shift))
                     {
                         if (are_constraints_satisfied(space.constraints, shift))
-                            partials_props.shifts.push_back(shift);
+                            shifts.push_back(shift);
                         else
                         {
                             negate(shift);
                             if (are_constraints_satisfied(space.constraints, shift))
-                                partials_props.shifts.push_back(shift);
+                                shifts.push_back(shift);
                         }
                     }
+                }
+
+                for (vecf64 const&  shift : shifts)
+                {
+                    vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+                    if (isfinite(point))
+                        partials_props.shifts.push_back(shift);
                 }
 
                 if (!partials_props.shifts.empty())
@@ -1009,6 +1018,9 @@ void  chain_minimization_analysis::compute_descent_shifts(
                 continue;
 
             vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+            if (!isfinite(point))
+                continue;
+
             vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
             if (!is_finite(point_overlay, types_of_variables))
                 continue;
