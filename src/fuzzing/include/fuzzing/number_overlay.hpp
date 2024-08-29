@@ -36,15 +36,24 @@ union  number_overlay
 using  vector_overlay = std::vector<number_overlay>;
 
 
-template<typename T>
-T  cast_float_value(float_64_bit  value)
+template<typename R, typename T>
+R  cast_float_value(T  value)
 {
+    static_assert(std::is_floating_point<T>::value, "'T' must be of an floating point type.");
+
+    if (std::isnan(value))
+        value = std::numeric_limits<T>::max();
+    else if (value < std::numeric_limits<T>::lowest())
+        value = std::numeric_limits<T>::lowest();
+    else if (value > std::numeric_limits<T>::max())
+        value = std::numeric_limits<T>::max();
     if (std::numeric_limits<T>::is_integer)
         value = std::round(value);
-    if (value <= (float_64_bit)std::numeric_limits<T>::lowest())
-        return std::numeric_limits<T>::lowest();
-    if (value >= (float_64_bit)std::numeric_limits<T>::max())
-        return std::numeric_limits<T>::max();
+
+    if ((float_64_bit)value <= (float_64_bit)std::numeric_limits<R>::lowest())
+        return std::numeric_limits<R>::lowest();
+    if ((float_64_bit)value >= (float_64_bit)std::numeric_limits<R>::max())
+        return std::numeric_limits<R>::max();
     return (T)value;
 }
 
@@ -70,7 +79,7 @@ T as(number_overlay const  value, type_identifier const  type)
 {
     switch (type)
     {
-        case type_identifier::BOOLEAN:   return (T)value._boolean;
+        case type_identifier::BOOLEAN:   return value._boolean == false ? (T)0 : (T)1;
         case type_identifier::UINT8:     return (T)value._uint8;
         case type_identifier::SINT8:     return (T)value._sint8;
         case type_identifier::UINT16:    return (T)value._uint16;
@@ -79,8 +88,8 @@ T as(number_overlay const  value, type_identifier const  type)
         case type_identifier::SINT32:    return (T)value._sint32;
         case type_identifier::UINT64:    return (T)value._uint64;
         case type_identifier::SINT64:    return (T)value._sint64;
-        case type_identifier::FLOAT32:   return (T)value._float32;
-        case type_identifier::FLOAT64:   return (T)value._float64;
+        case type_identifier::FLOAT32:   return cast_float_value<T>(value._float32);
+        case type_identifier::FLOAT64:   return cast_float_value<T>(value._float64);
         default: { UNREACHABLE(); } return false;
     }
 }
