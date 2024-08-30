@@ -120,10 +120,9 @@ Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpIns
 
     Value *distance = builder.CreateSub(lhs, rhs);
 
-    // Always use signed conversion - for better precision.
-    // if (isUnsigned) {
-    //     return builder.CreateUIToFP(distance, DoubleTy);
-    // }
+    if (isUnsigned) {
+        return builder.CreateUIToFP(distance, DoubleTy);
+    }
     return builder.CreateSIToFP(distance, DoubleTy);
 }
 
