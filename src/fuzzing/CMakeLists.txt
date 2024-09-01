@@ -15,6 +15,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/sensitivity_flow_analysis.hpp
     ./src/sensitivity_flow_analysis.cpp
 
+    ./include/fuzzing/special_values_analysis.hpp
+    ./src/special_values_analysis.cpp
+
     ./include/fuzzing/chain_minimization_analysis.hpp
     ./src/chain_minimization_analysis.cpp
 
