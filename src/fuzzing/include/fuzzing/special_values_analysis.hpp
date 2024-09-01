@@ -1,16 +1,14 @@
-#ifndef FUZZING_SENSITIVITY_ANALYSIS_HPP_INCLUDED
-#   define FUZZING_SENSITIVITY_ANALYSIS_HPP_INCLUDED
+#ifndef SPECIAL_VALUES_ANALYSIS_HPP_INCLUDED
+#   define SPECIAL_VALUES_ANALYSIS_HPP_INCLUDED
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
 #   include <unordered_set>
-#   include <map>
-#   include <set>
 
 namespace  fuzzing {
 
 
-struct  sensitivity_analysis
+struct  special_values_analysis
 {
     enum  STATE
     {
@@ -25,10 +23,9 @@ struct  sensitivity_analysis
         std::size_t  start_calls{ 0 };
         std::size_t  stop_calls_regular{ 0 };
         std::size_t  stop_calls_early{ 0 };
-        std::map<std::pair<trace_index_type,natural_32_bit>, std::set<float_64_bit> >  complexity{};
     };
 
-    sensitivity_analysis();
+    special_values_analysis();
 
     bool  is_disabled() const;
     bool  is_ready() const { return state == READY; }
@@ -48,20 +45,23 @@ struct  sensitivity_analysis
 
 private:
 
-    bool  is_mutated_bit_index_valid() const;
+    bool  is_mutated_type_index_valid() const;
+    bool  generate_next_typed_value(vecb&  bits_ref);
+
+    template<typename T, int N>
+    bool  write_bits(vecb&  bits_ref, T const  (&values)[N]);
 
     STATE  state;
     stdin_bits_and_types_pointer  bits_and_types;
     execution_trace_pointer  trace;
-    stdin_bit_index  mutated_bit_index;
+    natural_32_bit  mutated_type_index;
+    natural_32_bit  mutated_value_index;
     stdin_bit_index  probed_bit_start_index;
     stdin_bit_index  probed_bit_end_index;
     branching_node*  node;
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  changed_nodes;
     bool  stopped_early;
-
-    std::chrono::system_clock::time_point  start_time;
 
     performance_statistics  statistics;
 };

@@ -327,6 +327,7 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
         { TYPED_MINIMIZATION, "typed_minimization_analysis" },
         { MINIMIZATION, "minimization_analysis" },
         { BITSHARE, "bitshare_analysis" },
+        { SPECIAL_VALUES, "special_values_analysis" },
         { FINISHED, "FINISHED" },
     };
     return map.at(state);
@@ -814,6 +815,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , typed_minimization{}
     , minimization{}
     , bitshare{}
+    , special_values{}
 
     , max_input_width{ 0U }
 
@@ -956,6 +958,11 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
 
             case BITSHARE:
                 if (bitshare.generate_next_input(stdin_bits))
+                    return true;
+                break;
+
+            case SPECIAL_VALUES:
+                if (special_values.generate_next_input(stdin_bits))
                     return true;
                 break;
 
@@ -1223,18 +1230,39 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_ready() &&
+                minimization.is_ready() &&
+                bitshare.is_ready() &&
+                special_values.is_ready()
+                );
             recorder().on_execution_results_available();
             break;
 
         case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(
+                sensitivity.is_busy() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_ready() &&
+                minimization.is_ready() &&
+                bitshare.is_ready() &&
+                special_values.is_ready()
+                );
             recorder().on_execution_results_available();
             sensitivity.process_execution_results(trace, entry_branching);
             break;
 
         case CHAIN_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_busy() &&
+                typed_minimization.is_ready() &&
+                minimization.is_ready() &&
+                bitshare.is_ready() &&
+                special_values.is_ready()
+                );
             chain_minimization.process_execution_results(trace, bits_and_types);
             if (!chain_minimization.get_node()->is_direction_unexplored(false) && !chain_minimization.get_node()->is_direction_unexplored(true))
             {
@@ -1244,7 +1272,14 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case TYPED_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_busy() &&
+                minimization.is_ready() &&
+                bitshare.is_ready() &&
+                special_values.is_ready()
+                );
             typed_minimization.process_execution_results(trace);
             if (!typed_minimization.get_node()->is_direction_unexplored(false) && !typed_minimization.get_node()->is_direction_unexplored(true))
             {
@@ -1254,7 +1289,14 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_ready() &&
+                minimization.is_busy() &&
+                bitshare.is_ready() &&
+                special_values.is_ready()
+                );
             minimization.process_execution_results(trace);
             if (!minimization.get_node()->is_direction_unexplored(false) && !minimization.get_node()->is_direction_unexplored(true))
             {
@@ -1264,11 +1306,31 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case BITSHARE:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_ready() &&
+                minimization.is_ready() &&
+                bitshare.is_busy() &&
+                special_values.is_ready()
+                );
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
             if (!bitshare.get_node()->is_direction_unexplored(false) && !bitshare.get_node()->is_direction_unexplored(true))
                 bitshare.stop();
+            break;
+
+        case SPECIAL_VALUES:
+            INVARIANT(
+                sensitivity.is_ready() &&
+                chain_minimization.is_ready() &&
+                typed_minimization.is_ready() &&
+                minimization.is_ready() &&
+                bitshare.is_ready() &&
+                special_values.is_busy()
+                );
+            recorder().on_execution_results_available();
+            special_values.process_execution_results(trace, entry_branching);
             break;
 
         default: UNREACHABLE(); break;
@@ -1298,9 +1360,6 @@ void  fuzzer::do_cleanup()
             if (!sensitivity_flow.is_disabled())
                 collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
             break;
-        case BITSHARE:
-            update_close_flags_from(bitshare.get_node());
-            break;
         case CHAIN_MINIMIZATION:
             update_close_flags_from(chain_minimization.get_node());
             if (!covered_branchings.contains(chain_minimization.get_node()->get_location_id()))
@@ -1315,6 +1374,13 @@ void  fuzzer::do_cleanup()
             update_close_flags_from(minimization.get_node());
             if (!covered_branchings.contains(minimization.get_node()->get_location_id()))
                 coverage_failures_with_hope.insert(minimization.get_node());
+            break;
+        case BITSHARE:
+            update_close_flags_from(bitshare.get_node());
+            break;
+        case SPECIAL_VALUES:
+            update_close_flags_from_root_to_node(special_values.get_node());
+            collect_iid_pivots_from_sensitivity_results(special_values.get_changed_nodes());
             break;
         default:
             break;
@@ -1514,28 +1580,35 @@ void  fuzzer::select_next_state()
 
     INVARIANT(winner->is_open_branching());
 
-    if (!winner->sensitivity_performed)
-    {
+    auto const&  find_furthest_node_with_same_stdin_bytes = [](branching_node*  node) {
         while (true)
         {
-            branching_node* const  left = winner->successor(false).pointer;
-            branching_node* const  right = winner->successor(true).pointer;
+            branching_node* const  left = node->successor(false).pointer;
+            branching_node* const  right = node->successor(true).pointer;
 
-            bool const  can_go_left = left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
-            bool const  can_go_right = right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
+            bool const  can_go_left = left != nullptr && left->get_num_stdin_bytes() == node->get_num_stdin_bytes();
+            bool const  can_go_right = right != nullptr && right->get_num_stdin_bytes() == node->get_num_stdin_bytes();
 
             if (can_go_left && can_go_right)
-                winner = left->max_successors_trace_index >= right->max_successors_trace_index ? left : right;
+                node = left->max_successors_trace_index >= right->max_successors_trace_index ? left : right;
             else if (can_go_left)
-                winner = left;
+                node = left;
             else if (can_go_right)
-                winner = right;
+                node = right;
             else
-                break;
+                return node;
         }
+    };
 
-        sensitivity.start(winner, num_driver_executions);
+    if (!winner->sensitivity_performed)
+    {
+        sensitivity.start(find_furthest_node_with_same_stdin_bytes(winner), num_driver_executions);
         state = SENSITIVITY;
+    }
+    if (!winner->special_values_performed)
+    {
+        special_values.start(find_furthest_node_with_same_stdin_bytes(winner), num_driver_executions);
+        state = SPECIAL_VALUES;
     }
     else if (!winner->bitshare_performed)
     {

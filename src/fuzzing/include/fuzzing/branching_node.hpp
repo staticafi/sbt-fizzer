@@ -62,10 +62,12 @@ struct  branching_node
         , sensitivity_performed{ false }
         , minimization_performed{ false }
         , bitshare_performed{ false }
+        , special_values_performed{ false }
 
         , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
         , minimization_start_execution{ std::numeric_limits<natural_32_bit>::max() }
         , bitshare_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+        , special_values_execution{ std::numeric_limits<natural_32_bit>::max() }
         , best_value_execution{ execution_number }
 
         , sensitive_stdin_bits{}
@@ -126,10 +128,12 @@ struct  branching_node
     bool sensitivity_performed;
     bool minimization_performed;
     bool bitshare_performed;
+    bool special_values_performed;
 
     natural_32_bit  sensitivity_start_execution;
     natural_32_bit  minimization_start_execution;
     natural_32_bit  bitshare_start_execution;
+    natural_32_bit  special_values_execution;
     natural_32_bit  best_value_execution;
 
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;

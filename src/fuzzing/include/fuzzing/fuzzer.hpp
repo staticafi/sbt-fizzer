@@ -8,6 +8,7 @@
 #   include <fuzzing/typed_minimization_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
+#   include <fuzzing/special_values_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <sala/program.hpp>
@@ -99,6 +100,7 @@ private:
         TYPED_MINIMIZATION,
         MINIMIZATION,
         BITSHARE,
+        SPECIAL_VALUES,
         FINISHED
     };
 
@@ -332,6 +334,7 @@ private:
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;
+    special_values_analysis  special_values;
 
     natural_32_bit  max_input_width;
 
