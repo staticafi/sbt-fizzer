@@ -74,6 +74,16 @@ void llvm_instrumenter::printErrCond(Value *cond) {
 
 Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
+    if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy())
+    {
+        llvm::ConstantPointerNull* const  val = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(lhs->getType()));
+        if (val == lhs || val == rhs)
+        {
+            Value* value = cmpInst->getPredicate() == llvm::CmpInst::Predicate::ICMP_EQ ? builder.CreateNeg(cmpInst) : cmpInst;
+            return builder.CreateUIToFP(builder.CreateZExt(value, Int32Ty), DoubleTy);
+        }
+    }
+
     if (lhs->getType()->isPointerTy())
         lhs = builder.CreatePtrToInt(lhs, Int64Ty);
     if (rhs->getType()->isPointerTy())
@@ -185,10 +195,10 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
         }
     // truncating a number to i1, happens for example with bool in C
     } else if (dyn_cast<TruncInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     // i1 as a return from a call to a function
     } else if (dyn_cast<CallInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     } else {
         return false;
     }
