@@ -79,7 +79,7 @@ Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpIns
         llvm::ConstantPointerNull* const  val = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(lhs->getType()));
         if (val == lhs || val == rhs)
         {
-            Value* value = cmpInst->getPredicate() == llvm::CmpInst::Predicate::ICMP_EQ ? builder.CreateNeg(cmpInst) : cmpInst;
+            Value* value = cmpInst->getPredicate() == llvm::CmpInst::Predicate::ICMP_EQ ? builder.CreateXor(cmpInst, 1) : cmpInst;
             return builder.CreateUIToFP(builder.CreateZExt(value, Int32Ty), DoubleTy);
         }
     }
