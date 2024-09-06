@@ -3,6 +3,7 @@
 
 #   include <utility/basic_numeric_types.hpp>
 #   include <utility/assumptions.hpp>
+#   include <utility/invariants.hpp>
 #   include <utility/hash_combine.hpp>
 #   include <utility/random.hpp>
 #   include <vector>
@@ -87,17 +88,65 @@ std::size_t size(vec<T> const& v)
 }
 
 template<typename T>
-std::size_t rows(mat<T> const& m)
+std::size_t columns(mat<T> const& m)
 {
     return m.size();
 }
 
 template<typename T>
-std::size_t columns(mat<T> const& m)
+std::size_t rows(mat<T> const& m)
 {
     return m.empty() ? 0UL : m.front().size();
 }
 
+template<typename T>
+vec<T> const&  column(mat<T> const& m, std::size_t const i)
+{
+    return m.at(i);
+}
+
+template<typename T>
+vec<T>&  column(mat<T>& m, std::size_t const i)
+{
+    return m.at(i);
+}
+
+
+template<typename T, typename S>
+vec<T>& set(vec<T>& v, S const& value = S{0})
+{
+    for (std::size_t  i = 0UL; i < size(v); ++i)
+        at(v,i) = value;
+    return v;
+}
+
+
+template<typename T, typename S>
+vec<T>& reset(vec<T>& v, std::size_t const n, S const& value = S{0})
+{
+    v. resize(n);
+    return set(v, value);
+}
+
+
+template<typename T>
+vec<T>& axis(vec<T>& v, std::size_t const i)
+{
+    ASSUMPTION(i < size(v));
+    set(v, (T)0);
+    at(v, i) = (T)1;
+    return v;
+}
+
+
+template<typename T>
+vec<T>& axis(vec<T>& v, std::size_t const n, std::size_t const i)
+{
+    ASSUMPTION(i < n);
+    reset(v, n, (T)0);
+    at(v, i) = (T)1;
+    return v;
+}
 
 
 template<typename T>
@@ -164,6 +213,37 @@ T sum(vec<T> const& v)
 }
 
 template<typename T>
+T sum_abs(vec<T> const& v)
+{
+    T  result = (T)0;
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        result += std::abs(at(v,i));
+    return result;
+}
+
+template<typename T>
+T max_abs(vec<T> const& v)
+{
+    if (v.empty())
+        return (T)0;
+    T  result = std::abs(v.front());
+    for (std::size_t  i = 1UL; i != v.size(); ++i)
+        result = std::max(std::abs(at(v,i)), result);
+    return result;
+}
+
+template<typename T>
+T min_abs(vec<T> const& v)
+{
+    if (v.empty())
+        return (T)0;
+    T  result = std::abs(v.front());
+    for (std::size_t  i = 1UL; i != v.size(); ++i)
+        result = std::min(std::abs(at(v,i)), result);
+    return result;
+}
+
+template<typename T>
 float_32_bit avg(vec<T> const& v)
 {
     return v.empty() ? 0.0f : (float_32_bit)sum(v) / (float_32_bit)v.size();
@@ -203,20 +283,49 @@ vec<T> power_cp(vec<T> const& v, S const exponent)
     return result;
 }
 
-template<typename T, typename S>
-vec<T>& add(vec<T>& v, S const a)
+template<typename T>
+vec<T>& add(vec<T>& v, vec<T> const& u)
 {
     for (std::size_t  i = 0UL; i != v.size(); ++i)
-        at(v,i) += (T)a;
+        at(v,i) += at(u,i);
+    return v;
+}
+
+template<typename T>
+vec<T> add_cp(vec<T> const& v, vec<T> const& u)
+{
+    vec<T> result{ v };
+    return add(result, u);
+}
+
+template<typename T>
+vec<T>& sub(vec<T>& v, vec<T> const& u)
+{
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        at(v,i) -= at(u,i);
+    return v;
+}
+
+template<typename T>
+vec<T> sub_cp(vec<T> const& v, vec<T> const& u)
+{
+    vec<T> result{ v };
+    return sub(result, u);
+}
+
+template<typename T, typename S>
+vec<T>& add_scaled(vec<T>& v, S const a, vec<T> const& u)
+{
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        at(v,i) += (T)a * at(u,i);
     return v;
 }
 
 template<typename T, typename S>
-vec<T> add_cp(vec<T> const& v, S const a)
+vec<T> add_scaled_cp(vec<T> const& v, S const a, vec<T> const& u)
 {
-    vec<T> result = v;
-    for (std::size_t  i = 0UL; i != v.size(); ++i)
-        at(result,i) += (T)a;
+    vec<T> result{ v };
+    add_scaled(result, a, u);
     return result;
 }
 
@@ -230,6 +339,32 @@ template<typename T>
 vec<T> negate_cp(vec<T> const& v)
 {
     return scale_cp(v, (T)-1);
+}
+
+template<typename T>
+vec<T> invert(vec<T> const& v)
+{
+    vec<T> w;
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        w.push_back((T)1 / at(v,i));
+    return w;
+}
+
+template<typename T>
+vec<T> invert_cp(vec<T> const& v)
+{
+    vec<T> u{ v };
+    invert(u);
+    return u;
+}
+
+template<typename T>
+vec<T> modulate(vec<T> const& v, vec<T> const& u)
+{
+    vec<T> w;
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        w.push_back(at(v,i) * at(u,i));
+    return w;
 }
 
 template<typename T>
@@ -259,6 +394,16 @@ bool normalize(vec<T>& v)
     return true;
 }
 
+template<typename float_type>
+bool isfinite(vec<float_type> const& v)
+{
+    static_assert(std::is_floating_point<float_type>::value, "");
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        if (!std::isfinite(at(v,i)) || std::isnan(at(v,i)))
+            return false;
+    return true;
+}
+
 template<typename T>
 bool normalize_probabilities(vec<T>& v)
 {
@@ -270,6 +415,143 @@ bool normalize_probabilities(vec<T>& v)
         at(v,i) *= s_inv;
     return true;
 }
+
+template<typename T>
+vec<T> mul(mat<T> const& m, vec<T> const& v)
+{
+    vec<T> result;
+    reset(result, rows(m), (T)0);
+    for (std::size_t  i = 0UL; i != v.size(); ++i)
+        add_scaled(result, at(v, i), column(m, i));
+    return result;
+}
+
+template<typename T>
+vec<T>  component_of_first_orthogonal_to_second(vec<T> const&  u, vec<T> const&  v)
+{
+    vec<T> w{ u };
+    add_scaled(w, -dot_product(u, v) / dot_product(v, v), v);
+    return w;
+}
+
+template<typename float_type>
+float_type  small_delta_around(float_type const x)
+{
+    static_assert(std::is_floating_point<float_type>::value, "Function works only for floating point types.");
+    if (!std::isfinite(x) || std::isnan(x))
+        return (float_type)0;
+    int  x_exponent;
+    std::frexp(x, &x_exponent);
+    int const  delta_exponent{ x_exponent - (std::numeric_limits<decltype(x)>::digits >> 2) };
+    float_64_bit const  delta{ std::pow(2.0, delta_exponent) };
+    if (std::isfinite(x + delta) && !std::isnan(x + delta) && x + delta != x)
+        return delta;
+    else if (std::isfinite(x - delta) && !std::isnan(x - delta) && x - delta != x)
+        return delta;
+    return (float_type)0;
+}
+
+
+template<typename float_type>
+struct  interval
+{
+    struct  bound
+    {
+        static inline bound inf_neg() { return { -std::numeric_limits<float_type>::infinity(), false }; }
+        static inline bound inf_pos() { return {  std::numeric_limits<float_type>::infinity(), false }; }
+
+        // bound() : value{ (float_type)0 }, inclusive{ true } {}
+
+        bool  isfinite() const { return std::isfinite(value); }
+
+        float_type value{ (float_type)0 };
+        bool inclusive{ false };
+    };
+
+    // interval() : lo{ bound::inf_neg() }, hi{ bound::inf_pos() } {}
+
+    bool  empty() const { return hi.value < lo.value || (hi.value == lo.value && (!hi.inclusive || !lo.inclusive)); }
+
+    bound  lo{ bound::inf_neg() };
+    bound  hi{ bound::inf_pos() };
+};
+
+template<typename float_type>
+interval<float_type>  intersection(interval<float_type> const&  a, interval<float_type> const&  b)
+{
+    if (a.empty()) return a;
+    if (b.empty()) return b;
+
+    interval<float_type>  result{};
+
+    if (a.lo.isfinite())
+    {
+        if (b.lo.isfinite())
+        {
+            if (a.lo.value == b.lo.value)
+            {
+                result.lo.value = a.lo.value;
+                result.lo.inclusive = a.lo.inclusive && b.lo.inclusive;
+            }
+            else
+                result.lo = a.lo.value < b.lo.value ? b.lo : a.lo;
+        }
+        else
+            result.lo = a.lo;
+    }
+    else
+        result.lo = b.lo;
+
+    if (a.hi.isfinite())
+    {
+        if (b.hi.isfinite())
+        {
+            if (a.hi.value == b.hi.value)
+            {
+                result.hi.value = a.hi.value;
+                result.hi.inclusive = a.hi.inclusive && b.hi.inclusive;
+            }
+            else
+                result.hi = a.hi.value < b.hi.value ? a.hi : b.hi;
+        }
+        else
+            result.hi = a.hi;
+    }
+    else
+        result.hi = b.hi;
+
+    return result;
+}
+
+template<typename float_type>
+float_type  lowest(interval<float_type> const&  a)
+{
+    ASSUMPTION(!a.empty() && a.lo.isfinite());
+    if (a.lo.inclusive)
+        return a.lo.value;
+    float_type const  result{ a.lo.value + std::fabs(small_delta_around(a.lo.value)) };
+    if (a.hi.isfinite() && (result > a.hi.value || (result == a.hi.value && !a.hi.inclusive)))
+        return (a.lo.value + a.hi.value) / (float_type)2;
+    INVARIANT(std::isfinite(result));
+    return result;
+}
+
+template<typename float_type>
+float_type  highest(interval<float_type> const&  a)
+{
+    ASSUMPTION(!a.empty() && a.hi.isfinite());
+    if (a.hi.inclusive)
+        return a.hi.value;
+    float_type const  result{ a.hi.value - std::fabs(small_delta_around(a.hi.value)) };
+    if (a.lo.isfinite() && (result < a.lo.value || (result == a.lo.value && !a.lo.inclusive)))
+        return (a.lo.value + a.hi.value) / (float_type)2;
+    INVARIANT(std::isfinite(result));
+    return result;
+}
+
+using intervalf32 = interval<float_32_bit>;
+using intervalf64 = interval<float_64_bit>;
+
 
 natural_16_bit  hamming_distance(vecb const&  bits1, vecb const&  bits2);
 bool  copy_bits_to_bytes_array(natural_8_bit* output_bytes_array, std::size_t num_array_bytes, bool as_signed, vecb const&  bits, bool little_endian);
@@ -354,6 +636,9 @@ void  generate_sample_of_hamming_class(vecb&  output_bits, std::size_t  num_bits
 void  generate_samples_of_hamming_class(vec<vecb>&  output_samples, std::size_t const  num_bits, std::size_t const  hamming_class,
                                         std::size_t const  num_samples_to_generate, random_generator_for_natural_32_bit&  generator);
 
+
+void  set_bit(natural_8_bit*  bytes, std::size_t  bit_index, bool  state);
+bool  get_bit(natural_8_bit const*  bytes, std::size_t  bit_index);
 
 void  bits_to_bytes(vecb const&  bits, vecu8&  bytes);
 void  bytes_to_bits(vecu8 const&  bytes, vecb&  bits);

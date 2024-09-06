@@ -181,6 +181,27 @@ void  generate_samples_of_hamming_class(vec<vecb>&  output_samples, std::size_t 
 }
 
 
+void  set_bit(natural_8_bit* const  bytes, std::size_t const  bit_index, bool const  state)
+{
+    std::size_t const  byte_index{ bit_index >> 3 };
+    natural_8_bit const  byte_shift{ (natural_8_bit)(bit_index & 7UL) };
+    natural_8_bit const mask{ (natural_8_bit)(1U << (7U - byte_shift)) }; 
+    if (state)
+        bytes[byte_index] |= mask;
+    else
+        bytes[byte_index] &= ~mask;
+}
+
+
+bool  get_bit(natural_8_bit const* const  bytes, std::size_t const  bit_index)
+{
+    std::size_t const  byte_index{ bit_index >> 3 };
+    natural_8_bit const  byte_shift{ (natural_8_bit)(bit_index & 7UL) };
+    natural_8_bit const mask{ (natural_8_bit)(1U << (7U - byte_shift)) }; 
+    return (bytes[byte_index] & mask) != 0;
+}
+
+
 void  bits_to_bytes(vecb const&  bits, vecu8&  bytes)
 {
     for (natural_32_bit  i = 0U, n = (natural_32_bit)bits.size(); i < n; )

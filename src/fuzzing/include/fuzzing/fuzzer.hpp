@@ -3,6 +3,7 @@
 
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
+#   include <fuzzing/chain_minimization_analysis.hpp>
 #   include <fuzzing/typed_minimization_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
@@ -77,6 +78,7 @@ struct  fuzzer final
     execution_record::execution_flags  round_end();
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
+    chain_minimization_analysis::performance_statistics const&  get_chain_minimization_statistics() const { return chain_minimization.get_statistics(); }
     typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
@@ -88,6 +90,7 @@ private:
     {
         STARTUP,
         SENSITIVITY,
+        CHAIN_MINIMIZATION,
         TYPED_MINIMIZATION,
         MINIMIZATION,
         BITSHARE,
@@ -314,6 +317,7 @@ private:
 
     STATE  state;
     sensitivity_analysis  sensitivity;
+    chain_minimization_analysis  chain_minimization;
     typed_minimization_analysis  typed_minimization;
     minimization_analysis  minimization;
     bitshare_analysis  bitshare;

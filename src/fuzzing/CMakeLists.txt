@@ -12,6 +12,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/sensitivity_analysis.hpp
     ./src/sensitivity_analysis.cpp
 
+    ./include/fuzzing/chain_minimization_analysis.hpp
+    ./src/chain_minimization_analysis.cpp
+
     ./include/fuzzing/typed_minimization_analysis.hpp
     ./src/typed_minimization_analysis.cpp
 
@@ -41,6 +44,9 @@ add_library(${THIS_TARGET_NAME}
     ./src/dump_native.cpp
     ./include/fuzzing/dump_testcomp.hpp
     ./src/dump_testcomp.cpp
+
+    ./include/fuzzing/number_overlay.hpp
+    ./src/number_overlay.cpp
 
     ./include/fuzzing/progress_recorder.hpp
     ./src/progress_recorder.cpp

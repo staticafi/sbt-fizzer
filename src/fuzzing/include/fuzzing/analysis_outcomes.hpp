@@ -31,6 +31,7 @@ struct analysis_outcomes
     std::vector<location_id> covered_branchings{};
     std::vector<branching_location_and_direction>  uncovered_branchings{};
     sensitivity_analysis::performance_statistics   sensitivity_statistics{};
+    chain_minimization_analysis::performance_statistics   chain_minimization_statistics{};
     typed_minimization_analysis::performance_statistics   typed_minimization_statistics{};
     minimization_analysis::performance_statistics   minimization_statistics{};
     bitshare_analysis::performance_statistics   bitshare_statistics{};
