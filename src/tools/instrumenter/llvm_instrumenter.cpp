@@ -74,52 +74,45 @@ void llvm_instrumenter::printErrCond(Value *cond) {
 
 Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-
-    // pointer comparison -> consider the distance to be 1
-    if (lhs->getType()->isPointerTy()) {
-        return ConstantFP::get(DoubleTy, 1);
-    }
-
-    bool isUnsigned = cmpInst->isUnsigned();
-
-    if ((!lhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)lhs->getType())->getBitWidth() < 64) &&
-        (!rhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)rhs->getType())->getBitWidth() < 64) )
+    if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy())
     {
-        // if the value was extended we can't overflow meaning we don't need to
-        // cast to a higher type
-        if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
-                dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
-
-            // extend based on the signedness
-            if (isUnsigned) {
-                lhs =
-                    builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
-            }
-            else {
-                lhs =
-                    builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
-            }
+        llvm::ConstantPointerNull* const  val = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(lhs->getType()));
+        if (val == lhs || val == rhs)
+        {
+            Value* value = cmpInst->getPredicate() == llvm::CmpInst::Predicate::ICMP_EQ ? builder.CreateXor(cmpInst, 1) : cmpInst;
+            return builder.CreateUIToFP(builder.CreateZExt(value, Int32Ty), DoubleTy);
         }
     }
 
-    Value *distance = builder.CreateSub(lhs, rhs);
+    if (lhs->getType()->isPointerTy())
+        lhs = builder.CreatePtrToInt(lhs, Int64Ty);
+    if (rhs->getType()->isPointerTy())
+        rhs = builder.CreatePtrToInt(rhs, Int64Ty);
 
-    if (isUnsigned) {
-        return builder.CreateUIToFP(distance, DoubleTy);
+    if (cmpInst->isUnsigned())
+    {
+        if (lhs->getType()->isIntegerTy())
+            lhs = builder.CreateUIToFP(lhs, DoubleTy);
+        if (rhs->getType()->isIntegerTy())
+            rhs = builder.CreateUIToFP(rhs, DoubleTy);
     }
-    return builder.CreateSIToFP(distance, DoubleTy);
+    else
+    {
+        if (lhs->getType()->isIntegerTy())
+            lhs = builder.CreateSIToFP(lhs, DoubleTy);
+        if (rhs->getType()->isIntegerTy())
+            rhs = builder.CreateSIToFP(rhs, DoubleTy);
+    }
+    
+    return instrumentFcmp(lhs, rhs, nullptr, builder);
 }
 
-Value *llvm_instrumenter::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
+Value *llvm_instrumenter::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *,
                                   IRBuilder<> &builder) {
-    if (lhs->getType()->isFloatTy()) {
+    if (lhs->getType()->isFloatTy())
         lhs = builder.CreateFPExt(lhs, DoubleTy);
+    if (rhs->getType()->isFloatTy())
         rhs = builder.CreateFPExt(rhs, DoubleTy);
-    }
 
     Value *distance = builder.CreateFSub(lhs, rhs);
 
@@ -202,10 +195,10 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
         }
     // truncating a number to i1, happens for example with bool in C
     } else if (dyn_cast<TruncInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     // i1 as a return from a call to a function
     } else if (dyn_cast<CallInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     } else {
         return false;
     }
