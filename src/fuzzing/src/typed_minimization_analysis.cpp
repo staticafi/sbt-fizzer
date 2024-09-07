@@ -144,7 +144,7 @@ void  typed_minimization_analysis::stop()
 
 natural_32_bit  typed_minimization_analysis::max_num_executions() const
 {
-    return (natural_32_bit)(100U * node->sensitive_stdin_bits.size());
+    return (natural_32_bit)(10U * node->sensitive_stdin_bits.size());
 }
 
 

@@ -24,8 +24,7 @@ struct  chain_minimization_analysis
     enum PROGRESS_STAGE
     {
         PARTIALS,
-        DESCENT,
-        RECOVERY,
+        DESCENT
     };
 
     struct  mapping_to_input_bits
@@ -85,16 +84,6 @@ struct  chain_minimization_analysis
     {
         stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
         vecf64  values{};
-    };
-
-    struct  divergence_recovery_props
-    {
-        void clear() { *this = {}; }
-        PROGRESS_STAGE  stage_backup{ RECOVERY };
-        std::size_t  space_index{ std::numeric_limits<std::size_t>::max() };
-        vecf64  shift{};
-        float_64_bit  value{ std::numeric_limits<float_64_bit>::max() };
-        std::vector<vecf64>  sample_shifts{};
     };
 
     struct  origin_set
@@ -191,16 +180,7 @@ private:
     bool  compute_descent_shifts(
             std::vector<vecf64>&  resulting_shifts,
             std::size_t  space_index,
-            float_64_bit  value,
-            vecf64 const*  shift_ptr = nullptr
-            );
-    void  compute_descent_shifts(
-            std::vector<vecf64>&  resulting_shifts,
-            std::size_t  space_index,
-            vecf64 const&  grad,
-            float_64_bit  value,
-            origin_set&  used_origins,
-            vecf64 const*  shift_ptr = nullptr
+            float_64_bit  value
             );
     bool  apply_best_gradient_step();
     float_64_bit  compute_best_shift_along_ray(
@@ -231,7 +211,6 @@ private:
     std::vector<local_space_of_branching>  local_spaces;
     partials_stage_props  partials_props;
     gradient_descent_props  descent_props;
-    divergence_recovery_props  recovery_props;
 
     random_generator_for_natural_32_bit  rnd_generator;
 
