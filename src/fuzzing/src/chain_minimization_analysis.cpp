@@ -48,7 +48,7 @@ chain_minimization_analysis::chain_minimization_analysis()
 
 bool  chain_minimization_analysis::is_disabled() const
 {
-    return false;
+    return true;
 }
 
 
