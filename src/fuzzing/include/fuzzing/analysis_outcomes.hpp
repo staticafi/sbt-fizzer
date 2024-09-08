@@ -30,11 +30,7 @@ struct analysis_outcomes
     long  num_elapsed_seconds{ 0 };
     std::vector<location_id> covered_branchings{};
     std::vector<branching_location_and_direction>  uncovered_branchings{};
-    sensitivity_analysis::performance_statistics   sensitivity_statistics{};
     chain_minimization_analysis::performance_statistics   chain_minimization_statistics{};
-    typed_minimization_analysis::performance_statistics   typed_minimization_statistics{};
-    minimization_analysis::performance_statistics   minimization_statistics{};
-    bitshare_analysis::performance_statistics   bitshare_statistics{};
     fuzzer::performance_statistics  statistics{};
     natural_32_bit  num_generated_tests{ 0U };
     natural_32_bit  num_crashes{ 0U };

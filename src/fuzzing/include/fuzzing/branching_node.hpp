@@ -58,20 +58,15 @@ struct  branching_node
         , best_br_instr_trace{ best_br_instr_trace_ }
         , best_coverage_value{ best_coverage_value_ }
         , best_summary_value{ best_summary_value_ }
-
-        , sensitivity_performed{ false }
-        , minimization_performed{ false }
-        , bitshare_performed{ false }
-
-        , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
-        , minimization_start_execution{ std::numeric_limits<natural_32_bit>::max() }
-        , bitshare_start_execution{ std::numeric_limits<natural_32_bit>::max() }
         , best_value_execution{ execution_number }
-
-        , sensitive_stdin_bits{}
 
         , xor_like_branching_function{ xor_like_branching_function_ }
         , branching_predicate{ branching_predicate_ }
+
+        , minimization_performed{ false }
+        , minimization_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+
+        , is_input_sensitive{ false }
 
         , closed{ false }
 
@@ -95,16 +90,8 @@ struct  branching_node
     void  set_successor(bool const  direction, successor_pointer const&  succ)
     { ASSUMPTION(succ.pointer == nullptr || succ.label == successor_pointer::VISITED); successor(direction) = succ; }
 
-    bool  is_open_branching() const
-    {
-        return  (is_direction_unexplored(false) || is_direction_unexplored(true)) &&
-                (!sensitivity_performed || (!sensitive_stdin_bits.empty() && (!bitshare_performed || !minimization_performed)));
-    }
-    bool  is_did_branching() const { return sensitivity_performed && !sensitive_stdin_bits.empty(); }
-    bool  is_iid_branching() const { return sensitivity_performed && sensitive_stdin_bits.empty(); }
-
-    bool  is_direction_explored(bool const  direction) const
-    { successor_pointer const&  succ = successor(direction); return succ.label == successor_pointer::VISITED || succ.label == successor_pointer::END_NORMAL; }
+    bool  is_open_branching() const { return (is_direction_unexplored(false) || is_direction_unexplored(true)) && !minimization_performed; }
+    bool  is_iid_branching() const { return minimization_performed && !is_input_sensitive; }
     bool  is_direction_unexplored(bool const  direction) const { return successor(direction).label == successor_pointer::NOT_VISITED; }
 
     bool  is_closed() const { return closed; }
@@ -125,20 +112,16 @@ struct  branching_node
     branching_function_value_type  best_coverage_value;
     branching_function_value_type  best_summary_value;
 
-    bool sensitivity_performed;
-    bool minimization_performed;
-    bool bitshare_performed;
-
-    natural_32_bit  sensitivity_start_execution;
-    natural_32_bit  minimization_start_execution;
-    natural_32_bit  bitshare_start_execution;
     natural_32_bit  best_value_execution;
-
-    std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 
     bool  xor_like_branching_function;
 
     BRANCHING_PREDICATE  branching_predicate;
+
+    bool minimization_performed;
+    natural_32_bit  minimization_start_execution;
+
+    bool is_input_sensitive;
 
     bool  closed;
 

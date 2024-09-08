@@ -28,12 +28,6 @@ struct  chain_minimization_analysis
         RECOVERY,
     };
 
-    struct  mapping_to_input_bits
-    {
-        natural_32_bit  input_start_bit_index;
-        std::vector<natural_8_bit>  value_bit_indices;
-    };
-
     struct  branching_info
     {
         branching_node*  node_ptr{ nullptr };
@@ -144,11 +138,6 @@ struct  chain_minimization_analysis
         std::size_t  stop_calls_failed{ 0 };
     };
 
-    static bool  are_types_of_sensitive_bits_available(
-            stdin_bits_and_types_pointer  bits_and_types,
-            std::unordered_set<stdin_bit_index> const&  sensitive_bits
-            );
-
     chain_minimization_analysis();
 
     bool  is_disabled() const;
@@ -218,7 +207,6 @@ private:
     stdin_bits_and_types_pointer  bits_and_types;
     natural_32_bit  execution_id;
     std::vector<branching_info>  path;
-    std::vector<mapping_to_input_bits>  from_variables_to_input;
     type_vector  types_of_variables;
     bool stopped_early;
     std::unordered_set<branching_node const*>  failed_nodes;

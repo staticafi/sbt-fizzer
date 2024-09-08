@@ -2,11 +2,7 @@
 #   define FUZZING_FUZZER_HPP_INCLUDED
 
 #   include <fuzzing/termination_info.hpp>
-#   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/chain_minimization_analysis.hpp>
-#   include <fuzzing/typed_minimization_analysis.hpp>
-#   include <fuzzing/minimization_analysis.hpp>
-#   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <utility/math.hpp>
@@ -77,11 +73,7 @@ struct  fuzzer final
     bool  round_begin(TERMINATION_REASON&  termination_reason);
     execution_record::execution_flags  round_end();
 
-    sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     chain_minimization_analysis::performance_statistics const&  get_chain_minimization_statistics() const { return chain_minimization.get_statistics(); }
-    typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
-    minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
-    bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
 
 private:
@@ -89,11 +81,7 @@ private:
     enum STATE
     {
         STARTUP,
-        SENSITIVITY,
         CHAIN_MINIMIZATION,
-        TYPED_MINIMIZATION,
-        MINIMIZATION,
-        BITSHARE,
         FINISHED
     };
 
@@ -128,9 +116,8 @@ private:
         branching_node*  get_best(std::unordered_map<branching_node*, bool>&  targets, natural_32_bit  max_input_width);
 
         std::unordered_set<branching_node*>  loop_heads;        // Priority #1 (the highest)
-        std::unordered_map<branching_node*, bool>  sensitive;   // Priority #2
-        std::unordered_map<branching_node*, bool>  untouched;   // Priority #3
-        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #4
+        std::unordered_map<branching_node*, bool>  untouched;   // Priority #2
+        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #3
         std::function<bool(location_id)>  is_covered;
         std::function<branching_node*(location_id)>  iid_pivot_with_lowest_abs_value;
         performance_statistics*  statistics;
@@ -290,7 +277,7 @@ private:
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
-    void  collect_iid_pivots_from_sensitivity_results();
+    void  collect_iid_pivots(branching_node*  end_node);
     void  select_next_state();
     branching_node*  select_iid_coverage_target() const;
 
@@ -316,11 +303,7 @@ private:
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     STATE  state;
-    sensitivity_analysis  sensitivity;
     chain_minimization_analysis  chain_minimization;
-    typed_minimization_analysis  typed_minimization;
-    minimization_analysis  minimization;
-    bitshare_analysis  bitshare;
 
     natural_32_bit  max_input_width;
 

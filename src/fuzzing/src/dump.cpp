@@ -117,10 +117,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         warnings.push_back("The number of created and destroyed leaf nodes differ.");
     if (results.statistics.nodes_created != results.statistics.nodes_destroyed)
         warnings.push_back("The number of created and destroyed nodes differ => Memory leak!");
-    if (results.sensitivity_statistics.start_calls != results.sensitivity_statistics.stop_calls_regular + results.sensitivity_statistics.stop_calls_early)
-        warnings.push_back("The number of starts does not match to the number of stops in the sensitivity analysis.");
-    if (results.minimization_statistics.start_calls != results.minimization_statistics.stop_calls_regular + results.minimization_statistics.stop_calls_early)
-        warnings.push_back("The number of starts does not match to the number of stops in the minimization analysis.");
     if (!warnings.empty())
     {
         ostr << shift << "\"WARNINGS\": [\n";
@@ -136,13 +132,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
 
     ostr << shift << "\"num_executions\": " << results.num_executions << ",\n"
          << shift << "\"num_elapsed_seconds\": " << results.num_elapsed_seconds << ",\n"
-         << shift << "\"sensitivity_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.sensitivity_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"max_bits\": " << results.sensitivity_statistics.max_bits << ",\n"
-         << shift << shift << "\"start_calls\": " << results.sensitivity_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.sensitivity_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << "\n"
-         << shift << "},\n"
          << shift << "\"chain_minimization_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.chain_minimization_statistics.generated_inputs << ",\n"
          << shift << shift << "\"partials\": " << results.chain_minimization_statistics.partials << ",\n"
@@ -151,39 +140,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"stop_calls_regular\": " << results.chain_minimization_statistics.stop_calls_regular << ",\n"
          << shift << shift << "\"stop_calls_early\": " << results.chain_minimization_statistics.stop_calls_early << ",\n"
          << shift << shift << "\"stop_calls_failed\": " << results.chain_minimization_statistics.stop_calls_failed << "\n"
-         << shift << "},\n"
-         << shift << "\"typed_minimization_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.typed_minimization_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"suppressed_repetitions\": " << results.typed_minimization_statistics.suppressed_repetitions << ",\n"
-         << shift << shift << "\"max_bits\": " << results.typed_minimization_statistics.max_bits << ",\n"
-         << shift << shift << "\"seeds_processed\": " << results.typed_minimization_statistics.seeds_processed << ",\n"
-         << shift << shift << "\"gradient_steps\": " << results.typed_minimization_statistics.gradient_steps << ",\n"
-         << shift << shift << "\"gradient_samples\": " << results.typed_minimization_statistics.gradient_samples << ",\n"
-         << shift << shift << "\"start_calls\": " << results.typed_minimization_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.typed_minimization_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.typed_minimization_statistics.stop_calls_early << "\n"
-         << shift << "},\n"
-         << shift << "\"minimization_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.minimization_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"suppressed_repetitions\": " << results.minimization_statistics.suppressed_repetitions << ",\n"
-         << shift << shift << "\"max_bits\": " << results.minimization_statistics.max_bits << ",\n"
-         << shift << shift << "\"seeds_processed\": " << results.minimization_statistics.seeds_processed << ",\n"
-         << shift << shift << "\"gradient_steps\": " << results.minimization_statistics.gradient_steps << ",\n"
-         << shift << shift << "\"start_calls\": " << results.minimization_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.minimization_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.minimization_statistics.stop_calls_early << "\n"
-         << shift << "},\n"
-         << shift << "\"bitshare_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.bitshare_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"hits\": " << results.bitshare_statistics.hits << ",\n"
-         << shift << shift << "\"misses\": " << results.bitshare_statistics.misses << ",\n"
-         << shift << shift << "\"start_calls\": " << results.bitshare_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.bitshare_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.bitshare_statistics.stop_calls_early << ",\n"
-         << shift << shift << "\"stop_calls_instant\": " << results.bitshare_statistics.stop_calls_instant << ",\n"
-         << shift << shift << "\"num_locations\": " << results.bitshare_statistics.num_locations << ",\n"
-         << shift << shift << "\"num_insertions\": " << results.bitshare_statistics.num_insertions << ",\n"
-         << shift << shift << "\"num_deletions\": " << results.bitshare_statistics.num_deletions << "\n"
          << shift << "},\n"
          << shift << "\"fuzzer\": {\n"
          << shift << shift << "\"leaf_nodes_created\": " << results.statistics.leaf_nodes_created << ",\n"

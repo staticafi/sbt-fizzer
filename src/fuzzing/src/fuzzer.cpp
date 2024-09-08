@@ -15,7 +15,6 @@ fuzzer::primary_coverage_target_branchings::primary_coverage_target_branchings(
         performance_statistics* const  statistics_ptr_
         )
     : loop_heads{}
-    , sensitive{}
     , untouched{}
     , iid_twins{}
     , is_covered{ is_covered_ }
@@ -77,27 +76,19 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
     ASSUMPTION(node != nullptr);
     if (node->is_open_branching() && !is_covered(node->get_location_id()))
     {
-        if (node->sensitivity_performed)
+        branching_node* const  iid_pivot = iid_pivot_with_lowest_abs_value(node->get_location_id());
+        if (node->minimization_performed && iid_pivot != nullptr)
         {
-            if (!node->sensitive_stdin_bits.empty() && (!node->bitshare_performed || !node->minimization_performed))
-                sensitive.insert(node_and_flag);
+            if (std::fabs(node->best_coverage_value) < std::fabs(iid_pivot->best_coverage_value))
+            {
+                auto const  it_and_state = iid_twins.insert({ node->get_location_id(), node_and_flag });
+                if (!it_and_state.second &&
+                        std::fabs(node->best_coverage_value) < std::fabs(it_and_state.first->second.first->best_coverage_value))
+                    it_and_state.first->second = node_and_flag;
+            }
         }
         else
-        {
-            branching_node* const  iid_pivot = iid_pivot_with_lowest_abs_value(node->get_location_id());
-            if (iid_pivot != nullptr)
-            {
-                if (std::fabs(node->best_coverage_value) < std::fabs(iid_pivot->best_coverage_value))
-                {
-                    auto const  it_and_state = iid_twins.insert({ node->get_location_id(), node_and_flag });
-                    if (!it_and_state.second &&
-                            std::fabs(node->best_coverage_value) < std::fabs(it_and_state.first->second.first->best_coverage_value))
-                        it_and_state.first->second = node_and_flag;
-                }
-            }
-            else
-                untouched.insert(node_and_flag);
-        }
+            untouched.insert(node_and_flag);
     }
 }
 
@@ -106,7 +97,6 @@ void  fuzzer::primary_coverage_target_branchings::erase(branching_node* const  n
 {
     ASSUMPTION(node != nullptr);
     loop_heads.erase(node);
-    sensitive.erase(node);
     untouched.erase(node);
     auto const  it = iid_twins.find(node->get_location_id());
     if (it != iid_twins.end() && it->second.first == node)
@@ -116,14 +106,13 @@ void  fuzzer::primary_coverage_target_branchings::erase(branching_node* const  n
 
 bool  fuzzer::primary_coverage_target_branchings::empty() const
 {
-    return loop_heads.empty() && sensitive.empty() && untouched.empty() && iid_twins.empty();
+    return loop_heads.empty() && untouched.empty() && iid_twins.empty();
 }
 
 
 void  fuzzer::primary_coverage_target_branchings::clear()
 {
     loop_heads.clear();
-    sensitive.clear();
     untouched.clear();
     iid_twins.clear();
 }
@@ -139,11 +128,9 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
         else
             it = loop_heads.erase(it);
 
-    std::unordered_map<branching_node*, bool>  work_set{ sensitive.begin(), sensitive.end() };
-    work_set.insert(untouched.begin(), untouched.end());
+    std::unordered_map<branching_node*, bool>  work_set{ untouched.begin(), untouched.end() };
     for (auto const&  loc_and_props : iid_twins)
         work_set.insert(loc_and_props.second);
-    sensitive.clear();
     untouched.clear();
     iid_twins.clear();
     while (!work_set.empty())
@@ -166,16 +153,6 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
         best_node = *loop_heads.begin();
         ++statistics->strategy_primary_loop_head;
         recorder().on_strategy_turn_primary_loop_head();
-        return best_node;
-    }
-
-    best_node = get_best(sensitive, max_input_width);
-    if (best_node != nullptr)
-    {
-        if (!loop_heads.empty())
-            return get_best(max_input_width);
-        ++statistics->strategy_primary_sensitive;
-        recorder().on_strategy_turn_primary_sensitive();
         return best_node;
     }
 
@@ -228,14 +205,6 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
         operator  branching_node*() const { return node; }
         bool  operator<(branching_node_with_less_than const&  other) const
         {
-            if (node->sensitivity_performed && !other.node->sensitivity_performed)
-                return true;
-            if (!node->sensitivity_performed && other.node->sensitivity_performed)
-                return false;
-            if (node->sensitive_stdin_bits.size() < other.node->sensitive_stdin_bits.size())
-                return true;
-            if (node->sensitive_stdin_bits.size() > other.node->sensitive_stdin_bits.size())
-                return false;
             if (distance_to_central_input_width_class < other.distance_to_central_input_width_class)
                 return true;
             if (distance_to_central_input_width_class > other.distance_to_central_input_width_class)
@@ -780,11 +749,7 @@ fuzzer::fuzzer(termination_info const&  info)
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
-    , sensitivity{}
     , chain_minimization{}
-    , typed_minimization{}
-    , minimization{}
-    , bitshare{}
 
     , max_input_width{ 0U }
 
@@ -815,11 +780,7 @@ void  fuzzer::terminate()
 
 void  fuzzer::stop_all_analyzes()
 {
-    sensitivity.stop();
     chain_minimization.stop();
-    typed_minimization.stop();
-    minimization.stop();
-    bitshare.stop();
 }
 
 
@@ -898,28 +859,8 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
                     return;
                 break;
 
-            case SENSITIVITY:
-                if (sensitivity.generate_next_input(stdin_bits))
-                    return;
-                break;
-
             case CHAIN_MINIMIZATION:
                 if (chain_minimization.generate_next_input(stdin_bits))
-                    return;
-                break;
-
-            case TYPED_MINIMIZATION:
-                if (typed_minimization.generate_next_input(stdin_bits))
-                    return;
-                break;
-
-            case MINIMIZATION:
-                if (minimization.generate_next_input(stdin_bits))
-                    return;
-                break;
-
-            case BITSHARE:
-                if (bitshare.generate_next_input(stdin_bits))
                     return;
                 break;
 
@@ -1187,52 +1128,15 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(chain_minimization.is_ready());
             recorder().on_execution_results_available();
-            break;
-
-        case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
-            recorder().on_execution_results_available();
-            sensitivity.process_execution_results(trace, entry_branching);
             break;
 
         case CHAIN_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(chain_minimization.is_busy());
             chain_minimization.process_execution_results(trace, bits_and_types);
             if (!chain_minimization.get_node()->is_direction_unexplored(false) && !chain_minimization.get_node()->is_direction_unexplored(true))
-            {
                 chain_minimization.stop();
-                bitshare.bits_available_for_branching(chain_minimization.get_node(), trace, bits_and_types);
-            }
-            break;
-
-        case TYPED_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
-            typed_minimization.process_execution_results(trace);
-            if (typed_minimization.get_node()->is_direction_explored(false) && typed_minimization.get_node()->is_direction_explored(true))
-            {
-                typed_minimization.stop();
-                bitshare.bits_available_for_branching(typed_minimization.get_node(), trace, bits_and_types);
-            }
-            break;
-
-        case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
-            minimization.process_execution_results(trace);
-            if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
-            {
-                minimization.stop();
-                bitshare.bits_available_for_branching(minimization.get_node(), trace, bits_and_types);
-            }
-            break;
-
-        case BITSHARE:
-            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
-            recorder().on_execution_results_available();
-            bitshare.process_execution_results(trace);
-            if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
-                bitshare.stop();
             break;
 
         default: UNREACHABLE(); break;
@@ -1247,42 +1151,17 @@ void  fuzzer::do_cleanup()
     TMPROF_BLOCK();
 
     INVARIANT(
-        sensitivity.is_ready() &&
-        bitshare.is_ready() &&
         chain_minimization.is_ready() &&
-        typed_minimization.is_ready() &&
-        minimization.is_ready() &&
         (state != FINISHED || !primary_coverage_targets.empty())
         );
 
     switch (state)
     {
-        case SENSITIVITY:
-            for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
-                if (!node->is_closed())
-                {
-                    update_close_flags_from(node);
-                    break;
-                }
-            collect_iid_pivots_from_sensitivity_results();
-            break;
-        case BITSHARE:
-            update_close_flags_from(bitshare.get_node());
-            break;
         case CHAIN_MINIMIZATION:
             update_close_flags_from(chain_minimization.get_node());
+            collect_iid_pivots(chain_minimization.get_node());
             if (!covered_branchings.contains(chain_minimization.get_node()->get_location_id()))
                 coverage_failures_with_hope.insert(chain_minimization.get_node());
-            break;
-        case TYPED_MINIMIZATION:
-            update_close_flags_from(typed_minimization.get_node());
-            if (!covered_branchings.contains(typed_minimization.get_node()->get_location_id()))
-                coverage_failures_with_hope.insert(typed_minimization.get_node());
-            break;
-        case MINIMIZATION:
-            update_close_flags_from(minimization.get_node());
-            if (!covered_branchings.contains(minimization.get_node()->get_location_id()))
-                coverage_failures_with_hope.insert(minimization.get_node());
             break;
         default:
             break;
@@ -1314,15 +1193,13 @@ void  fuzzer::do_cleanup()
 }
 
 
-void  fuzzer::collect_iid_pivots_from_sensitivity_results()
+void  fuzzer::collect_iid_pivots(branching_node* const end_node)
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(state == SENSITIVITY && sensitivity.get_node() != nullptr);
-
     std::vector<std::pair<branching_node*, iid_pivot_props*> >  pivots;
-    for (branching_node* node : sensitivity.get_changed_nodes())
-        if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
+    for (branching_node*  node = end_node; node != nullptr; node = node->predecessor)
+        if (!node->is_closed() && node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
         {
             iid_location_props&  loc_props = iid_pivots[node->get_location_id()];
             auto const  pivot_it_and_state = loc_props.pivots.insert({ node, {} });
@@ -1340,7 +1217,7 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
     std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
     std::vector<loop_boundary_props>  loops;
-    detect_loops_along_path_to_node(sensitivity.get_node(), loop_heads_to_bodies, &loops);
+    detect_loops_along_path_to_node(end_node, loop_heads_to_bodies, &loops);
 
     std::vector<branching_node*>  loop_boundaries;
     compute_loop_boundaries(loops, loop_boundaries);
@@ -1469,7 +1346,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+    INVARIANT(chain_minimization.is_ready());
 
     branching_node*  winner = nullptr;
     winner = primary_coverage_targets.get_best(max_input_width);
@@ -1483,55 +1360,10 @@ void  fuzzer::select_next_state()
     }
 
     INVARIANT(winner->is_open_branching());
+    INVARIANT(!winner->minimization_performed);
 
-    if (!winner->sensitivity_performed)
-    {
-        while (true)
-        {
-            branching_node* const  left = winner->successor(false).pointer;
-            branching_node* const  right = winner->successor(true).pointer;
-
-            bool const  can_go_left = left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
-            bool const  can_go_right = right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
-
-            if (can_go_left && can_go_right)
-                winner = left->max_successors_trace_index >= right->max_successors_trace_index ? left : right;
-            else if (can_go_left)
-                winner = left;
-            else if (can_go_right)
-                winner = right;
-            else
-                break;
-        }
-        sensitivity.start(winner, num_driver_executions);
-        state = SENSITIVITY;
-    }
-    else if (!winner->bitshare_performed)
-    {
-        INVARIANT(!winner->sensitive_stdin_bits.empty());
-        bitshare.start(winner, num_driver_executions);
-        state = BITSHARE;
-    }
-    else if (!chain_minimization.is_disabled() && !chain_minimization.failed_on(winner) && 
-             chain_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
-    {
-        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
-        chain_minimization.start(winner, winner->best_stdin, num_driver_executions);
-        state = CHAIN_MINIMIZATION;
-    }
-    else if (!winner->xor_like_branching_function &&
-        typed_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
-    {
-        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
-        typed_minimization.start(winner, winner->best_stdin, num_driver_executions);
-        state = TYPED_MINIMIZATION;
-    }
-    else
-    {
-        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
-        minimization.start(winner, winner->best_stdin, num_driver_executions);
-        state = MINIMIZATION;
-    }
+    chain_minimization.start(winner, winner->best_stdin, num_driver_executions);
+    state = CHAIN_MINIMIZATION;
 }
 
 
@@ -1620,11 +1452,7 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() || sensitivity.get_node() != node);
     INVARIANT(chain_minimization.is_ready() || chain_minimization.get_node() != node);
-    INVARIANT(typed_minimization.is_ready() || typed_minimization.get_node() != node);
-    INVARIANT(minimization.is_ready() || minimization.get_node() != node);
-    INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
 
     if (leaf_branchings.erase(node) != 0)
         ++statistics.leaf_nodes_destroyed;
@@ -1688,12 +1516,8 @@ bool  fuzzer::apply_coverage_failures_with_hope()
 
         if (node->minimization_start_execution < node->best_value_execution)
         {
-            node->sensitivity_performed = false;
             node->minimization_performed = false;
-            node->bitshare_performed = false;
-            node->sensitivity_start_execution = std::numeric_limits<natural_32_bit>::max();
             node->minimization_start_execution = std::numeric_limits<natural_32_bit>::max();
-            node->bitshare_start_execution = std::numeric_limits<natural_32_bit>::max();
             node->closed = false;
             ++node->num_coverage_failure_resets;
 

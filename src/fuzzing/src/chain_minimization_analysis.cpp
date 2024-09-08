@@ -10,25 +10,12 @@
 namespace  fuzzing {
 
 
-bool  chain_minimization_analysis::are_types_of_sensitive_bits_available(
-        stdin_bits_and_types_pointer  bits_and_types,
-        std::unordered_set<stdin_bit_index> const&  sensitive_bits
-        )
-{
-    for (stdin_bit_index  idx : sensitive_bits)
-        if (!is_known_type(bits_and_types->type_of_bit(idx)))
-            return false;
-    return !sensitive_bits.empty();
-}
-
-
 chain_minimization_analysis::chain_minimization_analysis()
     : state{ READY }
     , node{ nullptr }
     , bits_and_types{ nullptr }
     , execution_id{ 0 }
     , path{}
-    , from_variables_to_input{}
     , types_of_variables{}
     , stopped_early{ false }
     , failed_nodes{}
@@ -70,7 +57,6 @@ void  chain_minimization_analysis::start(
     execution_id = execution_id_;
     path.clear();
     types_of_variables.clear();
-    from_variables_to_input.clear();
     stopped_early = false;
     num_executions = 0U;
     max_executions = 0U;
@@ -104,41 +90,25 @@ void  chain_minimization_analysis::start(
                 });
     std::reverse(path.begin(), path.end());
 
-    std::map<natural_32_bit, std::pair<type_of_input_bits, std::unordered_set<natural_8_bit> > >  start_bits_to_bit_indices;
-    for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
-        for (stdin_bit_index  idx : path.at(i).node_ptr->sensitive_stdin_bits)
+    for (auto type : bits_and_types->types)
+        switch (type)
         {
-            natural_32_bit const  type_index = bits_and_types->type_index(idx);
-            natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
-            auto const  it_and_state = start_bits_to_bit_indices.insert({ start_bit_idx, { bits_and_types->types.at(type_index), {} } });
-            it_and_state.first->second.second.insert(idx - start_bit_idx);
+            case type_identifier::UNTYPED8:
+                types_of_variables.push_back(type_identifier::SINT8);
+                break;
+            case type_identifier::UNTYPED16:
+                types_of_variables.push_back(type_identifier::SINT16);
+                break;
+            case type_identifier::UNTYPED32:
+                types_of_variables.push_back(type_identifier::SINT32);
+                break;
+            case type_identifier::UNTYPED64:
+                types_of_variables.push_back(type_identifier::SINT64);
+                break;
+            default:
+                types_of_variables.push_back(type);
+                break;
         }
-
-    std::unordered_map<natural_32_bit, natural_32_bit>  start_bits_to_variable_indices;
-    for (auto&  start_and_type_and_indices : start_bits_to_bit_indices)
-    {
-        start_bits_to_variable_indices.insert({ start_and_type_and_indices.first, (natural_32_bit)from_variables_to_input.size() });
-        types_of_variables.push_back(start_and_type_and_indices.second.first);
-        from_variables_to_input.push_back({ start_and_type_and_indices.first, {} });
-        from_variables_to_input.back().value_bit_indices.assign(
-                start_and_type_and_indices.second.second.begin(),
-                start_and_type_and_indices.second.second.end()
-                );
-        std::sort(from_variables_to_input.back().value_bit_indices.begin(), from_variables_to_input.back().value_bit_indices.end());
-    }
-
-    INVARIANT(!types_of_variables.empty());
-
-    for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
-    {
-        branching_info&  info = path.at(i);
-        for (stdin_bit_index  idx : info.node_ptr->sensitive_stdin_bits)
-        {
-            natural_32_bit const  type_index = bits_and_types->type_index(idx);
-            natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
-            info.variable_indices.insert(start_bits_to_variable_indices.at(start_bit_idx));
-        }
-    }
 
     {
         natural_32_bit  nbits{ 0U };
@@ -552,6 +522,8 @@ void  chain_minimization_analysis::compute_partial_derivative()
     {
         space.gradient.push_back(partial);
         partials_props.clear();
+
+        path.at(local_spaces.size() - 1UL).node_ptr->is_input_sensitive = true;
     }
 }
 
@@ -1206,12 +1178,13 @@ void  chain_minimization_analysis::commit_execution_results(
 void  chain_minimization_analysis::bits_to_point(vecb const&  bits, vecf64&  point)
 {
     point.clear();
-    for (std::size_t  i = 0UL, i_end = (natural_32_bit)from_variables_to_input.size(); i != i_end; ++i)
+    for (std::size_t  i = 0UL; i != types_of_variables.size(); ++i)
     {
+        natural_32_bit const  start_idx{ bits_and_types->type_start_bit_index(i) };
+        natural_32_bit const  end_idx{ bits_and_types->type_end_bit_index(i) };
         number_overlay  value;
-        mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
-        for (natural_8_bit  idx : mapping.value_bit_indices)
-            set_bit((natural_8_bit*)&value, idx, bits.at(mapping.input_start_bit_index + idx));
+        for (natural_32_bit  j = 0U; start_idx + j <= end_idx; ++j)
+            set_bit((natural_8_bit*)&value, j, bits_and_types->bits.at(start_idx + j));
         point.push_back(as<float_64_bit>(value, types_of_variables.at(i)));
     }
 }
@@ -1220,12 +1193,13 @@ void  chain_minimization_analysis::bits_to_point(vecb const&  bits, vecf64&  poi
 vector_overlay  chain_minimization_analysis::point_to_bits(vecf64 const&  point, vecb&  bits)
 {
     vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-    bits = bits_and_types->bits;
-    for (std::size_t  i = 0ULL; i != point_overlay.size(); ++i)
+    bits.resize(bits_and_types->bits.size(), 0);
+    for (std::size_t  i = 0UL; i != types_of_variables.size(); ++i)
     {
-        mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
-        for (natural_8_bit  idx : mapping.value_bit_indices)
-            bits.at(mapping.input_start_bit_index + idx) = get_bit((natural_8_bit const*)&point_overlay.at(i), idx);
+        natural_32_bit const  start_idx{ bits_and_types->type_start_bit_index(i) };
+        natural_32_bit const  end_idx{ bits_and_types->type_end_bit_index(i) };
+        for (natural_32_bit  j = 0U; start_idx + j <= end_idx; ++j)
+            bits.at(start_idx + j) = get_bit((natural_8_bit const*)&point_overlay.at(i), j);
     }
     return point_overlay;
 }
