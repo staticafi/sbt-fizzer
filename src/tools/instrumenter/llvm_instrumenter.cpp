@@ -5,6 +5,7 @@
 #   pragma warning(disable:4624) // LLVM: warning C4624: 'llvm::detail::copy_construction_triviality_helper<T>': destructor was implicitly defined
 #   pragma warning(disable:4146) // LLVM: warning C4146: unary minus operator applied to unsigned type, result still unsigned
 #endif
+#include <llvm/IR/InstIterator.h>
 #include <utility/timeprof.hpp>
 #include <algorithm>
 #include <unordered_set>
