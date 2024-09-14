@@ -77,6 +77,11 @@ start with the **age** project:
         tasks, e.g., building benchmarks and killing non-terminating clients.
         You only need to copy the file from the `setup` folder to the folder
         `.vscode` folder.
+- (Optional) If you also want to analyze 32-bit programs, then you must also
+  build 32-bit version of Fizzer's libraries. That is done automatically via
+  Fizzer's `build.sh` script. However, 32-bit version of C++ standard library
+  must be available in the C++ compiler. On Linux (Ubuntu) you can install
+  this library using: `sudo apt install g++-multilib`
 - (optional) **SmartGit** Git GUI client: https://www.syntevo.com/smartgit/
 
 ## Downloading **SBT-Fizzer**
