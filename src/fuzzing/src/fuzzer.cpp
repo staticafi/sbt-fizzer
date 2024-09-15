@@ -813,6 +813,7 @@ fuzzer::fuzzer(termination_info const&  info)
             &statistics
             }
     , iid_pivots{}
+    , iid_dependences{}
 
     , coverage_failures_with_hope{}
 
@@ -971,6 +972,51 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
+void fuzzer::process_node_dependance(branching_node *node)
+{
+    using deps_props = iid_node_dependence::iid_dependence_props;
+    using node_direction = iid_node_dependence::node_navigation;
+
+    if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
+        return;
+    deps_props& props = iid_dependences.id_to_equation_map[node->get_location_id()];
+
+    props.all_paths.push_back(node);
+    props.recompute_matrix();
+}
+
+void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matrix()
+{
+    using node_nav = iid_node_dependence::node_navigation;
+    if (all_paths.empty())
+        return;
+
+    matrix.clear(); // This could be done better, but for now it's fine
+
+    for (const auto& path : all_paths) {
+        std::map<iid_node_dependence::node_navigation, int> directions_in_path;
+
+        branching_node* node = path;
+        branching_node* prev_node = node->predecessor;
+
+        while (prev_node != nullptr) {
+            bool direction = prev_node->successor(true).pointer == node;
+            node_nav nav = { prev_node->get_location_id(), direction };
+            directions_in_path[nav]++;
+
+            node = prev_node;
+            prev_node = node->predecessor;
+        }
+
+        std::vector<float> values_in_path;
+        for (const auto& [direction, count] : directions_in_path) {
+            values_in_path.push_back(count);
+        }
+
+        matrix.push_back(values_in_path);
+    }
+    
+}
 
 execution_record::execution_flags  fuzzer::process_execution_results()
 {
@@ -1008,6 +1054,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     trace->front().xor_like_branching_function
                     );
             construction_props.diverging_node = entry_branching;
+
+            process_node_dependance(entry_branching);
 
             ++statistics.nodes_created;
         }
@@ -1074,9 +1122,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     node->set_closed(false);
 
                 branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
-                construction_props.leaf->set_successor(info.direction, {
-                    branching_node::successor_pointer::VISITED,
-                    new branching_node(
+                auto new_node = new branching_node(
                         succ_info.id,
                         trace_index + 1,
                         succ_info.num_input_bytes,
@@ -1088,8 +1134,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value * succ_info.value,
                         num_driver_executions,
                         succ_info.xor_like_branching_function
-                        )
+                        );
+                construction_props.leaf->set_successor(info.direction, {
+                    branching_node::successor_pointer::VISITED,
+                    new_node
                 });
+
+                process_node_dependance(new_node);
 
                 ++statistics.nodes_created;
 
@@ -1321,6 +1372,8 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
                 pivots.push_back({ node, &pivot_it_and_state.first->second });
             }
+
+            // iid_dependence_props& deps = iid_dependences[node->get_location_id()];
         }
     if (pivots.empty())
         return;

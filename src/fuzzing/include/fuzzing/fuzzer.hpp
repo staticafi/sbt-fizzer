@@ -17,6 +17,7 @@
 #   include <chrono>
 #   include <memory>
 #   include <limits>
+#   include <set>
 
 namespace  fuzzing {
 
@@ -217,6 +218,36 @@ private:
         mutable random_generator_for_natural_32_bit  generator_for_pivot_selection;
     };
 
+    struct iid_node_dependence
+    {
+        
+        struct node_navigation
+        {
+            location_id node_id;
+            bool direction;
+
+            auto operator<=>(node_navigation const& other) const 
+            {
+                if(auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
+                    return cmp;
+                
+                return direction <=> other.direction;
+            }
+        };
+
+        struct iid_dependence_props
+        {
+            std::vector<branching_node*> all_paths;
+            std::set<node_navigation> interestins_nodes;
+            std::vector<std::vector<float>> matrix;
+
+            void recompute_matrix();
+        };
+
+        std::unordered_map<location_id, iid_dependence_props>  id_to_equation_map;
+        std::set<location_id>  non_iid_nodes;
+    };
+
     static void  update_close_flags_from(branching_node*  node);
 
     static std::vector<natural_32_bit> const&  get_input_width_classes();
@@ -285,6 +316,7 @@ private:
             );
 
     void  generate_next_input(vecb&  stdin_bits);
+    void  process_node_dependance(branching_node* node);
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
@@ -310,8 +342,9 @@ private:
 
     primary_coverage_target_branchings  primary_coverage_targets;
     std::unordered_map<location_id, iid_location_props>  iid_pivots;
+    iid_node_dependence  iid_dependences;
 
-    std::unordered_set<branching_node*>  coverage_failures_with_hope; // EXPLAIN
+    std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     STATE  state;
     sensitivity_analysis  sensitivity;
