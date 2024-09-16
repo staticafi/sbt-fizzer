@@ -70,11 +70,11 @@ find_package(Threads REQUIRED)
 
 # find and add Boost
 message("Searching for Boost library ...")
-find_package(Boost 1.69 REQUIRED COMPONENTS filesystem)
+set(Boost_USE_STATIC_LIBS   ON)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
-    Libs ${Boost_LIBRARIES}
-")
+    Libs ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
@@ -92,8 +92,7 @@ message("LLVM STATUS:
     Definitions ${LLVM_DEFINITIONS}
     Includes    ${LLVM_INCLUDE_DIRS}
     Libraries   ${LLVM_LIBRARY_DIRS}
-    Targets     ${LLVM_TARGETS_TO_BUILD}"
-)
+    Targets     ${LLVM_TARGETS_TO_BUILD}")
 
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
