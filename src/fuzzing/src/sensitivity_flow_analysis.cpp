@@ -112,6 +112,7 @@ private:
     std::vector<branching_node*>  path_nodes_;
     std::vector<bool>  path_directions_;
     std::size_t  path_index_;
+    bool  some_input_was_read_;
     bool  target_reached_;
 };
 
@@ -125,6 +126,7 @@ sensitivity_flow_analysis::input_flow::input_flow(
     , path_nodes_{}
     , path_directions_{}
     , path_index_{ 0ULL }
+    , some_input_was_read_{ false }
     , target_reached_{ false }
 {
     REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_bool, this->start_input_flow(sizeof(bool)) );
@@ -155,33 +157,46 @@ void sensitivity_flow_analysis::input_flow::start_input_flow(std::size_t const c
     sala::MemPtr ptr{ parameters().front().read<sala::MemPtr>() };
     for (std::size_t i = 0ULL; i != count; ++i, ++desc)
         start(ptr + i, (sala::InputFlow::InputDescriptor)desc);
+    some_input_was_read_ = true;
 }
 
 
 void sensitivity_flow_analysis::input_flow::do_ret()
 {
-    if (state().current_function().name() == "__sbt_fizzer_process_condition")
+    if (some_input_was_read_ && state().current_function().name() == "__sbt_fizzer_process_condition")
     {
         INVARIANT(path_index_ < path_nodes_.size());
 
         if (path_nodes_.at(path_index_)->get_location_id().id != parameters().front().read<instrumentation::location_id>().id)
         {
+            auto const& expected{ path_nodes_.at(path_index_)->get_location_id() };
+            auto const obtained{ parameters().front().read<instrumentation::location_id>() };
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
                 sala::ExecState::Termination::ERROR,
                 "sensitivity_flow_analysis[extern_code]",
-                "Execution diverged from the expected path in the tree. Unexpected location ID."
+                "Execution diverged from the expected path in the tree."
+                    " At path index " + std::to_string(path_index_) + ": Unexpected location ID."
+                    " [Expected: " + std::to_string(expected.id) +
+                    ", obtained: " + std::to_string(obtained.id) + "]"
                 );
             return;
         }
 
         if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).read<bool>())
         {
+            bool const expected{ path_directions_.at(path_index_) };
+            bool const obtained{ parameters().at(1).read<bool>() };
+            auto const& loc{ path_nodes_.at(path_index_)->get_location_id() };
             state().set_stage(sala::ExecState::Stage::FINISHED);
             state().set_termination(
                 sala::ExecState::Termination::ERROR,
                 "sensitivity_flow_analysis[extern_code]",
-                "Execution diverged from the expected path in the tree. Unexpected location ID."
+                "Execution diverged from the expected path in the tree."
+                    " At path index " + std::to_string(path_index_) + ": Unexpected direction taken."
+                    " [Expected: " + std::to_string(expected) +
+                    ", obtained: " + std::to_string(obtained) + "]"
+                    "[NOTE: location ID: " + std::to_string(loc.id) + "]"
                 );
             return;
         }
