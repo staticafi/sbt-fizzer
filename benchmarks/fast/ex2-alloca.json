@@ -24,6 +24,11 @@
             5,2654435832,    6,2654435832
         ],
         "output_statistics": {
+            "chain_minimization_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
             "sensitivity_analysis": {
                 "num_generated_tests": 2,
                 "num_crashes": 0,
