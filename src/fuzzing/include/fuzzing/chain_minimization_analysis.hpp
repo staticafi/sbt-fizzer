@@ -24,7 +24,8 @@ struct  chain_minimization_analysis
     enum PROGRESS_STAGE
     {
         PARTIALS,
-        STEP
+        STEP,
+        RECOVERY
     };
 
     union  typed_value_storage
@@ -81,6 +82,16 @@ struct  chain_minimization_analysis
         std::vector<float_64_bit>  values{};
     };
 
+    struct  divergence_recovery_props
+    {
+        PROGRESS_STAGE  stage_backup{ RECOVERY };
+        std::size_t  space_index{ 0UL };
+        vecf64  shift{};
+        float_64_bit  value{ 0.0 };
+        std::vector<vecf64>  sample_shifts{};
+        std::vector<float_64_bit>  sample_values{};
+    };
+
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
@@ -134,6 +145,13 @@ private:
             std::size_t  max_iterations = 10UL
             ) const;
     bool  compute_gradient_step_shifts();
+    bool  __compute_gradient_step_shifts(
+            std::vector<vecf64>&  resulting_shifts,
+            local_space_of_branching const&  space,
+            float_64_bit  value,
+            BRANCHING_PREDICATE  predicate,
+            vecf64 const*  shift_ptr = nullptr
+            );
     bool  apply_best_gradient_step();
     void  load_origin(vecb const&  bits);
     void  store_shifted_origin(vecb&  bits);
@@ -155,6 +173,7 @@ private:
     std::vector<local_space_of_branching>  local_spaces;
     std::vector<vecf64>  gradient_step_shifts;
     std::vector<gradient_step_result>  gradient_step_results;
+    divergence_recovery_props  recovery;
 
     performance_statistics  statistics;
 };
