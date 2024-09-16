@@ -913,7 +913,7 @@ void  chain_minimization_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
         std::size_t const  space_index,
         vecf64 const&  grad,
-        float_64_bit  value,
+        float_64_bit const  value,
         origin_set&  used_origins,
         vecf64 const*  shift_ptr
         )
@@ -948,8 +948,8 @@ void  chain_minimization_analysis::compute_descent_shifts(
             float_64_bit  param;
             {
                 float_64_bit constexpr  coef{ 0.01 };
-                float_64_bit const  value{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
-                param = small_delta_around(cast_float_value<float_64_bit>(value));
+                float_64_bit const  interpolant{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
+                param = small_delta_around(cast_float_value<float_64_bit>(interpolant));
                 param /= length(ray_dir);
             }
 
