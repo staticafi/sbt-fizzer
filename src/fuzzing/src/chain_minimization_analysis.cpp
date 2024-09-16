@@ -276,7 +276,7 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 stop_with_failure();
                 return false;
             }
-            local_spaces.at(recovery.space_index).sample_shift = stability.shift;
+            local_spaces.back().sample_shift = stability.shift;
             transform_shift(local_spaces.size() - 1UL);
             break;
         }
@@ -935,9 +935,13 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
     if (stability.step_index >= gradient_step_results.size())
         return false;
 
-    // TODO!
+    float_64_bit const  gg_inv{ 1.0 / dot_product(local_spaces.back().gradient, local_spaces.back().gradient) };
+    float_64_bit const  gO{ dot_product(local_spaces.back().gradient, stability.origin_in_reals_backup) };
+    stability.shift = gradient_step_shifts.at(stability.step_index);
+    add_scaled(stability.shift, gO * gg_inv, local_spaces.back().gradient);
+    add_scaled(stability.shift, -1, stability.origin_in_reals_backup);
 
-    return false; // TODO!
+    return true;
 }
 
 
