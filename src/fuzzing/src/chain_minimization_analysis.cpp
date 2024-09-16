@@ -636,9 +636,9 @@ void  chain_minimization_analysis::insert_next_local_space()
     {
         dst_space.orthogonal_basis.push_back(src_space.gradient);
         collect_variable_indices_for_last_basis_vector();
-        push_back_basis_vector_props_in_world_space(src_space.gradient);
+        push_back_basis_vector_props_in_world_space(dst_space.orthogonal_basis.back());
         vecf64  normal;
-        axis(normal, columns(src_space.orthogonal_basis), columns(src_space.orthogonal_basis) - 1UL);
+        axis(normal, columns(dst_space.orthogonal_basis), columns(dst_space.orthogonal_basis) - 1UL);
         dst_space.constraints.push_back({
             normal,
             -src_info.value * gg_inv,
@@ -653,7 +653,7 @@ void  chain_minimization_analysis::insert_next_local_space()
     {
         vecf64  normal;
         for (vecf64 const&  u : dst_space.orthogonal_basis)
-            normal.push_back(dot_product(constraint.normal, u) / length(u));
+            normal.push_back(dot_product(constraint.normal, u) / dot_product(u, u));
         float_64_bit const  denom{ dot_product(constraint.normal, mul(dst_space.orthogonal_basis, normal)) };
         if (std::fabs(denom) > 1e-6f)
             dst_space.constraints.push_back({
