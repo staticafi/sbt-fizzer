@@ -10,8 +10,8 @@
         "stdin_model": "stdin_replay_bytes_then_repeat_zero",
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
-        "optimizer_max_trace_length": 10000,
-        "optimizer_max_stdin_bytes": 10000,
+        "optimizer_max_trace_length": 100000,
+        "optimizer_max_stdin_bytes": 100000,
         "m32": false
     },
     "results": {
