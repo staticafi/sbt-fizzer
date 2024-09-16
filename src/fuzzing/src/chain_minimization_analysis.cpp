@@ -823,6 +823,21 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
 }
 
 
+bool  compute_gg_inv_and_lambda0(vecf64 const& g, float_64_bit const  value, float_64_bit&  gg_inv, float_64_bit&  lambda0) {
+    gg_inv = 1.0 / dot_product(g, g);
+    lambda0 = -value * gg_inv;
+    if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
+        return false;
+    for (auto const coord : g)
+    {
+        float_64_bit const  x{ coord * lambda0 };
+        if (!std::isfinite(x) || std::isnan(x))
+            return false;
+    }
+    return true;
+}
+
+
 bool  chain_minimization_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
         std::size_t const  space_index,
@@ -830,32 +845,40 @@ bool  chain_minimization_analysis::compute_descent_shifts(
         vecf64 const* const  shift_ptr
         )
 {
-    local_space_of_branching const&  space{ local_spaces.at(space_index) };
-    comparator_type const  predicate{ path.at(space_index).predicate };
+    vecf64 const  grad_orig{ local_spaces.at(space_index).gradient };
 
-    origin_set  used_origins{ &types_of_variables };
-
-    auto const&  compute_gg_inv_and_lambda0 = [value](vecf64 const& g, float_64_bit&  gg_inv, float_64_bit&  lambda0) {
-        gg_inv = 1.0 / dot_product(g, g);
-        lambda0 = -value * gg_inv;
-        if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
-            return false;
-        for (auto const coord : g)
-        {
-            float_64_bit const  x{ coord * lambda0 };
-            if (!std::isfinite(x) || std::isnan(x))
-                return false;
-        }
-        return true;
-    };
-
-    vecf64  grad{ space.gradient };
+    std::vector<vecf64>  gradients;
     {
         float_64_bit gg_inv, lambda0;
-        if (!compute_gg_inv_and_lambda0(grad, gg_inv, lambda0))
-            for (std::size_t  i = 0UL; i < size(grad); ++i)
-                at(grad, i) = get_random_integer_32_bit_in_range(-10001, 10000, rnd_generator) < 0 ? -1.0 : 1.0;
+        if (!compute_gg_inv_and_lambda0(grad_orig, value, gg_inv, lambda0))
+        {
+            gradients.push_back({});
+            for (std::size_t  i = 0UL; i < size(grad_orig); ++i)
+                gradients.back().push_back(get_random_integer_32_bit_in_range(-10001, 10000, rnd_generator) < 0 ? -1.0 : 1.0);
+        }
+        else
+            gradients.push_back(grad_orig);
     }
+
+    origin_set  used_origins{ &types_of_variables };
+    for (vecf64 const&  grad : gradients)
+        compute_descent_shifts(resulting_shifts, space_index, grad, value, used_origins, shift_ptr);
+
+    return !resulting_shifts.empty();
+}
+
+
+void  chain_minimization_analysis::compute_descent_shifts(
+        std::vector<vecf64>&  resulting_shifts,
+        std::size_t const  space_index,
+        vecf64 const&  grad,
+        float_64_bit  value,
+        origin_set&  used_origins,
+        vecf64 const*  shift_ptr
+        )
+{
+    local_space_of_branching const&  space{ local_spaces.at(space_index) };
+    comparator_type const  predicate{ path.at(space_index).predicate };
 
     for (std::size_t  i = 0UL; i <= size(grad); ++i)
     {
@@ -868,7 +891,7 @@ bool  chain_minimization_analysis::compute_descent_shifts(
         }
 
         float_64_bit gg_inv, lambda0;
-        if (!compute_gg_inv_and_lambda0(g, gg_inv, lambda0))
+        if (!compute_gg_inv_and_lambda0(g, value, gg_inv, lambda0))
             continue;
     
         vecf64  lambdas;
@@ -970,8 +993,6 @@ bool  chain_minimization_analysis::compute_descent_shifts(
             used_origins.insert(point_overlay);
         }
     }
-
-    return !resulting_shifts.empty();
 }
 
 

@@ -193,6 +193,14 @@ private:
             float_64_bit  value,
             vecf64 const*  shift_ptr = nullptr
             );
+    void  compute_descent_shifts(
+            std::vector<vecf64>&  resulting_shifts,
+            std::size_t  space_index,
+            vecf64 const&  grad,
+            float_64_bit  value,
+            origin_set&  used_origins,
+            vecf64 const*  shift_ptr = nullptr
+            );
     bool  apply_best_gradient_step();
     float_64_bit  compute_best_shift_along_ray(
             vecf64 const&  ray_start,
