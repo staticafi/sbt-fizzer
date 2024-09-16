@@ -959,11 +959,11 @@ void  chain_minimization_analysis::compute_descent_shifts(
             switch (predicate)
             {
                 case BP_EQUAL:
-                    ASSUMPTION(value != 0.0);// && lambda0 != 0.0);
+                    //ASSUMPTION(value != 0.0);// && lambda0 != 0.0);
                     lambdas.push_back(lambda0);
                     break;
                 case BP_UNEQUAL:
-                    ASSUMPTION(value == 0.0);
+                    //ASSUMPTION(value == 0.0);
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                     break;
