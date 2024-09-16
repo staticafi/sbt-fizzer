@@ -318,6 +318,21 @@ float_32_bit  fuzzer::probability_generator_all_then_all::next()
 }
 
 
+std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
+{
+    static std::unordered_map<STATE, std::string> const  map {
+        { STARTUP, "STARTUP" },
+        { SENSITIVITY_FLOW, "sensitivity_flow_analysis" },
+        { SENSITIVITY, "sensitivity_analysis" },
+        { TYPED_MINIMIZATION, "typed_minimization_analysis" },
+        { MINIMIZATION, "minimization_analysis" },
+        { BITSHARE, "bitshare_analysis" },
+        { FINISHED, "FINISHED" },
+    };
+    return map.at(state);
+}
+
+
 void  fuzzer::update_close_flags_from(branching_node* const  node)
 {
     if (node->is_closed() || node->is_open_branching())
@@ -884,7 +899,7 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 }
 
 
-execution_record::execution_flags  fuzzer::round_end()
+std::pair<execution_record::execution_flags, std::string const&>  fuzzer::round_end()
 {
     TMPROF_BLOCK();
 
@@ -893,7 +908,7 @@ execution_record::execution_flags  fuzzer::round_end()
     time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 
-    return flags;
+    return { flags, get_analysis_name_from_state(state) };
 }
 
 
