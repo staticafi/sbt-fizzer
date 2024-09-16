@@ -1,6 +1,7 @@
 #ifndef CONNECTION_SHARED_MEMORY_HPP_INCLUDED
 #   define CONNECTION_SHARED_MEMORY_HPP_INCLUDED
 
+#   include <connection/medium.hpp>
 #   include <boost/interprocess/shared_memory_object.hpp>
 #   include <boost/interprocess/mapped_region.hpp>
 #   include <utility/endian.hpp>
@@ -13,29 +14,32 @@
 namespace  connection {
 
 
-class shared_memory {
+class shared_memory : public medium {
     inline static const char* segment_name = "SBT-Fizzer_Shared_Memory";
 
-    boost::interprocess::shared_memory_object shm;
-    boost::interprocess::mapped_region region;
+    boost::interprocess::shared_memory_object shm{};
+    boost::interprocess::mapped_region region{};
     natural_32_bit cursor = 0;
     natural_8_bit* memory = nullptr;
     natural_32_bit* saved = nullptr;
 
 public:
+
+    shared_memory() : medium() {}
+
     natural_32_bit get_size() const;
     void set_size(natural_32_bit bytes);
-    void clear();
+    void clear() override;
 
     void open_or_create();
     void map_region();
     static void remove();
 
-    bool can_accept_bytes(size_t n) const;
-    bool can_deliver_bytes(size_t n) const;
+    bool can_accept_bytes(size_t n) const override;
+    bool can_deliver_bytes(size_t n) const override;
 
-    void accept_bytes(const void* src, size_t n);
-    void deliver_bytes(void* dest, size_t n);
+    void accept_bytes(const void* src, size_t n) override;
+    void deliver_bytes(void* dest, size_t n) override;
 
     void accept_bytes(message& src);
     void deliver_bytes(message& dest);
@@ -45,7 +49,7 @@ public:
     /*Interprets the first two bytes as termination type*/
     std::optional<instrumentation::target_termination> get_termination() const;
     /*Overwrites the first two bytes to set termination type*/
-    void set_termination(instrumentation::target_termination termination);
+    void set_termination(instrumentation::target_termination termination) override;
 
     template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     shared_memory& operator<<(const T& src)

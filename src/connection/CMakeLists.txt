@@ -7,6 +7,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/client.hpp
     ./src/client.cpp
 
+    ./include/connection/medium.hpp
+
     ./include/connection/shared_memory.hpp
     ./src/shared_memory.cpp
 
