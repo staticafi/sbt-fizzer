@@ -40,6 +40,7 @@ struct  chain_minimization_analysis
         float_64_bit  value{ 0.0 };
         bool  direction{ false };
         comparator_type  predicate{ BP_EQUAL };
+        bool  xor_like_branching_function{ false };
         std::unordered_set<natural_32_bit>  variable_indices{};
     };
 
