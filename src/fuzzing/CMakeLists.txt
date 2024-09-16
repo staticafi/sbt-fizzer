@@ -48,6 +48,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/dump_testcomp.hpp
     ./src/dump_testcomp.cpp
 
+    ./include/fuzzing/number_overlay.hpp
+    ./src/number_overlay.cpp
+
     ./include/fuzzing/progress_recorder.hpp
     ./src/progress_recorder.cpp
 
