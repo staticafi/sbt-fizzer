@@ -290,6 +290,7 @@ void  chain_minimization_analysis::process_execution_results(
                     compute_gradient_step_shifts();
                 }
             }
+            ++statistics.partials;
             break;
         case STEP:
             if (gradient_step_results.size() < gradient_step_shifts.size())
@@ -298,6 +299,7 @@ void  chain_minimization_analysis::process_execution_results(
                 for (auto const&  space : local_spaces)
                     gradient_step_results.back().values.push_back(space.sample_value);
             }
+            ++statistics.gradient_steps;
             break;
         default: { UNREACHABLE(); } break;
     }
