@@ -36,6 +36,20 @@ std::ostream&  operator<<(std::ostream&  ostr, location_id  id);
 
 using branching_function_value_type = float_64_bit;
 
+
+enum BRANCHING_PREDICATE : natural_8_bit
+{
+    BP_EQUAL           = 0,
+    BP_UNEQUAL         = 1,
+    BP_LESS            = 2,
+    BP_LESS_EQUAL      = 3,
+    BP_GREATER         = 4,
+    BP_GREATER_EQUAL   = 5
+};
+
+BRANCHING_PREDICATE opposite_predicate(BRANCHING_PREDICATE  predicate);
+
+
 struct  branching_coverage_info
 {
     explicit branching_coverage_info(location_id const  id_);
@@ -46,6 +60,7 @@ struct  branching_coverage_info
     branching_function_value_type  value;
     natural_32_bit  idx_to_br_instr;
     bool xor_like_branching_function;
+    BRANCHING_PREDICATE predicate;
     natural_32_bit  num_input_bytes;
 };
 

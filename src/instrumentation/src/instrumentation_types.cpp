@@ -6,6 +6,21 @@
 namespace  instrumentation {
 
 
+BRANCHING_PREDICATE opposite_predicate(BRANCHING_PREDICATE  predicate)
+{
+    switch (predicate)
+    {
+        case BP_EQUAL: return BP_UNEQUAL;
+        case BP_UNEQUAL: return BP_EQUAL;
+        case BP_LESS: return BP_GREATER_EQUAL;
+        case BP_LESS_EQUAL: return BP_GREATER;
+        case BP_GREATER: return BP_LESS_EQUAL;
+        case BP_GREATER_EQUAL: return BP_LESS;
+        default: UNREACHABLE();
+    }
+}
+
+
 branching_coverage_info::branching_coverage_info(location_id const  id_)
     : id{id_}
     , direction{}

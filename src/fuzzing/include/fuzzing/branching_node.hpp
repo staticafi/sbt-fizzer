@@ -43,7 +43,8 @@ struct  branching_node
             branching_function_value_type  best_coverage_value_,
             branching_function_value_type  best_summary_value_,
             natural_32_bit  execution_number,
-            bool  xor_like_branching_function_
+            bool  xor_like_branching_function_,
+            BRANCHING_PREDICATE  branching_predicate_
             )
         : id{ id_ }
         , trace_index{ trace_index_ }
@@ -70,6 +71,7 @@ struct  branching_node
         , sensitive_stdin_bits{}
 
         , xor_like_branching_function{ xor_like_branching_function_ }
+        , branching_predicate{ branching_predicate_ }
 
         , closed{ false }
 
@@ -135,6 +137,8 @@ struct  branching_node
     std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
 
     bool  xor_like_branching_function;
+
+    BRANCHING_PREDICATE  branching_predicate;
 
     bool  closed;
 

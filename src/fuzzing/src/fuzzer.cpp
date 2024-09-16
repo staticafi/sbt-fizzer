@@ -982,7 +982,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     std::numeric_limits<branching_function_value_type>::max(),
                     std::numeric_limits<branching_function_value_type>::max(),
                     num_driver_executions,
-                    trace->front().xor_like_branching_function
+                    trace->front().xor_like_branching_function,
+                    trace->front().predicate
                     );
             construction_props.diverging_node = entry_branching;
 
@@ -1020,6 +1021,32 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
                     construction_props.uncovered_locations.erase(info.id);
                     construction_props.covered_locations.insert(info.id);
+                }
+            }
+
+            // Here we try to remove bad float (INF, NaN) from 'info.value'.
+            // It would be better, if fuzzer and analyses could deal with bad floats, but that is complicated. 
+            if (!std::isfinite(info.value) || std::isnan(info.value))
+            {
+                branching_function_value_type&  value_ref{ const_cast<branching_function_value_type&>(info.value) };
+                switch (info.predicate)
+                {
+                    case BP_EQUAL:
+                        value_ref = info.direction ? 0.0 : std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                    case BP_UNEQUAL:
+                        value_ref = info.direction ? std::numeric_limits<branching_function_value_type>::max() : 0.0;
+                        break;
+                    case BP_LESS_EQUAL:
+                    case BP_LESS:
+                        value_ref = (info.direction ? -1.0 : 1.0) * std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                        break;
+                    case BP_GREATER:
+                    case BP_GREATER_EQUAL:
+                        value_ref = (info.direction ? 1.0 : -1.0) * std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                    default: UNREACHABLE(); break;
                 }
             }
 
@@ -1064,7 +1091,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value,
                         succ_info.value * succ_info.value,
                         num_driver_executions,
-                        succ_info.xor_like_branching_function
+                        succ_info.xor_like_branching_function,
+                        succ_info.predicate
                         )
                 });
 

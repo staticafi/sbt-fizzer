@@ -34,7 +34,7 @@ bool llvm_instrumenter::doInitialization(Module *M) {
 
     processCondFunc =
         module->getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
-                              Int32Ty, Int1Ty, DoubleTy, Int1Ty);
+                              Int32Ty, Int1Ty, DoubleTy, Int1Ty, Int8Ty);
 
     processCondBrFunc =
         module->getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
@@ -75,52 +75,45 @@ void llvm_instrumenter::printErrCond(Value *cond) {
 
 Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
                                   IRBuilder<> &builder) {
-
-    // pointer comparison -> consider the distance to be 1
-    if (lhs->getType()->isPointerTy()) {
-        return ConstantFP::get(DoubleTy, 1);
-    }
-
-    bool isUnsigned = cmpInst->isUnsigned();
-
-    if ((!lhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)lhs->getType())->getBitWidth() < 64) &&
-        (!rhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)rhs->getType())->getBitWidth() < 64) )
+    if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy())
     {
-        // if the value was extended we can't overflow meaning we don't need to
-        // cast to a higher type
-        if (!(dyn_cast<ZExtInst>(lhs) || dyn_cast<SExtInst>(lhs) ||
-                dyn_cast<ZExtInst>(rhs) || dyn_cast<SExtInst>(rhs))) {
-
-            // extend based on the signedness
-            if (isUnsigned) {
-                lhs =
-                    builder.CreateZExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateZExt(rhs, rhs->getType()->getExtendedType());
-            }
-            else {
-                lhs =
-                    builder.CreateSExt(lhs, lhs->getType()->getExtendedType());
-                rhs =
-                    builder.CreateSExt(rhs, rhs->getType()->getExtendedType());
-            }
+        llvm::ConstantPointerNull* const  val = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(lhs->getType()));
+        if (val == lhs || val == rhs)
+        {
+            Value* value = cmpInst->getPredicate() == llvm::CmpInst::Predicate::ICMP_EQ ? builder.CreateXor(cmpInst, 1) : cmpInst;
+            return builder.CreateUIToFP(builder.CreateZExt(value, Int32Ty), DoubleTy);
         }
     }
 
-    Value *distance = builder.CreateSub(lhs, rhs);
+    if (lhs->getType()->isPointerTy())
+        lhs = builder.CreatePtrToInt(lhs, Int64Ty);
+    if (rhs->getType()->isPointerTy())
+        rhs = builder.CreatePtrToInt(rhs, Int64Ty);
 
-    if (isUnsigned) {
-        return builder.CreateUIToFP(distance, DoubleTy);
+    if (cmpInst->isUnsigned())
+    {
+        if (lhs->getType()->isIntegerTy())
+            lhs = builder.CreateUIToFP(lhs, DoubleTy);
+        if (rhs->getType()->isIntegerTy())
+            rhs = builder.CreateUIToFP(rhs, DoubleTy);
     }
-    return builder.CreateSIToFP(distance, DoubleTy);
+    else
+    {
+        if (lhs->getType()->isIntegerTy())
+            lhs = builder.CreateSIToFP(lhs, DoubleTy);
+        if (rhs->getType()->isIntegerTy())
+            rhs = builder.CreateSIToFP(rhs, DoubleTy);
+    }
+    
+    return instrumentFcmp(lhs, rhs, nullptr, builder);
 }
 
-Value *llvm_instrumenter::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *cmpInst,
+Value *llvm_instrumenter::instrumentFcmp(Value *lhs, Value *rhs, CmpInst *,
                                   IRBuilder<> &builder) {
-    if (lhs->getType()->isFloatTy()) {
+    if (lhs->getType()->isFloatTy())
         lhs = builder.CreateFPExt(lhs, DoubleTy);
+    if (rhs->getType()->isFloatTy())
         rhs = builder.CreateFPExt(rhs, DoubleTy);
-    }
 
     Value *distance = builder.CreateFSub(lhs, rhs);
 
@@ -148,15 +141,65 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
     }
     IRBuilder<> builder(inst->getNextNode());
 
+    // We emulate the 'enum BRANCHING_PREDICATE' (see instrumentation_types.hpp) as follows: 
+    natural_8_bit constexpr BP_EQUAL{ 0 };
+    natural_8_bit constexpr BP_UNEQUAL{ 1 };
+    natural_8_bit constexpr BP_LESS{ 2 };
+    natural_8_bit constexpr BP_LESS_EQUAL{ 3 };
+    natural_8_bit constexpr BP_GREATER{ 4 };
+    natural_8_bit constexpr BP_GREATER_EQUAL{ 5 };
+    natural_8_bit predicate{ BP_UNEQUAL };
+
     Value *distance;
     if (auto *cmpInst = dyn_cast<CmpInst>(inst)) {
         distance = instrumentCmp(cmpInst, builder);
+        switch (cmpInst->getPredicate())
+        {
+            case llvm::CmpInst::Predicate::FCMP_OEQ:
+            case llvm::CmpInst::Predicate::FCMP_UEQ:
+            case llvm::CmpInst::Predicate::ICMP_EQ:
+                predicate = BP_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OGT:
+            case llvm::CmpInst::Predicate::FCMP_UGT:
+            case llvm::CmpInst::Predicate::ICMP_UGT:
+            case llvm::CmpInst::Predicate::ICMP_SGT:
+                predicate = BP_GREATER;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OGE:
+            case llvm::CmpInst::Predicate::FCMP_UGE:
+            case llvm::CmpInst::Predicate::ICMP_UGE:
+            case llvm::CmpInst::Predicate::ICMP_SGE:
+                predicate = BP_GREATER_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OLT:
+            case llvm::CmpInst::Predicate::FCMP_ULT:
+            case llvm::CmpInst::Predicate::ICMP_ULT:
+            case llvm::CmpInst::Predicate::ICMP_SLT:
+                predicate = BP_LESS;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OLE:
+            case llvm::CmpInst::Predicate::FCMP_ULE:
+            case llvm::CmpInst::Predicate::ICMP_ULE:
+            case llvm::CmpInst::Predicate::ICMP_SLE:
+                predicate = BP_LESS_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_ONE:
+            case llvm::CmpInst::Predicate::FCMP_UNE:
+            case llvm::CmpInst::Predicate::ICMP_NE:
+                predicate = BP_UNEQUAL;
+                break;
+
+            case llvm::CmpInst::Predicate::FCMP_UNO: // TODO: "is_nan" - what to do with that?
+            default:
+                break;
+        }
     // truncating a number to i1, happens for example with bool in C
     } else if (dyn_cast<TruncInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     // i1 as a return from a call to a function
     } else if (dyn_cast<CallInst>(inst)) {
-        distance = ConstantFP::get(DoubleTy, 1);
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     } else {
         return false;
     }
@@ -164,8 +207,13 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
     Value *location = ConstantInt::get(Int32Ty, ++condCounter);
     Value *cond = inst;
 
-    builder.CreateCall(processCondFunc,
-                {location, cond, distance, ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0) });
+    builder.CreateCall(processCondFunc, {
+        location,
+        cond,
+        distance,
+        ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0),
+        ConstantInt::get(Int8Ty, predicate)
+        });
 
     return true;
 }
