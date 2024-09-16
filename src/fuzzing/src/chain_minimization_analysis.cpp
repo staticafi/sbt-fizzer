@@ -275,7 +275,8 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
             if (recovery_props.stage_backup == PARTIALS)
             {
                 INVARIANT(size(local_spaces.back().gradient) < size(local_spaces.back().orthogonal_basis));
-                local_spaces.back().gradient.push_back(0.0);
+                if (partials_props.shifts.empty())
+                    local_spaces.back().gradient.push_back(0.0);
             }
             else if (recovery_props.stage_backup == DESCENT)
             {
@@ -360,7 +361,7 @@ void  chain_minimization_analysis::process_execution_results(
         {
             if (recovery_props.space_index == last_index)
             {
-                if (std::fabs(local_spaces.at(recovery_props.space_index).sample_value) <= std::fabs(recovery_props.value))
+                if (std::fabs(local_spaces.at(recovery_props.space_index).sample_value) < std::fabs(recovery_props.value))
                 {
                     recovery_props.shift = local_spaces.at(last_index).sample_shift;
                     recovery_props.value = local_spaces.at(last_index).sample_value;
@@ -465,15 +466,13 @@ void  chain_minimization_analysis::compute_shifts_of_next_partial()
                 }
             if (has_sensitive_var)
             {
-                vecf64  shift;
-                axis(shift, columns(space.orthogonal_basis), partial_index);
-
                 vecf64  params;
                 {
                     float_64_bit const param {
                             small_delta_around(max_abs(origin)) / at(space.scales_of_basis_vectors_in_world_space, partial_index)
                             };
                     params.push_back(param);
+                    params.push_back(-param);
 
                     int  exponent;
                     std::frexp(param, &exponent);
@@ -492,10 +491,13 @@ void  chain_minimization_analysis::compute_shifts_of_next_partial()
                     float_64_bit const  lambda{
                             compute_best_shift_along_ray(origin, at(space.basis_vectors_in_world_space, partial_index), param, ignore_origin)
                             };
-                    if (std::isfinite(lambda) && !std::isnan(lambda) && lambda != 0.0)
-                    {
-                        scale(shift, lambda);
 
+                    vecf64  shift;
+                    axis(shift, columns(space.orthogonal_basis), partial_index);
+                    scale(shift, lambda);
+
+                    if (isfinite(shift))
+                    {
                         if (are_constraints_satisfied(space.constraints, shift))
                             partials_props.shifts.push_back(shift);
                         else
@@ -647,7 +649,6 @@ void  chain_minimization_analysis::insert_next_local_space()
     auto const& push_back_basis_vector_props_in_world_space = [this, src_space_index, &src_space, &dst_space] (vecf64 const&  basis_vector) -> void {
         dst_space.basis_vectors_in_world_space.push_back(this->transform_shift(basis_vector, src_space_index));
         dst_space.scales_of_basis_vectors_in_world_space.push_back( max_abs(dst_space.basis_vectors_in_world_space.back()) );
-        INVARIANT(dst_space.scales_of_basis_vectors_in_world_space.back() > 1e-9);
     };
 
     for (std::size_t  i = 0UL; i < columns(src_space.orthogonal_basis); ++i)
