@@ -41,11 +41,6 @@
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
-            "typed_minimization_analysis": {
-                "num_generated_tests": 15,
-                "num_crashes": 0,
-                "num_boundary_violations": 0
-            },
             "STARTUP": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
