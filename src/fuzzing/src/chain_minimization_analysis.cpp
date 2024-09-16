@@ -327,11 +327,15 @@ void  chain_minimization_analysis::process_execution_results(
         return;
     }
 
+    bool  unexpected_node_id{ false };
     std::size_t  last_index{ 0UL };
     for (std::size_t const  n = std::min({ local_spaces.size(), trace_ptr->size() }); last_index != n; ++last_index)
     {
         if (trace_ptr->at(last_index).id != path.at(last_index).node_ptr->id)
+        {
+            unexpected_node_id = true;
             break;
+        }
         local_spaces.at(last_index).sample_value = cast_float_value<float_64_bit>(trace_ptr->at(last_index).value);
         if (last_index < local_spaces.size() - 1UL && trace_ptr->at(last_index).direction != path.at(last_index).direction)
             break;
@@ -339,6 +343,8 @@ void  chain_minimization_analysis::process_execution_results(
 
     if (last_index != local_spaces.size())
     {
+        bool const  unexpected_early_termination{ last_index == trace_ptr->size() };
+        bool const  is_recoverable{ !unexpected_node_id && !unexpected_early_termination };
         if (progress_stage != RECOVERY)
         {
             recovery_props.stage_backup = progress_stage;
@@ -346,17 +352,20 @@ void  chain_minimization_analysis::process_execution_results(
             recovery_props.shift = local_spaces.at(last_index).sample_shift;
             recovery_props.value = local_spaces.at(last_index).sample_value;
             recovery_props.sample_shifts.clear();
-            compute_descent_shifts(
-                    recovery_props.sample_shifts,
-                    recovery_props.space_index,
-                    recovery_props.value,
-                    &recovery_props.shift
-                    );
-            std::reverse(recovery_props.sample_shifts.begin(), recovery_props.sample_shifts.end());
+            if (is_recoverable)
+            {
+                compute_descent_shifts(
+                        recovery_props.sample_shifts,
+                        recovery_props.space_index,
+                        recovery_props.value,
+                        &recovery_props.shift
+                        );
+                std::reverse(recovery_props.sample_shifts.begin(), recovery_props.sample_shifts.end());
+            }
 
             progress_stage = RECOVERY;
         }
-        else
+        else if (is_recoverable)
         {
             if (recovery_props.space_index == last_index)
             {
