@@ -141,11 +141,12 @@ void  chain_minimization_analysis::start(
     }
 
     {
-        natural_32_bit  nbits{ 0U };
-        for (type_identifier const tid : types_of_variables)
-            nbits += num_bits(tid);
+        natural_32_bit const  nvars{ (natural_32_bit)types_of_variables.size() };
+        natural_32_bit const  nspaces{ (natural_32_bit)path.size() };
+        natural_32_bit const  npartial_shifts{ 2U * nvars };
+        natural_32_bit const  nstep_shifts{ 2U + 4U };
 
-        max_executions = (natural_32_bit)std::round((float_64_bit)(100U * nbits) + std::pow((float_64_bit)(path.size() + 2U), 2.5));
+        max_executions = std::min(10U * (nspaces * npartial_shifts + nstep_shifts), 10000U);
     }
 
     bits_to_point(bits_and_types->bits, origin);
