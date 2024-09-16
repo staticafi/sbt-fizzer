@@ -183,10 +183,9 @@ private:
     bool  apply_best_gradient_step();
     float_64_bit  compute_best_shift_along_ray(
             vecf64 const&  ray_start,
-            vecf64 const&  ray_dir,
+            vecf64  ray_dir,
             float_64_bit  param,
-            origin_set const&  excluded_points,
-            natural_8_bit  max_num_samples = 10U
+            origin_set const&  excluded_points
             ) const;
     bool  compute_stability_shift_for_origin();
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, std::vector<float_64_bit> const&  values);
