@@ -139,7 +139,11 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << "\"sensitivity_flow_analysis\": {\n"
          << shift << shift << "\"start_calls\": " << results.sensitivity_flow_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls\": " << results.sensitivity_flow_statistics.stop_calls << ",\n"
-         << shift << shift << "\"num_failures\": " << results.sensitivity_flow_statistics.num_failures << "\n"
+         << shift << shift << "\"num_failures\": " << results.sensitivity_flow_statistics.num_failures << ",\n"
+         << shift << shift << "\"errors\": [" << "\n";
+    for (std::string const& error : results.sensitivity_flow_statistics.errors) 
+        ostr << shift << shift << shift << error << "\n";
+    ostr << shift << shift << "]\n"
          << shift << "},\n"
          << shift << "\"sensitivity_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.sensitivity_statistics.generated_inputs << ",\n"

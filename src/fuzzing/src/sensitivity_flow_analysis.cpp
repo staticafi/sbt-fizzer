@@ -10,6 +10,7 @@
 #include <utility/timeprof.hpp>
 #include <vector>
 #include <algorithm>
+#include <sstream>
 
 namespace  fuzzing {
 
@@ -318,10 +319,28 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
     if (!flow.target_reached())
     {
         failures.insert(node);
+        statistics.errors.insert(make_problem_message(state.report(
+            (state.error_message().empty() ? state.current_location_message() : " ") +
+            "Unexpected divergence from the path."
+            )));
         ++statistics.num_failures;
     }
 
     stop();
+}
+
+
+std::string  sensitivity_flow_analysis::make_problem_message(std::string const&  content) const
+{
+    std::stringstream  sstr;
+    sstr << "{ "
+         << "\"loc_id\": \"" << node->get_location_id() << "\""
+         << ", "
+         << "\"details\": " << content
+         << " }"
+         ;
+    return sstr.str();
+
 }
 
 
