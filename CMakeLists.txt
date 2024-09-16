@@ -71,11 +71,12 @@ find_package(Threads REQUIRED)
 # find and add Boost
 message("Searching for Boost library ...")
 set(Boost_USE_STATIC_LIBS   ON)
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem json)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
     Libs ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
+set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH "${Boost_LIBRARIES}")
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
 find_package(LLVM REQUIRED CONFIG)
