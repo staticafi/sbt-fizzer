@@ -1,10 +1,186 @@
 #include <fuzzing/sensitivity_flow_analysis.hpp>
 #include <fuzzing/progress_recorder.hpp>
+#include <iomodels/iomanager.hpp>
+#include <sala/interpreter.hpp>
+#include <sala/sanitizer.hpp>
+#include <sala/input_flow.hpp>
+#include <sala/extern_code_cstd.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
+#include <vector>
+#include <algorithm>
 
 namespace  fuzzing {
+
+
+struct terminator_medium : public connection::medium
+{
+    terminator_medium(sala::ExecState* state) : connection::medium{}, state_{ state } {}
+    void set_termination(instrumentation::target_termination  termination) override;
+private:
+    sala::ExecState* state_;
+};
+
+
+void terminator_medium::set_termination(instrumentation::target_termination  termination)
+{
+    std::string  message;
+    switch (termination)
+    {
+        case instrumentation::target_termination::normal:
+            message = state_->make_error_message("normal");
+            break;
+        case instrumentation::target_termination::crash:
+            message = state_->make_error_message("crash");
+            break;
+        case instrumentation::target_termination::timeout:
+            message = state_->make_error_message("timeout");
+            break;
+        case instrumentation::target_termination::boundary_condition_violation:
+            message = state_->make_error_message("boundary_condition_violation");
+            break;
+        case instrumentation::target_termination::medium_overflow:
+            message = state_->make_error_message("medium_overflow");
+            break;
+        default: UNREACHABLE(); break;
+    }
+    state_->set_stage(sala::ExecState::Stage::FINISHED);
+    state_->set_termination(
+        sala::ExecState::Termination::ERROR,
+        "sensitivity_flow_analysis[terminator_medium]",
+        message
+        );
+}
+
+
+struct ExternCode : public sala::ExternCodeCStd
+{
+    ExternCode(
+            sala::ExecState*  state,
+            branching_node*  node,
+            sala::InputFlow*  input_flow,
+            std::unordered_set<branching_node*>&  changed_nodes
+            );
+
+private:
+    void read(std::size_t count);
+    void on_process_condition();
+
+    branching_node*  node_;
+    std::vector<branching_node*>  path_nodes_;
+    std::vector<bool>  path_directions_;
+    std::size_t  path_index_;
+    sala::InputFlow* input_flow_;
+    terminator_medium medium_;
+    std::unordered_set<branching_node*>&  changed_nodes_;
+};
+
+
+ExternCode::ExternCode(
+        sala::ExecState* const  state,
+        branching_node* const  node,
+        sala::InputFlow* const  input_flow,
+        std::unordered_set<branching_node*>&  changed_nodes
+        )
+    : sala::ExternCodeCStd{ state }
+    , node_{ node }
+    , path_nodes_{}
+    , path_directions_{}
+    , path_index_{ 0ULL }
+    , input_flow_{ input_flow }
+    , medium_{ state }
+    , changed_nodes_{ changed_nodes }
+{
+    for (branching_node* n = node_; n != nullptr; n = n->predecessor)
+        path_nodes_.push_back(n);
+    std::reverse(path_nodes_.begin(), path_nodes_.end());
+    for (std::size_t i = 1ULL; i < path_nodes_.size(); ++i)
+        path_directions_.push_back(path_nodes_.at(i - 1ULL)->successor_direction(path_nodes_.at(i)));
+
+    register_code("__VERIFIER_nondet_bool", [this]() { this->read(sizeof(bool)); });
+    register_code("__VERIFIER_nondet_char", [this]() { this->read(sizeof(std::int8_t)); });
+    register_code("__VERIFIER_nondet_short", [this]() { this->read(sizeof(std::int16_t)); });
+    register_code("__VERIFIER_nondet_int", [this]() { this->read(sizeof(std::int32_t)); });
+    register_code("__VERIFIER_nondet_long", [this]() { this->read(sizeof(std::int32_t)); });
+    register_code("__VERIFIER_nondet_longlong", [this]() { this->read(sizeof(std::int64_t)); });
+    register_code("__VERIFIER_nondet_uchar", [this]() { this->read(sizeof(std::uint8_t)); });
+    register_code("__VERIFIER_nondet_ushort", [this]() { this->read(sizeof(std::uint16_t)); });
+    register_code("__VERIFIER_nondet_uint", [this]() { this->read(sizeof(std::uint32_t)); });
+    register_code("__VERIFIER_nondet_ulong", [this]() { this->read(sizeof(std::uint32_t)); });
+    register_code("__VERIFIER_nondet_ulonglong", [this]() { this->read(sizeof(std::uint64_t)); });
+    register_code("__VERIFIER_nondet_float", [this]() { this->read(sizeof(float)); });
+    register_code("__VERIFIER_nondet_double", [this]() { this->read(sizeof(double)); });
+    register_code("__sbt_fizzer_process_condition", [this]() { this->on_process_condition(); });
+}
+
+
+void ExternCode::read(std::size_t const count)
+{
+    std::size_t desc{ iomodels::iomanager::instance().get_stdin()->num_bytes_read() };
+    sala::MemPtr ptr{ parameters().front().as<sala::MemPtr>() };
+
+    type_of_input_bits  type;
+    switch (count)
+    {
+        case 1ULL: type = type_of_input_bits::UNTYPED8; break;
+        case 2ULL: type = type_of_input_bits::UNTYPED16; break;
+        case 4ULL: type = type_of_input_bits::UNTYPED32; break;
+        case 8ULL: type = type_of_input_bits::UNTYPED64; break;
+        default: UNREACHABLE(); break;
+    }
+    iomodels::iomanager::instance().get_stdin()->read(ptr, type, medium_);
+
+    for (std::size_t i = 0ULL; i != count; ++i, ++desc)
+        input_flow_->start(ptr + i, (sala::InputFlow::InputDescriptor)(desc + i));
+}
+
+
+void ExternCode::on_process_condition()
+{
+    INVARIANT(path_index_ < path_nodes_.size());
+
+    if (path_nodes_.at(path_index_)->get_location_id() != parameters().front().as<instrumentation::location_id::id_type>())
+    {
+        state().set_stage(sala::ExecState::Stage::FINISHED);
+        state().set_termination(
+            sala::ExecState::Termination::ERROR,
+            "sensitivity_flow_analysis[extern_code]",
+            "Execution diverged from the expected path in the tree. Unexpected location ID."
+            );
+        return;
+    }
+
+    if (path_index_ < path_directions_.size() && path_directions_.at(path_index_) != parameters().at(1).as<bool>())
+    {
+        state().set_stage(sala::ExecState::Stage::FINISHED);
+        state().set_termination(
+            sala::ExecState::Termination::ERROR,
+            "sensitivity_flow_analysis[extern_code]",
+            "Execution diverged from the expected path in the tree. Unexpected location ID."
+            );
+        return;
+    }
+
+    branching_node* const  current_node{ path_nodes_.at(path_index_) };
+    sala::MemPtr ptr{ parameters().at(2).as<sala::MemPtr>() };
+    for (std::size_t i = 0ULL; i != sizeof(branching_function_value_type); ++i)
+        for (auto const& desc : input_flow_->read(ptr + i)->descriptors())
+            for (std::size_t j = 0ULL; j != 8ULL; ++j)
+                if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second);
+                    changed_nodes_.insert(current_node);
+
+    ++path_index_;
+    if (path_index_ == path_nodes_.size())
+    {
+        state().set_stage(sala::ExecState::Stage::FINISHED);
+        state().set_termination(
+            sala::ExecState::Termination::NORMAL,
+            "sensitivity_flow_analysis[extern_code]",
+            "Execution reached the last node of the expected path in the tree."
+            );
+    }
+}
 
 
 sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const sala_program_ptr)
@@ -55,7 +231,21 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
     if (!is_busy() || is_disabled())
         return;
 
+    vecu8 stdin_bytes;
+    bits_to_bytes(node->best_stdin->bits, stdin_bytes);
 
+    iomodels::iomanager::instance().get_stdin()->clear();
+    iomodels::iomanager::instance().get_stdout()->clear();
+    iomodels::iomanager::instance().get_stdin()->set_bytes(stdin_bytes);
+
+    sala::ExecState state{ program_ptr };
+    sala::Sanitizer sanitizer{ &state };
+    sala::InputFlow input_flow{ &state };
+    ExternCode externals{ &state, node, &input_flow, changed_nodes };
+    sala::Interpreter interpreter{ &state, &externals, { &sanitizer, &input_flow } };
+
+    while (!interpreter.done())
+        interpreter.step();
 }
 
 
