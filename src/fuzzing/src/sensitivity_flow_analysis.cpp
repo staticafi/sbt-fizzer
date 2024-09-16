@@ -213,6 +213,13 @@ sensitivity_flow_analysis::sensitivity_flow_analysis(sala::Program const* const 
 {}
 
 
+bool  sensitivity_flow_analysis::is_disabled() const
+{
+    // return true;
+    return program_ptr == nullptr || program_ptr->num_cpu_bits() != 64U;
+}
+
+
 void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready() && !is_disabled());
@@ -239,6 +246,8 @@ void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_
     changed_nodes.clear();
 
     ++statistics.start_calls;
+
+    recorder().on_sensitivity_flow_start(node);
 }
 
 
@@ -246,6 +255,8 @@ void  sensitivity_flow_analysis::stop()
 {
     state = READY;
     ++statistics.stop_calls;
+
+    recorder().on_sensitivity_flow_stop();
 }
 
 

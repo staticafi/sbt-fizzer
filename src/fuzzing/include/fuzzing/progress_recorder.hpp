@@ -30,6 +30,9 @@ struct  progress_recorder
 
     bool  is_started() const { return started; }
 
+    void  on_sensitivity_flow_start(branching_node* const  node_ptr);
+    void  on_sensitivity_flow_stop();
+
     void  on_sensitivity_start(branching_node* const  node_ptr);
     void  on_sensitivity_stop(STOP_ATTRIBUTE  attribute);
 
@@ -85,10 +88,11 @@ private:
     enum ANALYSIS
     {
         NONE                = 0,
-        SENSITIVITY         = 1,
-        TYPED_MINIMIZATION  = 2,
-        MINIMIZATION        = 3,
-        BITSHARE            = 4
+        SENSITIVITY_FLOW    = 1,
+        SENSITIVITY         = 2,
+        TYPED_MINIMIZATION  = 3,
+        MINIMIZATION        = 4,
+        BITSHARE            = 5
     };
 
     struct  analysis_common_info
@@ -205,6 +209,7 @@ private:
     std::string  program_name;
 
     ANALYSIS  analysis;
+    sensitivity_progress_info  sensitivity_flow;
     sensitivity_progress_info  sensitivity;
     typed_minimization_progress_info  typed_minimization;
     minimization_progress_info  minimization;
