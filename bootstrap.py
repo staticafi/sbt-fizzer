@@ -7,4 +7,4 @@ subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "
 subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "https://github.com/staticafi/libllvmutl.git", "./src/llvmutl"])
 subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "https://github.com/staticafi/binsalac.git", "./src/tools/salac"])
 subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "https://github.com/staticafi/binsalat.git", "./src/tools/salat"])
-subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "https://github.com/staticafi/datsalat.git", "./benchmarks/salat"])
+subprocess.run(["git", "-c", "protocol.file.allow=always", "submodule", "add", "https://github.com/staticafi/datsalat.git", "./benchmarks/salatd"])
