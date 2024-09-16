@@ -10,6 +10,124 @@
 namespace  fuzzing {
 
 
+template<typename T>
+bool compare(T const  v1, T const  v2, BRANCHING_PREDICATE const  predicate)
+{
+    switch (predicate)
+    {
+        case BP_EQUAL:          return v1 == v2;
+        case BP_UNEQUAL:        return v1 != v2;
+        case BP_LESS:           return v1 < v2;
+        case BP_LESS_EQUAL:     return v1 <= v2;
+        case BP_GREATER:        return v1 > v2;
+        case BP_GREATER_EQUAL:  return v1 >= v2;
+        default: { UNREACHABLE(); } return false;
+    }
+}
+
+
+bool compare(
+        chain_minimization_analysis::typed_value_storage const  v1,
+        chain_minimization_analysis::typed_value_storage const  v2,
+        type_of_input_bits const  type,
+        BRANCHING_PREDICATE const  predicate
+        )
+{
+    switch (type)
+    {
+        case type_of_input_bits::BOOLEAN:   return compare(v1._boolean, v2._boolean, predicate);
+        case type_of_input_bits::UINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
+        case type_of_input_bits::SINT8:     return compare(v1._uint8,   v2._uint8,   predicate);
+        case type_of_input_bits::UINT16:    return compare(v1._uint16,  v2._uint16,  predicate);
+        case type_of_input_bits::SINT16:    return compare(v1._sint16,  v2._sint16,  predicate);
+        case type_of_input_bits::UINT32:    return compare(v1._uint32,  v2._uint32,  predicate);
+        case type_of_input_bits::SINT32:    return compare(v1._sint32,  v2._sint32,  predicate);
+        case type_of_input_bits::UINT64:    return compare(v1._sint32,  v2._sint32,  predicate);
+        case type_of_input_bits::SINT64:    return compare(v1._sint64,  v2._sint64,  predicate);
+        case type_of_input_bits::FLOAT32:   return compare(v1._float32, v2._float32, predicate);
+        case type_of_input_bits::FLOAT64:   return compare(v1._float64, v2._float64, predicate);
+        default: { UNREACHABLE(); } return false;
+    }
+}
+
+
+std::size_t  hash(
+        chain_minimization_analysis::typed_value_storage const  value,
+        type_of_input_bits const  type
+        )
+{
+    switch (type)
+    {
+        case type_of_input_bits::BOOLEAN:   return (std::size_t)value._boolean;
+        case type_of_input_bits::UINT8:     return (std::size_t)value._uint8;
+        case type_of_input_bits::SINT8:     return (std::size_t)value._uint8;
+        case type_of_input_bits::UINT16:    return (std::size_t)value._uint16;
+        case type_of_input_bits::SINT16:    return (std::size_t)value._sint16;
+        case type_of_input_bits::UINT32:    return (std::size_t)value._uint32;
+        case type_of_input_bits::SINT32:    return (std::size_t)value._sint32;
+        case type_of_input_bits::UINT64:    return (std::size_t)value._sint32;
+        case type_of_input_bits::SINT64:    return (std::size_t)value._sint64;
+        case type_of_input_bits::FLOAT32:   return (std::size_t)value._float32;
+        case type_of_input_bits::FLOAT64:   return (std::size_t)value._float64;
+        default: { UNREACHABLE(); } return 0UL;
+    }
+}
+
+
+bool compare(
+        std::vector<chain_minimization_analysis::typed_value_storage> const&  o1,
+        std::vector<chain_minimization_analysis::typed_value_storage> const&  o2,
+        std::vector<type_of_input_bits> const&  types,
+        BRANCHING_PREDICATE const  predicate
+        )
+{
+    ASSUMPTION(o1.size() == o2.size() && o1.size() == types.size());
+    auto  it1 = o1.begin();
+    auto  it2 = o2.begin();
+    auto  itt = types.begin();
+    for ( ; it1 != o1.end(); ++it1, ++it2, ++itt)
+        if (!compare(*it1, *it2, *itt, predicate))
+            return false;
+    return true;
+}
+
+
+std::size_t  hash(
+        std::vector<chain_minimization_analysis::typed_value_storage> const&  origin,
+        std::vector<type_of_input_bits> const&  types
+        )
+{
+    ASSUMPTION(origin.size() == types.size());
+    auto  ito = origin.begin();
+    auto  itt = types.begin();
+    std::size_t  result{ 0UL };
+    for ( ; ito != origin.end(); ++ito, ++itt)
+        ::hash_combine(result, hash(*ito, *itt));
+    return result;
+}
+
+
+std::size_t  chain_minimization_analysis::origin_set::hash::operator()(std::vector<typed_value_storage> const&  origin) const
+{
+    return fuzzing::hash(origin, *types_);
+}
+
+
+bool  chain_minimization_analysis::origin_set::equal::operator()(
+        std::vector<typed_value_storage> const&  o1,
+        std::vector<typed_value_storage> const&  o2
+        ) const
+{
+    return fuzzing::compare(o1, o2, *types_, BP_EQUAL);
+}
+
+
+chain_minimization_analysis::origin_set::origin_set(std::vector<type_of_input_bits> const*  types)
+    : types_{ types }
+    , origins_{ 0UL, hash{ types_},  equal{ types_ } }
+{}
+
+
 bool  chain_minimization_analysis::are_types_of_sensitive_bits_available(
         stdin_bits_and_types_pointer  bits_and_types,
         std::unordered_set<stdin_bit_index> const&  sensitive_bits
@@ -36,6 +154,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , progress_stage{ PARTIALS }
     , origin{}
     , origin_in_reals{}
+    , tested_origins{ &types_of_variables }
     , local_spaces{}
     , gradient_step_shifts{}
     , gradient_step_results{}
@@ -139,6 +258,9 @@ void  chain_minimization_analysis::start(
 
     recovery = {};
     stability = {};
+
+    tested_origins.insert(origin);
+    INVARIANT(tested_origins.contains(origin));
 
     ++statistics.start_calls;
 
