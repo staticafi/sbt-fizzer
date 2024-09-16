@@ -24,9 +24,8 @@ struct  chain_minimization_analysis
     enum PROGRESS_STAGE
     {
         PARTIALS,
-        STEP,
+        DESCENT,
         RECOVERY,
-        // STABILITY
     };
 
     struct  mapping_to_input_bits
@@ -63,6 +62,18 @@ struct  chain_minimization_analysis
         mutable float_64_bit  sample_value{ 0.0 };
     };
 
+    struct  gradient_descent_props
+    {
+        struct  execution_result
+        {
+            stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
+            vecf64  values{};
+        };
+        void clear() { shifts.clear(); results.clear(); }
+        std::vector<vecf64>  shifts{};
+        std::vector<execution_result>  results{};
+    };
+
     struct  gradient_step_result
     {
         stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
@@ -77,13 +88,6 @@ struct  chain_minimization_analysis
         float_64_bit  value{ std::numeric_limits<float_64_bit>::max() };
         std::vector<vecf64>  sample_shifts{};
     };
-
-    // struct  stability_increasing_props
-    // {
-    //     vecf64  origin_backup{};
-    //     std::size_t  step_index{ std::numeric_limits<std::size_t>::max() };
-    //     vecf64  shift{};
-    // };
 
     struct  origin_set
     {
@@ -176,7 +180,7 @@ private:
             vecf64&  shift,
             std::size_t  max_iterations = 10UL
             ) const;
-    bool  compute_gradient_step_shifts(
+    bool  compute_descent_shifts(
             std::vector<vecf64>&  resulting_shifts,
             std::size_t  space_index,
             float_64_bit  value,
@@ -189,7 +193,6 @@ private:
             float_64_bit  param,
             origin_set const&  excluded_points
             ) const;
-    // bool  compute_stability_shift_for_origin();
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, vecf64 const&  values);
     void  bits_to_point(vecb const&  bits, vecf64&  point);
     vector_overlay  point_to_bits(vecf64 const&  point, vecb&  bits);
@@ -210,10 +213,8 @@ private:
     vecf64  origin;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
-    std::vector<vecf64>  gradient_step_shifts;
-    std::vector<gradient_step_result>  gradient_step_results;
-    divergence_recovery_props  recovery;
-    // stability_increasing_props  stability;
+    gradient_descent_props  descent_props;
+    divergence_recovery_props  recovery_props;
 
     performance_statistics  statistics;
 };
