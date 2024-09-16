@@ -34,7 +34,7 @@ def  benchmark_target_name(input_file):
 
 
 def  benchmark_sala_name(input_file):
-    return benchmark_name(input_file) + "_sala.json"
+    return os.path.splitext(benchmark_instrumented_ll_name(input_file))[0] + ".json"
 
 
 def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
@@ -121,6 +121,12 @@ def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
         if not os.path.isfile(target):
             raise Exception("Cannot find the fuzzing target file: " + target)
 
+    sala_program = os.path.join(output_dir, benchmark_sala_name(input_file))
+    if not os.path.isfile(sala_program):
+        sala_program = os.path.join(os.path.dirname(input_file), benchmark_sala_name(input_file))
+        if not os.path.isfile(sala_program) and silent_mode is False:
+            print("WARNING: Cannot find the sala program: " + sala_program)
+
     time_taken = time.time() - start_time
     if time_taken > 0.5:
         def find_option_value_and_index(option):
@@ -155,6 +161,7 @@ def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
     if _execute(
             [ os.path.join(self_dir, "tools", "@SERVER_FILE@"),
                 "--path_to_target", target,
+                "--path_to_sala", sala_program,
                 "--output_dir", output_dir] +
                 options,
             None).returncode:
