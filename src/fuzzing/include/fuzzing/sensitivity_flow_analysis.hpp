@@ -20,6 +20,7 @@ struct  sensitivity_flow_analysis
     struct  performance_statistics
     {
         std::size_t  start_calls{ 0 };
+        std::size_t  stop_calls{ 0 };
         std::size_t  num_failures{ 0 };
     };
 
@@ -32,6 +33,7 @@ struct  sensitivity_flow_analysis
     bool failed_on(branching_node*  node_ptr) const { return failures.contains(node_ptr); }
 
     void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
+    void  stop();
     void  compute_sensitive_bits();
 
     branching_node*  get_node() const { return node; }

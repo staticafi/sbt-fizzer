@@ -242,6 +242,13 @@ void  sensitivity_flow_analysis::start(branching_node* const  node_ptr, natural_
 }
 
 
+void  sensitivity_flow_analysis::stop()
+{
+    state = READY;
+    ++statistics.stop_calls;
+}
+
+
 void  sensitivity_flow_analysis::compute_sensitive_bits()
 {
     TMPROF_BLOCK();
@@ -270,6 +277,8 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
         failures.insert(node);
         ++statistics.num_failures;
     }
+
+    stop();
 }
 
 
