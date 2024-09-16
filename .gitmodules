@@ -1,0 +1,18 @@
+[submodule "src/utility"]
+	path = src/utility
+	url = https://github.com/staticafi/libutility.git
+[submodule "src/sala"]
+	path = src/sala
+	url = https://github.com/staticafi/libsala.git
+[submodule "src/llvmutl"]
+	path = src/llvmutl
+	url = https://github.com/staticafi/libllvmutl.git
+[submodule "src/tools/salac"]
+	path = src/tools/salac
+	url = https://github.com/staticafi/binsalac.git
+[submodule "src/tools/salat"]
+	path = src/tools/salat
+	url = https://github.com/staticafi/binsalat.git
+[submodule "benchmarks/salat"]
+	path = benchmarks/salat
+	url = https://github.com/staticafi/datsalat.git
