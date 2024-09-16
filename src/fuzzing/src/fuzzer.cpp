@@ -338,6 +338,17 @@ void  fuzzer::update_close_flags_from(branching_node* const  node)
 }
 
 
+void  fuzzer::update_close_flags_from_root_to_node(branching_node*  node)
+{
+    for ( ; node != nullptr; node = node->predecessor)
+        if (!node->is_closed())
+        {
+            update_close_flags_from(node);
+            break;
+        }
+}
+
+
 std::vector<natural_32_bit> const&  fuzzer::get_input_width_classes()
 {
     static std::vector<natural_32_bit> const  input_width_classes{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 1024 };
@@ -1223,15 +1234,11 @@ void  fuzzer::do_cleanup()
     switch (state)
     {
         case SENSITIVITY_FLOW:
+            update_close_flags_from_root_to_node(sensitivity_flow.get_node());
             collect_iid_pivots_from_sensitivity_results(sensitivity_flow.get_changed_nodes());
             break;
         case SENSITIVITY:
-            for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
-                if (!node->is_closed())
-                {
-                    update_close_flags_from(node);
-                    break;
-                }
+            update_close_flags_from_root_to_node(sensitivity.get_node());
             collect_iid_pivots_from_sensitivity_results(sensitivity.get_changed_nodes());
             break;
         case BITSHARE:
