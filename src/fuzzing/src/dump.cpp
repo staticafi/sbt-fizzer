@@ -147,6 +147,26 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"warnings\": [" << "\n";
     for (std::string const& warning : results.sensitivity_flow_statistics.warnings) 
         ostr << shift << shift << shift << warning << "\n";
+    ostr << shift << shift << "],\n"
+         << shift << shift << "\"complexity\": [" << "\n";
+    {
+        bool first1{ true };
+        for (auto const& key_and_value : results.sensitivity_flow_statistics.complexity)
+        {
+            if (first1) first1 = false; else ostr << ",\n";
+            ostr << shift << shift << shift << "{ "
+                 << "\"trace_index\": " << key_and_value.first.first
+                 << ", \"stdin_bytes\": " << key_and_value.first.second
+                 << ", \"durations\": [ ";
+            bool first2{ true };
+            for (auto const time : key_and_value.second)
+            {
+                if (first2) first2 = false; else ostr << ", ";
+                ostr << time;
+            }
+            ostr << " ] }";
+        }
+    }
     ostr << shift << shift << "]\n"
          << shift << "},\n"
          << shift << "\"sensitivity_analysis\": {\n"
@@ -155,6 +175,26 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"start_calls\": " << results.sensitivity_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls_regular\": " << results.sensitivity_statistics.stop_calls_regular << ",\n"
          << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << "\n"
+         << shift << shift << "\"complexity\": [" << "\n";
+    {
+        bool first1{ true };
+        for (auto const& key_and_value : results.sensitivity_statistics.complexity)
+        {
+            if (first1) first1 = false; else ostr << ",\n";
+            ostr << shift << shift << shift << "{ "
+                 << "\"trace_index\": " << key_and_value.first.first
+                 << ", \"stdin_bytes\": " << key_and_value.first.second
+                 << ", \"durations\": [ ";
+            bool first2{ true };
+            for (auto const time : key_and_value.second)
+            {
+                if (first2) first2 = false; else ostr << ", ";
+                ostr << time;
+            }
+            ostr << " ] }";
+        }
+    }
+    ostr << shift << shift << "]\n"
          << shift << "},\n"
          << shift << "\"typed_minimization_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.typed_minimization_statistics.generated_inputs << ",\n"
