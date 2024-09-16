@@ -63,12 +63,17 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("clear_output_dir"))
     {
         for (const auto&  entry : std::filesystem::directory_iterator(output_dir))
-            if (entry.is_regular_file() && entry.path().extension() == ".json"
-                    && !entry.path().filename().string().ends_with("_map.json")
-                    && !entry.path().filename().string().ends_with("_instrumented.json")
-                    && !entry.path().filename().string().ends_with(".raw.json")
-                    )
-                std::filesystem::remove(entry);
+            if (entry.is_regular_file())
+            {
+                auto const name{ entry.path().filename().string() };
+                for (auto const& suffix : {
+                        "_config.json", "_outcomes.json",
+                        "_LOG.html", "_TMPROF.html",
+                        "0.json", "1.json", "2.json", "3.json", "4.json", "5.json", "6.json", "7.json", "8.json", "9.json",
+                         })
+                    if (name.ends_with(suffix))
+                        std::filesystem::remove(entry);
+            }
         if (std::filesystem::is_directory(output_dir / "test-suite"))
             for (const auto&  entry : std::filesystem::directory_iterator(output_dir / "test-suite"))
                 std::filesystem::remove(entry);
