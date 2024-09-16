@@ -251,7 +251,6 @@ void run(int argc, char* argv[])
     {
         std::cout << "\"fuzzing_results\": ";
         fuzzing::print_analysis_outcomes(std::cout, results);
-        std::cout << ',' << std::endl;
     }
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, target_name, results);
@@ -262,7 +261,8 @@ void run(int argc, char* argv[])
     {
         if (!get_program_options()->has("silent_mode"))
         {
-            std::cout << "\"optimization_configuration\": ";
+            std::cout << ',' << std::endl
+                      << "\"optimization_configuration\": ";
             fuzzing::print_optimization_configuration(std::cout, optimizer_config);
             std::cout << ',' << std::endl;
         }
