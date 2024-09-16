@@ -167,7 +167,7 @@ void ExternCode::on_process_condition()
     for (std::size_t i = 0ULL; i != sizeof(branching_function_value_type); ++i)
         for (auto const& desc : input_flow_->read(ptr + i)->descriptors())
             for (std::size_t j = 0ULL; j != 8ULL; ++j)
-                if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second);
+                if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second)
                     changed_nodes_.insert(current_node);
 
     ++path_index_;
