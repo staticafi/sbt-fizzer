@@ -119,19 +119,18 @@ std::size_t stdin_replay_bytes_then_repeat_byte::min_flattened_size() const {
 }
 
 
-
-void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr, 
-                                                type_of_input_bits const type,
-                                                medium& dest)
+bool  stdin_replay_bytes_then_repeat_byte::read_bytes(
+    natural_8_bit*  ptr, type_of_input_bits const  type, medium&  dest
+    )
 {
     natural_8_bit const count = num_bytes(type);
     if (cursor + count > max_bytes()) {
         dest.set_termination(target_termination::boundary_condition_violation);
-        exit(0);
+        return false;
     }
     if (!dest.can_accept_bytes(count + 2)) {
         dest.set_termination(target_termination::medium_overflow);
-        exit(0);
+        return false;
     }
     if (cursor + count > bytes.size()) {
         bytes.resize(cursor + count, repeat_byte);
@@ -146,6 +145,7 @@ void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr,
     dest.accept_bytes(bytes.data() + cursor, count);
     cursor += count;
     types.push_back(type);
+    return true;
 }
 
 
