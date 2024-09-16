@@ -20,8 +20,12 @@
         "num_covered_branchings": 0,
         "covered_branchings": [
         ],
-        "num_generated_tests": 1,
-        "num_crashes": 0,
-        "num_boundary_violations": 0
+        "output_statistics": {
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }
