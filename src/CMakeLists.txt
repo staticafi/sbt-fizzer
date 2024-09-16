@@ -10,6 +10,8 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/src/connection/include"
     "${PROJECT_SOURCE_DIR}/src/benchmarks/include"
     "${PROJECT_SOURCE_DIR}/src/client/include"
+    "${PROJECT_SOURCE_DIR}/src/sala/include"
+    "${PROJECT_SOURCE_DIR}/src/llvmutl/include"
     )
 message("Including the following libraries to the build:")
 add_subdirectory(./instrumentation)
