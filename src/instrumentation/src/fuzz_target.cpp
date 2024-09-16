@@ -43,10 +43,6 @@ void fuzz_target::process_condition(
         exit(0);
     }
 
-    if (std::isnan(value)) {
-        value = std::numeric_limits<branching_function_value_type>::max();
-    }
-    
     location_id const id{ id_type, context_hashes.back() };
     natural_32_bit idx_to_br_instr = br_instr_trace_length;
     shared_memory << data_record_id::condition << id << direction << value << idx_to_br_instr << xor_like_branching_function << predicate;
