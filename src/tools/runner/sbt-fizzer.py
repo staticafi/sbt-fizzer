@@ -34,7 +34,7 @@ def  benchmark_target_name(input_file):
 
 
 def  benchmark_sala_name(input_file):
-    return os.path.splitext(benchmark_instrumented_ll_name(input_file))[0] + ".json"
+    return benchmark_name(input_file) + "_sala" + ".json"
 
 
 def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
@@ -86,8 +86,11 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     if silent_build is False: print("Compiling[LLVM->sala]...", end='', flush=True)
     t0 = time.time()
     if _execute(
-            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] +
-            [ "--input", instrumented_ll_file, "--output", output_dir, "--entry", "__sbt_fizzer_method_under_test" ],
+            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] + [
+                "--input", instrumented_ll_file,
+                "--output", output_dir,
+                "--rename", os.path.splitext(benchmark_sala_name(input_file))[0],
+                "--entry", "__sbt_fizzer_method_under_test" ],
             None).returncode:
         raise Exception("Compilation[LLVM->sala] has failed: " + ll_file)
     t1 = time.time()
