@@ -89,6 +89,7 @@ number_overlay  make_number_overlay(float_64_bit const  value, type_identifier c
 bool compare(number_overlay  v1, number_overlay  v2, type_identifier  type, comparator_type  predicate);
 std::size_t  hash(number_overlay  value, type_identifier  type);
 bool is_finite(number_overlay  value, type_identifier  type);
+bool is_high_extreme(number_overlay  value, type_identifier  type, float_64_bit  extreme_multiplier = 0.95);
 
 
 template<typename T>
@@ -105,6 +106,7 @@ vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types)
 bool compare(vector_overlay const&  v1, vector_overlay const&  v2, type_vector const&  types, comparator_type  predicate);
 std::size_t  hash(vector_overlay const&  v, type_vector const&  types);
 bool is_finite(vector_overlay const&  v, type_vector const&  types);
+bool has_high_extreme_coordinate(vector_overlay const&  v, type_vector const&  types, float_64_bit  extreme_multiplier = 0.95);
 
 
 float_64_bit  smallest_step(float_64_bit  from, type_identifier  type, bool  negative);

@@ -86,7 +86,66 @@ bool is_finite(number_overlay const  value, type_identifier const  type)
             return std::isfinite(value._float32) || !std::isnan(value._float32);
         case type_identifier::FLOAT64:
             return std::isfinite(value._float64) || !std::isnan(value._float64);
-        default: { UNREACHABLE(); } return 0UL;
+        default: { UNREACHABLE(); } return false;
+    }
+}
+
+
+template<typename T>
+struct  extreme
+{
+    static_assert(std::is_arithmetic<T>::value, "'T' must be of an arithmetic type.");
+
+    struct impl_i
+    {
+        static T get(T const  extreme, float_64_bit const  extreme_multiplier)
+        {
+            T const  result{ (T)std::round(extreme_multiplier * (float_64_bit)extreme) };
+            return result;
+        }
+    };
+
+    struct impl_f
+    {
+        static T get(T const  extreme, float_64_bit const  extreme_multiplier)
+        {
+            int  exponent;
+            T const  fraction{ std::frexp(extreme, &exponent) };
+            T const  new_exponent{ impl_i::get(exponent, extreme_multiplier) };
+            T const  result{ fraction * (T)std::pow(2.0, new_exponent) };
+            return result;
+        }
+    };
+
+    using impl = typename std::conditional<std::is_integral<T>::value, impl_i, impl_f>::type;
+
+    static inline T  lowest(float_64_bit const  extreme_multiplier)
+    { return impl::get(std::numeric_limits<T>::lowest(), extreme_multiplier); }
+
+    static inline T  highest(float_64_bit const  extreme_multiplier)
+    { return impl::get(std::numeric_limits<T>::max(), extreme_multiplier); }
+
+    static inline bool  test(T const  value, float_64_bit const  extreme_multiplier)
+    { return (std::is_signed<T>::value && value < lowest(extreme_multiplier)) || value > highest(extreme_multiplier); }
+};
+
+
+bool is_high_extreme(number_overlay  value, type_identifier  type, float_64_bit const  extreme_multiplier)
+{
+    switch (type)
+    {
+        case type_identifier::BOOLEAN:  return *(natural_8_bit*)&value._boolean > 1U;
+        case type_identifier::UINT8:    return extreme<natural_8_bit>::test(value._uint8, extreme_multiplier);
+        case type_identifier::SINT8:    return extreme<integer_8_bit>::test(value._sint8, extreme_multiplier);
+        case type_identifier::UINT16:   return extreme<natural_16_bit>::test(value._uint16, extreme_multiplier);
+        case type_identifier::SINT16:   return extreme<integer_16_bit>::test(value._sint16, extreme_multiplier);
+        case type_identifier::UINT32:   return extreme<natural_32_bit>::test(value._uint32, extreme_multiplier);
+        case type_identifier::SINT32:   return extreme<integer_32_bit>::test(value._sint32, extreme_multiplier);
+        case type_identifier::UINT64:   return extreme<natural_64_bit>::test(value._uint64, extreme_multiplier);
+        case type_identifier::SINT64:   return extreme<integer_64_bit>::test(value._sint64, extreme_multiplier);
+        case type_identifier::FLOAT32:  return extreme<float_32_bit>::test(value._float32, extreme_multiplier);
+        case type_identifier::FLOAT64:  return extreme<float_64_bit>::test(value._float64, extreme_multiplier);
+        default: { UNREACHABLE(); } return false;
     }
 }
 
@@ -135,6 +194,18 @@ bool is_finite(vector_overlay const&  v, type_vector const&  types)
         if (!is_finite(*ito, *itt))
             return false;
     return true;
+}
+
+
+bool has_high_extreme_coordinate(vector_overlay const&  v, type_vector const&  types, float_64_bit const  extreme_multiplier)
+{
+    ASSUMPTION(v.size() == types.size());
+    auto  ito = v.begin();
+    auto  itt = types.begin();
+    for ( ; ito != v.end(); ++ito, ++itt)
+        if (is_high_extreme(*ito, *itt, extreme_multiplier))
+            return true;
+    return false;
 }
 
 
