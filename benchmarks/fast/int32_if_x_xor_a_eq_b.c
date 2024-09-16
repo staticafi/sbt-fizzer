@@ -4,7 +4,7 @@ int main()
 {
     int x;
     x = __VERIFIER_nondet_int();
-    if ((x ^ 683014451) == 123456789)
+    if ((x ^ 683014451) == 123456789) // Solution x==804140070
         return 1;
     return 0;
 }
