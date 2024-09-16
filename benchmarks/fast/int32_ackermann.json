@@ -30,9 +30,9 @@
         ],
         "output_statistics": {
             "sensitivity_analysis": {
-                "num_generated_tests": 7,
+                "num_generated_tests": 8,
                 "num_crashes": 0,
-                "num_boundary_violations": 1
+                "num_boundary_violations": 2
             },
             "STARTUP": {
                 "num_generated_tests": 1,

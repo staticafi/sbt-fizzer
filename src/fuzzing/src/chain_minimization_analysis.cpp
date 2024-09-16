@@ -217,7 +217,17 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
                 break;
             }
 
-            if (!compute_gradient_step_shifts())
+            if (local_spaces.size() != path.size())
+            {
+                stop_with_failure();
+                return false;
+            }
+
+            INVARIANT(size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
+
+            gradient_step_shifts.clear();
+            gradient_step_results.clear();
+            if (!compute_gradient_step_shifts(gradient_step_shifts, local_spaces.back(), path.back().value, path.back().predicate, nullptr))
             {
                 stop_with_failure();
                 return false;
@@ -305,7 +315,7 @@ void  chain_minimization_analysis::process_execution_results(
             recovery.space_index = last_index;
             recovery.shift_best = recovery.shift_backup;
             recovery.value_best = recovery.value_backup;
-            __compute_gradient_step_shifts(
+            compute_gradient_step_shifts(
                     recovery.sample_shifts,
                     local_spaces.at(recovery.space_index),
                     recovery.value_best,
@@ -325,7 +335,7 @@ void  chain_minimization_analysis::process_execution_results(
                     recovery.shift_best = local_spaces.at(last_index).sample_shift;
                     recovery.value_best = local_spaces.at(last_index).sample_value;
                     std::size_t const  old_size{ recovery.sample_shifts.size() };
-                    __compute_gradient_step_shifts(
+                    compute_gradient_step_shifts(
                             recovery.sample_shifts,
                             local_spaces.at(recovery.space_index),
                             recovery.value_best,
@@ -343,7 +353,7 @@ void  chain_minimization_analysis::process_execution_results(
                 recovery.shift_best = recovery.shift_backup;
                 recovery.value_best = recovery.value_backup;
                 recovery.sample_shifts.clear();
-                __compute_gradient_step_shifts(
+                compute_gradient_step_shifts(
                         recovery.sample_shifts,
                         local_spaces.at(recovery.space_index),
                         recovery.value_best,
@@ -368,7 +378,10 @@ void  chain_minimization_analysis::process_execution_results(
                 else
                 {
                     progress_stage = STEP;
-                    compute_gradient_step_shifts();
+
+                    gradient_step_shifts.clear();
+                    gradient_step_results.clear();
+                    compute_gradient_step_shifts(gradient_step_shifts, local_spaces.back(), path.back().value, path.back().predicate, nullptr);
                 }
             }
             ++statistics.partials;
@@ -582,6 +595,9 @@ void  chain_minimization_analysis::insert_next_local_space()
         });
     }
 
+    if (dst_space.orthogonal_basis.empty())
+        return;
+
     for (spatial_constraint const&  constraint : src_space.constraints)
     {
         vecf64  normal;
@@ -714,96 +730,7 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
 }
 
 
-bool  chain_minimization_analysis::compute_gradient_step_shifts()
-{
-    ASSUMPTION(local_spaces.size() == path.size() && size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
-
-    gradient_step_shifts.clear();
-    gradient_step_results.clear();
-
-    // __compute_gradient_step_shifts(
-    //         gradient_step_shifts,
-    //         local_spaces.back(),
-    //         path.back().value,
-    //         path.back().predicate,
-    //         nullptr
-    //         );
-
-    local_space_of_branching const&  space{ local_spaces.back() };
-    float_64_bit const  gg_inv{ 1.0 / dot_product(space.gradient, space.gradient) };
-    if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
-        return false;
-
-    float_64_bit const  lambda0{ -path.back().value * gg_inv };
-    if (!std::isfinite(lambda0)
-            || std::isnan(lambda0)
-            || ![&space, lambda0]() -> bool {
-                    for (auto const coord : space.gradient)
-                    {
-                        float_64_bit const  x{ coord * lambda0 };
-                        if (!std::isfinite(x) || std::isnan(x))
-                            return false;
-                    }
-                    return true;
-                }()
-            )
-        return false;
-
-    float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
-
-    std::vector<float_64_bit>  lambdas;
-    {
-        std::vector<float_64_bit>  raw_lambdas;
-        switch (path.back().predicate)
-        {
-            case BP_EQUAL:
-                ASSUMPTION(path.back().value != 0.0 && lambda0 != 0.0);
-                raw_lambdas.assign({ lambda0 });
-                break;
-            case BP_UNEQUAL:
-                ASSUMPTION(path.back().value == 0.0);
-                raw_lambdas.assign({ lambda0 - delta, lambda0 + delta });
-                break;
-            case BP_LESS:
-                ASSUMPTION(path.back().value >= 0.0 && lambda0 <= 0.0);
-                raw_lambdas.assign({ lambda0 - delta });
-                break;
-            case BP_LESS_EQUAL:
-                ASSUMPTION(path.back().value > 0.0 && lambda0 < 0.0);
-                raw_lambdas.assign({ lambda0 - delta, lambda0 });
-                break;
-            case BP_GREATER:
-                ASSUMPTION(path.back().value <= 0.0 && lambda0 >= 0.0);
-                raw_lambdas.assign({ lambda0 + delta });
-                break;
-            case BP_GREATER_EQUAL:
-                ASSUMPTION(path.back().value < 0.0 && lambda0 > 0.0);
-                raw_lambdas.assign({ lambda0, lambda0 + delta });
-                break;
-            default: { UNREACHABLE(); } break;
-        }
-
-        for (auto const  lambda : raw_lambdas)
-            if (std::isfinite(lambda) && !std::isnan(lambda))
-                lambdas.push_back(lambda);
-        if (lambdas.empty())
-            lambdas.push_back(0.5 * lambda0); // This is for numerical stability - when the numbers are big - to make them smaller.
-
-        std::sort(lambdas.begin(), lambdas.end(), [](float_64_bit x, float_64_bit y) { return std::fabs(x) < std::fabs(y); });
-    }
-
-    for (float_64_bit const  lambda : lambdas)
-    {
-        vecf64  shift{ scale_cp(space.gradient, lambda) };
-        if (clip_shift_by_constraints(space.constraints, space.gradient, shift))
-            gradient_step_shifts.push_back(shift);
-    }
-
-    return !gradient_step_shifts.empty();
-}
-
-
-bool  chain_minimization_analysis::__compute_gradient_step_shifts(
+bool  chain_minimization_analysis::compute_gradient_step_shifts(
         std::vector<vecf64>&  resulting_shifts,
         local_space_of_branching const&  space,
         float_64_bit const  value,

@@ -145,8 +145,7 @@ private:
             vecf64&  shift,
             std::size_t  max_iterations = 10UL
             ) const;
-    bool  compute_gradient_step_shifts();
-    bool  __compute_gradient_step_shifts(
+    bool  compute_gradient_step_shifts(
             std::vector<vecf64>&  resulting_shifts,
             local_space_of_branching const&  space,
             float_64_bit  value,
