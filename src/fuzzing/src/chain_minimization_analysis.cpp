@@ -34,7 +34,6 @@ chain_minimization_analysis::chain_minimization_analysis()
     , failed_nodes{}
     , num_executions{ 0U }
     , progress_stage{ PARTIALS }
-    , origin{}
     , origin_in_reals{}
     , tested_origins{ &types_of_variables }
     , local_spaces{}
@@ -130,7 +129,7 @@ void  chain_minimization_analysis::start(
 
     progress_stage = PARTIALS;
 
-    bits_to_origin(bits_and_types->bits, origin, origin_in_reals);
+    bits_to_point(bits_and_types->bits, origin_in_reals);
 
     local_spaces.clear();
     insert_first_local_space();
@@ -141,8 +140,7 @@ void  chain_minimization_analysis::start(
     recovery = {};
     stability = {};
 
-    tested_origins.insert(origin);
-    INVARIANT(tested_origins.contains(origin));
+    tested_origins.insert(make_vector_overlay(origin_in_reals, types_of_variables));
 
     ++statistics.start_calls;
 
@@ -287,9 +285,9 @@ bool  chain_minimization_analysis::generate_next_input(vecb&  bits_ref)
         else { UNREACHABLE(); }
     }
 
-    vector_overlay const  shifted_origin{ add_cp(origin, types_of_variables, local_spaces.front().sample_shift) };
-    origin_to_bits(shifted_origin, bits_ref);
-    tested_origins.insert(shifted_origin);
+    vecf64 const  shifted_origin{ add_cp(origin_in_reals, local_spaces.front().sample_shift) };
+    vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
+    tested_origins.insert(shifted_origin_overlay);
 
     ++statistics.generated_inputs;
 
@@ -880,11 +878,12 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts(
     {
         space.sample_shift = shift;
         transform_shift(space_index);
-        vector_overlay const  point{ add_cp(origin, types_of_variables, local_spaces.front().sample_shift) };
-        if (!tested_origins.contains(point))
+        vecf64 const  point{ add_cp(origin_in_reals, local_spaces.front().sample_shift) };
+        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+        if (!tested_origins.contains(point_overlay))
         {
             resulting_shifts.push_back(shift);
-            used_origins.insert(point);
+            used_origins.insert(point_overlay);
         }
     }
 
@@ -968,9 +967,8 @@ bool  chain_minimization_analysis::compute_stability_shift_for_origin()
 
     for (std::size_t  i = 0UL; i < gradient_step_results.size(); ++i)
     {
-        vector_overlay  origin_i;
         vecf64  origin_in_reals_i;
-        bits_to_origin(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_i, origin_in_reals_i);
+        bits_to_point(gradient_step_results.at(i).bits_and_types_ptr->bits, origin_in_reals_i);
         if (std::equal(origin_in_reals_i.cbegin(), origin_in_reals_i.cend(), origin_in_reals.cbegin()))
         {
             stability.step_index = i;
@@ -1003,7 +1001,7 @@ void  chain_minimization_analysis::commit_execution_results(
         )
 {
     bits_and_types = bits_and_types_ptr;
-    bits_to_origin(bits_and_types->bits, origin, origin_in_reals);
+    bits_to_point(bits_and_types->bits, origin_in_reals);
 
     for (std::size_t  i = 0UL; i != path.size(); ++i)
         path.at(i).value = values.at(i);
@@ -1016,30 +1014,31 @@ void  chain_minimization_analysis::commit_execution_results(
 }
 
 
-void  chain_minimization_analysis::bits_to_origin(vecb const&  bits_, vector_overlay&  origin_, vecf64&  origin_in_reals_)
+void  chain_minimization_analysis::bits_to_point(vecb const&  bits, vecf64&  point)
 {
-    origin_.clear();
-    origin_in_reals_.clear();
+    point.clear();
     for (std::size_t  i = 0UL, i_end = (natural_32_bit)from_variables_to_input.size(); i != i_end; ++i)
     {
-        origin_.push_back({});
+        number_overlay  value;
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            set_bit((natural_8_bit*)&origin_.back(), idx, bits_.at(mapping.input_start_bit_index + idx));
-        origin_in_reals_.push_back(as<float_64_bit>(origin_.back(), types_of_variables.at(i)));
+            set_bit((natural_8_bit*)&value, idx, bits.at(mapping.input_start_bit_index + idx));
+        point.push_back(as<float_64_bit>(value, types_of_variables.at(i)));
     }
 }
 
 
-void  chain_minimization_analysis::origin_to_bits(vector_overlay const&  origin_, vecb&  bits_)
+vector_overlay  chain_minimization_analysis::point_to_bits(vecf64 const&  point, vecb&  bits)
 {
-    bits_ = bits_and_types->bits;
-    for (std::size_t  i = 0ULL; i != origin.size(); ++i)
+    vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+    bits = bits_and_types->bits;
+    for (std::size_t  i = 0ULL; i != point_overlay.size(); ++i)
     {
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
-            bits_.at(mapping.input_start_bit_index + idx) = get_bit((natural_8_bit const*)&origin_.at(i), idx);
+            bits.at(mapping.input_start_bit_index + idx) = get_bit((natural_8_bit const*)&point_overlay.at(i), idx);
     }
+    return point_overlay;
 }
 
 

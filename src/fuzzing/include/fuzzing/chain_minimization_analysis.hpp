@@ -184,8 +184,8 @@ private:
     bool  apply_best_gradient_step();
     bool  compute_stability_shift_for_origin();
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, std::vector<float_64_bit> const&  values);
-    void  bits_to_origin(vecb const&  bits, vector_overlay&  origin_, vecf64&  origin_in_reals_);
-    void  origin_to_bits(vector_overlay const&  origin_, vecb&  bits_);
+    void  bits_to_point(vecb const&  bits, vecf64&  point);
+    vector_overlay  point_to_bits(vecf64 const&  point, vecb&  bits);
 
     STATE  state;
     branching_node*  node;
@@ -199,7 +199,6 @@ private:
     natural_32_bit  num_executions;
 
     PROGRESS_STAGE  progress_stage;
-    vector_overlay  origin;
     vecf64  origin_in_reals;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
