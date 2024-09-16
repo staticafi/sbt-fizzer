@@ -49,7 +49,9 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     {
         if (i % 8U == 0U) ostr << '\n' << shift << shift;
         ostr << std::dec << '"' << to_string(record.stdin_types.at(i)) << "\",";
+        ostr << '"';
         save_value(ostr, record.stdin_types.at(i), &chunk_values.at(i));
+        ostr << '"';
         if (i + 1 < n)
             ostr << ',' << shift;
     }
