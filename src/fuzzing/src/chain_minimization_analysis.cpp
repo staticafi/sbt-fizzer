@@ -311,26 +311,6 @@ void  chain_minimization_analysis::process_execution_results(
 }
 
 
-template<typename float_type>
-static float_type  find_best_floating_point_variable_delta(float_type const x)
-{
-    ASSUMPTION(std::isfinite(x) && !std::isnan(x));
-    int  x_exponent;
-    std::frexp(x, &x_exponent);
-    int const  delta_exponent{ x_exponent - (std::numeric_limits<decltype(x)>::digits >> 2) };
-    float_64_bit const  delta{ std::pow(2.0, delta_exponent) };
-    INVARIANT(std::isfinite(delta) && !std::isnan(delta));
-    if (std::isfinite(x + delta))
-    {
-        INVARIANT(x + delta != x);
-        return delta;
-    }
-    INVARIANT(std::isfinite(x - delta));
-    INVARIANT(x - delta != x);
-    return -delta;
-}
-
-
 bool  chain_minimization_analysis::compute_shift_of_next_partial()
 {
     while (size(local_spaces.back().gradient) < columns(local_spaces.back().orthogonal_basis))
@@ -365,10 +345,10 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
                 switch (types_of_variables.at(smallest_var_idx))
                 {
                     case type_of_input_bits::FLOAT32:
-                        shift = find_best_floating_point_variable_delta((float_32_bit)origin_in_reals.at(smallest_var_idx));
+                        shift = small_delta_around((float_32_bit)origin_in_reals.at(smallest_var_idx));
                         break;
                     case type_of_input_bits::FLOAT64:
-                        shift = find_best_floating_point_variable_delta(origin_in_reals.at(smallest_var_idx));
+                        shift = small_delta_around(origin_in_reals.at(smallest_var_idx));
                         break;
                     default:
                         shift = 1.0;
@@ -580,6 +560,10 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
             float_64_bit const  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
             float_64_bit const  delta{ constraint.param - param };
             float_64_bit const  scale{ dot_product(constraint.normal, constraint.normal) / dot_product(direction, constraint.normal) };
+            float_64_bit const  scale_delta{ scale * delta };
+            float_64_bit const  direction_length{ length(direction) };
+            float_64_bit const  step{ std::fabs(small_delta_around(scale_delta * direction_length)) / direction_length };
+            float_64_bit const  scale_delta_step{ scale_delta < 0.0 ? scale_delta - step : scale_delta + step };
             switch (constraint.predicate)
             {
                 case BP_UNEQUAL:
@@ -592,38 +576,38 @@ bool  chain_minimization_analysis::clip_shift_by_constraints(
                 case BP_LESS:
                     if (delta == 0.0)
                     {
-                        add_scaled(shift, -0.1, direction);
+                        add_scaled(shift, -step, direction);
                         clipped = true;
                     }
                     else if (delta < 0.0)
                     {
-                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        add_scaled(shift, scale_delta_step, direction);
                         clipped = true;
                     }
                     break;
                 case BP_LESS_EQUAL:
                     if (delta < 0.0)
                     {
-                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        add_scaled(shift, scale_delta_step, direction);
                         clipped = true;
                     }
                     break;
                 case BP_GREATER:
                     if (delta == 0.0)
                     {
-                        add_scaled(shift, 0.1, direction);
+                        add_scaled(shift, step, direction);
                         clipped = true;
                     }
                     else if (delta > 0.0)
                     {
-                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        add_scaled(shift, scale_delta_step, direction);
                         clipped = true;
                     }
                     break;
                 case BP_GREATER_EQUAL:
                     if (delta > 0.0)
                     {
-                        add_scaled(shift, 1.1 * scale * delta, direction);
+                        add_scaled(shift, scale_delta_step, direction);
                         clipped = true;
                     }
                     break;
@@ -649,7 +633,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
     if (!std::isfinite(gg) || gg < 1e-6)
         return false;
 
-    float_64_bit  lambda0{ -path.back().value / gg };
+    float_64_bit const  lambda0{ -path.back().value / gg };
     INVARIANT(std::isfinite(lambda0) && !std::isnan(lambda0) && ([&space, lambda0]() -> bool {
         for (auto const coord : space.gradient)
         {
@@ -659,6 +643,7 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
         }
         return true;
     }()));
+    float_64_bit const  delta{ std::fabs(small_delta_around(lambda0)) };
 
     std::vector<float_64_bit>  lambdas;
     {
@@ -671,27 +656,23 @@ bool  chain_minimization_analysis::compute_gradient_step_shifts()
                 break;
             case BP_UNEQUAL:
                 ASSUMPTION(path.back().value == 0.0);
-                raw_lambdas.assign({ 1000.0, 100.0, 10.0, -10.0, -100.0, -1000.0 });
+                raw_lambdas.assign({ lambda0 - delta, lambda0 + delta });
                 break;
             case BP_LESS:
                 ASSUMPTION(path.back().value >= 0.0 && lambda0 <= 0.0);
-                raw_lambdas.assign({ 1000.0, 100.0, 10.0 });
-                scale(raw_lambdas, lambda0 > -1e-6 ? -1.0 : lambda0);
+                raw_lambdas.assign({ lambda0 - delta });
                 break;
             case BP_LESS_EQUAL:
                 ASSUMPTION(path.back().value > 0.0 && lambda0 < 0.0);
-                raw_lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
-                scale(raw_lambdas, lambda0);
+                raw_lambdas.assign({ lambda0 - delta, lambda0 });
                 break;
             case BP_GREATER:
                 ASSUMPTION(path.back().value <= 0.0 && lambda0 >= 0.0);
-                raw_lambdas.assign({ 1000.0, 100.0, 10.0 });
-                scale(raw_lambdas, lambda0 < 1e-6 ? 1.0 : lambda0);
+                raw_lambdas.assign({ lambda0 + delta });
                 break;
             case BP_GREATER_EQUAL:
                 ASSUMPTION(path.back().value < 0.0 && lambda0 > 0.0);
-                raw_lambdas.assign({ 1000.0, 100.0, 10.0, 1.0 });
-                scale(raw_lambdas, lambda0);
+                raw_lambdas.assign({ lambda0, lambda0 + delta });
                 break;
             default: { UNREACHABLE(); } break;
         }
@@ -748,17 +729,17 @@ bool  chain_minimization_analysis::apply_best_gradient_step()
                     i_best = i;
                 break;
             case BP_UNEQUAL:
-                if (std::fabs(i_value) > std::fabs(path.back().value) && std::fabs(i_value) > std::fabs(i_best_value))
+                if (std::fabs(i_value) > std::fabs(path.back().value) && std::fabs(i_value) < std::fabs(i_best_value))
                     i_best = i;
                 break;
             case BP_LESS:
             case BP_LESS_EQUAL:
-                if (i_value < path.back().value && i_value < i_best_value)
+                if (i_value < path.back().value && std::fabs(i_value) < std::fabs(i_best_value))
                     i_best = i;
                 break;
             case BP_GREATER:
             case BP_GREATER_EQUAL:
-                if (i_value > path.back().value && i_value > i_best_value)
+                if (i_value > path.back().value && std::fabs(i_value) < std::fabs(i_best_value))
                     i_best = i;
                 break;
             default: { UNREACHABLE(); } break;
