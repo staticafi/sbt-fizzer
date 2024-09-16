@@ -1,7 +1,7 @@
 {
     "args": {
-        "max_executions": 300,
-        "max_seconds": 3,
+        "max_executions": 10,
+        "max_seconds": 2,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -16,17 +16,23 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "TIME_BUDGET_DEPLETED",
-        "num_executions": 3,
-        "num_covered_branchings": 0,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "num_executions": 9,
+        "num_covered_branchings": 1,
         "covered_branchings": [
+            2,0
         ],
         "output_statistics": {
+            "sensitivity_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
             "STARTUP": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             }
-        }
+        }       
     }
 }
