@@ -238,9 +238,10 @@ private:
         struct iid_dependence_props
         {
             std::vector<branching_node*> all_paths;
-            std::set<node_navigation> interestins_nodes;
+            std::set<node_navigation> interesting_nodes;
             std::vector<std::vector<float>> matrix;
 
+            void update_interesting_nodes(branching_node* node);
             void recompute_matrix();
         };
 
