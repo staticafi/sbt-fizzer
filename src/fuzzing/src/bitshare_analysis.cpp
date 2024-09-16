@@ -110,7 +110,7 @@ void  bitshare_analysis::process_execution_results(execution_trace_pointer const
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr);
 
-    if (processed_node->is_direction_explored(false) && processed_node->is_direction_explored(true))
+    if (!processed_node->is_direction_unexplored(false) && !processed_node->is_direction_unexplored(true))
         ++statistics.hits;
     else
         ++statistics.misses;
