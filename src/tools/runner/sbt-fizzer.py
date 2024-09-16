@@ -33,17 +33,21 @@ def  benchmark_target_name(input_file):
     return benchmark_name(input_file) + "_sbt-fizzer_target"
 
 
+def  benchmark_sala_name(input_file):
+    return benchmark_name(input_file) + "_sala.json"
+
+
 def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
 
-    if silent_build is False: print("Compiling...", end='', flush=True)
+    if silent_build is False: print("Compiling[C->LLVM]...", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ "clang" ] +
                 (["-m32"] if use_m32 is True else []) +
                 [ "-O0", "-g", "-S", "-emit-llvm", "-Wno-everything", "-fbracket-depth=1024", input_file, "-o", ll_file],
             None).returncode:
-        raise Exception("Compilation has failed: " + input_file)
+        raise Exception("Compilation[C->LLVM] has failed: " + input_file)
     t1 = time.time()
     if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
 
@@ -76,6 +80,16 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
                 [ "-o", target_file ],
             None).returncode:
         raise Exception("Compilation has failed: " + input_file)
+    t1 = time.time()
+    if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
+
+    if silent_build is False: print("Compiling[LLVM->sala]...", end='', flush=True)
+    t0 = time.time()
+    if _execute(
+            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] +
+            [ "--input", instrumented_ll_file, "--output", output_dir ],
+            None).returncode:
+        raise Exception("Compilation[LLVM->sala] has failed: " + ll_file)
     t1 = time.time()
     if silent_build is False: print("Done[%ds]" % int(round(t1 - t0)), flush=True)
 
