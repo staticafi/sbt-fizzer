@@ -26,7 +26,7 @@ struct  chain_minimization_analysis
         PARTIALS,
         STEP,
         RECOVERY,
-        STABILITY
+        // STABILITY
     };
 
     struct  mapping_to_input_bits
@@ -66,7 +66,7 @@ struct  chain_minimization_analysis
     struct  gradient_step_result
     {
         stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
-        std::vector<float_64_bit>  values{};
+        vecf64  values{};
     };
 
     struct  divergence_recovery_props
@@ -78,12 +78,12 @@ struct  chain_minimization_analysis
         std::vector<vecf64>  sample_shifts{};
     };
 
-    struct  stability_increasing_props
-    {
-        vecf64  origin_backup{};
-        std::size_t  step_index{ std::numeric_limits<std::size_t>::max() };
-        vecf64  shift{};
-    };
+    // struct  stability_increasing_props
+    // {
+    //     vecf64  origin_backup{};
+    //     std::size_t  step_index{ std::numeric_limits<std::size_t>::max() };
+    //     vecf64  shift{};
+    // };
 
     struct  origin_set
     {
@@ -149,7 +149,7 @@ struct  chain_minimization_analysis
     void  stop();
     void  stop_with_failure();
 
-    natural_32_bit  max_num_executions() const;
+    natural_32_bit  max_num_executions() const { return max_executions; }
 
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr);
@@ -189,8 +189,8 @@ private:
             float_64_bit  param,
             origin_set const&  excluded_points
             ) const;
-    bool  compute_stability_shift_for_origin();
-    void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, std::vector<float_64_bit> const&  values);
+    // bool  compute_stability_shift_for_origin();
+    void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, vecf64 const&  values);
     void  bits_to_point(vecb const&  bits, vecf64&  point);
     vector_overlay  point_to_bits(vecf64 const&  point, vecb&  bits);
 
@@ -204,6 +204,7 @@ private:
     bool stopped_early;
     std::unordered_set<branching_node const*>  failed_nodes;
     natural_32_bit  num_executions;
+    natural_32_bit  max_executions;
 
     PROGRESS_STAGE  progress_stage;
     vecf64  origin;
@@ -212,7 +213,7 @@ private:
     std::vector<vecf64>  gradient_step_shifts;
     std::vector<gradient_step_result>  gradient_step_results;
     divergence_recovery_props  recovery;
-    stability_increasing_props  stability;
+    // stability_increasing_props  stability;
 
     performance_statistics  statistics;
 };
