@@ -126,7 +126,13 @@ private:
     void  transform_shift(std::size_t  src_space_index);
     void  insert_first_local_space();
     void  insert_next_local_space();
-    bool  are_constraints_satisfied(std::vector<spatial_constraint> const& constraints, vecf64 const&  shift) const;
+    bool  are_constraints_satisfied(std::vector<spatial_constraint> const&  constraints, vecf64 const&  shift) const;
+    bool  clip_shift_by_constraints(
+            std::vector<spatial_constraint> const&  constraints,
+            vecf64 const&  gradient,
+            vecf64&  shift,
+            std::size_t  max_iterations = 10UL
+            ) const;
     bool  compute_gradient_step_shifts();
     bool  apply_best_gradient_step();
     void  load_origin(vecb const&  bits);
