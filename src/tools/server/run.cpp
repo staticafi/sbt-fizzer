@@ -63,7 +63,11 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("clear_output_dir"))
     {
         for (const auto&  entry : std::filesystem::directory_iterator(output_dir))
-            if (entry.is_regular_file() && entry.path().extension() == ".json")
+            if (entry.is_regular_file() && entry.path().extension() == ".json"
+                    && !entry.path().filename().string().ends_with("_map.json")
+                    && !entry.path().filename().string().ends_with("_instrumented.json")
+                    && !entry.path().filename().string().ends_with(".raw.json")
+                    )
                 std::filesystem::remove(entry);
         if (std::filesystem::is_directory(output_dir / "test-suite"))
             for (const auto&  entry : std::filesystem::directory_iterator(output_dir / "test-suite"))
