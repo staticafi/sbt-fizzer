@@ -102,4 +102,52 @@ std::size_t  hash(vector_overlay const&  v, type_vector const&  types)
 }
 
 
+float_64_bit  smallest_step(float_64_bit  from, type_identifier  type, bool  negative)
+{
+    switch (type)
+    {
+        case type_identifier::BOOLEAN:
+            return negative ? -from : 1.0 - from;
+        case type_identifier::UINT8:
+        case type_identifier::SINT8:
+        case type_identifier::UINT16:
+        case type_identifier::SINT16:
+        case type_identifier::UINT32:
+        case type_identifier::SINT32:
+        case type_identifier::UINT64:
+        case type_identifier::SINT64:
+            {
+                float_64_bit  step{ negative ? std::floor(from) - from : std::ceil(from) - from };
+                if (step == 0.0)
+                    step = negative ? std::min(-1.0, std::nextafter(from, -std::numeric_limits<float_64_bit>::infinity()) - from)
+                                    : std::max( 1.0, std::nextafter(from,  std::numeric_limits<float_64_bit>::infinity()) - from);
+                return step;
+            }
+            break;
+        case type_identifier::FLOAT32:
+            return (float_64_bit)std::nextafter(make_number_overlay(from, type)._float32, 
+                                                negative ? -std::numeric_limits<float_32_bit>::infinity() :
+                                                            std::numeric_limits<float_32_bit>::infinity());
+        case type_identifier::FLOAT64:
+            return std::nextafter(from, negative ? -std::numeric_limits<float_64_bit>::infinity() :
+                                                    std::numeric_limits<float_64_bit>::infinity());
+        default: { UNREACHABLE(); } return 0UL;
+    }
+}
+
+
+vecf64  smallest_step(vecf64 const&  from, type_vector const&  types, vecf64 const&  direction)
+{
+    ASSUMPTION(from.size() == types.size() && from.size() == size(direction));
+    auto  itf = from.begin();
+    auto  itt = types.begin();
+    auto  itd = direction.begin();
+    vecf64  result;
+    for ( ; itf != from.end(); ++itf, ++itt, ++itd)
+        result.push_back(smallest_step(*itf, *itt, *itd < 0.0));
+    return result;
+
+}
+
+
 }
