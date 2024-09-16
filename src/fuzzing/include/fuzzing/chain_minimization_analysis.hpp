@@ -82,7 +82,7 @@ struct  chain_minimization_analysis
 
     struct  stability_increasing_props
     {
-        vecf64  origin_in_reals_backup{};
+        vecf64  origin_backup{};
         std::size_t  step_index{ std::numeric_limits<std::size_t>::max() };
         vecf64  shift{};
     };
@@ -199,7 +199,7 @@ private:
     natural_32_bit  num_executions;
 
     PROGRESS_STAGE  progress_stage;
-    vecf64  origin_in_reals;
+    vecf64  origin;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
     std::vector<vecf64>  gradient_step_shifts;
