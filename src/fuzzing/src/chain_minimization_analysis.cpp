@@ -1191,7 +1191,7 @@ void  chain_minimization_analysis::bits_to_point(vecb const&  bits, vecf64&  poi
         mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
         for (natural_8_bit  idx : mapping.value_bit_indices)
             set_bit((natural_8_bit*)&value, idx, bits.at(mapping.input_start_bit_index + idx));
-        point.push_back(cast_float_value<float_64_bit>(as<float_64_bit>(value, types_of_variables.at(i))));
+        point.push_back(as<float_64_bit>(value, types_of_variables.at(i)));
     }
 }
 
