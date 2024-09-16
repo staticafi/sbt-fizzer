@@ -36,14 +36,14 @@ struct  optimizer final
     struct  performance_statistics
     {
         natural_32_bit  num_executions{ 0 };
-        natural_32_bit  num_seconds{ 0 };
+        float_64_bit  num_seconds{ 0.0 };
         natural_32_bit  num_extended_tests{ 0 };
     };
 
     optimizer(configuration const&  cfg);
 
-    natural_32_bit  num_remaining_seconds() const { return (natural_32_bit)config.max_seconds - get_elapsed_seconds(); }
-    natural_32_bit  get_elapsed_seconds() const { return (natural_32_bit)std::chrono::duration_cast<std::chrono::seconds>(time_point_current - time_point_start).count(); }
+    float_64_bit  num_remaining_seconds() const { return (float_64_bit)config.max_seconds - get_elapsed_seconds(); }
+    float_64_bit  get_elapsed_seconds() const { return std::chrono::duration<float_64_bit>(time_point_current - time_point_start).count(); }
 
     optimization_outcomes  run(
             std::vector<vecu8> const&  inputs_leading_to_boundary_violation,

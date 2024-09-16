@@ -854,35 +854,12 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 {
     TMPROF_BLOCK();
 
-    if (get_performed_driver_executions() > 0U)
-    {
-        if (uncovered_branchings.empty())
-        {
-            terminate();
-            termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
-            return false;
-        }
-    }
-
-    if (num_remaining_seconds() <= 0L)
-    {
-        terminate();
-        termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
-        return false;
-    }
-
-    if (num_remaining_driver_executions() <= 0L)
-    {
-        terminate();
-        termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
-        return false;
-    }
-
     iomodels::iomanager::instance().get_stdin()->clear();
     iomodels::iomanager::instance().get_stdout()->clear();
 
     vecb  stdin_bits;
-    generate_next_input(stdin_bits);
+    if (!generate_next_input(stdin_bits, termination_reason))
+        return false;
     if (!can_make_progress())
     {
         terminate();
@@ -905,24 +882,48 @@ std::pair<execution_record::execution_flags, std::string const&>  fuzzer::round_
 
     execution_record::execution_flags const  flags = process_execution_results();
 
-    time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 
     return { flags, get_analysis_name_from_state(state) };
 }
 
 
-void  fuzzer::generate_next_input(vecb&  stdin_bits)
+bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termination_reason)
 {
     TMPROF_BLOCK();
 
     while (true)
     {
+        if (get_performed_driver_executions() > 0U)
+        {
+            if (uncovered_branchings.empty())
+            {
+                terminate();
+                termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
+                return false;
+            }
+        }
+
+        time_point_current = std::chrono::steady_clock::now();
+        if (num_remaining_seconds() <= 0.0)
+        {
+            terminate();
+            termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
+            return false;
+        }
+
+        if (num_remaining_driver_executions() <= 0U)
+        {
+            terminate();
+            termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
+            return false;
+        }
+
         switch (state)
         {
             case STARTUP:
                 if (get_performed_driver_executions() == 0U)
-                    return;
+                    return true;
                 break;
 
             case SENSITIVITY_FLOW:
@@ -931,27 +932,27 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
             case SENSITIVITY:
                 if (sensitivity.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case TYPED_MINIMIZATION:
                 if (typed_minimization.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case MINIMIZATION:
                 if (minimization.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case BITSHARE:
                 if (bitshare.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case FINISHED:
                 if (!apply_coverage_failures_with_hope())
-                    return;
+                    return true;
                 break;
 
             default: { UNREACHABLE(); break; }
