@@ -7,7 +7,7 @@
         "max_stdin_bytes": 6400,
         "max_exec_milliseconds": 250,
         "max_exec_megabytes": 1024,
-        "stdin_model": "stdin_replay_bytes_then_repeat_85",
+        "stdin_model": "stdin_replay_bytes_then_repeat_zero",
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 1040,
+        "num_executions": 1038,
         "num_covered_branchings": 1,
         "covered_branchings": [
             1,0
