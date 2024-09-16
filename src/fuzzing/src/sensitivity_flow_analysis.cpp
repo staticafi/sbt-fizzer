@@ -334,6 +334,9 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
         ++statistics.num_failures;
     }
 
+    for (std::string const&  warning : state.warnings())
+        statistics.warnings.insert(make_problem_message("\"" + warning + "\""));
+
     stop();
 }
 
