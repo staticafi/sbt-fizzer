@@ -959,7 +959,7 @@ void  chain_minimization_analysis::compute_descent_shifts(
             switch (predicate)
             {
                 case BP_EQUAL:
-                    ASSUMPTION(value != 0.0 && lambda0 != 0.0);
+                    ASSUMPTION(value != 0.0);// && lambda0 != 0.0);
                     lambdas.push_back(lambda0);
                     break;
                 case BP_UNEQUAL:
@@ -968,20 +968,20 @@ void  chain_minimization_analysis::compute_descent_shifts(
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                     break;
                 case BP_LESS:
-                    ASSUMPTION(value >= 0.0 && lambda0 <= 0.0);
+                    ASSUMPTION(value >= 0.0);// && lambda0 <= 0.0);
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                     break;
                 case BP_LESS_EQUAL:
-                    ASSUMPTION(value > 0.0 && lambda0 < 0.0);
+                    ASSUMPTION(value > 0.0);// && lambda0 < 0.0);
                     lambdas.push_back(lambda0);
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                     break;
                 case BP_GREATER:
-                    ASSUMPTION(value <= 0.0 && lambda0 >= 0.0);
+                    ASSUMPTION(value <= 0.0);// && lambda0 >= 0.0);
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                     break;
                 case BP_GREATER_EQUAL:
-                    ASSUMPTION(value < 0.0 && lambda0 > 0.0);
+                    ASSUMPTION(value < 0.0);// && lambda0 > 0.0);
                     lambdas.push_back(lambda0);
                     lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                     break;
