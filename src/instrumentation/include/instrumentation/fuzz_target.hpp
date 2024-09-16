@@ -30,7 +30,13 @@ public:
 
     fuzz_target();
 
-    void process_condition(location_id id, bool direction, branching_function_value_type value, bool xor_like_branching_function);
+    void process_condition(
+            location_id::id_type id_type,
+            bool direction,
+            branching_function_value_type value,
+            bool xor_like_branching_function,
+            natural_8_bit predicate
+            );
     void process_br_instr(location_id id, bool covered_branch);
 
     void process_call_begin(natural_32_bit const  id);

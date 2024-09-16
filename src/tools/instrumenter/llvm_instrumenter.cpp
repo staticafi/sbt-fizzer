@@ -34,7 +34,7 @@ bool llvm_instrumenter::doInitialization(Module *M) {
 
     processCondFunc =
         module->getOrInsertFunction("__sbt_fizzer_process_condition", VoidTy,
-                              Int32Ty, Int1Ty, DoubleTy, Int1Ty);
+                              Int32Ty, Int1Ty, DoubleTy, Int1Ty, Int8Ty);
 
     processCondBrFunc =
         module->getOrInsertFunction("__sbt_fizzer_process_br_instr", VoidTy,
@@ -148,9 +148,59 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
     }
     IRBuilder<> builder(inst->getNextNode());
 
+    // We emulate the 'enum BRANCHING_PREDICATE' (see instrumentation_types.hpp) as follows: 
+    natural_8_bit constexpr BP_EQUAL{ 0 };
+    natural_8_bit constexpr BP_UNEQUAL{ 1 };
+    natural_8_bit constexpr BP_LESS{ 2 };
+    natural_8_bit constexpr BP_LESS_EQUAL{ 3 };
+    natural_8_bit constexpr BP_GREATER{ 4 };
+    natural_8_bit constexpr BP_GREATER_EQUAL{ 5 };
+    natural_8_bit predicate{ BP_UNEQUAL };
+
     Value *distance;
     if (auto *cmpInst = dyn_cast<CmpInst>(inst)) {
         distance = instrumentCmp(cmpInst, builder);
+        switch (cmpInst->getPredicate())
+        {
+            case llvm::CmpInst::Predicate::FCMP_OEQ:
+            case llvm::CmpInst::Predicate::FCMP_UEQ:
+            case llvm::CmpInst::Predicate::ICMP_EQ:
+                predicate = BP_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OGT:
+            case llvm::CmpInst::Predicate::FCMP_UGT:
+            case llvm::CmpInst::Predicate::ICMP_UGT:
+            case llvm::CmpInst::Predicate::ICMP_SGT:
+                predicate = BP_GREATER;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OGE:
+            case llvm::CmpInst::Predicate::FCMP_UGE:
+            case llvm::CmpInst::Predicate::ICMP_UGE:
+            case llvm::CmpInst::Predicate::ICMP_SGE:
+                predicate = BP_GREATER_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OLT:
+            case llvm::CmpInst::Predicate::FCMP_ULT:
+            case llvm::CmpInst::Predicate::ICMP_ULT:
+            case llvm::CmpInst::Predicate::ICMP_SLT:
+                predicate = BP_LESS;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_OLE:
+            case llvm::CmpInst::Predicate::FCMP_ULE:
+            case llvm::CmpInst::Predicate::ICMP_ULE:
+            case llvm::CmpInst::Predicate::ICMP_SLE:
+                predicate = BP_LESS_EQUAL;
+                break;
+            case llvm::CmpInst::Predicate::FCMP_ONE:
+            case llvm::CmpInst::Predicate::FCMP_UNE:
+            case llvm::CmpInst::Predicate::ICMP_NE:
+                predicate = BP_UNEQUAL;
+                break;
+
+            case llvm::CmpInst::Predicate::FCMP_UNO: // TODO: "is_nan" - what to do with that?
+            default:
+                break;
+        }
     // truncating a number to i1, happens for example with bool in C
     } else if (dyn_cast<TruncInst>(inst)) {
         distance = ConstantFP::get(DoubleTy, 1);
@@ -164,8 +214,13 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
     Value *location = ConstantInt::get(Int32Ty, ++condCounter);
     Value *cond = inst;
 
-    builder.CreateCall(processCondFunc,
-                {location, cond, distance, ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0) });
+    builder.CreateCall(processCondFunc, {
+        location,
+        cond,
+        distance,
+        ConstantInt::get(Int1Ty, xor_like_branching_function ? 1 : 0),
+        ConstantInt::get(Int8Ty, predicate)
+        });
 
     return true;
 }
