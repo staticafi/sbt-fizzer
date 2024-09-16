@@ -21,6 +21,8 @@
 
 void run(int argc, char* argv[])
 {
+    std::chrono::system_clock::time_point const  start_time_point = std::chrono::system_clock::now();
+
     if (get_program_options()->has("list_stdin_models"))
     {
         for (auto const&  name_and_constructor : iomodels::get_stdin_models_map())
@@ -117,7 +119,7 @@ void run(int argc, char* argv[])
         }
     }
 
-    fuzzing::termination_info const  terminator{
+    fuzzing::termination_info  terminator{
             .max_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
             .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds")))
             };
@@ -133,7 +135,7 @@ void run(int argc, char* argv[])
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
 
-    fuzzing::optimizer::configuration const  optimizer_config{
+    fuzzing::optimizer::configuration  optimizer_config{
             .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_seconds"))),
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_trace_length"))),
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
@@ -203,6 +205,22 @@ void run(int argc, char* argv[])
             std::ifstream istr(sala_program_path.c_str(), std::ios_base::binary);
             istr >> *sala_program_ptr;
         }
+    }
+
+    auto const startup_time = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time_point).count();
+
+    {
+        float_64_bit const  total_time{ std::max((float_64_bit)(terminator.max_seconds + optimizer_config.max_seconds), 1.0) };
+        float_64_bit const  remaining_time{ std::max(total_time - startup_time, 0.0) };
+        terminator.max_seconds = (natural_32_bit)(remaining_time * (terminator.max_seconds / total_time));
+        optimizer_config.max_seconds = (natural_32_bit)(remaining_time * (optimizer_config.max_seconds / total_time));
+
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "\"fuzzing_startup\": {" << std::endl
+                      << "    \"time\": " << startup_time << ',' << std::endl
+                      << "    \"--max_seconds\": " << terminator.max_seconds << ',' << std::endl
+                      << "    \"--optimizer_max_seconds\": " << optimizer_config.max_seconds << std::endl
+                      << "}," << std::endl;
     }
 
     fuzzing::execution_record_writer  execution_record_writer{
