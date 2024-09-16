@@ -13,6 +13,6 @@
 [submodule "src/tools/salat"]
 	path = src/tools/salat
 	url = https://github.com/staticafi/binsalat.git
-[submodule "benchmarks/salat"]
+[submodule "benchmarks/salatd"]
 	path = benchmarks/salatd
 	url = https://github.com/staticafi/datsalat.git
