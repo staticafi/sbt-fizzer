@@ -198,7 +198,10 @@ void run(int argc, char* argv[])
         if (sala_program_path.empty())
             std::cerr << "WARNING: The path to sala program is empty.\n";
         else if (!std::filesystem::is_regular_file(sala_program_path))
-            std::cerr << "WARNING: The passed sala program '" << sala_program_path << "' does not reference a regular file.\n";
+        {
+            if (get_program_options()->has("path_to_sala"))
+                std::cerr << "WARNING: The passed sala program '" << sala_program_path << "' does not reference a regular file.\n";
+        }
         else
         {
             sala_program_ptr = std::make_shared<sala::Program>();
