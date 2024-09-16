@@ -40,7 +40,8 @@ def  benchmark_sala_name(input_file):
 def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
 
-    if silent_build is False: print("Compiling[C->LLVM]...", end='', flush=True)
+    if silent_build is False: print("\"build_times\": {", flush=True)
+    if silent_build is False: print("    \"Compiling[C->LLVM]\": ", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ "clang" ] +
@@ -49,10 +50,10 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Compilation[C->LLVM] has failed: " + input_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%.2fs]" % (t1 - t0), flush=True)
+    if silent_build is False: print("%.2f," % (t1 - t0), flush=True)
 
     instrumented_ll_file = os.path.join(output_dir, benchmark_instrumented_ll_name(input_file))
-    if silent_build is False: print("Instrumenting...", end='', flush=True)
+    if silent_build is False: print("    \"Instrumenting\": ", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ os.path.join(self_dir, "tools", "@FIZZER_INSTRUMENTER_FILE@") ] +
@@ -61,7 +62,7 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Instrumentation has failed: " + ll_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%.2fs]" % (t1 - t0), flush=True)
+    if silent_build is False: print("%.2f," % (t1 - t0), flush=True)
 
     fuzz_target_libraries = list(map( # type: ignore
         lambda lib_name: os.path.join(self_dir, "lib32" if use_m32 is True else "lib", lib_name).replace("\\", "/"), 
@@ -69,7 +70,7 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
         ))
     target_file = os.path.join(output_dir, benchmark_target_name(input_file))
 
-    if silent_build is False: print("Linking...", end='', flush=True)
+    if silent_build is False: print("    \"Linking\": ", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ "clang++" ] +
@@ -79,11 +80,11 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
                 fuzz_target_libraries +
                 [ "-o", target_file ],
             None).returncode:
-        raise Exception("Compilation has failed: " + input_file)
+        raise Exception("Linking has failed: " + input_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%.2fs]" % (t1 - t0), flush=True)
+    if silent_build is False: print("%.2f," % (t1 - t0), flush=True)
 
-    if silent_build is False: print("Compiling[LLVM->sala]...", end='', flush=True)
+    if silent_build is False: print("    \"Compiling[LLVM->sala]\": ", end='', flush=True)
     t0 = time.time()
     if _execute(
             [ os.path.join(self_dir, "tools", "salac", "salac.py") ] + [
@@ -95,8 +96,47 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_build):
             None).returncode:
         raise Exception("Compilation[LLVM->sala] has failed: " + ll_file)
     t1 = time.time()
-    if silent_build is False: print("Done[%.2fs]" % (t1 - t0), flush=True)
+    if silent_build is False: print("%.2f" % (t1 - t0), flush=True)
+    if silent_build is False: print("},", flush=True)
 
+
+def adjust_timeouts(options, start_time, silent_mode):
+    time_taken = time.time() - start_time
+    if time_taken < 0.1:
+        return
+
+    def find_option_value_and_index(option):
+        try: idx = options.index(option)
+        except ...: return None, None
+        if idx >= len(options):
+            return None
+        idx += 1
+        try: return int(options[idx]), idx
+        except: return None, None
+    
+    def reduce_option_value(name, value, idx, total_time, suffix=""):
+        if total_time > time_taken:
+            percentage = 1.0 - time_taken / total_time
+        else:
+            percentage = 0.0
+        new_value = int(value * percentage)
+        if silent_mode is False: print("    \"" + name + "\": [ " + str(value) + ", " + str(new_value) + " ]" + suffix, flush=True)
+        options[idx] = str(new_value)
+
+    if silent_mode is False: print("\"adjusting_timeouts\": {", flush=True)
+
+    fuzz_value, fuzz_idx = find_option_value_and_index("--max_seconds")
+    opt_value, opt_idx = find_option_value_and_index("--optimizer_max_seconds")
+
+    if fuzz_value is not None and opt_value is not None:
+        reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value + opt_value, ",")
+        reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, fuzz_value + opt_value)
+    elif fuzz_value is not None:
+        reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value)
+    elif opt_value is not None:
+        reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, opt_value)
+
+    if silent_mode is False: print("},", flush=True)
 
 def generate_testcomp_metadata_xml(input_file, output_dir, use_m32):
     test_suite_dir = os.path.join(output_dir, "test-suite")
@@ -130,37 +170,6 @@ def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
         sala_program = os.path.join(os.path.dirname(input_file), benchmark_sala_name(input_file))
         if not os.path.isfile(sala_program) and silent_mode is False:
             print("WARNING: Cannot find the sala program: " + sala_program)
-
-    time_taken = time.time() - start_time
-    if time_taken > 0.1:
-        def find_option_value_and_index(option):
-            try: idx = options.index(option)
-            except ...: return None, None
-            if idx >= len(options):
-                return None
-            idx += 1
-            try: return int(options[idx]), idx
-            except: return None, None
-        
-        def reduce_option_value(name, value, idx, total_time):
-            if total_time > time_taken:
-                percentage = 1.0 - time_taken / total_time
-            else:
-                percentage = 0.0
-            new_value = int(value * percentage)
-            if silent_mode is False: print("Adjusting '" + name + "': " + str(value) + " -> " + str(new_value), flush=True)
-            options[idx] = str(new_value)
-
-        fuzz_value, fuzz_idx = find_option_value_and_index("--max_seconds")
-        opt_value, opt_idx = find_option_value_and_index("--optimizer_max_seconds")
-
-        if fuzz_value is not None and opt_value is not None:
-            reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value + opt_value)
-            reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, fuzz_value + opt_value)
-        elif fuzz_value is not None:
-            reduce_option_value("--max_seconds", fuzz_value, fuzz_idx, fuzz_value)
-        elif opt_value is not None:
-            reduce_option_value("--optimizer_max_seconds", opt_value, opt_idx, opt_value)
 
     if _execute(
             [ os.path.join(self_dir, "tools", "@SERVER_FILE@"),
@@ -267,9 +276,6 @@ def main():
             options.append(arg)
         i += 1
 
-    if input_file is None:
-        raise Exception("Cannot find the input file.")
-
     if clear_output_dir is True and os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
     if copy_source_file is True:
@@ -279,19 +285,27 @@ def main():
     old_cwd = os.getcwd()
     os.chdir(output_dir)
     try:
+        if input_file is None:
+            raise Exception("Cannot find the input file.")
+        if silent_mode is False: print("### starting fizzer's pipeline ###\n{", flush=True)
         if skip_building is False:
             build(self_dir, input_file, output_dir, options_instument, use_m32, silent_build)
+            adjust_timeouts(options, start_time, silent_mode)
         if skip_fuzzing is False:
             if generate_testcomp_metadata is True:
                 generate_testcomp_metadata_xml(input_file, output_dir, use_m32)
             fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode)
+            if silent_mode is False: print(",", flush=True)
+        if silent_mode is False: print("\"exit_code\": 0,", flush=True)
     except Exception as e:
         os.chdir(old_cwd)
-        print("Stopped[%.2fs]" % (time.time() - start_time), flush=True)
+        if silent_mode is False: print("\"error_message\": \"" + str(e) + "\"", flush=True)
+        if silent_mode is False: print("\"exit_code\": 1,", flush=True)
         raise e
-
-    if silent_mode is False and ((skip_building is False and silent_build is False) or skip_fuzzing is False):
-        print("Done[%.2fs]" % (time.time() - start_time), flush=True)
+    finally:
+        if silent_mode is False and ((skip_building is False and silent_build is False) or skip_fuzzing is False):
+            print("\"total_time\": %.2f" % (time.time() - start_time), flush=True)
+            print("}", flush=True)
 
 
 if __name__ == "__main__":
@@ -300,5 +314,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         exit_code = 1
-        print("ERROR: " + str(e), flush=True)
     exit(exit_code)

@@ -166,7 +166,7 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("path_to_client"))
     {
         if (!get_program_options()->has("silent_mode"))
-            std::cout << "Communication type: network" << std::endl;
+            std::cout << "\"communication_type\": \"network\"," << std::endl;
 
         benchmark_executor = std::make_shared<connection::benchmark_executor_via_network>(
                 get_program_options()->value("path_to_client"),
@@ -177,7 +177,7 @@ void run(int argc, char* argv[])
     else
     {
         if (!get_program_options()->has("silent_mode"))
-            std::cout << "Communication type: shared memory" << std::endl;
+            std::cout << "\"communication_type\": \"shared_memory\"," << std::endl;
 
         benchmark_executor = std::make_shared<connection::benchmark_executor_via_shared_memory>(
                 get_program_options()->value("path_to_target")
@@ -214,13 +214,14 @@ void run(int argc, char* argv[])
 
     if (!get_program_options()->has("silent_mode"))
     {
-        std::cout << "Configuration for fuzzing:" << std::endl;
+        std::cout << "\"fuzzing_configuration\": ";
         fuzzing::print_fuzzing_configuration(
                 std::cout,
                 target_name,
                 iomodels::iomanager::instance().get_config(),
                 terminator
                 );
+        std::cout << ',' << std::endl;
     }
     fuzzing::log_fuzzing_configuration(
             target_name,
@@ -233,9 +234,6 @@ void run(int argc, char* argv[])
             iomodels::iomanager::instance().get_config(),
             terminator
             );
-
-    if (!get_program_options()->has("silent_mode"))
-        std::cout << "Fuzzing was started..." << std::endl;
 
     std::vector<vecu8>  inputs_leading_to_boundary_violation;
     fuzzing::analysis_outcomes const results = fuzzing::run(
@@ -251,8 +249,9 @@ void run(int argc, char* argv[])
 
     if (!get_program_options()->has("silent_mode"))
     {
-        std::cout << "Fuzzing was stopped. Details:" << std::endl;
+        std::cout << "\"fuzzing_results\": ";
         fuzzing::print_analysis_outcomes(std::cout, results);
+        std::cout << ',' << std::endl;
     }
     fuzzing::log_analysis_outcomes(results);
     fuzzing::save_analysis_outcomes(output_dir, target_name, results);
@@ -263,14 +262,12 @@ void run(int argc, char* argv[])
     {
         if (!get_program_options()->has("silent_mode"))
         {
-            std::cout << "Configuration for test suite optimization:" << std::endl;
+            std::cout << "\"optimization_configuration\": ";
             fuzzing::print_optimization_configuration(std::cout, optimizer_config);
+            std::cout << ',' << std::endl;
         }
         fuzzing::log_optimization_configuration(optimizer_config);
         fuzzing::save_optimization_configuration(output_dir, target_name, optimizer_config);
-
-        if (!get_program_options()->has("silent_mode"))
-            std::cout << "Optimization was started..." << std::endl;
 
         fuzzing::optimizer  opt{ optimizer_config };
 
@@ -292,7 +289,7 @@ void run(int argc, char* argv[])
 
         if (!get_program_options()->has("silent_mode"))
         {
-            std::cout << "Optimization was stopped. Details:" << std::endl;
+            std::cout << "\"optimization_results\": ";
             fuzzing::print_optimization_outcomes(std::cout, opt_results);
         }
         fuzzing::log_optimization_outcomes(opt_results);

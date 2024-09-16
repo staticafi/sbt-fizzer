@@ -33,7 +33,7 @@ void  print_fuzzing_configuration(
          << shift << "\"max_exec_megabytes\": " << ioconfig.max_exec_megabytes << ",\n"
          << shift << "\"stdin_model\": \"" << ioconfig.stdin_model_name << "\",\n"
          << shift << "\"stdout_model\": \"" << ioconfig.stdout_model_name << "\"\n"
-         << "}\n"
+         << "}"
          ;
 }
 
@@ -176,7 +176,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"max_bits\": " << results.sensitivity_statistics.max_bits << ",\n"
          << shift << shift << "\"start_calls\": " << results.sensitivity_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls_regular\": " << results.sensitivity_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << "\n"
+         << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << ",\n"
          << shift << shift << "\"complexity\": [";
     {
         bool first1{ true };
@@ -289,7 +289,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     }
     ostr << shift << "}\n";
 
-    ostr << "}\n";
+    ostr << "}";
 }
 
 
@@ -320,7 +320,7 @@ void  print_optimization_configuration(std::ostream&  ostr, optimizer::configura
          << shift << "\"max_seconds\": " << config.max_seconds << ",\n"
          << shift << "\"max_trace_length\": " << config.max_trace_length << ",\n"
          << shift << "\"max_stdin_bytes\": " << config.max_stdin_bytes << "\n"
-         << "}\n"
+         << "}"
          ;
 }
 
@@ -418,7 +418,7 @@ void  print_optimization_outcomes(std::ostream&  ostr, optimization_outcomes con
     }
     ostr << '\n' << shift << "]\n";
 
-    ostr << "}\n";
+    ostr << "}";
 }
 
 
