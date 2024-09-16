@@ -11,7 +11,8 @@
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": false
     },
     "results": {
         "termination_type": "NORMAL",
@@ -22,8 +23,22 @@
             1,2654435832,    2,2654435832,    3,2654435832,    4,2654435832,    
             5,2654435832,    6,2654435832
         ],
-        "num_generated_tests": 4,
-        "num_crashes": 0,
-        "num_boundary_violations": 1
+        "output_statistics": {
+            "sensitivity_analysis": {
+                "num_generated_tests": 2,
+                "num_crashes": 0,
+                "num_boundary_violations": 1
+            },
+            "typed_minimization_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }

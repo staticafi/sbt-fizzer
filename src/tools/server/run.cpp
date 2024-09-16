@@ -18,6 +18,8 @@
 
 void run(int argc, char* argv[])
 {
+    std::chrono::system_clock::time_point const  start_time_point = std::chrono::system_clock::now();
+
     if (get_program_options()->has("list_stdin_models"))
     {
         for (auto const&  name_and_constructor : iomodels::get_stdin_models_map())
@@ -60,8 +62,17 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("clear_output_dir"))
     {
         for (const auto&  entry : std::filesystem::directory_iterator(output_dir))
-            if (entry.is_regular_file() && entry.path().extension() == ".json")
-                std::filesystem::remove(entry);
+            if (entry.is_regular_file())
+            {
+                auto const name{ entry.path().filename().string() };
+                for (auto const& suffix : {
+                        "_config.json", "_outcomes.json",
+                        "_LOG.html", "_TMPROF.html",
+                        "0.json", "1.json", "2.json", "3.json", "4.json", "5.json", "6.json", "7.json", "8.json", "9.json",
+                         })
+                    if (name.ends_with(suffix))
+                        std::filesystem::remove(entry);
+            }
         if (std::filesystem::is_directory(output_dir / "test-suite"))
             for (const auto&  entry : std::filesystem::directory_iterator(output_dir / "test-suite"))
                 std::filesystem::remove(entry);
@@ -105,7 +116,7 @@ void run(int argc, char* argv[])
         }
     }
 
-    fuzzing::termination_info const  terminator{
+    fuzzing::termination_info  terminator{
             .max_executions = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_executions"))),
             .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_seconds")))
             };
@@ -121,7 +132,7 @@ void run(int argc, char* argv[])
             .stdout_model_name = get_program_options()->value("stdout_model")
             });
 
-    fuzzing::optimizer::configuration const  optimizer_config{
+    fuzzing::optimizer::configuration  optimizer_config{
             .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_seconds"))),
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_trace_length"))),
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
@@ -154,7 +165,7 @@ void run(int argc, char* argv[])
     if (get_program_options()->has("path_to_client"))
     {
         if (!get_program_options()->has("silent_mode"))
-            std::cout << "Communication type: network" << std::endl;
+            std::cout << "\"communication_type\": \"network\"," << std::endl;
 
         benchmark_executor = std::make_shared<connection::benchmark_executor_via_network>(
                 get_program_options()->value("path_to_client"),
@@ -165,11 +176,27 @@ void run(int argc, char* argv[])
     else
     {
         if (!get_program_options()->has("silent_mode"))
-            std::cout << "Communication type: shared memory" << std::endl;
+            std::cout << "\"communication_type\": \"shared_memory\"," << std::endl;
 
         benchmark_executor = std::make_shared<connection::benchmark_executor_via_shared_memory>(
                 get_program_options()->value("path_to_target")
                 );
+    }
+
+    auto const startup_time = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time_point).count();
+
+    {
+        float_64_bit const  total_time{ std::max((float_64_bit)(terminator.max_seconds + optimizer_config.max_seconds), 1.0) };
+        float_64_bit const  remaining_time{ std::max(total_time - startup_time, 0.0) };
+        terminator.max_seconds = (natural_32_bit)(remaining_time * (terminator.max_seconds / total_time));
+        optimizer_config.max_seconds = (natural_32_bit)(remaining_time * (optimizer_config.max_seconds / total_time));
+
+        if (!get_program_options()->has("silent_mode"))
+            std::cout << "\"fuzzing_startup\": {" << std::endl
+                      << "    \"time\": " << startup_time << ',' << std::endl
+                      << "    \"--max_seconds\": " << terminator.max_seconds << ',' << std::endl
+                      << "    \"--optimizer_max_seconds\": " << optimizer_config.max_seconds << std::endl
+                      << "}," << std::endl;
     }
 
     fuzzing::execution_record_writer  execution_record_writer{
@@ -181,13 +208,14 @@ void run(int argc, char* argv[])
 
     if (!get_program_options()->has("silent_mode"))
     {
-        std::cout << "Configuration for fuzzing:" << std::endl;
+        std::cout << "\"fuzzing_configuration\": ";
         fuzzing::print_fuzzing_configuration(
                 std::cout,
                 target_name,
                 iomodels::iomanager::instance().get_config(),
                 terminator
                 );
+        std::cout << ',' << std::endl;
     }
     fuzzing::log_fuzzing_configuration(
             target_name,
@@ -200,9 +228,6 @@ void run(int argc, char* argv[])
             iomodels::iomanager::instance().get_config(),
             terminator
             );
-
-    if (!get_program_options()->has("silent_mode"))
-        std::cout << "Fuzzing was started..." << std::endl;
 
     std::vector<vecu8>  inputs_leading_to_boundary_violation;
     fuzzing::analysis_outcomes const results = fuzzing::run(
@@ -217,7 +242,7 @@ void run(int argc, char* argv[])
 
     if (!get_program_options()->has("silent_mode"))
     {
-        std::cout << "Fuzzing was stopped. Details:" << std::endl;
+        std::cout << "\"fuzzing_results\": ";
         fuzzing::print_analysis_outcomes(std::cout, results);
     }
     fuzzing::log_analysis_outcomes(results);
@@ -229,14 +254,13 @@ void run(int argc, char* argv[])
     {
         if (!get_program_options()->has("silent_mode"))
         {
-            std::cout << "Configuration for test suite optimization:" << std::endl;
+            std::cout << ',' << std::endl
+                      << "\"optimization_configuration\": ";
             fuzzing::print_optimization_configuration(std::cout, optimizer_config);
+            std::cout << ',' << std::endl;
         }
         fuzzing::log_optimization_configuration(optimizer_config);
         fuzzing::save_optimization_configuration(output_dir, target_name, optimizer_config);
-
-        if (!get_program_options()->has("silent_mode"))
-            std::cout << "Optimization was started..." << std::endl;
 
         fuzzing::optimizer  opt{ optimizer_config };
 
@@ -258,7 +282,7 @@ void run(int argc, char* argv[])
 
         if (!get_program_options()->has("silent_mode"))
         {
-            std::cout << "Optimization was stopped. Details:" << std::endl;
+            std::cout << "\"optimization_results\": ";
             fuzzing::print_optimization_outcomes(std::cout, opt_results);
         }
         fuzzing::log_optimization_outcomes(opt_results);

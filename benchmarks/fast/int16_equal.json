@@ -11,7 +11,8 @@
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": false
     },
     "results": {
         "termination_type": "NORMAL",
@@ -21,8 +22,22 @@
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0
         ],
-        "num_generated_tests": 5,
-        "num_crashes": 0,
-        "num_boundary_violations": 0
+        "output_statistics": {
+            "sensitivity_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "typed_minimization_analysis": {
+                "num_generated_tests": 3,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }
