@@ -122,7 +122,7 @@ std::size_t stdin_replay_bytes_then_repeat_byte::min_flattened_size() const {
 
 void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr, 
                                                 type_of_input_bits const type,
-                                                shared_memory& dest)
+                                                medium& dest)
 {
     natural_8_bit const count = num_bytes(type);
     if (cursor + count > max_bytes()) {
@@ -137,7 +137,12 @@ void  stdin_replay_bytes_then_repeat_byte::read(natural_8_bit*  ptr,
         bytes.resize(cursor + count, repeat_byte);
     }
     memcpy(ptr, bytes.data() + cursor, count);
-    dest << data_record_id::stdin_bytes << to_id(type);
+    {
+        auto const rec_type{ data_record_id::stdin_bytes };
+        dest.accept_bytes(&rec_type, sizeof(rec_type));
+        auto const type_id{ to_id(type) };
+        dest.accept_bytes(&type_id, sizeof(type_id));
+    }
     dest.accept_bytes(bytes.data() + cursor, count);
     cursor += count;
     types.push_back(type);
