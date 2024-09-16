@@ -57,8 +57,7 @@ analysis_outcomes  run(
             }
 
             execution_record  record;
-            std::string  analysis_name;
-            std::tie(record.flags, analysis_name) = f.round_end();
+            std::tie(record.flags, record.analysis_name) = f.round_end();
 
             if ((record.flags & (execution_record::BRANCH_DISCOVERED  |
                                  execution_record::BRANCH_COVERED     |
@@ -66,18 +65,18 @@ analysis_outcomes  run(
             {
                 local::fill_record(record);
                 save_execution_record(record);
-                ++results.output_statistics[analysis_name].num_generated_tests;
+                ++results.output_statistics[record.analysis_name].num_generated_tests;
 
                 if ((record.flags & execution_record::EXECUTION_CRASHES) != 0)
                 {
                     hashes_of_crashes.insert(compute_hash(record.path));
-                    ++results.output_statistics[analysis_name].num_crashes;
+                    ++results.output_statistics[record.analysis_name].num_crashes;
                 }
                 else if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
                 {
                     exit_locations_of_boundary_violations.insert(record.path.back().first.id);
                     collector_of_boundary_violations(record);
-                    ++results.output_statistics[analysis_name].num_boundary_violations;
+                    ++results.output_statistics[record.analysis_name].num_boundary_violations;
                 }
             }
             else if ((record.flags & execution_record::EXECUTION_CRASHES) != 0)
@@ -86,8 +85,8 @@ analysis_outcomes  run(
                 if (hashes_of_crashes.insert(compute_hash(record.path)).second)
                 {
                     save_execution_record(record);
-                    ++results.output_statistics[analysis_name].num_generated_tests;
-                    ++results.output_statistics[analysis_name].num_crashes;
+                    ++results.output_statistics[record.analysis_name].num_generated_tests;
+                    ++results.output_statistics[record.analysis_name].num_crashes;
                 }
             }
             else if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
@@ -96,7 +95,7 @@ analysis_outcomes  run(
                 if (exit_locations_of_boundary_violations.insert(record.path.back().first.id).second)
                 {
                     collector_of_boundary_violations(record);
-                    ++results.output_statistics[analysis_name].num_boundary_violations;
+                    ++results.output_statistics[record.analysis_name].num_boundary_violations;
                 }
             }
         }
