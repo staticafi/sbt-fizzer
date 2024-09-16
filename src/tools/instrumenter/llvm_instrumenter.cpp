@@ -81,7 +81,19 @@ Value *llvm_instrumenter::instrumentIcmp(Value *lhs, Value *rhs, CmpInst *cmpIns
         return ConstantFP::get(DoubleTy, 1);
     }
 
-    bool isUnsigned = cmpInst->isUnsigned();
+    auto const& isSignedInstruction = [](Value const* const v) {
+        if (auto instr = dyn_cast<Instruction>(v))
+            switch (instr->getOpcode())
+            {
+                case llvm::Instruction::SExt:
+                case llvm::Instruction::SDiv:
+                case llvm::Instruction::SRem:
+                    return true;
+            }
+        return false;
+    };
+
+    bool isUnsigned = isSignedInstruction(lhs) || isSignedInstruction(rhs) ? false : cmpInst->isUnsigned();
 
     if ((!lhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)lhs->getType())->getBitWidth() < 64) &&
         (!rhs->getType()->isIntegerTy() || ((llvm::IntegerType const*)rhs->getType())->getBitWidth() < 64) )
