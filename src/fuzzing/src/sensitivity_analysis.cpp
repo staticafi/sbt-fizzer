@@ -100,7 +100,7 @@ void  sensitivity_analysis::stop()
     {
         std::pair<natural_32_bit,trace_index_type> const key{ node->get_trace_index(), node->get_num_stdin_bytes() };
         float_64_bit const  value = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time).count();
-        statistics.complexity[key].insert(value);
+        //statistics.complexity[key].insert(value);
     }
 
     state = READY;

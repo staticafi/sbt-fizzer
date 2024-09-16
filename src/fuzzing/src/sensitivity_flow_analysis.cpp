@@ -335,7 +335,7 @@ void  sensitivity_flow_analysis::compute_sensitive_bits(float_64_bit const  rema
         branching_node const* const  last_visited_node = flow.get_last_visited_path_node();
         std::pair<natural_32_bit,trace_index_type> const key{ last_visited_node->get_trace_index(), last_visited_node->get_num_stdin_bytes() };
         float_64_bit const  value = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time).count();
-        statistics.complexity[key].insert(value);
+        //statistics.complexity[key].insert(value);
     }
 
     if (!flow.target_reached())
