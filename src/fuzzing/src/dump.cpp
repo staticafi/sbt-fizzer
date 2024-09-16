@@ -235,7 +235,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << shift << shift << shift << "\"num_boundary_violations\": " << it->second.num_boundary_violations << "\n";
         ostr << shift << shift << '}' << (std::next(it) != results.output_statistics.end() ? "," : "") << '\n';
     }
-    ostr << shift << "},\n";
+    ostr << shift << "}\n";
 
     ostr << "}\n";
 }
