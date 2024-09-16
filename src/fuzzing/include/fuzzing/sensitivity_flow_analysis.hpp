@@ -39,7 +39,7 @@ struct  sensitivity_flow_analysis
 
     void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
     void  stop();
-    void  compute_sensitive_bits();
+    void  compute_sensitive_bits(float_64_bit remaining_seconds);
 
     branching_node*  get_node() const { return node; }
     std::unordered_set<branching_node*> const&  get_changed_nodes() { return changed_nodes; }
