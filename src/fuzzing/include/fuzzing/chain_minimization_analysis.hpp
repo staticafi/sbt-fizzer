@@ -72,6 +72,7 @@ struct  chain_minimization_analysis
         matf64  orthogonal_basis{};
         std::vector<spatial_constraint>  constraints{};
         std::vector<std::vector<natural_32_bit> >  variable_indices{};
+        vecf64  scales_of_basis_vectors_in_world_space{};
         vecf64  gradient{};
         vecf64  sample_shift{};
         float_64_bit  sample_value{ 0.0 };

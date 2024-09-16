@@ -489,6 +489,8 @@ bool  chain_minimization_analysis::compute_shift_of_next_partial()
                         break;
                 }
 
+                shift /= at(space.scales_of_basis_vectors_in_world_space, partial_index);
+
                 if (are_constraints_satisfied(space.constraints, space.sample_shift))
                     return true;
 
@@ -539,6 +541,7 @@ void  chain_minimization_analysis::insert_first_local_space()
     {
         local_spaces.back().orthogonal_basis.push_back({});
         axis(local_spaces.back().orthogonal_basis.back(), types_of_variables.size(), i);
+        local_spaces.back().scales_of_basis_vectors_in_world_space.push_back(1.0);
         local_spaces.back().variable_indices.push_back({ i });
     }
     reset(local_spaces.back().sample_shift, columns(local_spaces.back().orthogonal_basis), 0.0);
@@ -562,6 +565,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         {
             dst_space.orthogonal_basis.push_back({});
             axis(dst_space.orthogonal_basis.back(), columns(src_space.orthogonal_basis), i);
+            local_spaces.back().scales_of_basis_vectors_in_world_space.push_back(1.0);
             dst_space.variable_indices.push_back(src_space.variable_indices.at(i));
         }
         dst_space.constraints = src_space.constraints;
@@ -583,6 +587,20 @@ void  chain_minimization_analysis::insert_next_local_space()
         std::sort(dst_space.variable_indices.back().begin(), dst_space.variable_indices.back().end());
     };
 
+    auto const& compute_scale_of_basis_vectors_in_world_space = [this] (vecf64 const&  basis_vector) -> float_64_bit {
+        auto const index { local_spaces.size() - 2UL };
+        local_spaces.at(index).sample_shift = basis_vector;
+        this->transform_shift(index);
+        vecf64 const& basis_vector_in_world{ local_spaces.front().sample_shift };
+        float_64_bit scale{ max_abs(basis_vector_in_world) };
+        if (scale > 10000000)
+        {
+            int iii = 0;
+        }
+        INVARIANT(scale > 1e-9);
+        return scale;
+    };
+
     for (std::size_t  i = 0UL; i < columns(src_space.orthogonal_basis); ++i)
     {
         vecf64  w;
@@ -592,6 +610,7 @@ void  chain_minimization_analysis::insert_next_local_space()
         if (std::fabs(wg) < 1e-6)
         {
             dst_space.orthogonal_basis.push_back(w);
+            dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(w));
             collect_variable_indices_for_last_basis_vector();
         }
         else
@@ -605,6 +624,7 @@ void  chain_minimization_analysis::insert_next_local_space()
                 float_64_bit const  w_len{ std::sqrt(ww) };
                 scale(w, g_len / w_len);
                 dst_space.orthogonal_basis.push_back(w);
+                dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(w));
                 collect_variable_indices_for_last_basis_vector();
             }
         }
@@ -614,6 +634,7 @@ void  chain_minimization_analysis::insert_next_local_space()
     if (src_info.predicate != BP_EQUAL)
     {
         dst_space.orthogonal_basis.push_back(src_space.gradient);
+        dst_space.scales_of_basis_vectors_in_world_space.push_back(compute_scale_of_basis_vectors_in_world_space(src_space.gradient));
         collect_variable_indices_for_last_basis_vector();
         vecf64  normal;
         axis(normal, columns(src_space.orthogonal_basis), columns(src_space.orthogonal_basis) - 1UL);
