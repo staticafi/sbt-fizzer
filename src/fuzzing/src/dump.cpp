@@ -148,12 +148,13 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     for (std::string const& warning : results.sensitivity_flow_statistics.warnings) 
         ostr << shift << shift << shift << warning << "\n";
     ostr << shift << shift << "],\n"
-         << shift << shift << "\"complexity\": [" << "\n";
+         << shift << shift << "\"complexity\": [";
     {
         bool first1{ true };
         for (auto const& key_and_value : results.sensitivity_flow_statistics.complexity)
         {
-            if (first1) first1 = false; else ostr << ",\n";
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n";
             ostr << shift << shift << shift << "{ "
                  << "\"trace_index\": " << key_and_value.first.first
                  << ", \"stdin_bytes\": " << key_and_value.first.second
@@ -166,6 +167,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
             }
             ostr << " ] }";
         }
+        ostr << "\n";
     }
     ostr << shift << shift << "]\n"
          << shift << "},\n"
@@ -175,12 +177,13 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"start_calls\": " << results.sensitivity_statistics.start_calls << ",\n"
          << shift << shift << "\"stop_calls_regular\": " << results.sensitivity_statistics.stop_calls_regular << ",\n"
          << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << "\n"
-         << shift << shift << "\"complexity\": [" << "\n";
+         << shift << shift << "\"complexity\": [";
     {
         bool first1{ true };
         for (auto const& key_and_value : results.sensitivity_statistics.complexity)
         {
-            if (first1) first1 = false; else ostr << ",\n";
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n";
             ostr << shift << shift << shift << "{ "
                  << "\"trace_index\": " << key_and_value.first.first
                  << ", \"stdin_bytes\": " << key_and_value.first.second
@@ -193,6 +196,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
             }
             ostr << " ] }";
         }
+        ostr << "\n";
     }
     ostr << shift << shift << "]\n"
          << shift << "},\n"
