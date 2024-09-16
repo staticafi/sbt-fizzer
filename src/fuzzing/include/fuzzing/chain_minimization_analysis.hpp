@@ -224,6 +224,8 @@ private:
     gradient_descent_props  descent_props;
     divergence_recovery_props  recovery_props;
 
+    random_generator_for_natural_32_bit  rnd_generator;
+
     performance_statistics  statistics;
 };
 

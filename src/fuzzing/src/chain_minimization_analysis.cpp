@@ -41,6 +41,7 @@ chain_minimization_analysis::chain_minimization_analysis()
     , partials_props{}
     , descent_props{}
     , recovery_props{}
+    , rnd_generator{}
     , statistics{}
 {}
 
@@ -81,6 +82,8 @@ void  chain_minimization_analysis::start(
     partials_props = {};
     descent_props = {};
     recovery_props = {};
+
+    reset(rnd_generator);
 
     path.push_back({
             node,
@@ -825,35 +828,42 @@ bool  chain_minimization_analysis::compute_descent_shifts(
 
     origin_set  used_origins{ &types_of_variables };
 
-    for (std::size_t  i = 0UL; i <= size(space.gradient); ++i)
+    auto const&  compute_gg_inv_and_lambda0 = [value](vecf64 const& g, float_64_bit&  gg_inv, float_64_bit&  lambda0) {
+        gg_inv = 1.0 / dot_product(g, g);
+        lambda0 = -value * gg_inv;
+        if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
+            return false;
+        for (auto const coord : g)
+        {
+            float_64_bit const  x{ coord * lambda0 };
+            if (!std::isfinite(x) || std::isnan(x))
+                return false;
+        }
+        return true;
+    };
+
+    vecf64  grad{ space.gradient };
     {
-        vecf64  g{ space.gradient };
+        float_64_bit gg_inv, lambda0;
+        if (!compute_gg_inv_and_lambda0(grad, gg_inv, lambda0))
+            for (std::size_t  i = 0UL; i < size(grad); ++i)
+                at(grad, i) = get_random_integer_32_bit_in_range(-10001, 10000, rnd_generator) < 0 ? -1.0 : 1.0;
+    }
+
+    for (std::size_t  i = 0UL; i <= size(grad); ++i)
+    {
+        vecf64  g{ grad };
         if (i != 0UL)
         {
             if (at(g, i - 1UL) == 0.0)
                 continue;
             at(g, i - 1UL) = 0.0;
         }
+
+        float_64_bit gg_inv, lambda0;
+        if (!compute_gg_inv_and_lambda0(g, gg_inv, lambda0))
+            continue;
     
-        float_64_bit const  gg_inv{ 1.0 / dot_product(g, g) };
-        if (!std::isfinite(gg_inv) || std::isnan(gg_inv))
-            continue;
-
-        float_64_bit const  lambda0{ -value * gg_inv };
-        if (!std::isfinite(lambda0)
-                || std::isnan(lambda0)
-                || ![&space, &g, lambda0]() -> bool {
-                        for (auto const coord : g)
-                        {
-                            float_64_bit const  x{ coord * lambda0 };
-                            if (!std::isfinite(x) || std::isnan(x))
-                                return false;
-                        }
-                        return true;
-                    }()
-                )
-            continue;
-
         vecf64  lambdas;
         {
             vecf64 const  ray_dir{ transform_shift(g, space_index) };
@@ -934,7 +944,11 @@ bool  chain_minimization_analysis::compute_descent_shifts(
                 shift = scale_cp(g, lambda);
 
             if (!clip_shift_by_constraints(space.constraints, g, shift))
-                continue;
+            {
+                // Failing linear constraints does not guarantee failure for a non-linear function.
+                // => We use the (partially clipped) shift anyway.
+                int iii = 0;
+            }
 
             vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
             vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
