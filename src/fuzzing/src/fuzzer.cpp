@@ -323,6 +323,7 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
     static std::unordered_map<STATE, std::string> const  map {
         { STARTUP, "STARTUP" },
         { SENSITIVITY, "sensitivity_analysis" },
+        { CHAIN_MINIMIZATION, "chain_minimization_analysis" },
         { TYPED_MINIMIZATION, "typed_minimization_analysis" },
         { MINIMIZATION, "minimization_analysis" },
         { BITSHARE, "bitshare_analysis" },
@@ -809,6 +810,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , state{ STARTUP }
     , sensitivity_flow{ sala_program_ptr }
     , sensitivity{}
+    , chain_minimization{}
     , typed_minimization{}
     , minimization{}
     , bitshare{}
@@ -842,7 +844,9 @@ void  fuzzer::terminate()
 
 void  fuzzer::stop_all_analyzes()
 {
+    sensitivity_flow.stop();
     sensitivity.stop();
+    chain_minimization.stop();
     typed_minimization.stop();
     minimization.stop();
     bitshare.stop();
@@ -933,6 +937,11 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                     sensitivity_flow.start(sensitivity.get_node(), num_driver_executions);
                     sensitivity_flow.compute_sensitive_bits(num_remaining_seconds());
                 }
+                break;
+
+            case CHAIN_MINIMIZATION:
+                if (chain_minimization.generate_next_input(stdin_bits))
+                    return true;
                 break;
 
             case TYPED_MINIMIZATION:
@@ -1186,18 +1195,28 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             recorder().on_execution_results_available();
             break;
 
         case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_busy() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             recorder().on_execution_results_available();
             sensitivity.process_execution_results(trace, entry_branching);
             break;
 
+        case CHAIN_MINIMIZATION:
+            INVARIANT(sensitivity.is_ready() && chain_minimization.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            chain_minimization.process_execution_results(trace);
+            if (chain_minimization.get_node()->is_direction_explored(false) && chain_minimization.get_node()->is_direction_explored(true))
+            {
+                chain_minimization.stop();
+                bitshare.bits_available_for_branching(chain_minimization.get_node(), trace, bits_and_types);
+            }
+            break;
+
         case TYPED_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
             typed_minimization.process_execution_results(trace);
             if (typed_minimization.get_node()->is_direction_explored(false) && typed_minimization.get_node()->is_direction_explored(true))
             {
@@ -1207,7 +1226,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
+            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
             minimization.process_execution_results(trace);
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
             {
@@ -1217,7 +1236,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case BITSHARE:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
+            INVARIANT(sensitivity.is_ready() && chain_minimization.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
             if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
@@ -1253,6 +1272,11 @@ void  fuzzer::do_cleanup()
             break;
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
+            break;
+        case CHAIN_MINIMIZATION:
+            update_close_flags_from(chain_minimization.get_node());
+            if (!covered_branchings.contains(chain_minimization.get_node()->get_location_id()))
+                coverage_failures_with_hope.insert(chain_minimization.get_node());
             break;
         case TYPED_MINIMIZATION:
             update_close_flags_from(typed_minimization.get_node());
@@ -1490,6 +1514,13 @@ void  fuzzer::select_next_state()
         INVARIANT(!winner->sensitive_stdin_bits.empty());
         bitshare.start(winner, num_driver_executions);
         state = BITSHARE;
+    }
+    else if (!chain_minimization.is_disabled() &&
+             chain_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
+    {
+        INVARIANT(!winner->sensitive_stdin_bits.empty() && !winner->minimization_performed);
+        chain_minimization.start(winner, winner->best_stdin, num_driver_executions);
+        state = CHAIN_MINIMIZATION;
     }
     else if (!winner->xor_like_branching_function &&
         typed_minimization_analysis::are_types_of_sensitive_bits_available(winner->best_stdin, winner->sensitive_stdin_bits))
