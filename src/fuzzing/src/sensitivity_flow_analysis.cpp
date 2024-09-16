@@ -56,17 +56,15 @@ void terminator_medium::set_termination(instrumentation::target_termination  ter
 
 struct extern_code : public sala::ExternCodeCStd
 {
-    extern_code(sala::ExecState*  state, sala::InputFlow*  input_flow);
+    extern_code(sala::ExecState*  state);
 private:
     void read(std::size_t count);
-    sala::InputFlow*  input_flow_;
     terminator_medium  medium_;
 };
 
 
-extern_code::extern_code(sala::ExecState* const  state, sala::InputFlow* const  input_flow)
+extern_code::extern_code(sala::ExecState* const  state)
     : sala::ExternCodeCStd{ state }
-    , input_flow_{ input_flow }
     , medium_{ state }
 {
     register_code("__VERIFIER_nondet_bool", [this]() { this->read(sizeof(bool)); });
@@ -87,9 +85,6 @@ extern_code::extern_code(sala::ExecState* const  state, sala::InputFlow* const  
 
 void extern_code::read(std::size_t const count)
 {
-    std::size_t desc{ iomodels::iomanager::instance().get_stdin()->num_bytes_read() };
-    sala::MemPtr ptr{ parameters().front().as<sala::MemPtr>() };
-
     type_of_input_bits  type;
     switch (count)
     {
@@ -99,10 +94,8 @@ void extern_code::read(std::size_t const count)
         case 8ULL: type = type_of_input_bits::UNTYPED64; break;
         default: UNREACHABLE(); break;
     }
+    sala::MemPtr const ptr{ parameters().front().as<sala::MemPtr>() };
     iomodels::iomanager::instance().get_stdin()->read(ptr, type, medium_);
-
-    for (std::size_t i = 0ULL; i != count; ++i, ++desc)
-        input_flow_->start(ptr + i, (sala::InputFlow::InputDescriptor)desc);
 }
 
 
@@ -112,6 +105,7 @@ struct sensitivity_flow_analysis::input_flow : public sala::InputFlow
     bool  target_reached() const { return target_reached_; }
 
 private:
+    void start_input_flow(std::size_t const count);
     void do_ret() override;
 
     sensitivity_flow_analysis*  analysis_;
@@ -133,11 +127,34 @@ sensitivity_flow_analysis::input_flow::input_flow(
     , path_index_{ 0ULL }
     , target_reached_{ false }
 {
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_bool, this->start_input_flow(sizeof(bool)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_char, this->start_input_flow(sizeof(std::int8_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_short, this->start_input_flow(sizeof(std::int16_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_int, this->start_input_flow(sizeof(std::int32_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_long, this->start_input_flow(sizeof(std::int32_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_longlong, this->start_input_flow(sizeof(std::int64_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_uchar, this->start_input_flow(sizeof(std::uint8_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_ushort, this->start_input_flow(sizeof(std::uint16_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_uint, this->start_input_flow(sizeof(std::uint32_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_ulong, this->start_input_flow(sizeof(std::uint32_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_ulonglong, this->start_input_flow(sizeof(std::uint64_t)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_float, this->start_input_flow(sizeof(float)) );
+    REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_double, this->start_input_flow(sizeof(double)) );
+
     for (branching_node* n = analysis_->node; n != nullptr; n = n->predecessor)
         path_nodes_.push_back(n);
     std::reverse(path_nodes_.begin(), path_nodes_.end());
     for (std::size_t i = 1ULL; i < path_nodes_.size(); ++i)
         path_directions_.push_back(path_nodes_.at(i - 1ULL)->successor_direction(path_nodes_.at(i)));
+}
+
+
+void sensitivity_flow_analysis::input_flow::start_input_flow(std::size_t const count)
+{
+    std::size_t desc{ iomodels::iomanager::instance().get_stdin()->num_bytes_read() - count };
+    sala::MemPtr ptr{ parameters().front().as<sala::MemPtr>() };
+    for (std::size_t i = 0ULL; i != count; ++i, ++desc)
+        start(ptr + i, (sala::InputFlow::InputDescriptor)desc);
 }
 
 
@@ -277,7 +294,7 @@ void  sensitivity_flow_analysis::compute_sensitive_bits()
     sala::ExecState  state{ program_ptr };
     sala::Sanitizer  sanitizer{ &state };
     input_flow  flow{ this, &state };
-    extern_code  externals{ &state, &flow };
+    extern_code  externals{ &state };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
     while (!interpreter.done())
