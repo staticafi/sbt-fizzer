@@ -8,6 +8,7 @@
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
+#   include <sala/program.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <utility/std_pair_hash.hpp>
@@ -54,8 +55,10 @@ struct  fuzzer final
         std::size_t  coverage_failure_resets{ 0 };
     };
 
-    explicit fuzzer(termination_info const&  info);
+    fuzzer(termination_info const&  info, sala::Program const* sala_program_ptr_);
     ~fuzzer();
+
+    sala::Program const* sala_program() const { return sala_program_ptr; }
 
     void  terminate();
     void  stop_all_analyzes();
@@ -295,6 +298,8 @@ private:
 
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();
+
+    sala::Program const* sala_program_ptr;
 
     termination_info termination_props;
 

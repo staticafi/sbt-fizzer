@@ -12,8 +12,11 @@
 #include <fuzzing/dump.hpp>
 #include <fuzzing/dump_native.hpp>
 #include <fuzzing/dump_testcomp.hpp>
+#include <sala/program.hpp>
+#include <sala/streaming.hpp>
 #include <iostream>
 #include <fstream>
+#include <memory>
 
 
 void run(int argc, char* argv[])
@@ -183,6 +186,30 @@ void run(int argc, char* argv[])
                 );
     }
 
+    std::shared_ptr<sala::Program> sala_program_ptr;
+    {
+        std::filesystem::path  sala_program_path;
+        if (get_program_options()->has("path_to_sala"))
+            sala_program_path = get_program_options()->value("path_to_sala");
+        else if (get_program_options()->value("path_to_target").ends_with("_sbt-fizzer_target"))
+            sala_program_path = get_program_options()->value("path_to_target").substr(0,
+                    get_program_options()->value("path_to_target").rfind("_sbt-fizzer_target")
+                    ) + "_instrumented.json";
+        if (sala_program_path.empty())
+            std::cerr << "WARNING: The path to sala program is empty.\n";
+        else if (!std::filesystem::is_regular_file(sala_program_path))
+        {
+            if (get_program_options()->has("path_to_sala"))
+                std::cerr << "WARNING: The passed sala program '" << sala_program_path << "' does not reference a regular file.\n";
+        }
+        else
+        {
+            sala_program_ptr = std::make_shared<sala::Program>();
+            std::ifstream istr(sala_program_path.c_str(), std::ios_base::binary);
+            istr >> *sala_program_ptr;
+        }
+    }
+
     auto const startup_time = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time_point).count();
 
     {
@@ -232,6 +259,7 @@ void run(int argc, char* argv[])
     std::vector<vecu8>  inputs_leading_to_boundary_violation;
     fuzzing::analysis_outcomes const results = fuzzing::run(
         *benchmark_executor,
+        sala_program_ptr.get(),
         execution_record_writer,
         [&inputs_leading_to_boundary_violation, &optimizer_config](fuzzing::execution_record const&  record) {
                 if (optimizer_config.max_seconds > 0)

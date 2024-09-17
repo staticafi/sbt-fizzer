@@ -767,8 +767,10 @@ branching_node*  fuzzer::monte_carlo_step(
 }
 
 
-fuzzer::fuzzer(termination_info const&  info)
-    : termination_props{ info }
+fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_program_ptr_)
+    : sala_program_ptr{ sala_program_ptr_ }
+
+    , termination_props{ info }
 
     , num_driver_executions{ 0U }
     , time_point_start{ std::chrono::steady_clock::now() }

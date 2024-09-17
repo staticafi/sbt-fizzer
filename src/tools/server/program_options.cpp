@@ -69,6 +69,8 @@ program_options::program_options(int argc, char* argv[])
 
     add_option("path_to_target", "Path to target executable.", "1");
 
+    add_option("path_to_sala", "Path to sala program (semantically equivalent to the target executable).", "1");
+
     add_option("test_type", "Output type (native, testcomp)", "1");
     add_value("test_type", "native");
 

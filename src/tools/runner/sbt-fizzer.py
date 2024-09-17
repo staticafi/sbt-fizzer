@@ -33,6 +33,10 @@ def  benchmark_target_name(input_file):
     return benchmark_name(input_file) + "_sbt-fizzer_target"
 
 
+def  benchmark_sala_name(input_file):
+    return benchmark_name(input_file) + "_sala" + ".json"
+
+
 def build(self_dir, input_file, output_dir, options, use_m32, silent_mode):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
 
@@ -79,6 +83,21 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_mode):
         raise Exception("Linking has failed: " + input_file)
     t1 = time.time()
     if silent_mode is False: print("%.2f," % (t1 - t0), flush=True)
+
+    if silent_mode is False: print("    \"Compiling[LLVM->sala]\": ", end='', flush=True)
+    t0 = time.time()
+    if _execute(
+            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] + [
+                # "--jsonx",
+                "--input", instrumented_ll_file,
+                "--output", output_dir,
+                "--rename", os.path.splitext(benchmark_sala_name(input_file))[0],
+                "--entry", "__sbt_fizzer_method_under_test" ],
+            None).returncode:
+        if silent_mode is False: print("},", flush=True)
+        return 
+    t1 = time.time()
+    if silent_mode is False: print("%.2f" % (t1 - t0), flush=True)
     if silent_mode is False: print("},", flush=True)
 
 
@@ -148,11 +167,17 @@ def fuzz(self_dir, input_file, output_dir, options, start_time, silent_mode):
         if not os.path.isfile(target):
             raise Exception("Cannot find the fuzzing target file: " + target)
 
+    sala_program = os.path.join(output_dir, benchmark_sala_name(input_file))
+    if not os.path.isfile(sala_program):
+        sala_program = os.path.join(os.path.dirname(input_file), benchmark_sala_name(input_file))
+        if not os.path.isfile(sala_program) and silent_mode is False:
+            sala_program = None
 
     if _execute(
             [ os.path.join(self_dir, "tools", "@SERVER_FILE@"),
-                "--path_to_target", target,
-                "--output_dir", output_dir] +
+                "--path_to_target", target ] +
+                ([ "--path_to_sala", sala_program ] if sala_program is not None else []) +
+                [ "--output_dir", output_dir] +
                 options,
             None).returncode:
         raise Exception("Fuzzing has failed.")
