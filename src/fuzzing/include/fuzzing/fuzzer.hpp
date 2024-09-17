@@ -241,8 +241,9 @@ private:
             std::set<node_navigation> interesting_nodes;
             std::vector<std::vector<float>> matrix;
 
-            void update_interesting_nodes(branching_node* node);
+            bool update_interesting_nodes(branching_node* node);
             void recompute_matrix();
+            void add_equation(branching_node* node);
         };
 
         std::unordered_map<location_id, iid_dependence_props>  id_to_equation_map;

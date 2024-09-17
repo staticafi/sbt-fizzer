@@ -972,56 +972,70 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
-
 void fuzzer::process_node_dependance(branching_node *node)
 {
     using deps_props = iid_node_dependence::iid_dependence_props;
 
     if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
         return;
-    deps_props& props = iid_dependences.id_to_equation_map[node->get_location_id()];
+    deps_props &props = iid_dependences.id_to_equation_map[node->get_location_id()];
 
     props.all_paths.push_back(node);
-    props.update_interesting_nodes(node);
-    props.recompute_matrix();
+
+    if (props.update_interesting_nodes(node))
+    {
+        props.recompute_matrix();
+    }
+
+    props.add_equation(node);
 }
 
-void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interesting_nodes(branching_node *node)
+bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interesting_nodes(branching_node *node)
 {
     using node_nav = iid_node_dependence::node_navigation;
+    bool set_changed = false;
 
-    auto get_path = [](branching_node* node) {
-        std::vector<branching_node*> path;
-        branching_node* current = node;
-        while (current != nullptr) {
+    auto get_path = [](branching_node *node)
+    {
+        std::vector<branching_node *> path;
+        branching_node *current = node;
+        while (current != nullptr)
+        {
             path.push_back(current);
             current = current->predecessor;
         }
         return path;
     };
 
-    auto add_to_interesting = [this](branching_node* node, size_t i) {
-        while (i > 0) {
-            branching_node* predecessor = node->predecessor;
+    auto add_to_interesting = [this, &set_changed](branching_node *node, size_t i)
+    {
+        while (i > 0)
+        {
+            branching_node *predecessor = node->predecessor;
 
-            this->interesting_nodes.emplace(node->get_location_id(), node == predecessor->successor(true).pointer);
+            auto result = this->interesting_nodes.emplace(node->get_location_id(), node == predecessor->successor(true).pointer);
+            if (result.second)
+            {
+                set_changed = true;
+            }
 
             node = node->predecessor;
             --i;
         }
     };
-    
 
-    for (const auto& path : all_paths) {
-        std::vector<branching_node*> path_1 = get_path(node);
-        std::vector<branching_node*> path_2 = get_path(path);
-        
+    for (const auto &path : all_paths)
+    {
+        std::vector<branching_node *> path_1 = get_path(node);
+        std::vector<branching_node *> path_2 = get_path(path);
+
         ASSUMPTION(path_1.back() == path_2.back());
 
         std::size_t i_1 = path_1.size() - 1;
         std::size_t i_2 = path_2.size() - 1;
 
-        while (i_1 > 0 && i_2 > 0 && path_1[i_1] == path_2[i_2]) {
+        while (i_1 > 0 && i_2 > 0 && path_1[i_1] == path_2[i_2])
+        {
             --i_1;
             --i_2;
         }
@@ -1029,6 +1043,8 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interest
         add_to_interesting(path_1[i_1], i_1);
         add_to_interesting(path_2[i_2], i_2);
     }
+
+    return set_changed;
 }
 
 void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matrix()
@@ -1039,28 +1055,37 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matri
 
     matrix.clear(); // This could be done better, but for now it's fine
 
-    for (const auto& path : all_paths) {
-        std::map<iid_node_dependence::node_navigation, int> directions_in_path;
-
-        branching_node* node = path;
-        branching_node* prev_node = node->predecessor;
-
-        while (prev_node != nullptr) {
-            node_nav nav = { prev_node->get_location_id(), prev_node->successor(true).pointer == node };
-            directions_in_path[nav]++;
-
-            node = prev_node;
-            prev_node = node->predecessor;
-        }
-
-        std::vector<float> values_in_path;
-        for (const auto& [direction, count] : directions_in_path) {
-            values_in_path.push_back(count);
-        }
-
-        matrix.push_back(values_in_path);
+    for (const auto &path : all_paths)
+    {
+        add_equation(path);
     }
+}
+
+void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(branching_node *node)
+{
+    using node_nav = iid_node_dependence::node_navigation;
     
+    std::map<iid_node_dependence::node_navigation, int> directions_in_path;
+
+    branching_node *node = node;
+    branching_node *prev_node = node->predecessor;
+
+    while (prev_node != nullptr)
+    {
+        node_nav nav = {prev_node->get_location_id(), prev_node->successor(true).pointer == node};
+        directions_in_path[nav]++;
+
+        node = prev_node;
+        prev_node = node->predecessor;
+    }
+
+    std::vector<float> values_in_path;
+    for (const auto &[direction, count] : directions_in_path)
+    {
+        values_in_path.push_back(count);
+    }
+
+    matrix.push_back(values_in_path);
 }
 
 execution_record::execution_flags  fuzzer::process_execution_results()
