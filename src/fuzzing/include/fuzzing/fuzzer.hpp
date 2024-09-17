@@ -226,13 +226,7 @@ private:
             location_id node_id;
             bool direction;
 
-            auto operator<=>(node_navigation const& other) const 
-            {
-                if(auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
-                    return cmp;
-                
-                return direction <=> other.direction;
-            }
+            auto operator<=>(node_navigation const& other) const;
         };
 
         struct iid_dependence_props
@@ -240,10 +234,12 @@ private:
             std::vector<branching_node*> all_paths;
             std::set<node_navigation> interesting_nodes;
             std::vector<std::vector<float>> matrix;
+            std::vector<float> best_values;
 
             bool update_interesting_nodes(branching_node* node);
             void recompute_matrix();
-            void add_equation(branching_node* node);
+            void add_equation(branching_node* path);
+            std::vector<float> approximate_matrix();
         };
 
         std::unordered_map<location_id, iid_dependence_props>  id_to_equation_map;

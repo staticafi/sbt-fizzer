@@ -972,6 +972,14 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
+auto fuzzing::fuzzer::iid_node_dependence::node_navigation::operator<=>(node_navigation const &other) const
+{
+    if (auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
+        return cmp;
+
+    return direction <=> other.direction;
+}
+
 void fuzzer::process_node_dependance(branching_node *node)
 {
     using deps_props = iid_node_dependence::iid_dependence_props;
@@ -1009,11 +1017,12 @@ bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interest
 
     auto add_to_interesting = [this, &set_changed](branching_node *node, size_t i)
     {
-        while (i > 0)
+        while (i > 1)
         {
             branching_node *predecessor = node->predecessor;
 
-            auto result = this->interesting_nodes.emplace(node->get_location_id(), node == predecessor->successor(true).pointer);
+            bool direction = node == predecessor->successor(true).pointer;
+            auto result = this->interesting_nodes.emplace(node->get_location_id(), direction);
             if (result.second)
             {
                 set_changed = true;
@@ -1061,13 +1070,13 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matri
     }
 }
 
-void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(branching_node *node)
+void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(branching_node *path)
 {
     using node_nav = iid_node_dependence::node_navigation;
     
     std::map<iid_node_dependence::node_navigation, int> directions_in_path;
 
-    branching_node *node = node;
+    branching_node *node = path;
     branching_node *prev_node = node->predecessor;
 
     while (prev_node != nullptr)
@@ -1086,6 +1095,58 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(br
     }
 
     matrix.push_back(values_in_path);
+    best_values.push_back(node->best_coverage_value);
+}
+
+std::vector<float> fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::approximate_matrix()
+{
+    const float learning_rate = 0.01f;
+    const int max_iterations = 1000;
+    const float tolerance = 1e-6f;
+
+    size_t m = matrix.size();
+    size_t n = matrix[0].size();
+
+    std::vector<float> weights(n, 0.0f); // Initialize weights to zero
+
+    for (int iter = 0; iter < max_iterations; ++iter)
+    {
+        std::vector<float> gradient(n, 0.0f);
+
+        // Compute gradient
+        for (size_t i = 0; i < m; ++i)
+        {
+            float dot_product = 0.0f;
+            for (size_t j = 0; j < n; ++j)
+            {
+                dot_product += matrix[i][j] * weights[j];
+            }
+            float error = dot_product - best_values[i];
+            for (size_t j = 0; j < n; ++j)
+            {
+                gradient[j] += matrix[i][j] * error;
+            }
+        }
+
+        // Update weights
+        for (size_t j = 0; j < n; ++j)
+        {
+            weights[j] -= learning_rate * gradient[j];
+        }
+
+        // Check for convergence
+        float max_change = 0.0f;
+        for (size_t j = 0; j < n; ++j)
+        {
+            max_change = std::max(max_change, std::abs(learning_rate * gradient[j]));
+        }
+        if (max_change < tolerance)
+        {
+            break;
+        }
+    }
+
+    return weights;
 }
 
 execution_record::execution_flags  fuzzer::process_execution_results()
