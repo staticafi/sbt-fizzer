@@ -37,12 +37,12 @@
                 "num_boundary_violations": 0
             },
             "sensitivity_analysis": {
-                "num_generated_tests": 12,
+                "num_generated_tests": 11,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
             "typed_minimization_analysis": {
-                "num_generated_tests": 8,
+                "num_generated_tests": 9,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
