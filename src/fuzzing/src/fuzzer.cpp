@@ -801,9 +801,9 @@ fuzzer::fuzzer(termination_info const&  info)
 
     , max_input_width{ 0U }
 
-    , generator_for_iid_location_selection{}
-    , generator_for_iid_approach_selection{}
-    , generator_for_generator_selection{}
+    , generator_for_iid_location_selection{ 1U }
+    , generator_for_iid_approach_selection{ 1U }
+    , generator_for_generator_selection{ 1U }
 
     , statistics{}
 {}
