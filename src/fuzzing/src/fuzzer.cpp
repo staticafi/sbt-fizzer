@@ -796,6 +796,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
+    , input_flow{ sala_program_ptr }
     , sensitivity{}
     , typed_minimization{}
     , minimization{}
@@ -830,6 +831,7 @@ void  fuzzer::terminate()
 
 void  fuzzer::stop_all_analyzes()
 {
+    input_flow.stop();
     sensitivity.stop();
     typed_minimization.stop();
     minimization.stop();

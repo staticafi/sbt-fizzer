@@ -136,6 +136,55 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
 
     ostr << shift << "\"num_executions\": " << results.num_executions << ",\n"
          << shift << "\"num_elapsed_seconds\": " << results.num_elapsed_seconds << ",\n"
+         << shift << "\"input_flow_analysis\": {\n"
+         << shift << shift << "\"start_calls\": " << results.input_flow_statistics.start_calls << ",\n"
+         << shift << shift << "\"stop_calls\": " << results.input_flow_statistics.stop_calls << ",\n"
+         << shift << shift << "\"num_failures\": " << results.input_flow_statistics.num_failures << ",\n"
+         << shift << shift << "\"errors\": [";
+    {
+        bool first1{ true };
+        for (std::string const&  error : results.input_flow_statistics.errors)
+        {
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n" << shift << shift << shift << error;
+        }
+        ostr << "\n";
+    }
+    ostr << shift << shift << "],\n"
+         << shift << shift << "\"warnings\": [";
+    {
+        bool first1{ true };
+        for (std::string const& warning : results.input_flow_statistics.warnings) 
+        {
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n" << shift << shift << shift << warning;
+        }
+        ostr << "\n";
+    }
+    ostr << shift << shift << "],\n"
+         << shift << shift << "\"complexity\": [";
+    {
+        bool first1{ true };
+        for (auto const& key_and_value : results.input_flow_statistics.complexity)
+        {
+            if (first1) first1 = false; else ostr << ",";
+            ostr << "\n";
+            ostr << shift << shift << shift << "{ "
+                 << "\"trace_index\": " << key_and_value.first.first
+                 << ", \"stdin_bytes\": " << key_and_value.first.second
+                 << ", \"durations\": [ ";
+            bool first2{ true };
+            for (auto const time : key_and_value.second)
+            {
+                if (first2) first2 = false; else ostr << ", ";
+                ostr << time;
+            }
+            ostr << " ] }";
+        }
+        ostr << "\n";
+    }
+    ostr << shift << shift << "]\n"
+         << shift << "},\n"
          << shift << "\"sensitivity_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.sensitivity_statistics.generated_inputs << ",\n"
          << shift << shift << "\"max_bits\": " << results.sensitivity_statistics.max_bits << ",\n"

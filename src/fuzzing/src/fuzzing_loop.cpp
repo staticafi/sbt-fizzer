@@ -122,6 +122,7 @@ analysis_outcomes  run(
     std::sort(results.covered_branchings.begin(),results.covered_branchings.end());
     results.uncovered_branchings.assign(f.get_uncovered_branchings().begin(), f.get_uncovered_branchings().end());
     std::sort(results.uncovered_branchings.begin(),results.uncovered_branchings.end());
+    results.input_flow_statistics = f.get_input_flow_statistics();
     results.sensitivity_statistics = f.get_sensitivity_statistics();
     results.typed_minimization_statistics = f.get_typed_minimization_statistics();
     results.minimization_statistics = f.get_minimization_statistics();

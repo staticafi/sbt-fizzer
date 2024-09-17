@@ -12,6 +12,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/sensitivity_analysis.hpp
     ./src/sensitivity_analysis.cpp
 
+    ./include/fuzzing/input_flow_analysis.hpp
+    ./src/input_flow_analysis.cpp
+
     ./include/fuzzing/typed_minimization_analysis.hpp
     ./src/typed_minimization_analysis.cpp
 

@@ -38,6 +38,7 @@ struct analysis_outcomes
     float_64_bit  num_elapsed_seconds{ 0.0 };
     std::vector<location_id> covered_branchings{};
     std::vector<branching_location_and_direction>  uncovered_branchings{};
+    input_flow_analysis::performance_statistics   input_flow_statistics{};
     sensitivity_analysis::performance_statistics   sensitivity_statistics{};
     typed_minimization_analysis::performance_statistics   typed_minimization_statistics{};
     minimization_analysis::performance_statistics   minimization_statistics{};
