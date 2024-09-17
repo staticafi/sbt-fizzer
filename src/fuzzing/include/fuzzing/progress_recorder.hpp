@@ -10,6 +10,8 @@
 #   include <filesystem>
 #   include <memory>
 #   include <iosfwd>
+#   include <vector>
+#   include <tuple>
 
 namespace  fuzzing {
 
@@ -71,14 +73,49 @@ struct  progress_recorder
     void  on_trace_mapped_to_tree(branching_node*  leaf_);
     void  on_execution_results_available();
 
-    void  on_strategy_turn_primary_loop_head();
-    void  on_strategy_turn_primary_sensitive();
-    void  on_strategy_turn_primary_untouched();
-    void  on_strategy_turn_primary_iid_twins();
-    void  on_strategy_turn_monte_carlo();
-    void  on_strategy_turn_monte_carlo_backward();
+    void  on_strategy_turn_primary_loop_head(branching_node* const node);
+    void  on_strategy_turn_primary_sensitive(branching_node* const node);
+    void  on_strategy_turn_primary_untouched(branching_node* const node);
+    void  on_strategy_turn_primary_iid_twins(branching_node* const node);
+    void  on_strategy_turn_monte_carlo(branching_node* const node);
+    void  on_strategy_turn_monte_carlo_backward(branching_node* const node);
     void  on_post_node_closed(branching_node*  node);
     void  flush_post_data();
+
+    enum SELECTION_REASON
+    {
+        UNKNOWN                                 = 0,
+
+        SENSITIVITY_PRIORITY_START              = 1,
+        UNTOUCHED_PRIORITY_START                = 2,
+
+        PRIORITY_STEP_NO_SENSITIVITY_PERFORMED  = 3,
+        PRIORITY_STEP_SENSITIVITY_BITS_SIZE     = 4,
+        PRIORITY_STEP_DISTANCE_TO_WIDTH         = 5,
+        PRIORITY_STEP_STDIN_SIZE                = 6,
+        PRIORITY_STEP_TRACE_INDEX               = 7,
+        PRIORITY_STEP_SUCCESOR_TRACE_INDEX      = 8,
+        
+        BEST_LOOP_HEAD                          = 9,
+        BEST_SENSITIVE                          = 10,
+        BEST_UNTOUCHED                          = 11,
+        BEST_IID_TWINS                          = 12,
+        
+        NO_SENSITIVITY_IN_INNER_NODE            = 13,
+
+        START_MONTE_CARLO                       = 14,
+        MONTE_CARLO_STEP                        = 15,
+        BEST_MONTE_CARLO                        = 16,
+
+        START_MONTE_CARLO_BACKWARD              = 17,
+        MONTE_CARLO_STEP_BACKWARD               = 18,
+        BEST_MONTE_CARLO_BACKWARD               = 19,
+
+        STARTUP                                 = 20,
+    };
+
+    void  flush_node_choosing_data();
+    void  on_node_chosen(branching_node*  node, const SELECTION_REASON  reason = UNKNOWN);
 
 private:
 
@@ -185,6 +222,21 @@ private:
         std::unordered_set<branching_node::guid_type>  closed_node_guids;
     };
 
+    struct node_chossing_data
+    {
+        node_chossing_data();
+
+        void on_node_chosen(branching_node*  node, const SELECTION_REASON  reason);
+
+        void set_output_dir(std::filesystem::path const&  dir);
+        void clear();
+        bool empty() const;
+        void save() const;
+
+        std::filesystem::path  output_dir;
+        std::vector<std::tuple<branching_node::guid_type, SELECTION_REASON>>  node_guids;
+    };
+
     progress_recorder();
 
     progress_recorder(progress_recorder const&) = delete;
@@ -216,6 +268,7 @@ private:
     branching_node*  leaf;
 
     post_analysis_data  post_data;
+    node_chossing_data  node_choosing_data;
 };
 
 

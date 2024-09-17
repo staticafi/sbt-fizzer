@@ -125,6 +125,7 @@ private:
         branching_node*  get_best(std::unordered_map<branching_node*, bool>&  targets, natural_32_bit  max_input_width);
 
         std::unordered_set<branching_node*>  loop_heads;        // Priority #1 (the highest)
+        // bool means whether the loop heads were collected
         std::unordered_map<branching_node*, bool>  sensitive;   // Priority #2
         std::unordered_map<branching_node*, bool>  untouched;   // Priority #3
         std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #4
@@ -197,7 +198,7 @@ private:
     {
         branching_node*  entry;
         branching_node*  exit;
-        branching_node*  successor;
+        // branching_node*  successor;
     };
 
     struct  iid_pivot_props
@@ -310,7 +311,7 @@ private:
     primary_coverage_target_branchings  primary_coverage_targets;
     std::unordered_map<location_id, iid_location_props>  iid_pivots;
 
-    std::unordered_set<branching_node*>  coverage_failures_with_hope;
+    std::unordered_set<branching_node*>  coverage_failures_with_hope; // EXPLAIN
 
     STATE  state;
     sensitivity_analysis  sensitivity;

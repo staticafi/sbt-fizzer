@@ -62,6 +62,7 @@ progress_recorder::progress_recorder()
     , leaf{ nullptr }
 
     , post_data{}
+    , node_choosing_data{}
 {}
 
 
@@ -100,6 +101,8 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     leaf = nullptr;
 
     post_data.clear();
+    node_choosing_data.clear();
+    node_choosing_data.node_guids.push_back({1, SELECTION_REASON::STARTUP});
 }
 
 
@@ -141,6 +144,7 @@ void  progress_recorder::stop()
     leaf = nullptr;
 
     post_data.clear();
+    node_choosing_data.clear();
 }
 
 
@@ -397,11 +401,13 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_in
     info.analysis_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
 
     post_data.set_output_dir(info.analysis_dir);
+    node_choosing_data.set_output_dir(info.analysis_dir);
 }
 
 
 void  progress_recorder::on_analysis_stop()
 {
+    
     if (!is_started() || analysis == NONE)
         return;
 
@@ -472,6 +478,9 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
     if (post_data.output_dir.empty())
         post_data.output_dir = record_dir;
+    
+    if (node_choosing_data.output_dir.empty())
+        node_choosing_data.output_dir = record_dir;
 
     std::ofstream&  ostr{ *ostr_ptr }; 
 
@@ -711,51 +720,57 @@ void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) 
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_loop_head()
+void  progress_recorder::on_strategy_turn_primary_loop_head(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::PRIMARY_LOOP_HEAD);
+    on_node_chosen(node, SELECTION_REASON::BEST_LOOP_HEAD);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_sensitive()
+void  progress_recorder::on_strategy_turn_primary_sensitive(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::PRIMARY_SENSITIVE);
+    on_node_chosen(node, SELECTION_REASON::BEST_SENSITIVE);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_untouched()
+void  progress_recorder::on_strategy_turn_primary_untouched(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::PRIMARY_UNTOUCHED);
+    on_node_chosen(node, SELECTION_REASON::BEST_UNTOUCHED);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_iid_twins()
+void  progress_recorder::on_strategy_turn_primary_iid_twins(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::PRIMARY_IID_TWINS);
+    on_node_chosen(node, SELECTION_REASON::BEST_IID_TWINS);
 }
 
 
-void  progress_recorder::on_strategy_turn_monte_carlo()
+void  progress_recorder::on_strategy_turn_monte_carlo(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO);
+    on_node_chosen(node, SELECTION_REASON::BEST_MONTE_CARLO);
 }
 
 
-void  progress_recorder::on_strategy_turn_monte_carlo_backward()
+void  progress_recorder::on_strategy_turn_monte_carlo_backward(branching_node* const node)
 {
     if (!is_started())
         return;
     post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO_BACKWARD);
+    on_node_chosen(node, SELECTION_REASON::BEST_MONTE_CARLO_BACKWARD);
 }
 
 
@@ -774,6 +789,27 @@ void  progress_recorder::flush_post_data()
     if (!post_data.empty() && std::filesystem::is_directory(post_data.output_dir))
         post_data.save();
     post_data.clear();
+}
+
+
+void progress_recorder::flush_node_choosing_data()
+{
+    if (!is_started())
+        return;
+
+    if (!node_choosing_data.empty() && std::filesystem::is_directory(node_choosing_data.output_dir))
+        node_choosing_data.save();
+
+    node_choosing_data.clear();
+}
+
+
+void  progress_recorder::on_node_chosen(branching_node* const  node, const SELECTION_REASON reason)
+{
+    if (!is_started() || node == nullptr)
+        return;
+
+    node_choosing_data.on_node_chosen(node, reason);
 }
 
 
@@ -849,5 +885,84 @@ void  progress_recorder::post_analysis_data::save() const
     ostr << "}\n";
 }
 
+
+progress_recorder::node_chossing_data::node_chossing_data()
+    : output_dir{}
+    , node_guids{}
+{
+}
+
+
+void progress_recorder::node_chossing_data::on_node_chosen(branching_node* const  node, const SELECTION_REASON  reason)
+{
+    int node_guid = node == nullptr ? 0 : node->guid();
+    node_guids.push_back({node_guid, reason});
+}
+
+
+void progress_recorder::node_chossing_data::set_output_dir(std::filesystem::path const&  dir)
+{
+    output_dir = dir;
+}
+
+
+void progress_recorder::node_chossing_data::clear()
+{
+    output_dir.clear();
+    node_guids.clear();
+}
+
+
+bool progress_recorder::node_chossing_data::empty() const
+{
+    return node_guids.empty();
+}
+
+
+void progress_recorder::node_chossing_data::save() const
+{
+    TMPROF_BLOCK();
+
+    std::filesystem::path const  record_pathname = output_dir / "node_choosing.json";
+    std::ofstream  ostr{ record_pathname.c_str(), std::ios::binary };
+    if (!ostr.is_open())
+        throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
+    ostr << "{\n";
+
+    ostr << "\"node_guids\": [\n";
+    for (auto  it = node_guids.begin(); it != node_guids.end(); ++it)
+    {
+        ostr << "{\"guid\": " << std::get<0>(*it) << ", \"reason\": \"";
+        switch (std::get<1>(*it))
+        {
+            case SELECTION_REASON::UNKNOWN: ostr << "UNKNOWN"; break;
+            case SELECTION_REASON::SENSITIVITY_PRIORITY_START: ostr << "SENSITIVITY_PRIORITY_START"; break;
+            case SELECTION_REASON::UNTOUCHED_PRIORITY_START: ostr << "UNTOUCHED_PRIORITY_START"; break;
+            case SELECTION_REASON::PRIORITY_STEP_NO_SENSITIVITY_PERFORMED: ostr << "PRIORITY_STEP_NO_SENSITIVITY_PERFORMED"; break;
+            case SELECTION_REASON::PRIORITY_STEP_SENSITIVITY_BITS_SIZE: ostr << "PRIORITY_STEP_SENSITIVITY_BITS_SIZE"; break;
+            case SELECTION_REASON::PRIORITY_STEP_DISTANCE_TO_WIDTH: ostr << "PRIORITY_STEP_DISTANCE_TO_WIDTH"; break;
+            case SELECTION_REASON::PRIORITY_STEP_STDIN_SIZE: ostr << "PRIORITY_STEP_STDIN_SIZE"; break;
+            case SELECTION_REASON::PRIORITY_STEP_TRACE_INDEX: ostr << "PRIORITY_STEP_TRACE_INDEX"; break;
+            case SELECTION_REASON::PRIORITY_STEP_SUCCESOR_TRACE_INDEX: ostr << "PRIORITY_STEP_SUCCESOR_TRACE_INDEX"; break;
+            case SELECTION_REASON::BEST_LOOP_HEAD: ostr << "BEST_LOOP_HEAD"; break;
+            case SELECTION_REASON::BEST_SENSITIVE: ostr << "BEST_SENSITIVE"; break;
+            case SELECTION_REASON::BEST_UNTOUCHED: ostr << "BEST_UNTOUCHED"; break;
+            case SELECTION_REASON::BEST_IID_TWINS: ostr << "BEST_IID_TWINS"; break;
+            case SELECTION_REASON::NO_SENSITIVITY_IN_INNER_NODE : ostr << "NO_SENSITIVITY_IN_INNER_NODE"; break;
+            case SELECTION_REASON::START_MONTE_CARLO: ostr << "START_MONTE_CARLO"; break;
+            case SELECTION_REASON::MONTE_CARLO_STEP: ostr << "MONTE_CARLO_STEP"; break;
+            case SELECTION_REASON::BEST_MONTE_CARLO: ostr << "BEST_MONTE_CARLO"; break;
+            case SELECTION_REASON::START_MONTE_CARLO_BACKWARD: ostr << "START_MONTE_CARLO_BACKWARD"; break;
+            case SELECTION_REASON::MONTE_CARLO_STEP_BACKWARD: ostr << "MONTE_CARLO_STEP_BACKWARD"; break;
+            case SELECTION_REASON::BEST_MONTE_CARLO_BACKWARD: ostr << "BEST_MONTE_CARLO_BACKWARD"; break;
+            case SELECTION_REASON::STARTUP: ostr << "STARTUP"; break;
+            default: UNREACHABLE(); break;
+        }
+        ostr << "\"}";
+        if (std::next(it) != node_guids.end()) ostr << ",\n";
+    }
+    ostr << "]\n";
+    ostr << "}\n";    
+}
 
 }

@@ -5,6 +5,8 @@
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
 #include <map>
+#include <iostream>
+#include <fstream>
 
 namespace  fuzzing {
 
@@ -165,7 +167,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     {
         best_node = *loop_heads.begin();
         ++statistics->strategy_primary_loop_head;
-        recorder().on_strategy_turn_primary_loop_head();
+        recorder().on_strategy_turn_primary_loop_head(best_node);
         return best_node;
     }
 
@@ -175,7 +177,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
         if (!loop_heads.empty())
             return get_best(max_input_width);
         ++statistics->strategy_primary_sensitive;
-        recorder().on_strategy_turn_primary_sensitive();
+        recorder().on_strategy_turn_primary_sensitive(best_node);
         return best_node;
     }
 
@@ -184,8 +186,9 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     {
         if (!loop_heads.empty())
             return get_best(max_input_width);
+
         ++statistics->strategy_primary_untouched;
-        recorder().on_strategy_turn_primary_untouched();
+        recorder().on_strategy_turn_primary_untouched(best_node);
         return best_node;
     }
 
@@ -200,7 +203,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
                 return get_best(max_input_width);
         }
         ++statistics->strategy_primary_iid_twins;
-        recorder().on_strategy_turn_primary_iid_twins();
+        recorder().on_strategy_turn_primary_iid_twins(it->second.first);
         return it->second.first;
     }
 
@@ -229,26 +232,52 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
         bool  operator<(branching_node_with_less_than const&  other) const
         {
             if (node->sensitivity_performed && !other.node->sensitivity_performed)
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_NO_SENSITIVITY_PERFORMED);
                 return true;
+            }
             if (!node->sensitivity_performed && other.node->sensitivity_performed)
                 return false;
+
             if (node->sensitive_stdin_bits.size() < other.node->sensitive_stdin_bits.size())
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SENSITIVITY_BITS_SIZE);
                 return true;
+            }
             if (node->sensitive_stdin_bits.size() > other.node->sensitive_stdin_bits.size())
                 return false;
+
             if (distance_to_central_input_width_class < other.distance_to_central_input_width_class)
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_DISTANCE_TO_WIDTH);
                 return true;
+            }
             if (distance_to_central_input_width_class > other.distance_to_central_input_width_class)
                 return false;
+                
             if (node->get_num_stdin_bytes() < other.node->get_num_stdin_bytes())
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_STDIN_SIZE);
                 return true;
+            }
             if (node->get_num_stdin_bytes() > other.node->get_num_stdin_bytes())
                 return false;
+
             if (node->trace_index < other.node->trace_index)
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_TRACE_INDEX);
                 return true;
+            }
             if (node->trace_index > other.node->trace_index)
                 return false;
-            return node->max_successors_trace_index > other.node->max_successors_trace_index;
+
+            if (node->max_successors_trace_index > other.node->max_successors_trace_index)
+            {
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESOR_TRACE_INDEX);
+                return true;
+            }
+            return false;
+            // return node->max_successors_trace_index > other.node->max_successors_trace_index;
         }
     private:
         branching_node*  node;
@@ -256,6 +285,13 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
     };
 
     branching_node_with_less_than  best{ targets.begin()->first, max_input_width };
+    
+    if (targets == sensitive)
+        recorder().on_node_chosen(targets.begin()->first, fuzzing::progress_recorder::SENSITIVITY_PRIORITY_START);
+    
+    if (targets == untouched)
+        recorder().on_node_chosen(targets.begin()->first, fuzzing::progress_recorder::UNTOUCHED_PRIORITY_START);
+
     for (auto  it = std::next(targets.begin()); it != targets.end(); ++it)
     {
         branching_node_with_less_than const  current{ it->first, max_input_width };
@@ -382,7 +418,7 @@ void  fuzzer::detect_loops_along_path_to_node(
     struct  loop_exit_props
     {
         branching_node*  exit;
-        branching_node*  successor;
+        // branching_node*  successor;
         natural_32_bit  index;
     };
 
@@ -399,7 +435,7 @@ void  fuzzer::detect_loops_along_path_to_node(
         if (it == pointers_to_branching_stack.end())
         {
             pointers_to_branching_stack.insert({ node->get_location_id(), (natural_32_bit)branching_stack.size() });
-            branching_stack.push_back({ node, succ_node, 0U });
+            branching_stack.push_back({ node,  0U });
         }
         else
         {
@@ -410,7 +446,7 @@ void  fuzzer::detect_loops_along_path_to_node(
                 if (props.index == 0U)
                 {
                     props.index = (natural_32_bit)loops->size();
-                    loops->push_back({ node, props.exit, props.successor });
+                    loops->push_back({ node, props.exit });
                 }
                 else
                     loops->at(props.index).entry = node;
@@ -452,11 +488,11 @@ void  fuzzer::compute_loop_boundaries(
             loop_boundaries.push_back(props.entry);
             stored.insert(props.entry);
         }
-        if (!stored.contains(props.successor))
-        {
-            loop_boundaries.push_back(props.successor);
-            stored.insert(props.successor);
-        }
+        // if (!stored.contains(props.successor))
+        // {
+        //     loop_boundaries.push_back(props.successor);
+        //     stored.insert(props.successor);
+        // }
     }
     std::sort(
             loop_boundaries.begin(),
@@ -671,6 +707,7 @@ branching_node*  fuzzer::monte_carlo_search(
         if (successor == nullptr)
             break;
         pivot = successor;
+        recorder().on_node_chosen(pivot, fuzzing::progress_recorder::MONTE_CARLO_STEP);
     }
 
     INVARIANT(pivot != nullptr && pivot->is_open_branching());
@@ -893,7 +930,7 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
         {
             case STARTUP:
                 if (get_performed_driver_executions() == 0U)
-                    return;
+                    return; // Fizzer input is empty
                 break;
 
             case SENSITIVITY:
@@ -924,6 +961,7 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
             default: { UNREACHABLE(); break; }
         }
 
+        recorder().flush_node_choosing_data();
         do_cleanup();
         select_next_state();
 
@@ -1451,6 +1489,7 @@ void  fuzzer::select_next_state()
                 winner = right;
             else
                 break;
+            recorder().on_node_chosen(winner, fuzzing::progress_recorder::NO_SENSITIVITY_IN_INNER_NODE);
         }
         sensitivity.start(winner, num_driver_executions);
         state = SENSITIVITY;
@@ -1535,7 +1574,7 @@ branching_node*  fuzzer::select_iid_coverage_target() const
         else
             winner = node_and_direction.first;
 
-        recorder().on_strategy_turn_monte_carlo_backward();
+        recorder().on_strategy_turn_monte_carlo_backward(winner);
     }
     else
     {
@@ -1546,10 +1585,11 @@ branching_node*  fuzzer::select_iid_coverage_target() const
                 entry_branching
                 );
 
+        recorder().on_node_chosen(start_node, fuzzing::progress_recorder::START_MONTE_CARLO);
         winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
 
         ++statistics.strategy_monte_carlo;
-        recorder().on_strategy_turn_monte_carlo();
+        recorder().on_strategy_turn_monte_carlo(winner);
     }
     
     INVARIANT(winner != nullptr);
