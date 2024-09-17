@@ -14,5 +14,5 @@
 	path = src/tools/salat
 	url = https://github.com/staticafi/binsalat.git
 [submodule "benchmarks/salat"]
-	path = benchmarks/salat
+	path = benchmarks/salatd
 	url = https://github.com/staticafi/datsalat.git
