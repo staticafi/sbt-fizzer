@@ -972,7 +972,7 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
-auto fuzzing::fuzzer::iid_node_dependence::node_navigation::operator<=>(node_navigation const &other) const
+auto fuzzing::fuzzer::node_navigation::operator<=>(node_navigation const &other) const
 {
     if (auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
         return cmp;
@@ -982,11 +982,9 @@ auto fuzzing::fuzzer::iid_node_dependence::node_navigation::operator<=>(node_nav
 
 void fuzzer::process_node_dependance(branching_node *node)
 {
-    using deps_props = iid_node_dependence::iid_dependence_props;
-
     if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
         return;
-    deps_props &props = iid_dependences.id_to_equation_map[node->get_location_id()];
+    iid_dependence_props &props = iid_dependences.id_to_equation_map[node->get_location_id()];
 
     props.all_paths.push_back(node);
 
@@ -998,9 +996,8 @@ void fuzzer::process_node_dependance(branching_node *node)
     props.add_equation(node);
 }
 
-bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interesting_nodes(branching_node *node)
+bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_node *node)
 {
-    using node_nav = iid_node_dependence::node_navigation;
     bool set_changed = false;
 
     auto get_path = [](branching_node *node)
@@ -1015,11 +1012,15 @@ bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interest
         return path;
     };
 
-    auto add_to_interesting = [this, &set_changed](branching_node *node, size_t i)
+    auto add_to_interesting = [this, &set_changed](std::vector<branching_node *> &nodes, int i)
     {
-        while (i > 1)
+        for (; i >= 0; --i)
         {
+            branching_node *node = nodes[i];
             branching_node *predecessor = node->predecessor;
+
+            if (predecessor == nullptr)
+                continue;
 
             bool direction = node == predecessor->successor(true).pointer;
             auto result = this->interesting_nodes.emplace(node->get_location_id(), direction);
@@ -1027,9 +1028,6 @@ bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interest
             {
                 set_changed = true;
             }
-
-            node = node->predecessor;
-            --i;
         }
     };
 
@@ -1049,16 +1047,15 @@ bool fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::update_interest
             --i_2;
         }
 
-        add_to_interesting(path_1[i_1], i_1);
-        add_to_interesting(path_2[i_2], i_2);
+        add_to_interesting(path_1, i_1);
+        add_to_interesting(path_2, i_2);
     }
 
     return set_changed;
 }
 
-void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matrix()
+void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 {
-    using node_nav = iid_node_dependence::node_navigation;
     if (all_paths.empty())
         return;
 
@@ -1070,18 +1067,16 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::recompute_matri
     }
 }
 
-void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(branching_node *path)
+void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
 {
-    using node_nav = iid_node_dependence::node_navigation;
-    
-    std::map<iid_node_dependence::node_navigation, int> directions_in_path;
+    std::map<node_navigation, int> directions_in_path;
 
     branching_node *node = path;
     branching_node *prev_node = node->predecessor;
 
     while (prev_node != nullptr)
     {
-        node_nav nav = {prev_node->get_location_id(), prev_node->successor(true).pointer == node};
+        node_navigation nav = {prev_node->get_location_id(), prev_node->successor(true).pointer == node};
         directions_in_path[nav]++;
 
         node = prev_node;
@@ -1098,7 +1093,7 @@ void fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::add_equation(br
     best_values.push_back(node->best_coverage_value);
 }
 
-std::vector<float> fuzzing::fuzzer::iid_node_dependence::iid_dependence_props::approximate_matrix()
+std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix()
 {
     const float learning_rate = 0.01f;
     const int max_iterations = 1000;
