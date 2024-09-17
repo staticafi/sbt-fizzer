@@ -71,7 +71,7 @@ find_package(Threads REQUIRED)
 # find and add Boost
 message("Searching for Boost library ...")
 set(Boost_USE_STATIC_LIBS   ON)
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem json)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
     Libs ${Boost_LIBRARIES}")

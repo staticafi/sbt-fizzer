@@ -12,3 +12,8 @@ add_subdirectory(./instrumenter)
     message("  instrumenter")
 add_subdirectory(./runner)
     message("  runner")
+
+set(BINSALAC_INSTALL_DIR "./tools/salac")
+add_subdirectory(./salac)
+set(BINSALAT_INSTALL_DIR "./tools/salat")
+add_subdirectory(./salat)
