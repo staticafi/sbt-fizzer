@@ -1077,7 +1077,8 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
     while (prev_node != nullptr)
     {
         node_navigation nav = {prev_node->get_location_id(), prev_node->successor(true).pointer == node};
-        directions_in_path[nav]++;
+        if (interesting_nodes.contains(nav))
+            directions_in_path[nav]++;
 
         node = prev_node;
         prev_node = node->predecessor;
@@ -1093,16 +1094,16 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
     best_values.push_back(node->best_coverage_value);
 }
 
-std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix()
+std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
 {
-    const float learning_rate = 0.01f;
+    const float learning_rate = 0.001f;
     const int max_iterations = 1000;
     const float tolerance = 1e-6f;
 
     size_t m = matrix.size();
     size_t n = matrix[0].size();
 
-    std::vector<float> weights(n, 0.0f); // Initialize weights to zero
+    std::vector<float> weights(n, 1.0f); // Initialize weights to zero
 
     for (int iter = 0; iter < max_iterations; ++iter)
     {
@@ -1119,7 +1120,7 @@ std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix()
             float error = dot_product - best_values[i];
             for (size_t j = 0; j < n; ++j)
             {
-                gradient[j] += matrix[i][j] * error;
+                gradient[j] += (matrix[i][j] * error) / m;
             }
         }
 
@@ -1772,6 +1773,21 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     }
     
     INVARIANT(winner != nullptr);
+
+    const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(winner->get_location_id());
+    std::vector<float> weights = props.approximate_matrix();
+
+    std::cout << weights.size() << " " << props.interesting_nodes.size() << std::endl;
+
+    std::cout << "ID: " << winner->get_location_id().id << std::endl;
+    for (const auto& node : props.interesting_nodes){
+        std::cout << node.node_id.id << " " << node.direction << std::endl;
+    }
+    std::cout << std::endl;
+    for (const auto& weight : weights) {
+        std::cout << weight << " ";
+    }
+    std::cout << std::endl;
 
     return winner;
 }

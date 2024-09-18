@@ -236,7 +236,7 @@ private:
         bool update_interesting_nodes(branching_node* node);
         void recompute_matrix();
         void add_equation(branching_node* path);
-        std::vector<float> approximate_matrix();
+        std::vector<float> approximate_matrix() const;
     };
 
     struct iid_node_dependence
