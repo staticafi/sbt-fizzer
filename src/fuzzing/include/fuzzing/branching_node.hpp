@@ -100,7 +100,6 @@ struct  branching_node
         return  (is_direction_unexplored(false) || is_direction_unexplored(true)) &&
                 (!sensitivity_performed || (!sensitive_stdin_bits.empty() && (!bitshare_performed || !minimization_performed)));
     }
-    bool  is_did_branching() const { return sensitivity_performed && !sensitive_stdin_bits.empty(); }
     bool  is_iid_branching() const { return sensitivity_performed && sensitive_stdin_bits.empty(); }
 
     bool  is_direction_explored(bool const  direction) const
