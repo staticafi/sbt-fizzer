@@ -66,12 +66,12 @@ void  typed_minimization_analysis::start(
     execution_id = execution_id_;
 
     path.clear();
-    for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
-        path.push_back({ n->id, n->successor_direction(s) });
+    for (branching_node* n = node->get_predecessor(), *s = node; n != nullptr; s = n, n = n->get_predecessor())
+        path.push_back({ n->get_location_id(), n->successor_direction(s) });
     std::reverse(path.begin(), path.end());
 
     std::map<natural_32_bit, std::pair<type_of_input_bits, std::vector<natural_8_bit> > >  start_bits_to_indices;
-    for (stdin_bit_index  idx : node->sensitive_stdin_bits)
+    for (stdin_bit_index  idx : node->get_sensitive_stdin_bits())
     {
         natural_32_bit const  type_index = bits_and_types->type_index(idx);
         natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
@@ -109,7 +109,7 @@ void  typed_minimization_analysis::start(
     stopped_early = false;
 
     ++statistics.start_calls;
-    statistics.max_bits = std::max(statistics.max_bits, node->sensitive_stdin_bits.size());
+    statistics.max_bits = std::max(statistics.max_bits, node->get_sensitive_stdin_bits().size());
 
     recorder().on_typed_minimization_start(node, from_variables_to_input, types_of_variables, bits_and_types);
 }
@@ -135,8 +135,7 @@ void  typed_minimization_analysis::stop()
         ++statistics.stop_calls_regular;
     }
 
-    node->minimization_performed = true;
-    node->minimization_start_execution = execution_id;
+    node->set_coverage_performed(execution_id);
 
     state = READY;
 }
@@ -144,7 +143,7 @@ void  typed_minimization_analysis::stop()
 
 natural_32_bit  typed_minimization_analysis::max_num_executions() const
 {
-    return (natural_32_bit)(100U * node->sensitive_stdin_bits.size());
+    return (natural_32_bit)(100U * node->get_sensitive_stdin_bits().size());
 }
 
 
@@ -218,7 +217,7 @@ void  typed_minimization_analysis::process_execution_results(execution_trace_poi
         ++it_path;
     }
     branching_function_value_type const  function_value =
-            it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value) ? it->value : INFINITY;
+            it_path == path.end() && it != trace_ptr->end() && it->id == node->get_location_id() && std::isfinite(it->value) ? it->value : INFINITY;
 
     hashes_of_generated_bits.insert({ executed_variable_values_hash, function_value });
 

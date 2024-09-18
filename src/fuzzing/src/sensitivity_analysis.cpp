@@ -32,24 +32,24 @@ bool  sensitivity_analysis::is_mutated_bit_index_valid() const
 
 bool  sensitivity_analysis::is_mutated_type_index_valid() const
 {
-    return mutated_type_index < node->best_stdin->types.size() &&
-                node->best_stdin->type_end_bit_index(mutated_type_index) < node->get_num_stdin_bits();
+    return mutated_type_index < node->get_best_stdin()->types.size() &&
+                node->get_best_stdin()->type_end_bit_index(mutated_type_index) < node->get_num_stdin_bits();
 }
 
 
 void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
-    ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
+    ASSUMPTION(node_ptr != nullptr && node_ptr->get_best_stdin() && node_ptr->get_best_trace() != nullptr);
+    ASSUMPTION(node_ptr->get_best_trace()->size() > node_ptr->get_trace_index());
     ASSUMPTION(
         [node_ptr]() -> bool {
             branching_node*  n = node_ptr;
-            for (trace_index_type  i = n->get_trace_index() + 1U; i > 0U; --i, n = n->predecessor)
+            for (trace_index_type  i = n->get_trace_index() + 1U; i > 0U; --i, n = n->get_predecessor())
             {
-                if (n == nullptr || n->id != node_ptr->best_trace->at(i - 1U).id)
+                if (n == nullptr || n->get_location_id() != node_ptr->get_best_trace()->at(i - 1U).id)
                     return false;
-                if (i > 1U && n->predecessor->successor_direction(n) != node_ptr->best_trace->at(i - 2U).direction)
+                if (i > 1U && n->get_predecessor()->successor_direction(n) != node_ptr->get_best_trace()->at(i - 2U).direction)
                     return false;
             }
             return n == nullptr;
@@ -57,8 +57,8 @@ void  sensitivity_analysis::start(branching_node* const  node_ptr, natural_32_bi
         );
 
     state = BUSY;
-    bits_and_types = node_ptr->best_stdin;
-    trace = node_ptr->best_trace;
+    bits_and_types = node_ptr->get_best_stdin();
+    trace = node_ptr->get_best_trace();
     mutated_bit_index = 0;
     mutated_type_index = 0;
     mutated_value_index = 0;
@@ -117,12 +117,11 @@ bool  sensitivity_analysis::generate_next_input(vecb&  bits_ref)
     }
     else if (!generate_next_typed_value(bits_ref))
     {
-        for (branching_node* n = node; n != nullptr; n = n->predecessor)
+        for (branching_node* n = node; n != nullptr; n = n->get_predecessor())
         {
-            if (!n->sensitivity_performed)
+            if (!n->was_sensitivity_performed())
                 changed_nodes.insert(n);
-            n->sensitivity_performed = true;
-            n->sensitivity_start_execution = execution_id;
+            n->set_sensitivity_performed(execution_id);
         }
 
         stop();
@@ -144,7 +143,7 @@ bool  sensitivity_analysis::write_bits(vecb&  bits_ref, T const  (&values)[N])
         return false;
     }
 
-    probed_bit_start_index = node->best_stdin->type_start_bit_index(mutated_type_index);
+    probed_bit_start_index = node->get_best_stdin()->type_start_bit_index(mutated_type_index);
     probed_bit_end_index = probed_bit_start_index + 8 * sizeof(T);
 
     vecb  bits;
@@ -162,7 +161,7 @@ bool  sensitivity_analysis::write_bits(vecb&  bits_ref, T const  (&values)[N])
 bool  sensitivity_analysis::generate_next_typed_value(vecb&  bits_ref)
 {
     for ( ; is_mutated_type_index_valid(); ++mutated_type_index)
-        switch (node->best_stdin->types.at(mutated_type_index))
+        switch (node->get_best_stdin()->types.at(mutated_type_index))
         {
         case type_of_input_bits::BOOLEAN:
             break;
@@ -310,15 +309,12 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
         branching_coverage_info const&  info_orig = trace->at(i);
         branching_coverage_info const&  info_curr = trace_ptr->at(i);
 
-        INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->id);
+        INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->get_location_id());
 
         if (info_orig.value != info_curr.value)
             for (stdin_bit_index j = probed_bit_start_index, j_end = std::min(probed_bit_end_index, n->get_num_stdin_bits()); j < j_end; ++j)
-            {
-                auto const  it_and_state = n->sensitive_stdin_bits.insert(j);
-                if (it_and_state.second)
+                if (n->insert_sensitive_stdin_bit(j))
                     changed_nodes.insert(n);
-            }
 
         if (info_orig.direction != info_curr.direction)
             break;        

@@ -3,9 +3,6 @@
 
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/input_flow_analysis.hpp>
-#   include <fuzzing/sensitivity_analysis.hpp>
-#   include <fuzzing/typed_minimization_analysis.hpp>
-#   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
@@ -21,9 +18,6 @@
 #   include <limits>
 
 namespace  fuzzing {
-
-
-using namespace instrumentation;
 
 
 struct  fuzzer final
@@ -81,9 +75,6 @@ struct  fuzzer final
     std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
     input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow.get_statistics(); }
-    sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
-    typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
-    minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
 
@@ -93,9 +84,8 @@ private:
     {
         STARTUP,
         SENSITIVITY,
-        TYPED_MINIMIZATION,
-        MINIMIZATION,
         BITSHARE,
+        COVERAGE,
         FINISHED
     };
 
@@ -323,9 +313,6 @@ private:
 
     STATE  state;
     input_flow_analysis  input_flow;
-    sensitivity_analysis  sensitivity;
-    typed_minimization_analysis  typed_minimization;
-    minimization_analysis  minimization;
     bitshare_analysis  bitshare;
 
     natural_32_bit  max_input_width;

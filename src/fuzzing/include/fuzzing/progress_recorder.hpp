@@ -94,7 +94,7 @@ private:
     struct  analysis_common_info
     {
         virtual ~analysis_common_info() = default;
-        virtual natural_32_bit  get_num_coverage_failure_resets() const { return node->num_coverage_failure_resets; }
+        virtual natural_32_bit  get_num_coverage_failure_resets() const { return node->get_num_coverage_failure_resets(); }
         virtual void  save_info(std::ostream&  ostr) const {}
         void  save() const;
 

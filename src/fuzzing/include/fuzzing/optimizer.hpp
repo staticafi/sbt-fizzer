@@ -12,9 +12,6 @@
 namespace  fuzzing {
 
 
-using namespace instrumentation;
-
-
 struct optimization_outcomes;
 
 

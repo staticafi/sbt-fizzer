@@ -157,7 +157,7 @@ input_flow_analysis::input_flow::input_flow(
     REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_float, this->start_input_flow(sizeof(float)) );
     REGISTER_EXTERN_FUNCTION_PROCESSOR(__VERIFIER_nondet_double, this->start_input_flow(sizeof(double)) );
 
-    for (branching_node* n = analysis_->node; n != nullptr; n = n->predecessor)
+    for (branching_node* n = analysis_->node; n != nullptr; n = n->get_predecessor())
         path_nodes_.push_back(n);
     std::reverse(path_nodes_.begin(), path_nodes_.end());
     for (std::size_t i = 1ULL; i < path_nodes_.size(); ++i)
@@ -220,7 +220,7 @@ void input_flow_analysis::input_flow::do_ret()
         for (std::size_t i = 0ULL; i != sizeof(branching_function_value_type); ++i)
             for (auto const& desc : read(ptr + i)->descriptors())
                 for (std::size_t j = 0ULL; j != 8ULL; ++j)
-                    if (current_node->sensitive_stdin_bits.insert((stdin_bit_index)(8ULL * desc + j)).second)
+                    if (current_node->insert_sensitive_stdin_bit((stdin_bit_index)(8ULL * desc + j)))
                         analysis_->changed_nodes.insert(current_node);
 
         ++path_index_;
@@ -256,16 +256,16 @@ input_flow_analysis::input_flow_analysis(sala::Program const* const sala_program
 void  input_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     ASSUMPTION(is_ready());
-    ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
-    ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
+    ASSUMPTION(node_ptr != nullptr && node_ptr->get_best_stdin() && node_ptr->get_best_trace() != nullptr);
+    ASSUMPTION(node_ptr->get_best_trace()->size() > node_ptr->get_trace_index());
     ASSUMPTION(
         [node_ptr]() -> bool {
             branching_node*  n = node_ptr;
-            for (trace_index_type  i = n->get_trace_index() + 1U; i > 0U; --i, n = n->predecessor)
+            for (trace_index_type  i = n->get_trace_index() + 1U; i > 0U; --i, n = n->get_predecessor())
             {
-                if (n == nullptr || n->id != node_ptr->best_trace->at(i - 1U).id)
+                if (n == nullptr || n->get_location_id() != node_ptr->get_best_trace()->at(i - 1U).id)
                     return false;
-                if (i > 1U && n->predecessor->successor_direction(n) != node_ptr->best_trace->at(i - 2U).direction)
+                if (i > 1U && n->get_predecessor()->successor_direction(n) != node_ptr->get_best_trace()->at(i - 2U).direction)
                     return false;
             }
             return n == nullptr;
@@ -273,7 +273,7 @@ void  input_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit
         );
 
     state = BUSY;
-    trace = node_ptr->best_trace;
+    trace = node_ptr->get_best_trace();
     node = node_ptr;
     execution_id = execution_id_;
     changed_nodes.clear();
@@ -287,12 +287,11 @@ void  input_flow_analysis::stop()
     if (!is_busy())
         return;
 
-    for (branching_node* n = node; n != nullptr; n = n->predecessor)
+    for (branching_node* n = node; n != nullptr; n = n->get_predecessor())
     {
-        if (!n->sensitivity_performed)
+        if (!n->was_sensitivity_performed())
             changed_nodes.insert(n);
-        n->sensitivity_performed = true;
-        n->sensitivity_start_execution = execution_id;
+        n->set_sensitivity_performed(execution_id);
     }
 
     state = READY;
@@ -314,7 +313,7 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
     }
 
     vecu8 stdin_bytes;
-    bits_to_bytes(node->best_stdin->bits, stdin_bytes);
+    bits_to_bytes(node->get_best_stdin()->bits, stdin_bytes);
 
     iomodels::iomanager::instance().get_stdin()->clear();
     iomodels::iomanager::instance().get_stdout()->clear();

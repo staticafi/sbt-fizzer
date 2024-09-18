@@ -26,11 +26,11 @@ void  minimization_analysis::start(
     execution_id = execution_id_;
 
     path.clear();
-    for (branching_node* n = node->predecessor, *s = node; n != nullptr; s = n, n = n->predecessor)
-        path.push_back({ n->id, n->successor_direction(s) });
+    for (branching_node* n = node->get_predecessor(), *s = node; n != nullptr; s = n, n = n->get_predecessor())
+        path.push_back({ n->get_location_id(), n->successor_direction(s) });
     std::reverse(path.begin(), path.end());
 
-    bit_translation.assign(node->sensitive_stdin_bits.begin(), node->sensitive_stdin_bits.end());
+    bit_translation.assign(node->get_sensitive_stdin_bits().begin(), node->get_sensitive_stdin_bits().end());
     std::sort(bit_translation.begin(), bit_translation.end());
 
     std::size_t  total_samples;
@@ -85,8 +85,7 @@ void  minimization_analysis::stop()
         ++statistics.stop_calls_regular;
     }
 
-    node->minimization_performed = true;
-    node->minimization_start_execution = execution_id;
+    node->set_coverage_performed(execution_id);
 
     state = READY;
 }
@@ -238,7 +237,7 @@ void  minimization_analysis::process_execution_results(execution_trace_pointer c
             ++it;
             ++it_path;
         }
-        if (it_path == path.end() && it != trace_ptr->end() && it->id == node->id && std::isfinite(it->value))
+        if (it_path == path.end() && it != trace_ptr->end() && it->id == node->get_location_id() && std::isfinite(it->value))
             last_stdin_value = std::fabs(it->value);
     }
 

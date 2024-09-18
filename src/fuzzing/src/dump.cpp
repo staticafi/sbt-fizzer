@@ -117,10 +117,8 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         warnings.push_back("The number of created and destroyed leaf nodes differ.");
     if (results.fuzzer_statistics.nodes_created != results.fuzzer_statistics.nodes_destroyed)
         warnings.push_back("The number of created and destroyed nodes differ => Memory leak!");
-    if (results.sensitivity_statistics.start_calls != results.sensitivity_statistics.stop_calls_regular + results.sensitivity_statistics.stop_calls_early)
-        warnings.push_back("The number of starts does not match to the number of stops in the sensitivity analysis.");
-    if (results.minimization_statistics.start_calls != results.minimization_statistics.stop_calls_regular + results.minimization_statistics.stop_calls_early)
-        warnings.push_back("The number of starts does not match to the number of stops in the minimization analysis.");
+    if (results.input_flow_statistics.start_calls != results.input_flow_statistics.stop_calls)
+        warnings.push_back("The number of starts does not match to the number of stops in the input_flow analysis.");
     if (!warnings.empty())
     {
         ostr << shift << "\"WARNINGS\": [\n";
@@ -184,34 +182,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << "\n";
     }
     ostr << shift << shift << "]\n"
-         << shift << "},\n"
-         << shift << "\"sensitivity_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.sensitivity_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"max_bits\": " << results.sensitivity_statistics.max_bits << ",\n"
-         << shift << shift << "\"start_calls\": " << results.sensitivity_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.sensitivity_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.sensitivity_statistics.stop_calls_early << "\n"
-         << shift << "},\n"
-         << shift << "\"typed_minimization_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.typed_minimization_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"suppressed_repetitions\": " << results.typed_minimization_statistics.suppressed_repetitions << ",\n"
-         << shift << shift << "\"max_bits\": " << results.typed_minimization_statistics.max_bits << ",\n"
-         << shift << shift << "\"seeds_processed\": " << results.typed_minimization_statistics.seeds_processed << ",\n"
-         << shift << shift << "\"gradient_steps\": " << results.typed_minimization_statistics.gradient_steps << ",\n"
-         << shift << shift << "\"gradient_samples\": " << results.typed_minimization_statistics.gradient_samples << ",\n"
-         << shift << shift << "\"start_calls\": " << results.typed_minimization_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.typed_minimization_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.typed_minimization_statistics.stop_calls_early << "\n"
-         << shift << "},\n"
-         << shift << "\"minimization_analysis\": {\n"
-         << shift << shift << "\"generated_inputs\": " << results.minimization_statistics.generated_inputs << ",\n"
-         << shift << shift << "\"suppressed_repetitions\": " << results.minimization_statistics.suppressed_repetitions << ",\n"
-         << shift << shift << "\"max_bits\": " << results.minimization_statistics.max_bits << ",\n"
-         << shift << shift << "\"seeds_processed\": " << results.minimization_statistics.seeds_processed << ",\n"
-         << shift << shift << "\"gradient_steps\": " << results.minimization_statistics.gradient_steps << ",\n"
-         << shift << shift << "\"start_calls\": " << results.minimization_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls_regular\": " << results.minimization_statistics.stop_calls_regular << ",\n"
-         << shift << shift << "\"stop_calls_early\": " << results.minimization_statistics.stop_calls_early << "\n"
          << shift << "},\n"
          << shift << "\"bitshare_analysis\": {\n"
          << shift << shift << "\"generated_inputs\": " << results.bitshare_statistics.generated_inputs << ",\n"
