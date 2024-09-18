@@ -115,6 +115,9 @@ struct input_flow_analysis::input_flow : public sala::InputFlow
     bool  target_reached() const { return target_reached_; }
     branching_node*  get_last_visited_path_node() const { return path_index_ < path_nodes_.size() ? path_nodes_.at(path_index_) : path_nodes_.back(); }
 
+    std::size_t  path_length() const { return path_nodes_.size(); }
+    std::size_t  path_index() const { return path_index_; }
+
 private:
     void start_input_flow(std::size_t const count);
     void do_ret() override;
@@ -187,7 +190,7 @@ void input_flow_analysis::input_flow::do_ret()
                 sala::ExecState::Termination::ERROR,
                 "input_flow_analysis[extern_code]",
                 "Execution diverged from the expected path in the tree."
-                    " At path index " + std::to_string(path_index_) + ": Unexpected location ID."
+                    " At path index " + std::to_string(path_index_) + "/" + std::to_string(path_nodes_.size() - 1UL) + ": Unexpected location ID."
                     " [Expected: " + std::to_string(expected.id) +
                     ", obtained: " + std::to_string(obtained.id) + "]"
                 );
@@ -204,7 +207,7 @@ void input_flow_analysis::input_flow::do_ret()
                 sala::ExecState::Termination::ERROR,
                 "input_flow_analysis[extern_code]",
                 "Execution diverged from the expected path in the tree."
-                    " At path index " + std::to_string(path_index_) + ": Unexpected direction taken."
+                    " At path index " + std::to_string(path_index_) + "/" + std::to_string(path_nodes_.size() - 1UL) + ": Unexpected direction taken."
                     " [Expected: " + std::to_string(expected) +
                     ", obtained: " + obtained.str() + "]"
                     "[NOTE: location ID: " + std::to_string(loc.id) + "]"
@@ -250,15 +253,9 @@ input_flow_analysis::input_flow_analysis(sala::Program const* const sala_program
 {}
 
 
-bool  input_flow_analysis::is_disabled() const
-{
-    return program_ptr == nullptr;
-}
-
-
 void  input_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
-    ASSUMPTION(is_ready() && !is_disabled());
+    ASSUMPTION(is_ready());
     ASSUMPTION(node_ptr != nullptr && node_ptr->best_stdin && node_ptr->best_trace != nullptr);
     ASSUMPTION(node_ptr->best_trace->size() > node_ptr->get_trace_index());
     ASSUMPTION(
@@ -290,6 +287,14 @@ void  input_flow_analysis::stop()
     if (!is_busy())
         return;
 
+    for (branching_node* n = node; n != nullptr; n = n->predecessor)
+    {
+        if (!n->sensitivity_performed)
+            changed_nodes.insert(n);
+        n->sensitivity_performed = true;
+        n->sensitivity_start_execution = execution_id;
+    }
+
     state = READY;
     ++statistics.stop_calls;
 }
@@ -299,8 +304,14 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
 {
     TMPROF_BLOCK();
 
-    if (!is_busy() || is_disabled())
+    if (!is_busy())
         return;
+
+    if (program_ptr == nullptr)
+    {
+        stop();
+        return;
+    }
 
     vecu8 stdin_bytes;
     bits_to_bytes(node->best_stdin->bits, stdin_bytes);
@@ -317,7 +328,7 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
     extern_code  externals{ &state };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
-    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 1.0 };
+    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 10.0 };
     float_64_bit const  run_time{
             std::min(
                 remaining_seconds,
@@ -338,7 +349,8 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
     {
         statistics.errors.insert(make_problem_message(state.report(
             (state.error_message().empty() ? state.current_location_message() : " ") +
-            "Unexpected divergence from the path."
+            "At path index " + std::to_string(flow.path_index()) + "/" + std::to_string(flow.path_length() - 1UL) +
+            ": Unexpected divergence from the path."
             )));
         ++statistics.num_failures;
     }

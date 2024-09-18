@@ -916,8 +916,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 break;
 
             case SENSITIVITY:
-                if (sensitivity.generate_next_input(stdin_bits))
-                    return true;
+                input_flow.compute_sensitive_bits(num_remaining_seconds());
                 break;
 
             case TYPED_MINIMIZATION:
@@ -1199,18 +1198,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(input_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
             recorder().on_execution_results_available();
             break;
 
-        case SENSITIVITY:
-            INVARIANT(sensitivity.is_busy() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
-            recorder().on_execution_results_available();
-            sensitivity.process_execution_results(trace, entry_branching);
-            break;
 
         case TYPED_MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
+            INVARIANT(input_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_busy() && minimization.is_ready() && bitshare.is_ready());
             typed_minimization.process_execution_results(trace);
             if (typed_minimization.get_node()->is_direction_explored(false) && typed_minimization.get_node()->is_direction_explored(true))
             {
@@ -1220,7 +1214,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case MINIMIZATION:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
+            INVARIANT(input_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_busy() && bitshare.is_ready());
             minimization.process_execution_results(trace);
             if (minimization.get_node()->is_direction_explored(false) && minimization.get_node()->is_direction_explored(true))
             {
@@ -1230,14 +1224,17 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case BITSHARE:
-            INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
+            INVARIANT(input_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_busy());
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
             if (bitshare.get_node()->is_direction_explored(false) && bitshare.get_node()->is_direction_explored(true))
                 bitshare.stop();
             break;
 
-        default: UNREACHABLE(); break;
+        case SENSITIVITY: // input_flow analysis does not produce any traces - it interprets sala program.
+        default:
+            UNREACHABLE();
+            break;
     }
 
     return exe_flags;
@@ -1249,7 +1246,8 @@ void  fuzzer::do_cleanup()
     TMPROF_BLOCK();
 
     INVARIANT(
-        sensitivity.is_ready() &&
+        input_flow.is_ready() &&
+        sensitivity.is_ready() && 
         bitshare.is_ready() &&
         typed_minimization.is_ready() &&
         minimization.is_ready() &&
@@ -1259,7 +1257,7 @@ void  fuzzer::do_cleanup()
     switch (state)
     {
         case SENSITIVITY:
-            for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->predecessor)
+            for (branching_node*  node = input_flow.get_node(); node != nullptr; node = node->predecessor)
                 if (!node->is_closed())
                 {
                     update_close_flags_from(node);
@@ -1314,10 +1312,10 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(state == SENSITIVITY && sensitivity.get_node() != nullptr);
+    ASSUMPTION(state == SENSITIVITY && input_flow.get_node() != nullptr);
 
     std::vector<std::pair<branching_node*, iid_pivot_props*> >  pivots;
-    for (branching_node* node : sensitivity.get_changed_nodes())
+    for (branching_node* node : input_flow.get_changed_nodes())
         if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
         {
             iid_location_props&  loc_props = iid_pivots[node->get_location_id()];
@@ -1336,7 +1334,7 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
     std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
     std::vector<loop_boundary_props>  loops;
-    detect_loops_along_path_to_node(sensitivity.get_node(), loop_heads_to_bodies, &loops);
+    detect_loops_along_path_to_node(input_flow.get_node(), loop_heads_to_bodies, &loops);
 
     std::vector<branching_node*>  loop_boundaries;
     compute_loop_boundaries(loops, loop_boundaries);
@@ -1465,7 +1463,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
+    INVARIANT(input_flow.is_ready() && sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
 
     branching_node*  winner = nullptr;
     winner = primary_coverage_targets.get_best(max_input_width);
@@ -1482,24 +1480,7 @@ void  fuzzer::select_next_state()
 
     if (!winner->sensitivity_performed)
     {
-        while (true)
-        {
-            branching_node* const  left = winner->successor(false).pointer;
-            branching_node* const  right = winner->successor(true).pointer;
-
-            bool const  can_go_left = left != nullptr && left->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
-            bool const  can_go_right = right != nullptr && right->get_num_stdin_bytes() == winner->get_num_stdin_bytes();
-
-            if (can_go_left && can_go_right)
-                winner = left->max_successors_trace_index >= right->max_successors_trace_index ? left : right;
-            else if (can_go_left)
-                winner = left;
-            else if (can_go_right)
-                winner = right;
-            else
-                break;
-        }
-        sensitivity.start(winner, num_driver_executions);
+        input_flow.start(winner, num_driver_executions);
         state = SENSITIVITY;
     }
     else if (!winner->bitshare_performed)
@@ -1609,6 +1590,7 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {
     TMPROF_BLOCK();
 
+    INVARIANT(input_flow.is_ready() || input_flow.get_node() != node);
     INVARIANT(sensitivity.is_ready() || sensitivity.get_node() != node);
     INVARIANT(typed_minimization.is_ready() || typed_minimization.get_node() != node);
     INVARIANT(minimization.is_ready() || minimization.get_node() != node);
