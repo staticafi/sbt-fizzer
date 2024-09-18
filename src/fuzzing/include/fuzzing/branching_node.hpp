@@ -40,8 +40,6 @@ struct  branching_node
             stdin_bits_and_types_pointer  best_stdin_,
             execution_trace_pointer  best_trace_,
             br_instr_execution_trace_pointer  best_br_instr_trace_,
-            branching_function_value_type  best_coverage_value_,
-            branching_function_value_type  best_summary_value_,
             natural_32_bit  execution_number,
             bool  xor_like_branching_function_,
             BRANCHING_PREDICATE  branching_predicate_
@@ -56,8 +54,6 @@ struct  branching_node
         , best_stdin{ best_stdin_ }
         , best_trace{ best_trace_ }
         , best_br_instr_trace{ best_br_instr_trace_ }
-        , best_coverage_value{ best_coverage_value_ }
-        , best_summary_value{ best_summary_value_ }
 
         , sensitivity_performed{ false }
         , minimization_performed{ false }
@@ -121,8 +117,8 @@ struct  branching_node
     stdin_bits_and_types_pointer  best_stdin;
     execution_trace_pointer  best_trace;
     br_instr_execution_trace_pointer  best_br_instr_trace;
-    branching_function_value_type  best_coverage_value;
-    branching_function_value_type  best_summary_value;
+
+    branching_function_value_type  best_coverage_value() const { return best_trace->at(trace_index).value; }
 
     bool sensitivity_performed;
     bool minimization_performed;

@@ -87,11 +87,11 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
             branching_node* const  iid_pivot = iid_pivot_with_lowest_abs_value(node->get_location_id());
             if (iid_pivot != nullptr)
             {
-                if (std::fabs(node->best_coverage_value) < std::fabs(iid_pivot->best_coverage_value))
+                if (std::fabs(node->best_coverage_value()) < std::fabs(iid_pivot->best_coverage_value()))
                 {
                     auto const  it_and_state = iid_twins.insert({ node->get_location_id(), node_and_flag });
                     if (!it_and_state.second &&
-                            std::fabs(node->best_coverage_value) < std::fabs(it_and_state.first->second.first->best_coverage_value))
+                            std::fabs(node->best_coverage_value()) < std::fabs(it_and_state.first->second.first->best_coverage_value()))
                         it_and_state.first->second = node_and_flag;
                 }
             }
@@ -495,7 +495,7 @@ std::unordered_map<branching_node*, fuzzer::iid_pivot_props>::const_iterator  fu
     {
         iid_pivot_with_less_than(branching_node* const  pivot_, natural_32_bit const  max_input_width)
             : pivot{ pivot_ }
-            , abs_value{ std::fabs(pivot->best_coverage_value) }
+            , abs_value{ std::fabs(pivot->best_coverage_value()) }
             , distance_to_central_input_width_class{
                     std::abs((integer_32_bit)get_input_width_class(max_input_width / 2U) -
                              (integer_32_bit)get_input_width_class(pivot->get_num_stdin_bytes()))
@@ -564,7 +564,7 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
                                 (float_64_bit)hit_count[false] / ((float_64_bit)hit_count[false] + (float_64_bit)hit_count[true])
                                 };
                         hist_pack[id_and_hits.first].insert({
-                                std::fabs(it->first->best_coverage_value),
+                                std::fabs(it->first->best_coverage_value()),
                                 (float_32_bit)false_direction_probability
                                 });
                     }
@@ -979,11 +979,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     0,
                     trace->front().num_input_bytes,
                     nullptr,
-                    nullptr,
-                    nullptr,
-                    nullptr,
-                    std::numeric_limits<branching_function_value_type>::max(),
-                    std::numeric_limits<branching_function_value_type>::max(),
+                    bits_and_types,
+                    trace,
+                    br_instr_trace,
                     num_driver_executions,
                     trace->front().xor_like_branching_function,
                     trace->front().predicate
@@ -994,7 +992,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
         }
 
         construction_props.leaf = entry_branching;
-        branching_function_value_type  summary_value = 0.0;
 
         trace_index_type  trace_index = 0;
         for (; true; ++trace_index)
@@ -1053,17 +1050,11 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 }
             }
 
-            summary_value += info.value * info.value;
-            bool const  value_ok = std::isfinite(summary_value);
-            if (construction_props.leaf->best_stdin == nullptr || (value_ok && construction_props.leaf->best_summary_value > summary_value))
+            if (std::fabs(info.value) < std::fabs(construction_props.leaf->best_coverage_value()))
             {
                 construction_props.leaf->best_stdin = bits_and_types;
                 construction_props.leaf->best_trace = trace;
                 construction_props.leaf->best_br_instr_trace = br_instr_trace;
-                construction_props.leaf->best_coverage_value =
-                        value_ok ? info.value : std::numeric_limits<branching_function_value_type>::max();
-                construction_props.leaf->best_summary_value =
-                        value_ok ? summary_value : std::numeric_limits<branching_function_value_type>::max();
                 construction_props.leaf->best_value_execution = num_driver_executions;
             }
 
@@ -1091,8 +1082,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         bits_and_types,
                         trace,
                         br_instr_trace,
-                        succ_info.value,
-                        succ_info.value * succ_info.value,
                         num_driver_executions,
                         succ_info.xor_like_branching_function,
                         succ_info.predicate
@@ -1323,7 +1312,7 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
             if (pivot_it_and_state.second)
             {
                 if (loc_props.pivot_with_lowest_abs_value == nullptr
-                        || std::fabs(node->best_coverage_value) < std::fabs(loc_props.pivot_with_lowest_abs_value->best_coverage_value))
+                        || std::fabs(node->best_coverage_value()) < std::fabs(loc_props.pivot_with_lowest_abs_value->best_coverage_value()))
                     loc_props.pivot_with_lowest_abs_value = node;
 
                 pivots.push_back({ node, &pivot_it_and_state.first->second });
@@ -1625,8 +1614,8 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
                 {
                     props.pivot_with_lowest_abs_value = props.pivots.begin()->first;
                     for (auto  it = std::next(props.pivots.begin()); it != props.pivots.end(); ++it)
-                        if (std::fabs(it->first->best_coverage_value)
-                                < std::fabs(props.pivot_with_lowest_abs_value->best_coverage_value))
+                        if (std::fabs(it->first->best_coverage_value())
+                                < std::fabs(props.pivot_with_lowest_abs_value->best_coverage_value()))
                             props.pivot_with_lowest_abs_value = it->first;
                 }
             }
