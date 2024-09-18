@@ -17,13 +17,13 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 27,
+        "num_executions": 6,
         "num_covered_branchings": 1,
         "covered_branchings": [
             1,0
         ],
         "output_statistics": {
-            "sensitivity_analysis": {
+            "typed_minimization_analysis": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0

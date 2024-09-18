@@ -23,7 +23,7 @@
             2,0,    3,0
         ],
         "output_statistics": {
-            "sensitivity_analysis": {
+            "typed_minimization_analysis": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0

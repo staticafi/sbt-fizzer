@@ -1,7 +1,7 @@
 {
     "args": {
-        "max_executions": 20000,
-        "max_seconds": 300,
+        "max_executions": 1000,
+        "max_seconds": 10,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -16,15 +16,15 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 169,
-        "num_covered_branchings": 1,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "num_executions": 56,
+        "num_covered_branchings": 2,
         "covered_branchings": [
-            1,0
+            1,0,    2,0
         ],
         "output_statistics": {
-            "sensitivity_analysis": {
-                "num_generated_tests": 1,
+            "typed_minimization_analysis": {
+                "num_generated_tests": 2,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },

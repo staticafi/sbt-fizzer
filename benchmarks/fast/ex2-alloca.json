@@ -17,13 +17,13 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 4940,
+        "num_executions": 6624,
         "num_covered_branchings": 2,
         "covered_branchings": [
             1,2654435832,    2,2654435832
         ],
         "output_statistics": {
-            "sensitivity_analysis": {
+            "typed_minimization_analysis": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0

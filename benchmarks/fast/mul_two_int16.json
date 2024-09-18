@@ -16,12 +16,18 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 37,
-        "num_covered_branchings": 0,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "num_executions": 33,
+        "num_covered_branchings": 1,
         "covered_branchings": [
+            1,0
         ],
         "output_statistics": {
+            "typed_minimization_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
             "STARTUP": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,

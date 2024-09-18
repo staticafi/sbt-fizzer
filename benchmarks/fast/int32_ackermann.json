@@ -29,8 +29,8 @@
             8,3668340520,    8,3668340524
         ],
         "output_statistics": {
-            "sensitivity_analysis": {
-                "num_generated_tests": 11,
+            "typed_minimization_analysis": {
+                "num_generated_tests": 6,
                 "num_crashes": 0,
                 "num_boundary_violations": 1
             },
