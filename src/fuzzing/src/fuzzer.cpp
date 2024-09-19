@@ -42,7 +42,7 @@ void  fuzzer::primary_coverage_target_branchings::collect_loop_heads_along_path_
                 auto&  state_and_node = input_class_coverage.at(input_class);
                 if (!state_and_node.first)
                 {
-                    if (node->is_open_branching())
+                    if (node->is_pending())
                     {
                         struct  local
                         {
@@ -76,11 +76,11 @@ void  fuzzer::primary_coverage_target_branchings::process_potential_coverage_tar
 {
     auto const [node, flag] = node_and_flag;
     ASSUMPTION(node != nullptr);
-    if (node->is_open_branching() && !is_covered(node->get_location_id()))
+    if (node->is_pending() && !is_covered(node->get_location_id()))
     {
         if (node->was_sensitivity_performed())
         {
-            if (!node->get_sensitive_stdin_bits().empty() && !node->was_coverage_performed())
+            if (!node->get_sensitive_stdin_bits().empty() && !node->was_local_search_performed())
                 sensitive.insert(node_and_flag);
         }
         else
@@ -135,7 +135,7 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
     TMPROF_BLOCK();
 
     for (auto  it = loop_heads.begin(); it != loop_heads.end(); )
-        if ((*it)->is_open_branching())
+        if ((*it)->is_pending())
             ++it;
         else
             it = loop_heads.erase(it);
@@ -323,9 +323,9 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
 {
     static std::unordered_map<STATE, std::string> const  map {
         { STARTUP, "STARTUP" },
-        { SENSITIVITY, "sensitivity_analysis" },
+        { INPUT_FLOW, "input_flow" },
         { BITSHARE, "bitshare_analysis" },
-        { COVERAGE, "coverage" },
+        { LOCAL_SEARCH, "local_search" },
         { FINISHED, "FINISHED" },
     };
     return map.at(state);
@@ -334,7 +334,7 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
 
 void  fuzzer::update_close_flags_from(branching_node* const  node)
 {
-    if (node->is_closed() || node->is_open_branching())
+    if (node->is_closed() || node->is_pending())
         return;
     branching_node::successor_pointer const&  left = node->successor(false);
     if (left.pointer != nullptr && !left.pointer->is_closed())
@@ -687,7 +687,7 @@ branching_node*  fuzzer::monte_carlo_search(
         pivot = successor;
     }
 
-    INVARIANT(pivot != nullptr && pivot->is_open_branching());
+    INVARIANT(pivot != nullptr && pivot->is_pending());
 
     return pivot;
 }
@@ -760,7 +760,7 @@ branching_node*  fuzzer::monte_carlo_step(
 
     if (can_go_desired_direction)
         successor = desired_direction == false ? left : right;
-    else if (!pivot->is_open_branching())
+    else if (!pivot->is_pending())
         successor = can_go_left ? left : right;
 
     return successor;
@@ -798,6 +798,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , state{ STARTUP }
     , input_flow{ sala_program_ptr }
     , bitshare{}
+    , local_search{}
 
     , max_input_width{ 0U }
 
@@ -830,6 +831,7 @@ void  fuzzer::stop_all_analyzes()
 {
     input_flow.stop();
     bitshare.stop();
+    local_search.stop();
 }
 
 
@@ -909,7 +911,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                     return true;
                 break;
 
-            case SENSITIVITY:
+            case INPUT_FLOW:
                 input_flow.compute_sensitive_bits(num_remaining_seconds());
                 break;
 
@@ -918,8 +920,9 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                     return true;
                 break;
 
-            case COVERAGE:
-                NOT_IMPLEMENTED_YET();
+            case LOCAL_SEARCH:
+                if (local_search.generate_next_input(stdin_bits))
+                    return true;
                 break;
 
             case FINISHED:
@@ -1039,7 +1042,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             }
 
             if (!construction_props.leaf->is_direction_unexplored(false) && !construction_props.leaf->is_direction_unexplored(true))
-                construction_props.leaf->release_coverage_data();
+                construction_props.leaf->release_best_data(false);
             else if (std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
                 construction_props.leaf->update_best_data(bits_and_types, trace, br_instr_trace, num_driver_executions);
 
@@ -1172,23 +1175,29 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(input_flow.is_ready() && bitshare.is_ready());
+            INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_ready());
             recorder().on_execution_results_available();
             break;
 
         case BITSHARE:
-            INVARIANT(input_flow.is_ready() && bitshare.is_busy());
+            INVARIANT(input_flow.is_ready() && bitshare.is_busy() && local_search.is_ready());
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
-            if (!bitshare.get_node()->is_direction_unexplored(false) && !bitshare.get_node()->is_direction_unexplored(true))
+            if (!bitshare.get_node()->has_unexplored_direction())
                 bitshare.stop();
             break;
 
-        case COVERAGE:
-            NOT_IMPLEMENTED_YET();
+        case LOCAL_SEARCH:
+            INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_busy());
+            local_search.process_execution_results(trace, bits_and_types);
+            if (!local_search.get_node()->has_unexplored_direction())
+            {
+                local_search.stop();
+                bitshare.bits_available_for_branching(local_search.get_node(), trace, bits_and_types);
+            }
             break;
 
-        case SENSITIVITY: // input_flow analysis does not produce any traces - it interprets sala program.
+        case INPUT_FLOW: // input_flow analysis does not produce any traces - it interprets sala program.
         default:
             UNREACHABLE();
             break;
@@ -1205,12 +1214,13 @@ void  fuzzer::do_cleanup()
     INVARIANT(
         input_flow.is_ready() &&
         bitshare.is_ready() &&
+        local_search.is_ready() &&
         (state != FINISHED || !primary_coverage_targets.empty())
         );
 
     switch (state)
     {
-        case SENSITIVITY:
+        case INPUT_FLOW:
             for (branching_node*  node = input_flow.get_node(); node != nullptr; node = node->get_predecessor())
                 if (!node->is_closed())
                 {
@@ -1222,11 +1232,10 @@ void  fuzzer::do_cleanup()
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
             break;
-        case COVERAGE:
-            NOT_IMPLEMENTED_YET();
-            // update_close_flags_from(coverage.get_node());
-            // if (!covered_branchings.contains(coverage.get_node()->get_location_id()))
-            //     coverage_failures_with_hope.insert(coverage.get_node());
+        case LOCAL_SEARCH:
+            update_close_flags_from(local_search.get_node());
+            if (!covered_branchings.contains(local_search.get_node()->get_location_id()))
+                coverage_failures_with_hope.insert(local_search.get_node());
             break;
         default:
             break;
@@ -1262,7 +1271,7 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(state == SENSITIVITY && input_flow.get_node() != nullptr);
+    ASSUMPTION(state == INPUT_FLOW && input_flow.get_node() != nullptr);
 
     std::vector<std::pair<branching_node*, iid_pivot_props*> >  pivots;
     for (branching_node* node : input_flow.get_changed_nodes())
@@ -1413,7 +1422,7 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(input_flow.is_ready() && bitshare.is_ready());
+    INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_ready());
 
     branching_node*  winner = nullptr;
     winner = primary_coverage_targets.get_best(max_input_width);
@@ -1426,12 +1435,12 @@ void  fuzzer::select_next_state()
         return;
     }
 
-    INVARIANT(winner->is_open_branching());
+    INVARIANT(winner->is_pending());
 
     if (!winner->was_sensitivity_performed())
     {
         input_flow.start(winner, num_driver_executions);
-        state = SENSITIVITY;
+        state = INPUT_FLOW;
     }
     else if (!winner->was_bitshare_performed())
     {
@@ -1441,9 +1450,9 @@ void  fuzzer::select_next_state()
     }
     else
     {
-        INVARIANT(!winner->get_sensitive_stdin_bits().empty() && !winner->was_coverage_performed());
-        NOT_IMPLEMENTED_YET();
-        state = COVERAGE;
+        INVARIANT(!winner->was_local_search_performed() && !winner->get_sensitive_stdin_bits().empty());
+        local_search.start(winner, num_driver_executions);
+        state = LOCAL_SEARCH;
     }
 }
 
@@ -1501,7 +1510,7 @@ branching_node*  fuzzer::select_iid_coverage_target() const
         branching_node* const  successor = node_and_direction.first->successor(node_and_direction.second).pointer;
         if (successor != nullptr)
             winner = monte_carlo_search(successor, histogram, generators, *random_uniform_generator);
-        else if (!node_and_direction.first->is_open_branching())
+        else if (!node_and_direction.first->is_pending())
             winner = monte_carlo_search(node_and_direction.first, histogram, generators, *random_uniform_generator);
         else
             winner = node_and_direction.first;
@@ -1535,6 +1544,7 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 
     INVARIANT(input_flow.is_ready() || input_flow.get_node() != node);
     INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
+    INVARIANT(local_search.is_ready() || local_search.get_node() != node);
 
     if (leaf_branchings.erase(node) != 0)
         ++statistics.leaf_nodes_destroyed;
@@ -1594,9 +1604,9 @@ bool  fuzzer::apply_coverage_failures_with_hope()
 {
     for (branching_node*  node : coverage_failures_with_hope)
     {
-        INVARIANT(node->was_coverage_performed());
+        INVARIANT(node->was_local_search_performed());
 
-        if (node->get_coverage_start_execution() < node->get_best_value_execution())
+        if (node->get_local_search_start_execution() < node->get_best_value_execution())
         {
             node->perform_failure_reset();
 

@@ -4,21 +4,6 @@
 namespace  fuzzing {
 
 
-branching_node::direction_coverage_props::direction_coverage_props()
-    : bits_and_types{ nullptr }
-    , execution_id{ 0 }
-    , path{}
-    , from_variables_to_input{}
-    , types_of_variables{}
-    , num_executions{ 0U }
-    , max_executions{ 0U }
-    , progress_stage{ PARTIALS }
-    , origin{}
-    , local_spaces{}
-    , partials_props{}
-{}
-
-
 branching_node::branching_node(
         location_id const  id_,
         trace_index_type const  trace_index_,
@@ -44,16 +29,15 @@ branching_node::branching_node(
     , best_trace{ best_trace_ }
     , best_br_instr_trace{ best_br_instr_trace_ }
 
+    , sensitive_stdin_bits{}
+
     , sensitivity_performed{ false }
-    , coverage_performed{ false }
+    , local_search_performed{ false }
     , closed{ false }
 
     , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
-    , coverage_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+    , local_search_start_execution{ std::numeric_limits<natural_32_bit>::max() }
     , best_value_execution{ execution_number }
-
-    , sensitive_stdin_bits{}
-    , coverage_props{ nullptr }
 
     , max_successors_trace_index{ trace_index_ }
     , num_coverage_failure_resets{ 0U }
@@ -76,13 +60,13 @@ void  branching_node::update_best_data(
 }
 
 
-void  branching_node::release_coverage_data()
+void  branching_node::release_best_data(bool const  also_sensitive_bits)
 {
     best_stdin = nullptr;
     best_trace = nullptr;
     best_br_instr_trace = nullptr;
-    coverage_props = nullptr;
-    sensitive_stdin_bits.clear();
+    if (also_sensitive_bits)
+        sensitive_stdin_bits.clear();
 }
 
 
@@ -100,19 +84,19 @@ void  branching_node::set_bitshare_performed(natural_32_bit  execution_id)
 }
 
 
-void  branching_node::set_coverage_performed(natural_32_bit  execution_id)
+void  branching_node::set_local_search_performed(natural_32_bit  execution_id)
 {
-    coverage_performed = true;
-    coverage_start_execution = execution_id;
+    local_search_performed = true;
+    local_search_start_execution = execution_id;
 }
 
 
 void  branching_node::perform_failure_reset()
 {
     bitshare_performed = false;
-    coverage_performed = false;
+    local_search_performed = false;
     bitshare_start_execution = std::numeric_limits<natural_32_bit>::max();
-    coverage_start_execution = std::numeric_limits<natural_32_bit>::max();
+    local_search_start_execution = std::numeric_limits<natural_32_bit>::max();
     closed = false;
     ++num_coverage_failure_resets;
 }

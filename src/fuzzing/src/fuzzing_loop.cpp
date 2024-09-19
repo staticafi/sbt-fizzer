@@ -124,6 +124,7 @@ analysis_outcomes  run(
     std::sort(results.uncovered_branchings.begin(),results.uncovered_branchings.end());
     results.input_flow_statistics = f.get_input_flow_statistics();
     results.bitshare_statistics = f.get_bitshare_statistics();
+    results.local_search_statistics = f.get_local_search_statistics();
     results.fuzzer_statistics = f.get_fuzzer_statistics();
 
     return  results;

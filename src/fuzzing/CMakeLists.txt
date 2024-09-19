@@ -9,20 +9,14 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/fuzzer.hpp
     ./src/fuzzer.cpp
 
-    ./include/fuzzing/sensitivity_analysis.hpp
-    ./src/sensitivity_analysis.cpp
-
     ./include/fuzzing/input_flow_analysis.hpp
     ./src/input_flow_analysis.cpp
 
-    ./include/fuzzing/typed_minimization_analysis.hpp
-    ./src/typed_minimization_analysis.cpp
-
-    ./include/fuzzing/minimization_analysis.hpp
-    ./src/minimization_analysis.cpp
-
     ./include/fuzzing/bitshare_analysis.hpp
     ./src/bitshare_analysis.cpp
+
+    ./include/fuzzing/local_search_analysis.hpp
+    ./src/local_search_analysis.cpp
 
     ./include/fuzzing/execution_trace.hpp
     ./src/execution_trace.cpp

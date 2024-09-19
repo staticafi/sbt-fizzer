@@ -3,8 +3,6 @@
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/stdin_bits.hpp>
-#   include <fuzzing/number_overlay.hpp>
-#   include <utility/sparse_data_types.hpp>
 #   include <array>
 #   include <vector>
 #   include <unordered_set>
@@ -26,75 +24,6 @@ struct  branching_node final
 
         LABEL  label { NOT_VISITED };
         branching_node*  pointer { nullptr };
-    };
-
-    struct  direction_coverage_props
-    {
-        enum PROGRESS_STAGE
-        {
-            PARTIALS,
-            DESCENT,
-            BIT_MUTATIONS,
-            SPECIAL_VALUES
-        };
-
-        struct  mapping_to_input_bits
-        {
-            natural_32_bit  input_start_bit_index;
-            std::vector<natural_8_bit>  value_bit_indices;
-        };
-
-        struct  branching_info
-        {
-            branching_node*  node_ptr{ nullptr };
-            float_64_bit  value{ 0.0 };
-            bool  direction{ false };
-            comparator_type  predicate{ BP_EQUAL };
-            bool  xor_like_branching_function{ false };
-            std::unordered_set<natural_32_bit>  variable_indices{};
-        };
-
-        struct  spatial_constraint
-        {
-            sparse_vector  normal{};
-            scalar  param{ 0.0 };
-            comparator_type  predicate{ BP_EQUAL };
-        };
-
-        struct  local_space_of_branching
-        {
-            sparse_orthogonal_basis  orthogonal_basis{};
-            std::vector<spatial_constraint>  constraints{};
-            std::vector<std::vector<natural_32_bit> >  variable_indices{};
-            sparse_orthogonal_basis  basis_vectors_in_world_space{};
-            //vecf64  scales_of_basis_vectors_in_world_space{};
-            sparse_vector  gradient{};
-            mutable sparse_vector  sample_shift{};
-            mutable scalar  sample_value{ 0.0 };
-        };
-
-        struct  partials_stage_props
-        {
-            void clear() { *this = {}; }
-            std::vector<sparse_vector>  shifts{};
-        };
-
-        direction_coverage_props();
-
-        stdin_bits_and_types_pointer  bits_and_types;
-        natural_32_bit  execution_id;
-        std::vector<branching_info>  path;
-        std::vector<mapping_to_input_bits>  from_variables_to_input;
-        type_vector  types_of_variables;
-        natural_32_bit  num_executions;
-        natural_32_bit  max_executions;
-
-        PROGRESS_STAGE  progress_stage;
-        sparse_vector  origin;
-        // origin_set  tested_origins;
-        std::vector<local_space_of_branching>  local_spaces;
-        partials_stage_props  partials_props;
-        // gradient_descent_props  descent_props;
     };
 
     using guid_type = natural_32_bit;
@@ -142,32 +71,29 @@ struct  branching_node final
             br_instr_execution_trace_pointer  br_instr_trace_,
             natural_32_bit  execution_id_
             );
-    void  release_coverage_data();
+    void  release_best_data(bool  also_sensitive_bits = false);
 
     bool  was_sensitivity_performed() const { return sensitivity_performed; }
     bool  was_bitshare_performed() const { return bitshare_performed; }
-    bool  was_coverage_performed() const { return coverage_performed; }
+    bool  was_local_search_performed() const { return local_search_performed; }
+    bool  has_unexplored_direction() const { return is_direction_unexplored(false) || is_direction_unexplored(true); }
+    bool  has_pending_analysis() const { return !sensitivity_performed || (!sensitive_stdin_bits.empty() && (!bitshare_performed || !local_search_performed)); }
     bool  is_closed() const { return closed; }
-    bool  is_open_branching() const
-    {
-        return  (is_direction_unexplored(false) || is_direction_unexplored(true)) &&
-                (!sensitivity_performed || (!sensitive_stdin_bits.empty() && (!bitshare_performed || !coverage_performed)));
-    }
     void  set_closed(bool const  state = true) { closed = state; }
+    bool  is_pending() const { return  has_unexplored_direction() && has_pending_analysis(); }
     bool  is_iid_branching() const { return sensitivity_performed && sensitive_stdin_bits.empty(); }
 
     natural_32_bit  get_sensitivity_start_execution() const { return sensitivity_start_execution; }
     natural_32_bit  get_bitshare_start_execution() const { return bitshare_start_execution; }
-    natural_32_bit  get_coverage_start_execution() const { return coverage_start_execution; }
+    natural_32_bit  get_local_search_start_execution() const { return local_search_start_execution; }
     natural_32_bit  get_best_value_execution() const { return best_value_execution; }
 
     void  set_sensitivity_performed(natural_32_bit  execution_id);
     void  set_bitshare_performed(natural_32_bit  execution_id);
-    void  set_coverage_performed(natural_32_bit  execution_id);
+    void  set_local_search_performed(natural_32_bit  execution_id);
 
     std::unordered_set<stdin_bit_index> const&  get_sensitive_stdin_bits() const { return sensitive_stdin_bits; }
     bool  insert_sensitive_stdin_bit(stdin_bit_index const  idx) { return sensitive_stdin_bits.insert(idx).second; }
-    direction_coverage_props*  get_coverage_props() { return coverage_props.get(); }
 
     trace_index_type  get_max_successors_trace_index() const { return max_successors_trace_index; }
     void  set_max_successors_trace_index(trace_index_type const  idx) { max_successors_trace_index = idx; }
@@ -192,18 +118,17 @@ private:
     execution_trace_pointer  best_trace;
     br_instr_execution_trace_pointer  best_br_instr_trace;
 
+    std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
+
     bool  sensitivity_performed;
     bool  bitshare_performed;
-    bool  coverage_performed;
+    bool  local_search_performed;
     bool  closed;
 
     natural_32_bit  sensitivity_start_execution;
     natural_32_bit  bitshare_start_execution;
-    natural_32_bit  coverage_start_execution;
+    natural_32_bit  local_search_start_execution;
     natural_32_bit  best_value_execution;
-
-    std::unordered_set<stdin_bit_index>  sensitive_stdin_bits;
-    std::unique_ptr<direction_coverage_props>  coverage_props;
 
     trace_index_type  max_successors_trace_index;
     natural_32_bit  num_coverage_failure_resets;

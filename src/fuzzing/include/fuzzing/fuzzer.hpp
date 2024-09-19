@@ -4,6 +4,7 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/input_flow_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
+#   include <fuzzing/local_search_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
 #   include <instrumentation/instrumentation_types.hpp>
 #   include <sala/program.hpp>
@@ -76,6 +77,7 @@ struct  fuzzer final
 
     input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
+    local_search_analysis::performance_statistics const&  get_local_search_statistics() const { return local_search.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
 
 private:
@@ -83,9 +85,9 @@ private:
     enum STATE
     {
         STARTUP,
-        SENSITIVITY,
+        INPUT_FLOW,
         BITSHARE,
-        COVERAGE,
+        LOCAL_SEARCH,
         FINISHED
     };
 
@@ -314,6 +316,7 @@ private:
     STATE  state;
     input_flow_analysis  input_flow;
     bitshare_analysis  bitshare;
+    local_search_analysis  local_search;
 
     natural_32_bit  max_input_width;
 

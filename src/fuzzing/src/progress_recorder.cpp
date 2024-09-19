@@ -51,9 +51,7 @@ progress_recorder::progress_recorder()
     , program_name{}
 
     , analysis{ NONE }
-    , sensitivity{}
-    , typed_minimization{}
-    , minimization{}
+    , input_flow{}
     , bitshare{}
     , counter_analysis{ 1 }
     , counter_results{ 0 }
@@ -89,9 +87,7 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     started = true;
 
     analysis = NONE;
-    sensitivity = {};
-    typed_minimization = {};
-    minimization = {};
+    input_flow = {};
     bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
@@ -130,9 +126,7 @@ void  progress_recorder::stop()
     program_name.clear();
  
     analysis = NONE;
-    sensitivity = {};
-    typed_minimization = {};
-    minimization = {};
+    input_flow = {};
     bitshare = {};
     counter_analysis = 1;
     counter_results = 0;
@@ -144,214 +138,23 @@ void  progress_recorder::stop()
 }
 
 
-void  progress_recorder::on_sensitivity_start(branching_node* const  node_ptr)
+void  progress_recorder::on_input_flow_start(branching_node* const  node_ptr)
 {
     if (!is_started())
         return;
 
-    on_analysis_start(SENSITIVITY, sensitivity, node_ptr);
+    on_analysis_start(INPUT_FLOW, input_flow, node_ptr);
 }
 
 
-void  progress_recorder::on_sensitivity_stop(STOP_ATTRIBUTE const  attribute)
+void  progress_recorder::on_input_flow_stop(STOP_ATTRIBUTE const  attribute)
 {
     if (!is_started())
         return;
 
     //save_sensitive_bits();
-    sensitivity.stop_attribute = attribute;
-    sensitivity.save();
-    on_analysis_stop();
-}
-
-
-void  progress_recorder::on_typed_minimization_start(
-        branching_node* const  node_ptr,
-        std::vector<typed_minimization_analysis::mapping_to_input_bits> const&  from_variables_to_input,
-        std::vector<type_of_input_bits> const& types_of_variables,
-        stdin_bits_and_types_pointer const  bits_and_types
-        )
-{
-    if (!is_started())
-        return;
-
-    on_analysis_start(TYPED_MINIMIZATION, typed_minimization, node_ptr);
-    typed_minimization.bits_and_types = bits_and_types;
-    typed_minimization.from_variables_to_input = from_variables_to_input;
-    typed_minimization.types_of_variables = types_of_variables;
-}
-
-
-void  progress_recorder::on_typed_minimization_execution_results_available(
-        typed_minimization_analysis::PROGRESS_STAGE const  progress_stage,
-        std::vector<typed_minimization_analysis::value_of_variable> const&  variable_values,
-        branching_function_value_type const  function_value,
-        std::size_t const  variables_hash
-        )
-{
-    if (!is_started())
-        return;
-
-    TMPROF_BLOCK();
-
-    auto const  ostr_ptr{ save_default_execution_results() };
-    std::ofstream&  ostr{ *ostr_ptr };
-
-    ostr << "\"progress_stage\": \"";
-    switch (progress_stage)
-    {
-        case typed_minimization_analysis::SEED: ostr << "SEED"; break;
-        case typed_minimization_analysis::PARTIALS: ostr << "PARTIALS"; break;
-        case typed_minimization_analysis::STEP: ostr << "STEP"; break;
-    }
-    ostr << "\",\n"
-         << "\"variables_hash\": " << variables_hash << ",\n"
-         << "\"variable_values\": [\n";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)variable_values.size(); i < n; ++i)
-    {
-        switch (typed_minimization.types_of_variables.at(i))
-        {
-            case type_of_input_bits::BOOLEAN: ostr << variable_values.at(i).value_boolean; break;
-            case type_of_input_bits::UINT8: ostr << (natural_32_bit)variable_values.at(i).value_uint8; break;
-            case type_of_input_bits::SINT8: ostr << (integer_32_bit)variable_values.at(i).value_sint8; break;
-            case type_of_input_bits::UINT16: ostr << variable_values.at(i).value_uint16; break;
-            case type_of_input_bits::SINT16: ostr << variable_values.at(i).value_sint16; break;
-            case type_of_input_bits::UINT32: ostr << variable_values.at(i).value_uint32; break;
-            case type_of_input_bits::SINT32: ostr << variable_values.at(i).value_sint32; break;
-            case type_of_input_bits::UINT64: ostr << variable_values.at(i).value_uint64; break;
-            case type_of_input_bits::SINT64: ostr << variable_values.at(i).value_sint64; break;
-            case type_of_input_bits::FLOAT32: ostr << variable_values.at(i).value_float32; break;
-            case type_of_input_bits::FLOAT64: ostr << variable_values.at(i).value_float64; break;
-            default: { UNREACHABLE(); }
-        }
-        if (i + 1 < n) ostr << ",\n";
-    }
-    ostr << "],\n\"function_value\": ";
-    if (std::isfinite(function_value))
-        ostr << function_value;
-    else
-        ostr << "\"INFINITY\"";
-
-    ostr << "\n}\n";
-}
-
-
-void  progress_recorder::on_typed_minimization_execution_results_cache_hit(
-        typed_minimization_analysis::PROGRESS_STAGE  progress_stage,
-        std::size_t  variables_hash
-        )
-{
-    if (!is_started())
-        return;
-
-    typed_minimization.execution_cache_hits.push_back({ counter_results, variables_hash, progress_stage });
-}
-
-
-void  progress_recorder::on_typed_minimization_stop(STOP_ATTRIBUTE const  attribute)
-{
-    if (!is_started())
-        return;
-
-    typed_minimization.stop_attribute = attribute;
-    typed_minimization.save();
-    on_analysis_stop();
-}
-
-
-void  progress_recorder::on_minimization_start(
-        branching_node* const  node_ptr,
-        vecu32 const&  bit_translation,
-        stdin_bits_and_types_pointer const  bits_and_types
-        )
-{
-    if (!is_started())
-        return;
-
-    on_analysis_start(MINIMIZATION, minimization, node_ptr);
-    minimization.bits_and_types = bits_and_types;
-    minimization.bit_translation = bit_translation;
-}
-
-
-void  progress_recorder::on_minimization_gradient_step()
-{
-    if (!is_started())
-        return;
-
-    minimization.stage_changes.push_back({
-            std::numeric_limits<integer_32_bit>::max(),
-            minimization_analysis::gradient_descent_state::STEP
-            });
-}
-
-
-void  progress_recorder::on_minimization_execution_results_available(
-        minimization_analysis::gradient_descent_state::STAGE const stage,
-        vecb const&  bits,
-        std::size_t const  bits_hash
-        )
-{
-    if (!is_started())
-        return;
-
-    TMPROF_BLOCK();
-
-    auto const  ostr_ptr{ save_default_execution_results() };
-    std::ofstream&  ostr{ *ostr_ptr };
-
-    ostr << "\"bits_hash\": " << bits_hash << ",\n"
-         << "\"bits\": [";
-    for (natural_32_bit  i = 0U, n = (natural_32_bit)bits.size(); i < n; ++i)
-    {
-        if (i % 8U == 0U) ostr << '\n';
-        ostr << (bits.at(i) ? 1 : 0);
-        if (i + 1 < n) ostr << ',';
-    }
-
-    ostr << "]\n}\n";
-
-    for (auto  it = minimization.stage_changes.rbegin();
-            it != minimization.stage_changes.rend() && it->index == std::numeric_limits<integer_32_bit>::max();
-            ++it)
-        it->index = (integer_32_bit)counter_results;
-    if (minimization.stage_changes.empty()
-            || stage != minimization.stage_changes.back().stage
-            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
-                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
-        minimization.stage_changes.push_back({ (integer_32_bit)counter_results, stage });
-}
-
-
-void  progress_recorder::on_minimization_execution_results_cache_hit(
-        minimization_analysis::gradient_descent_state::STAGE stage,
-        std::size_t const  bits_hash
-        )
-{
-    if (!is_started())
-        return;
-
-    for (auto  it = minimization.stage_changes.rbegin();
-            it != minimization.stage_changes.rend() && it->index == std::numeric_limits<integer_32_bit>::max();
-            ++it)
-        it->index = -(integer_32_bit)minimization.execution_cache_hits.size();
-    if (minimization.stage_changes.empty()
-            || stage != minimization.stage_changes.back().stage
-            || (stage != minimization_analysis::gradient_descent_state::PARTIALS &&
-                stage != minimization_analysis::gradient_descent_state::PARTIALS_EXTENDED))
-        minimization.stage_changes.push_back({ -(integer_32_bit)minimization.execution_cache_hits.size(), stage });
-
-    minimization.execution_cache_hits.push_back({ counter_results, bits_hash });
-}
-
-
-void  progress_recorder::on_minimization_stop(STOP_ATTRIBUTE const  attribute)
-{
-    if (!is_started())
-        return;
-
-    minimization.stop_attribute = attribute;
-    minimization.save();
+    input_flow.stop_attribute = attribute;
+    input_flow.save();
     on_analysis_stop();
 }
 
@@ -406,9 +209,7 @@ void  progress_recorder::on_analysis_stop()
         return;
 
     analysis = NONE;
-    sensitivity = {};
-    typed_minimization = {};
-    minimization = {};
+    input_flow = {};
     bitshare = {};
 }
 
@@ -521,7 +322,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
 std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
 {
-    static std::string const  names[] { "NONE","SENSITIVITY","TYPED_MINIMIZATION","MINIMIZATION","BITSHARE" };
+    static std::string const  names[] { "NONE","input_flow","TYPED_MINIMIZATION","MINIMIZATION","BITSHARE" };
     ASSUMPTION((int)a < sizeof(names)/sizeof(names[0]));
     return names[(int)a];
 }
@@ -565,7 +366,7 @@ void  progress_recorder::analysis_common_info::save() const
 }
 
 
-natural_32_bit  progress_recorder::sensitivity_progress_info::get_num_coverage_failure_resets() const
+natural_32_bit  progress_recorder::input_flow_progress_info::get_num_coverage_failure_resets() const
 {
     natural_32_bit  max_num_coverage_failure_resets{ 0U };
     for (branching_node*  n = node; n != nullptr; n = n->get_predecessor())
@@ -575,7 +376,7 @@ natural_32_bit  progress_recorder::sensitivity_progress_info::get_num_coverage_f
 }
 
 
-void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ostr) const
+void  progress_recorder::input_flow_progress_info::save_info(std::ostream&  ostr) const
 {
     TMPROF_BLOCK();
 
@@ -599,106 +400,6 @@ void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ost
             first = false;
         }
         ostr << ']';
-        if (i + 1 < end) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "]";
-}
-
-
-void  progress_recorder::typed_minimization_progress_info::save_info(std::ostream&  ostr) const
-{
-    TMPROF_BLOCK();
-
-    ostr << "\"from_variables_to_input\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)from_variables_to_input.size(); i < end; ++i)
-    {
-        typed_minimization_analysis::mapping_to_input_bits const&  mapping = from_variables_to_input.at(i);
-        ostr << mapping.input_start_bit_index << ", " << mapping.value_bit_indices.size() << ",  ";
-        for (natural_32_bit  j = 0U, j_end = (natural_32_bit)mapping.value_bit_indices.size(); j < j_end; ++j)
-        {
-            ostr << (natural_32_bit)mapping.value_bit_indices.at(j);
-            if (j + 1 < j_end) ostr << ',';
-        }
-        if (i + 1 < end) ostr << ",\n";
-    }
-    ostr << "],\n\"types_of_variables\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)types_of_variables.size(); i < end; ++i)
-    {
-        ostr << '\"' << to_string(types_of_variables.at(i)) << '\"';
-        if (i + 1 < end) ostr << ',';
-    }
-    ostr << "],\n\"all_input_bits\": [";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_and_types->bits.size(); i < end; ++i)
-    {
-        if (i % 8U == 0U) ostr << '\n';
-        ostr << (bits_and_types->bits.at(i) ? '1' : '0');
-        if (i + 1 < end) ostr << ',';
-    }
-    ostr << "],\n\"all_input_types\": [";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_and_types->types.size(); i < end; ++i)
-    {
-        if (i % 8U == 0U) ostr << '\n';
-        ostr << '\"' << to_string(bits_and_types->types.at(i)) << '\"';
-        if (i + 1 < end) ostr << ',';
-    }
-    ostr << "],\n\"execution_cache_hits\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)execution_cache_hits.size(); i < end; ++i)
-    {
-        ostr << execution_cache_hits.at(i).trace_index << ','
-             << execution_cache_hits.at(i).variables_hash << ",\"";
-        switch (execution_cache_hits.at(i).progress_stage)
-        {
-            case typed_minimization_analysis::SEED: ostr << "SEED"; break;
-            case typed_minimization_analysis::PARTIALS: ostr << "PARTIALS"; break;
-            case typed_minimization_analysis::STEP: ostr << "STEP"; break;
-        }
-        ostr << '\"';
-        if (i + 1 < end) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "]";
-}
-
-
-void  progress_recorder::minimization_progress_info::save_info(std::ostream&  ostr) const
-{
-    TMPROF_BLOCK();
-
-    ostr << "\"bit_translation\": [";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)bit_translation.size(); i < end; ++i)
-    {
-        ostr << bit_translation.at(i);
-        if (i + 1 < end) ostr << ',';
-    }
-    ostr << "],\n\"all_input_bits\": [";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)bits_and_types->bits.size(); i < end; ++i)
-    {
-        if (i % 8U == 0U) ostr << '\n';
-        ostr << (bits_and_types->bits.at(i) ? '1' : '0');
-        if (i + 1 < end) ostr << ',';
-    }
-    ostr << "],\n\"stage_changes\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)stage_changes.size(); i < end; ++i)
-    {
-        ostr << stage_changes.at(i).index << ",\"";
-        switch (stage_changes.at(i).stage)
-        {
-            case STAGE::TAKE_NEXT_SEED: ostr << "TAKE_NEXT_SEED"; break;
-            case STAGE::EXECUTE_SEED: ostr << "EXECUTE_SEED"; break;
-            case STAGE::STEP: ostr << "STEP"; break;
-            case STAGE::PARTIALS: ostr << "PARTIALS"; break;
-            case STAGE::PARTIALS_EXTENDED: ostr << "PARTIALS_EXTENDED"; break;
-            default: ostr << "UNKNOWN"; break;
-        }
-        ostr << '"';
-        if (i + 1 < end) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "],\n\"execution_cache_hits\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)execution_cache_hits.size(); i < end; ++i)
-    {
-        ostr << execution_cache_hits.at(i).trace_index << ',' << execution_cache_hits.at(i).bits_hash;
         if (i + 1 < end) ostr << ',';
         ostr << '\n';
     }
