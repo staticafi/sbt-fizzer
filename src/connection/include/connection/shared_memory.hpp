@@ -38,8 +38,8 @@ public:
     bool can_accept_bytes(size_t n) const override;
     bool can_deliver_bytes(size_t n) const override;
 
-    void accept_bytes(const void* src, size_t n) override;
-    void deliver_bytes(void* dest, size_t n) override;
+    void accept_bytes(const void* src, std::size_t n) override;
+    void deliver_bytes(void* dest, std::size_t n) override;
 
     void accept_bytes(message& src);
     void deliver_bytes(message& dest);

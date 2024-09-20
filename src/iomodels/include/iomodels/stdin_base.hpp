@@ -25,7 +25,7 @@ struct  stdin_base
     virtual void  load(connection::shared_memory&  src) = 0;
     virtual bool  load_record(connection::message&  src) = 0;
     virtual bool  load_record(connection::shared_memory&  src) = 0;
-    virtual size_t min_flattened_size() const = 0;
+    virtual std::size_t min_flattened_size() const = 0;
     void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::medium&  dest) { if (!read_bytes(ptr, type, dest)) exit(0); }
     virtual bool  read_bytes(natural_8_bit*  ptr, type_of_input_bits  type, connection::medium&  dest) = 0;
 

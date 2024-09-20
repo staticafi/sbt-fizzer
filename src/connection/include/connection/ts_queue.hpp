@@ -29,7 +29,7 @@ struct ts_queue {
         return deque.empty();
     }
 
-    size_t size() const {
+    std::size_t size() const {
         std::scoped_lock lock(deque_mux);
         return deque.size();
     }

@@ -28,14 +28,14 @@ bool message::can_deliver_bytes(size_t n) const {
     return cursor + n <= bytes.size();
 }
 
-void message::accept_bytes(const void* src, size_t n) {
+void message::accept_bytes(const void* src, std::size_t n) {
     std::size_t old_size = bytes.size();
     bytes.resize(old_size + n);
     memcpy(bytes.data() + old_size, src, n);
     header.size += (natural_32_bit)n;
 }
 
-void message::deliver_bytes(void* dest, size_t n) {
+void message::deliver_bytes(void* dest, std::size_t n) {
     memcpy(dest, bytes.data() + cursor, n);
     cursor += (natural_32_bit)n;
 }

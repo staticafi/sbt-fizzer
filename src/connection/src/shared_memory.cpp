@@ -15,7 +15,7 @@ void shared_memory::open_or_create() {
 
 
 natural_32_bit shared_memory::get_size() const {
-    size_t size = region.get_size();
+    std::size_t size = region.get_size();
     if (size != 0) {
         return (natural_32_bit)(size - sizeof(*saved));
     }
@@ -52,12 +52,12 @@ bool shared_memory::can_deliver_bytes(size_t const n) const {
     return !(memory == nullptr || *saved < cursor + n);
 }
 
-void shared_memory::accept_bytes(const void* src, size_t n) {
+void shared_memory::accept_bytes(const void* src, std::size_t n) {
     memcpy(memory + *saved, src, n);
     *saved += (natural_32_bit)n;
 }
 
-void shared_memory::deliver_bytes(void* dest, size_t n) {
+void shared_memory::deliver_bytes(void* dest, std::size_t n) {
     memcpy(dest, memory + cursor, n);
     cursor += (natural_32_bit)n;
 }
@@ -97,7 +97,7 @@ void shared_memory::set_termination(target_termination termination) {
 
 
 void shared_memory::accept_bytes(message& src) {
-    size_t src_size = src.size();
+    std::size_t src_size = src.size();
     src.deliver_bytes(memory, src_size);
     *saved += (natural_32_bit)src_size;
 }

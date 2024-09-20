@@ -94,7 +94,7 @@ bool  stdin_replay_bytes_then_repeat_byte::load_record_(Medium& src) {
     if (!src.can_deliver_bytes(count))
         return false;
     types.push_back(type);
-    size_t old_size = bytes.size();
+    std::size_t old_size = bytes.size();
     bytes.resize(old_size + count);
     src.deliver_bytes(bytes.data() + old_size, count);
     return true;
