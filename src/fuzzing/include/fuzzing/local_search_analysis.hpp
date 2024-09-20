@@ -87,14 +87,8 @@ struct  local_search_analysis
 
     struct  gradient_descent_props
     {
-        struct  execution_result
-        {
-            stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
-            vecf64  values{};
-        };
         void clear() { *this = {}; }
         std::vector<vecf64>  shifts{};
-        std::vector<execution_result>  results{};
     };
 
     struct  gradient_step_result
@@ -142,8 +136,6 @@ struct  local_search_analysis
     struct  performance_statistics
     {
         std::size_t  generated_inputs{ 0 };
-        std::size_t  partials{ 0 };
-        std::size_t  gradient_steps{ 0 };
         std::size_t  start_calls{ 0 };
         std::size_t  stop_calls_regular{ 0 };
         std::size_t  stop_calls_early{ 0 };
@@ -184,18 +176,18 @@ private:
             vecf64&  shift,
             std::size_t  max_iterations = 10UL
             ) const;
-    bool  compute_descent_shifts(
+    void  compute_descent_shifts(
             std::vector<vecf64>&  resulting_shifts,
             std::size_t  space_index,
             float_64_bit  value
             );
-    bool  apply_best_gradient_step();
     float_64_bit  compute_best_shift_along_ray(
             vecf64 const&  ray_start,
             vecf64  ray_dir,
             float_64_bit  param,
             origin_set const&  excluded_points
             ) const;
+    bool  is_improving_value(float_64_bit  value) const;
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, vecf64 const&  values);
     void  bits_to_point(vecb const&  bits, vecf64&  point);
     vector_overlay  point_to_bits(vecf64 const&  point, vecb&  bits);

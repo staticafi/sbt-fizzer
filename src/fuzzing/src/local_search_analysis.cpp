@@ -245,54 +245,64 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
         return false;
     }
 
-    while (true)
-    {
-        if (progress_stage == PARTIALS)
+    for (bool done = false; !done; )
+        switch (progress_stage)
         {
-            if (partials_props.shifts.empty())
-                compute_shifts_of_next_partial();
+            case PARTIALS:
+                {
+                    if (!partials_props.shifts.empty())
+                    {
+                        execution_props.shift = partials_props.shifts.back();
+                        partials_props.shifts.pop_back();
 
-            if (!partials_props.shifts.empty())
-            {
-                execution_props.shift = partials_props.shifts.back();
-                partials_props.shifts.pop_back();
+                        done = true;
+
+                        break;
+                    }
+
+                    bool const  has_all_spaces{ local_spaces.size() ==  path.size() };
+                    bool const  has_all_partials{ size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis) };
+
+                    if (has_all_spaces && has_all_partials)
+                    {
+                        descent_props.clear();
+                        compute_descent_shifts(descent_props.shifts, local_spaces.size() - 1UL, path.back().value);
+
+                        progress_stage = DESCENT;
+
+                        break;
+                    }
+
+                    if (has_all_partials)
+                    {
+                        insert_next_local_space();
+
+                        if (columns(local_spaces.back().orthogonal_basis) == 0UL)
+                        {
+                            stop_with_failure();
+                            return false;
+                        }
+                    }
+
+                    compute_shifts_of_next_partial();
+                }
                 break;
-            }
+            case DESCENT:
+                {
+                    if (descent_props.shifts.empty())
+                    {
+                        stop_with_failure();
+                        return false;
+                    }
 
-            if (local_spaces.size() != path.size())
-            {
-                stop_with_failure();
-                return false;
-            }
+                    execution_props.shift = descent_props.shifts.back();
+                    descent_props.shifts.pop_back();
 
-            INVARIANT(size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis));
-
-            descent_props.clear();
-            if (!compute_descent_shifts(descent_props.shifts, local_spaces.size() - 1UL, path.back().value))
-            {
-                stop_with_failure();
-                return false;
-            }
-
-            progress_stage = DESCENT;
-        }
-        else if (progress_stage == DESCENT)
-        {
-            if (descent_props.results.size() < descent_props.shifts.size())
-            {
-                execution_props.shift = descent_props.shifts.at(descent_props.results.size());
+                    done = true;
+                }
                 break;
-            }
-            if (!apply_best_gradient_step())
-            {
-                stop_with_failure();
-                return false;
-            }
-
-            progress_stage = PARTIALS;
+            default: UNREACHABLE(); break;
         }
-        else { UNREACHABLE(); }
-    }
 
     execution_props.shift_in_world_space = transform_shift(execution_props.shift, local_spaces.size() - 1UL);
     execution_props.sample = add_cp(origin, execution_props.shift_in_world_space);
@@ -344,24 +354,12 @@ void  local_search_analysis::process_execution_results(
     {
         case PARTIALS:
             compute_partial_derivative(execution_props.shift, execution_props.values.at(local_spaces.size() - 1UL));
-            if (size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis))
-            {
-                if (local_spaces.size() < path.size())
-                    insert_next_local_space();
-                else
-                {
-                    progress_stage = DESCENT;
-
-                    descent_props.clear();
-                    compute_descent_shifts(descent_props.shifts, local_spaces.size() - 1UL, path.back().value);
-                }
-            }
-            ++statistics.partials;
             break;
         case DESCENT:
-            if (descent_props.results.size() < descent_props.shifts.size())
-                descent_props.results.push_back({ execution_props.bits_and_types_ptr, execution_props.values });
-            ++statistics.gradient_steps;
+            if (execution_props.values.size() == path.size()
+                    && isfinite(execution_props.values)
+                    && is_improving_value(execution_props.values.back()))
+                commit_execution_results(execution_props.bits_and_types_ptr, execution_props.values);
             break;
         default: { UNREACHABLE(); } break;
     }
@@ -370,79 +368,68 @@ void  local_search_analysis::process_execution_results(
 
 void  local_search_analysis::compute_shifts_of_next_partial()
 {
-    ASSUMPTION(partials_props.shifts.empty());
-    while (size(local_spaces.back().gradient) < columns(local_spaces.back().orthogonal_basis))
-    {
-        std::size_t const  space_index{ local_spaces.size() - 1UL };
+    std::size_t const  space_index{ local_spaces.size() - 1UL };
+    local_space_of_branching&  space{ local_spaces.at(space_index) };
+    std::size_t const  partial_index{ size(space.gradient) };
 
-        local_space_of_branching&  space{ local_spaces.at(space_index) };
-
-        while (size(space.gradient) < columns(space.orthogonal_basis))
+    bool  has_sensitive_var{ false };
+    for (natural_32_bit  var_idx : space.variable_indices.at(partial_index))
+        if (path.at(space_index).variable_indices.contains(var_idx))
         {
-            std::size_t const  partial_index{ size(space.gradient) };
-    
-            bool  has_sensitive_var{ false };
-            for (natural_32_bit  var_idx : space.variable_indices.at(partial_index))
-                if (path.at(space_index).variable_indices.contains(var_idx))
-                {
-                    has_sensitive_var = true;
-                    break;
-                }
-            if (has_sensitive_var)
-            {
-                vecf64  params;
-                {
-                    float_64_bit const param {
-                            small_delta_around(max_abs(origin)) / at(space.scales_of_basis_vectors_in_world_space, partial_index)
-                            };
-                    params.push_back(param);
-                    params.push_back(-param);
-                }
-
-                origin_set  ignore_origin{ &types_of_variables };
-                ignore_origin.insert(make_vector_overlay(origin, types_of_variables));
-
-                std::vector<vecf64>  shifts;
-                for (float_64_bit const  param : params)
-                {
-                    float_64_bit const  lambda{
-                            compute_best_shift_along_ray(origin, at(space.basis_vectors_in_world_space, partial_index), param, ignore_origin)
-                            };
-
-                    vecf64  shift;
-                    axis(shift, columns(space.orthogonal_basis), partial_index);
-                    scale(shift, lambda);
-
-                    if (isfinite(shift))
-                    {
-                        if (are_constraints_satisfied(space.constraints, shift))
-                            shifts.push_back(shift);
-                        else
-                        {
-                            negate(shift);
-                            if (are_constraints_satisfied(space.constraints, shift))
-                                shifts.push_back(shift);
-                        }
-                    }
-                }
-
-                for (vecf64 const&  shift : shifts)
-                {
-                    vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
-                    if (isfinite(point))
-                        partials_props.shifts.push_back(shift);
-                }
-
-                if (!partials_props.shifts.empty())
-                    return;
-            }
-
-            space.gradient.push_back(0.0);
+            has_sensitive_var = true;
+            break;
         }
-
-        if (local_spaces.size() < path.size())
-            insert_next_local_space();
+    if (!has_sensitive_var)
+    {
+        space.gradient.push_back(0.0);
+        return;
     }
+
+    vecf64  params;
+    {
+        float_64_bit const param {
+                small_delta_around(max_abs(origin)) / at(space.scales_of_basis_vectors_in_world_space, partial_index)
+                };
+        params.push_back(param);
+        params.push_back(-param);
+    }
+
+    origin_set  ignore_origin{ &types_of_variables };
+    ignore_origin.insert(make_vector_overlay(origin, types_of_variables));
+
+    std::vector<vecf64>  shifts;
+    for (float_64_bit const  param : params)
+    {
+        float_64_bit const  lambda{
+                compute_best_shift_along_ray(origin, at(space.basis_vectors_in_world_space, partial_index), param, ignore_origin)
+                };
+
+        vecf64  shift;
+        axis(shift, columns(space.orthogonal_basis), partial_index);
+        scale(shift, lambda);
+
+        if (isfinite(shift))
+        {
+            if (are_constraints_satisfied(space.constraints, shift))
+                shifts.push_back(shift);
+            else
+            {
+                negate(shift);
+                if (are_constraints_satisfied(space.constraints, shift))
+                    shifts.push_back(shift);
+            }
+        }
+    }
+
+    for (vecf64 const&  shift : shifts)
+    {
+        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+        if (isfinite(point))
+            partials_props.shifts.push_back(shift);
+    }
+
+    if (partials_props.shifts.empty())
+        space.gradient.push_back(0.0);
 }
 
 
@@ -733,7 +720,7 @@ bool  local_search_analysis::clip_shift_by_constraints(
 }
 
 
-bool  local_search_analysis::compute_descent_shifts(
+void  local_search_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
         std::size_t const  space_index,
         float_64_bit const  value
@@ -746,12 +733,12 @@ bool  local_search_analysis::compute_descent_shifts(
     float_64_bit const  gg_inv{ 1.0 / dot_product(g, g)};
     float_64_bit const  lambda0{ -value * gg_inv };
     if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
-        return false;
+        return;
     for (auto const coord : g)
     {
         float_64_bit const  x{ coord * lambda0 };
         if (!std::isfinite(x) || std::isnan(x))
-            return false;
+            return;
     }
 
     origin_set  used_origins{ &types_of_variables };
@@ -841,69 +828,7 @@ bool  local_search_analysis::compute_descent_shifts(
         used_origins.insert(point_overlay);
     }
 
-    return !resulting_shifts.empty();
-}
-
-
-bool  local_search_analysis::apply_best_gradient_step()
-{
-    float_64_bit  best_value{ path.back().value };
-    std::size_t  i_best{ descent_props.results.size() };
-    for (std::size_t  i = 0UL; i < descent_props.results.size(); ++i)
-    {
-        {
-            ASSUMPTION(descent_props.results.at(i).values.size() == path.size());
-            bool all_finite{ true };
-            for (auto const  value : descent_props.results.at(i).values)
-                if (!std::isfinite(value))
-                {
-                    all_finite = false;
-                    break;
-                }
-            if (!all_finite)
-                continue;
-        }
-
-        float_64_bit const  i_value{ descent_props.results.at(i).values.back() };
-
-        bool  is_improving{ false };
-        switch (path.back().predicate)
-        {
-            case BRANCHING_PREDICATE::BP_EQUAL:
-                if (std::fabs(i_value) < std::fabs(best_value))
-                    is_improving = true;
-                break;
-            case BRANCHING_PREDICATE::BP_UNEQUAL:
-                if (std::fabs(i_value) > std::fabs(best_value))
-                    is_improving = true;
-                break;
-            case BRANCHING_PREDICATE::BP_LESS:
-            case BRANCHING_PREDICATE::BP_LESS_EQUAL:
-                if (i_value < best_value)
-                    is_improving = true;
-                break;
-            case BRANCHING_PREDICATE::BP_GREATER:
-            case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
-                if (i_value > best_value)
-                    is_improving = true;
-                break;
-            default: { UNREACHABLE(); } break;
-        }
-
-        if (is_improving)
-        {
-            i_best = i;
-            best_value = i_value;
-        }
-    }
-
-    if (i_best == descent_props.results.size())
-        return false;
-
-    gradient_descent_props::execution_result const&  best_result{ descent_props.results.at(i_best) };
-    commit_execution_results(best_result.bits_and_types_ptr, best_result.values);
-
-    return true;
+    std::reverse(resulting_shifts.begin(), resulting_shifts.end());
 }
 
 
@@ -966,6 +891,25 @@ float_64_bit  local_search_analysis::compute_best_shift_along_ray(
 }
 
 
+bool  local_search_analysis::is_improving_value(float_64_bit const  value) const
+{
+    switch (path.back().predicate)
+    {
+        case BRANCHING_PREDICATE::BP_EQUAL:
+            return std::fabs(value) < std::fabs(path.back().value);
+        case BRANCHING_PREDICATE::BP_UNEQUAL:
+            return std::fabs(value) > std::fabs(path.back().value);
+        case BRANCHING_PREDICATE::BP_LESS:
+        case BRANCHING_PREDICATE::BP_LESS_EQUAL:
+            return value < path.back().value;
+        case BRANCHING_PREDICATE::BP_GREATER:
+        case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
+            return value > path.back().value;
+        default: { UNREACHABLE(); } return false;
+    }
+}
+
+
 void  local_search_analysis::commit_execution_results(
         stdin_bits_and_types_pointer const  bits_and_types_ptr,
         vecf64 const&  values
@@ -982,6 +926,8 @@ void  local_search_analysis::commit_execution_results(
     descent_props.clear();
 
     insert_first_local_space();
+
+    progress_stage = PARTIALS;
 }
 
 
