@@ -136,7 +136,6 @@ struct  local_search_analysis
 
     local_search_analysis();
 
-    bool  is_disabled() const;
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 

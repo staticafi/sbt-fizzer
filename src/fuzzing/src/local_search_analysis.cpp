@@ -31,12 +31,6 @@ local_search_analysis::local_search_analysis()
 {}
 
 
-bool  local_search_analysis::is_disabled() const
-{
-    return false;
-}
-
-
 void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_bit const  execution_id_)
 {
     TMPROF_BLOCK();
