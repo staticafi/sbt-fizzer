@@ -60,7 +60,7 @@ struct  local_search_analysis
 
     struct  local_space_of_branching
     {
-        matf64  orthogonal_basis{};
+        matf64  orthonormal_basis{};
         std::vector<spatial_constraint>  constraints{};
         std::vector<std::vector<natural_32_bit> >  variable_indices{};
         matf64  basis_vectors_in_world_space{};
