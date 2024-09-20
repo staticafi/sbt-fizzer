@@ -118,7 +118,7 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
         natural_32_bit const  npartial_shifts{ 2U * nvars };
         natural_32_bit const  nstep_shifts{ 2U + 4U };
 
-        max_executions = 10U * (nspaces * npartial_shifts + nstep_shifts);
+        max_executions = std::min(10U * (nspaces * npartial_shifts + nstep_shifts), 10000U);
     }
 
     bits_to_point(bits_and_types->bits, origin);
