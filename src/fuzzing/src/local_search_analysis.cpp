@@ -14,6 +14,7 @@ local_search_analysis::local_search_analysis()
     , node{ nullptr }
     , bits_and_types{ nullptr }
     , execution_id{ 0 }
+    , full_path{}
     , path{}
     , from_variables_to_input{}
     , types_of_variables{}
@@ -24,6 +25,7 @@ local_search_analysis::local_search_analysis()
     , origin{}
     , tested_origins{ &types_of_variables }
     , local_spaces{}
+    , execution_props{}
     , partials_props{}
     , descent_props{}
     , rnd_generator{}
@@ -35,12 +37,18 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(is_ready() && node_ptr != nullptr && node_ptr->has_unexplored_direction() && node_ptr->get_best_stdin() != nullptr);
+    ASSUMPTION(
+        is_ready() &&
+        node_ptr->has_unexplored_direction() &&
+        !node_ptr->get_sensitive_stdin_bits().empty() &&
+        node_ptr->get_best_stdin() != nullptr
+        );
 
     state = BUSY;
     node = node_ptr;
     bits_and_types = node->get_best_stdin();
     execution_id = execution_id_;
+    full_path.clear();
     path.clear();
     types_of_variables.clear();
     from_variables_to_input.clear();
@@ -52,39 +60,71 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     origin.clear();
     tested_origins.clear();
     local_spaces.clear();
-    partials_props = {};
-    descent_props = {};
+    execution_props.clear();
+
+    partials_props.clear();
+    descent_props.clear();
 
     reset(rnd_generator);
 
-    path.push_back({
-            node,
-            node->get_best_trace()->at(node->get_trace_index()).value,
-            node->is_direction_unexplored(false) ? false : true,
-            node->is_direction_unexplored(false) ? opposite_predicate(node->get_branching_predicate()) : node->get_branching_predicate(),
-            node->get_xor_like_branching_function(),
-            {}
-            });
-    for (branching_node* n = node->get_predecessor(), *s = node; n != nullptr; s = n, n = n->get_predecessor())
-        path.push_back({
-                n,
-                node->get_best_trace()->at(n->get_trace_index()).value,
-                n->successor_direction(s),
-                n->successor_direction(s) ? n->get_branching_predicate() : opposite_predicate(n->get_branching_predicate()),
-                n->get_xor_like_branching_function(),
-                {}
+    for (trace_index_type  i = 0U; i <= node->get_trace_index(); ++i)
+        full_path.push_back({
+                node->get_best_trace()->at(i).id,
+                node->get_best_trace()->at(i).direction,
+                std::numeric_limits<std::size_t>::max()
                 });
-    std::reverse(path.begin(), path.end());
+
+    std::vector<branching_node*>  full_path_nodes;
+    for (branching_node* n = node; n != nullptr; n = n->get_predecessor())
+        full_path_nodes.push_back(n);
+    std::reverse(full_path_nodes.begin(), full_path_nodes.end());
 
     std::map<natural_32_bit, std::pair<type_of_input_bits, std::unordered_set<natural_8_bit> > >  start_bits_to_bit_indices;
-    for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
-        for (stdin_bit_index  idx : path.at(i).node_ptr->get_sensitive_stdin_bits())
+    std::vector<std::size_t>  path_node_indices;
+    {
+        auto const&  collect_sensitive_bits = [&start_bits_to_bit_indices, this](std::unordered_set<natural_32_bit> const&  sensitive_bits) {
+            for (stdin_bit_index  idx : sensitive_bits)
+            {
+                natural_32_bit const  type_index = bits_and_types->type_index(idx);
+                natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
+                type_of_input_bits  type{ bits_and_types->types.at(type_index) };
+                switch (type) {
+                    case type_of_input_bits::UNTYPED8: type = type_of_input_bits::SINT8; break;
+                    case type_of_input_bits::UNTYPED16: type = type_of_input_bits::SINT16; break;
+                    case type_of_input_bits::UNTYPED32: type = type_of_input_bits::SINT32; break;
+                    case type_of_input_bits::UNTYPED64: type = type_of_input_bits::SINT64; break;
+                    default: break;
+                }
+                auto const  it_and_state = start_bits_to_bit_indices.insert({ start_bit_idx, { type, {} } });
+                it_and_state.first->second.second.insert(idx - start_bit_idx);
+            }            
+        };
+        auto const&  intersect = [](std::unordered_set<natural_32_bit> const&  a, std::unordered_set<natural_32_bit> const&  b) {
+            for (natural_32_bit idx : b)
+                if (a.contains(idx))
+                    return true;
+            return false;
+        };
+
+        collect_sensitive_bits(node->get_sensitive_stdin_bits());
+        path_node_indices.push_back(full_path_nodes.size() - 1UL);
+
+        std::unordered_set<natural_32_bit>  sensitive_bits{ node->get_sensitive_stdin_bits() };
+        for (std::size_t  i = 1UL, i_end = full_path_nodes.size(); i != i_end; ++i)
         {
-            natural_32_bit const  type_index = bits_and_types->type_index(idx);
-            natural_32_bit const  start_bit_idx = bits_and_types->type_start_bit_index(type_index);
-            auto const  it_and_state = start_bits_to_bit_indices.insert({ start_bit_idx, { bits_and_types->types.at(type_index), {} } });
-            it_and_state.first->second.second.insert(idx - start_bit_idx);
+            std::size_t const  node_idx{ i_end - (i + 1UL) };
+            branching_node const* const  node_ptr = full_path_nodes.at(node_idx);
+            if (intersect(sensitive_bits, node_ptr->get_sensitive_stdin_bits()))
+            {
+                collect_sensitive_bits(node_ptr->get_sensitive_stdin_bits());
+                path_node_indices.push_back(node_idx);
+
+                sensitive_bits.insert(node_ptr->get_sensitive_stdin_bits().begin(), node_ptr->get_sensitive_stdin_bits().end());
+            }
         }
+
+        std::reverse(path_node_indices.begin(), path_node_indices.end());
+    }
 
     std::unordered_map<natural_32_bit, natural_32_bit>  start_bits_to_variable_indices;
     for (auto&  start_and_type_and_indices : start_bits_to_bit_indices)
@@ -100,6 +140,33 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     }
 
     INVARIANT(!types_of_variables.empty());
+
+    for (std::size_t  i = 0UL; i + 1UL < path_node_indices.size(); ++i)
+    {
+        std::size_t const  node_idx{ path_node_indices.at(i) };
+
+        full_path.at(node_idx).space_index = path.size();
+
+        branching_node* const  n{ full_path_nodes.at(node_idx) }; 
+        branching_node const* const  s{ full_path_nodes.at(node_idx + 1UL) }; 
+        path.push_back({
+                n,
+                node->get_best_trace()->at(n->get_trace_index()).value,
+                n->successor_direction(s),
+                n->successor_direction(s) ? n->get_branching_predicate() : opposite_predicate(n->get_branching_predicate()),
+                n->get_xor_like_branching_function(),
+                {}
+                });
+    }
+    full_path.back().space_index = path.size();
+    path.push_back({
+            node,
+            node->get_best_trace()->at(node->get_trace_index()).value,
+            node->is_direction_unexplored(false) ? false : true,
+            node->is_direction_unexplored(false) ? opposite_predicate(node->get_branching_predicate()) : node->get_branching_predicate(),
+            node->get_xor_like_branching_function(),
+            {}
+            });
 
     for (natural_32_bit  i = 0U, i_end = (natural_32_bit)path.size(); i != i_end; ++i)
     {
@@ -187,9 +254,8 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
 
             if (!partials_props.shifts.empty())
             {
-                local_spaces.back().sample_shift = partials_props.shifts.back();
+                execution_props.shift = partials_props.shifts.back();
                 partials_props.shifts.pop_back();
-                transform_shift(local_spaces.size() - 1UL);
                 break;
             }
 
@@ -214,8 +280,7 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
         {
             if (descent_props.results.size() < descent_props.shifts.size())
             {
-                local_spaces.back().sample_shift = descent_props.shifts.at(descent_props.results.size());
-                transform_shift(local_spaces.size() - 1UL);
+                execution_props.shift = descent_props.shifts.at(descent_props.results.size());
                 break;
             }
             if (!apply_best_gradient_step())
@@ -229,10 +294,12 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
         else { UNREACHABLE(); }
     }
 
-    vecf64 const  shifted_origin{ add_cp(origin, local_spaces.front().sample_shift) };
-    ASSUMPTION(isfinite(shifted_origin));
-    vector_overlay const  shifted_origin_overlay{ point_to_bits(shifted_origin, bits_ref) };
-    tested_origins.insert(shifted_origin_overlay);
+    execution_props.shift_in_world_space = transform_shift(execution_props.shift, local_spaces.size() - 1UL);
+    execution_props.sample = add_cp(origin, execution_props.shift_in_world_space);
+    ASSUMPTION(isfinite(execution_props.sample));
+    execution_props.sample_overlay = point_to_bits(execution_props.sample, bits_ref);
+
+    tested_origins.insert(execution_props.sample_overlay);
 
     ++statistics.generated_inputs;
 
@@ -252,27 +319,22 @@ void  local_search_analysis::process_execution_results(
 
     ++num_executions;
 
-    if (trace_ptr->empty())
-    {
-        // We diverged even before the first branching in the program (perhaps due to some crash, like division by zero).
-        stop_with_failure();
-        return;
-    }
+    execution_props.bits_and_types_ptr = bits_and_types_ptr;
+    execution_props.values.clear();
 
-    std::size_t  last_index{ 0UL };
-    for (std::size_t const  n = std::min({ local_spaces.size(), trace_ptr->size() }); last_index != n; ++last_index)
+    for (std::size_t  i = 0UL, n = std::min({ full_path.size(), trace_ptr->size() }); i != n; ++i)
     {
-        if (trace_ptr->at(last_index).id != path.at(last_index).node_ptr->get_location_id())
-        {
-            stop_with_failure();
-            return;
-        }
-        local_spaces.at(last_index).sample_value = cast_float_value<float_64_bit>(trace_ptr->at(last_index).value);
-        if (last_index < local_spaces.size() - 1UL && trace_ptr->at(last_index).direction != path.at(last_index).direction)
+        if (trace_ptr->at(i).id != full_path.at(i).id)
+            break;
+
+        if (full_path.at(i).space_index == execution_props.values.size())
+            execution_props.values.push_back(cast_float_value<float_64_bit>(trace_ptr->at(i).value));
+
+        if (i + 1UL < full_path.size() && trace_ptr->at(i).direction != full_path.at(i).direction)
             break;
     }
 
-    if (last_index != local_spaces.size())
+    if (execution_props.values.size() < local_spaces.size())
     {
         stop_with_failure();
         return;
@@ -281,7 +343,7 @@ void  local_search_analysis::process_execution_results(
     switch (progress_stage)
     {
         case PARTIALS:
-            compute_partial_derivative();
+            compute_partial_derivative(execution_props.shift, execution_props.values.at(local_spaces.size() - 1UL));
             if (size(local_spaces.back().gradient) == columns(local_spaces.back().orthogonal_basis))
             {
                 if (local_spaces.size() < path.size())
@@ -298,11 +360,7 @@ void  local_search_analysis::process_execution_results(
             break;
         case DESCENT:
             if (descent_props.results.size() < descent_props.shifts.size())
-            {
-                descent_props.results.push_back({ bits_and_types_ptr, {} });
-                for (auto const&  space : local_spaces)
-                    descent_props.results.back().values.push_back(space.sample_value);
-            }
+                descent_props.results.push_back({ execution_props.bits_and_types_ptr, execution_props.values });
             ++statistics.gradient_steps;
             break;
         default: { UNREACHABLE(); } break;
@@ -388,11 +446,11 @@ void  local_search_analysis::compute_shifts_of_next_partial()
 }
 
 
-void  local_search_analysis::compute_partial_derivative()
+void  local_search_analysis::compute_partial_derivative(vecf64 const&  shift, float_64_bit const  value)
 {
     local_space_of_branching&  space{ local_spaces.back() };
     ASSUMPTION(size(space.gradient) < columns(space.orthogonal_basis));
-    float_64_bit const partial{ (space.sample_value - path.at(local_spaces.size() - 1UL).value) / at(space.sample_shift, size(space.gradient)) };
+    float_64_bit const partial{ (value - path.at(local_spaces.size() - 1UL).value) / at(shift, size(space.gradient)) };
     if (!std::isfinite(partial) || std::isnan(partial) || partial == 0.0)
     {
         if (partials_props.shifts.empty())
@@ -406,50 +464,40 @@ void  local_search_analysis::compute_partial_derivative()
 }
 
 
-void  local_search_analysis::transform_shift(std::size_t const  src_space_index) const
+vecf64  local_search_analysis::transform_shift(vecf64  shift, std::size_t const  src_space_index) const
 {
-    ASSUMPTION(src_space_index < local_spaces.size() && isfinite(local_spaces.at(src_space_index).sample_shift));
+    ASSUMPTION(src_space_index < local_spaces.size() && isfinite(shift) && size(shift) == columns(local_spaces.at(src_space_index).orthogonal_basis));
+    vecf64  temp;
+    vecf64*  src_shift{ &shift };
+    vecf64*  dst_shift{ &temp };
     for (std::size_t  i = src_space_index; i > 0UL; --i)
     {
-        vecf64&  shift{ local_spaces.at(i - 1UL).sample_shift };
-        set(shift, 0.0);
         local_space_of_branching const&  space{ local_spaces.at(i) };
+        reset(*dst_shift, rows(space.orthogonal_basis), 0.0);
         for (std::size_t  j = 0UL; j < columns(space.orthogonal_basis); ++j)
-            add_scaled(shift, at(space.sample_shift, j), column(space.orthogonal_basis, j));
+            add_scaled(*dst_shift, at(*src_shift, j), column(space.orthogonal_basis, j));
+        std::swap(src_shift, dst_shift);
     }
+    return *src_shift;
 }
 
 
-vecf64 const&  local_search_analysis::transform_shift(vecf64 const&  shift, std::size_t const  src_space_index) const
+vecf64  local_search_analysis::transform_shift_back(vecf64  shift, std::size_t const  dst_space_index) const
 {
-    ASSUMPTION(src_space_index < local_spaces.size());
-    local_spaces.at(src_space_index).sample_shift = shift;
-    transform_shift(src_space_index);
-    return local_spaces.front().sample_shift;
-}
-
-
-void  local_search_analysis::transform_shift_back(std::size_t const  dst_space_index) const
-{
-    ASSUMPTION(dst_space_index < local_spaces.size() && isfinite(local_spaces.front().sample_shift));
+    ASSUMPTION(dst_space_index < local_spaces.size() && isfinite(shift) && size(shift) == rows(local_spaces.front().orthogonal_basis));
+    vecf64  temp;
+    vecf64*  src_shift{ &shift };
+    vecf64*  dst_shift{ &temp };
     for (std::size_t  i = 0UL; i < dst_space_index; ++i)
     {
-        vecf64 const&  shift{ local_spaces.at(i).sample_shift };
         local_space_of_branching const&  space{ local_spaces.at(i + 1UL) };
+        reset(*dst_shift, columns(space.orthogonal_basis), 0.0);
         for (std::size_t  j = 0UL; j < columns(space.orthogonal_basis); ++j)
-            at(space.sample_shift, j) = dot_product(shift, at(space.orthogonal_basis, j)) /
-                                        dot_product(at(space.orthogonal_basis, j), at(space.orthogonal_basis, j));
+            at(*dst_shift, j) = dot_product(shift, at(space.orthogonal_basis, j)) /
+                                dot_product(at(space.orthogonal_basis, j), at(space.orthogonal_basis, j));
+        std::swap(src_shift, dst_shift);
     }
-
-}
-
-
-vecf64 const&  local_search_analysis::transform_shift_back(vecf64 const&  shift, std::size_t  dst_space_index) const
-{
-    ASSUMPTION(dst_space_index < local_spaces.size());
-    local_spaces.front().sample_shift = shift;
-    transform_shift_back(dst_space_index);
-    return local_spaces.at(dst_space_index).sample_shift;
+    return *src_shift;
 }
 
 
@@ -466,7 +514,6 @@ void  local_search_analysis::insert_first_local_space()
     }
     local_spaces.back().basis_vectors_in_world_space = local_spaces.back().orthogonal_basis;
     reset(local_spaces.back().scales_of_basis_vectors_in_world_space, columns(local_spaces.back().orthogonal_basis), 1.0);
-    reset(local_spaces.back().sample_shift, columns(local_spaces.back().orthogonal_basis), 0.0);
 }
 
 
@@ -494,7 +541,6 @@ void  local_search_analysis::insert_next_local_space()
         dst_space.basis_vectors_in_world_space = src_space.basis_vectors_in_world_space;
         dst_space.scales_of_basis_vectors_in_world_space = src_space.scales_of_basis_vectors_in_world_space;
         dst_space.constraints = src_space.constraints;
-        reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
         return;
     }
     float_64_bit const  g_len{ std::sqrt(gg) };
@@ -576,8 +622,6 @@ void  local_search_analysis::insert_next_local_space()
         if (std::isfinite(param) && !std::isnan(param))
             dst_space.constraints.push_back({ normal, param, constraint.predicate });
     }
-
-    reset(dst_space.sample_shift, columns(dst_space.orthogonal_basis), 0.0);
 }
 
 

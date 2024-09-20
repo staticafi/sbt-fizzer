@@ -4,12 +4,12 @@
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
 #   include <fuzzing/number_overlay.hpp>
-#   include <utility/sparse_data_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <vector>
 #   include <unordered_map>
 #   include <unordered_set>
+#   include <limits>
 
 namespace  fuzzing {
 
@@ -32,6 +32,13 @@ struct  local_search_analysis
     {
         natural_32_bit  input_start_bit_index;
         std::vector<natural_8_bit>  value_bit_indices;
+    };
+
+    struct  full_path_record
+    {
+        location_id  id{ invalid_location_id() };
+        bool  direction{ false };
+        std::size_t  space_index{ std::numeric_limits<std::size_t>::max() };
     };
 
     struct  branching_info
@@ -59,8 +66,17 @@ struct  local_search_analysis
         matf64  basis_vectors_in_world_space{};
         vecf64  scales_of_basis_vectors_in_world_space{};
         vecf64  gradient{};
-        mutable vecf64  sample_shift{};
-        mutable float_64_bit  sample_value{ 0.0 };
+    };
+
+    struct  sample_execution_props
+    {
+        void clear() { *this = {}; }
+        vecf64  shift{};
+        vecf64  shift_in_world_space{};
+        vecf64  sample{};
+        vector_overlay  sample_overlay{};
+        stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
+        vecf64  values{};
     };
 
     struct  partials_stage_props
@@ -156,11 +172,9 @@ struct  local_search_analysis
 private:
 
     void  compute_shifts_of_next_partial();
-    void  compute_partial_derivative();
-    void  transform_shift(std::size_t  src_space_index) const;
-    vecf64 const&  transform_shift(vecf64 const&  shift, std::size_t  src_space_index) const;
-    void  transform_shift_back(std::size_t  dst_space_index) const;
-    vecf64 const&  transform_shift_back(vecf64 const&  shift, std::size_t  dst_space_index) const;
+    void  compute_partial_derivative(vecf64 const&  shift, float_64_bit  value);
+    vecf64  transform_shift(vecf64  shift, std::size_t  src_space_index) const;
+    vecf64  transform_shift_back(vecf64  shift, std::size_t const  dst_space_index) const;
     void  insert_first_local_space();
     void  insert_next_local_space();
     bool  are_constraints_satisfied(std::vector<spatial_constraint> const&  constraints, vecf64 const&  shift) const;
@@ -190,6 +204,7 @@ private:
     branching_node*  node;
     stdin_bits_and_types_pointer  bits_and_types;
     natural_32_bit  execution_id;
+    std::vector<full_path_record>  full_path;
     std::vector<branching_info>  path;
     std::vector<mapping_to_input_bits>  from_variables_to_input;
     type_vector  types_of_variables;
@@ -201,6 +216,8 @@ private:
     vecf64  origin;
     origin_set  tested_origins;
     std::vector<local_space_of_branching>  local_spaces;
+    sample_execution_props  execution_props;
+
     partials_stage_props  partials_props;
     gradient_descent_props  descent_props;
 
