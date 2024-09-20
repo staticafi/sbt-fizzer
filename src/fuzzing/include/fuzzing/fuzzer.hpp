@@ -6,7 +6,7 @@
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/local_search_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/instrumentation_types.hpp>
 #   include <sala/program.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>

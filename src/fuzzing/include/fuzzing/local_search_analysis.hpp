@@ -39,7 +39,7 @@ struct  local_search_analysis
         branching_node*  node_ptr{ nullptr };
         float_64_bit  value{ 0.0 };
         bool  direction{ false };
-        comparator_type  predicate{ BP_EQUAL };
+        BRANCHING_PREDICATE  predicate{ BRANCHING_PREDICATE::BP_EQUAL };
         bool  xor_like_branching_function{ false };
         std::unordered_set<natural_32_bit>  variable_indices{};
     };
@@ -48,7 +48,7 @@ struct  local_search_analysis
     {
         vecf64  normal{};
         float_64_bit  param{ 0.0 };
-        comparator_type  predicate{ BP_EQUAL };
+        BRANCHING_PREDICATE  predicate{ BRANCHING_PREDICATE::BP_EQUAL };
     };
 
     struct  local_space_of_branching
@@ -113,7 +113,7 @@ struct  local_search_analysis
         struct  equal
         {
             equal(type_vector const*  types) : types_{ types } {}
-            bool  operator()(vector_overlay const&  o1, vector_overlay const&  o2) const { return fuzzing::compare(o1, o2, *types_, BP_EQUAL); }
+            bool  operator()(vector_overlay const&  o1, vector_overlay const&  o2) const { return fuzzing::compare(o1, o2, *types_, BRANCHING_PREDICATE::BP_EQUAL); }
             type_vector const*  types_;
         };
 

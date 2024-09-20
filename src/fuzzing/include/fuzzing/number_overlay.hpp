@@ -1,7 +1,7 @@
 #ifndef FUZZING_NUMBER_OVERLAY_HPP_INCLUDED
 #   define FUZZING_NUMBER_OVERLAY_HPP_INCLUDED
 
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/invariants.hpp>
 #   include <vector>
@@ -9,11 +9,7 @@
 namespace  fuzzing {
 
 
-using  comparator_type = instrumentation::BRANCHING_PREDICATE;
-
-
-using  type_identifier = instrumentation::type_of_input_bits; 
-using  type_vector = std::vector<type_identifier>; 
+using  type_vector = std::vector<type_of_input_bits>; 
 
 
 union  number_overlay
@@ -59,46 +55,46 @@ R  cast_float_value(T  value)
 
 
 template<typename T>
-bool compare(T const  v1, T const  v2, comparator_type const  predicate)
+bool compare(T const  v1, T const  v2, BRANCHING_PREDICATE const  predicate)
 {
     switch (predicate)
     {
-        case comparator_type::BP_EQUAL:          return v1 == v2;
-        case comparator_type::BP_UNEQUAL:        return v1 != v2;
-        case comparator_type::BP_LESS:           return v1 < v2;
-        case comparator_type::BP_LESS_EQUAL:     return v1 <= v2;
-        case comparator_type::BP_GREATER:        return v1 > v2;
-        case comparator_type::BP_GREATER_EQUAL:  return v1 >= v2;
+        case BRANCHING_PREDICATE::BP_EQUAL:          return v1 == v2;
+        case BRANCHING_PREDICATE::BP_UNEQUAL:        return v1 != v2;
+        case BRANCHING_PREDICATE::BP_LESS:           return v1 < v2;
+        case BRANCHING_PREDICATE::BP_LESS_EQUAL:     return v1 <= v2;
+        case BRANCHING_PREDICATE::BP_GREATER:        return v1 > v2;
+        case BRANCHING_PREDICATE::BP_GREATER_EQUAL:  return v1 >= v2;
         default: { UNREACHABLE(); } return false;
     }
 }
 
 
 template<typename T>
-T as(number_overlay const  value, type_identifier const  type)
+T as(number_overlay const  value, type_of_input_bits const  type)
 {
     switch (type)
     {
-        case type_identifier::BOOLEAN:   return value._boolean == false ? (T)0 : (T)1;
-        case type_identifier::UINT8:     return (T)value._uint8;
-        case type_identifier::SINT8:     return (T)value._sint8;
-        case type_identifier::UINT16:    return (T)value._uint16;
-        case type_identifier::SINT16:    return (T)value._sint16;
-        case type_identifier::UINT32:    return (T)value._uint32;
-        case type_identifier::SINT32:    return (T)value._sint32;
-        case type_identifier::UINT64:    return (T)value._uint64;
-        case type_identifier::SINT64:    return (T)value._sint64;
-        case type_identifier::FLOAT32:   return cast_float_value<T>(value._float32);
-        case type_identifier::FLOAT64:   return cast_float_value<T>(value._float64);
+        case type_of_input_bits::BOOLEAN:   return value._boolean == false ? (T)0 : (T)1;
+        case type_of_input_bits::UINT8:     return (T)value._uint8;
+        case type_of_input_bits::SINT8:     return (T)value._sint8;
+        case type_of_input_bits::UINT16:    return (T)value._uint16;
+        case type_of_input_bits::SINT16:    return (T)value._sint16;
+        case type_of_input_bits::UINT32:    return (T)value._uint32;
+        case type_of_input_bits::SINT32:    return (T)value._sint32;
+        case type_of_input_bits::UINT64:    return (T)value._uint64;
+        case type_of_input_bits::SINT64:    return (T)value._sint64;
+        case type_of_input_bits::FLOAT32:   return cast_float_value<T>(value._float32);
+        case type_of_input_bits::FLOAT64:   return cast_float_value<T>(value._float64);
         default: { UNREACHABLE(); } return false;
     }
 }
 
-number_overlay  make_number_overlay(float_64_bit const  value, type_identifier const  type);
-bool compare(number_overlay  v1, number_overlay  v2, type_identifier  type, comparator_type  predicate);
-std::size_t  hash(number_overlay  value, type_identifier  type);
-bool is_finite(number_overlay  value, type_identifier  type);
-bool is_high_extreme(number_overlay  value, type_identifier  type, float_64_bit  extreme_multiplier = 0.95);
+number_overlay  make_number_overlay(float_64_bit const  value, type_of_input_bits const  type);
+bool compare(number_overlay  v1, number_overlay  v2, type_of_input_bits  type, BRANCHING_PREDICATE  predicate);
+std::size_t  hash(number_overlay  value, type_of_input_bits  type);
+bool is_finite(number_overlay  value, type_of_input_bits  type);
+bool is_high_extreme(number_overlay  value, type_of_input_bits  type, float_64_bit  extreme_multiplier = 0.95);
 
 
 template<typename T>
@@ -112,13 +108,13 @@ vec<T> as(vector_overlay const&  v, type_vector const&  types)
 }
 
 vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types);
-bool compare(vector_overlay const&  v1, vector_overlay const&  v2, type_vector const&  types, comparator_type  predicate);
+bool compare(vector_overlay const&  v1, vector_overlay const&  v2, type_vector const&  types, BRANCHING_PREDICATE  predicate);
 std::size_t  hash(vector_overlay const&  v, type_vector const&  types);
 bool is_finite(vector_overlay const&  v, type_vector const&  types);
 bool has_high_extreme_coordinate(vector_overlay const&  v, type_vector const&  types, float_64_bit  extreme_multiplier = 0.95);
 
 
-float_64_bit  smallest_step(float_64_bit  from, type_identifier  type, bool  negative);
+float_64_bit  smallest_step(float_64_bit  from, type_of_input_bits  type, bool  negative);
 vecf64  smallest_step(vecf64 const&  from, type_vector const&  types, vecf64 const&  direction);
 
 

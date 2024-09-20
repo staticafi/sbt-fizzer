@@ -1,12 +1,10 @@
 #ifndef FUZZING_EXECUTION_TRACE_HPP_INCLUDED
 #   define FUZZING_EXECUTION_TRACE_HPP_INCLUDED
 
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/instrumentation_types.hpp>
 #   include <vector>
 #   include <memory>
 #   include <limits>
-
-using namespace  instrumentation;
 
 namespace  fuzzing {
 

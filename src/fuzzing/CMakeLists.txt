@@ -4,6 +4,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/stdin_bits.hpp
     ./src/stdin_bits.cpp
 
+    ./include/fuzzing/instrumentation_types.hpp
+
     ./include/fuzzing/branching_node.hpp
     ./src/branching_node.cpp
     ./include/fuzzing/fuzzer.hpp

@@ -553,7 +553,7 @@ void  local_search_analysis::insert_next_local_space()
     }
 
     branching_info const&  src_info{ path.at(src_space_index) };
-    if (src_info.predicate != BP_EQUAL)
+    if (src_info.predicate != BRANCHING_PREDICATE::BP_EQUAL)
     {
         dst_space.orthogonal_basis.push_back(src_space.gradient);
         collect_variable_indices_for_last_basis_vector();
@@ -594,23 +594,23 @@ bool  local_search_analysis::are_constraints_satisfied(std::vector<spatial_const
         float_64_bit const  param{ dot_product(shift, constraint.normal) / dot_product(constraint.normal, constraint.normal) };
         switch (constraint.predicate)
         {
-            case BP_UNEQUAL:
+            case BRANCHING_PREDICATE::BP_UNEQUAL:
                 if (!(param != constraint.param))
                     return false;
                 break;
-            case BP_LESS:
+            case BRANCHING_PREDICATE::BP_LESS:
                 if (!(param < constraint.param))
                     return false;
                 break;
-            case BP_LESS_EQUAL:
+            case BRANCHING_PREDICATE::BP_LESS_EQUAL:
                 if (!(param <= constraint.param))
                     return false;
                 break;
-            case BP_GREATER:
+            case BRANCHING_PREDICATE::BP_GREATER:
                 if (!(param > constraint.param))
                     return false;
                 break;
-            case BP_GREATER_EQUAL:
+            case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
                 if (!(param >= constraint.param))
                     return false;
                 break;
@@ -650,35 +650,35 @@ bool  local_search_analysis::clip_shift_by_constraints(
             float_64_bit const  epsilon{ small_delta_around(cast_float_value<float_64_bit>(param)) };
             switch (constraint.predicate)
             {
-                case BP_UNEQUAL:
+                case BRANCHING_PREDICATE::BP_UNEQUAL:
                     if (!(constraint.param != param))
                     {
                         add_scaled(shift, (constraint.param + epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
-                case BP_LESS:
+                case BRANCHING_PREDICATE::BP_LESS:
                     if (!(param < constraint.param))
                     {
                         add_scaled(shift, (constraint.param - epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
-                case BP_LESS_EQUAL:
+                case BRANCHING_PREDICATE::BP_LESS_EQUAL:
                     if (!(param <= constraint.param))
                     {
                         add_scaled(shift, constraint.param - param, direction);
                         clipped = true;
                     }
                     break;
-                case BP_GREATER:
+                case BRANCHING_PREDICATE::BP_GREATER:
                     if (!(param > constraint.param))
                     {
                         add_scaled(shift, (constraint.param + epsilon) - param, direction);
                         clipped = true;
                     }
                     break;
-                case BP_GREATER_EQUAL:
+                case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
                     if (!(param >= constraint.param))
                     {
                         add_scaled(shift, constraint.param - param, direction);
@@ -702,7 +702,7 @@ bool  local_search_analysis::compute_descent_shifts(
         )
 {
     local_space_of_branching const&  space{ local_spaces.at(space_index) };
-    comparator_type const  predicate{ path.at(space_index).predicate };
+    BRANCHING_PREDICATE const  predicate{ path.at(space_index).predicate };
 
     vecf64 const  g{ space.gradient };
     float_64_bit const  gg_inv{ 1.0 / dot_product(g, g)};
@@ -736,29 +736,29 @@ bool  local_search_analysis::compute_descent_shifts(
 
         switch (predicate)
         {
-            case BP_EQUAL:
+            case BRANCHING_PREDICATE::BP_EQUAL:
                 //ASSUMPTION(value != 0.0);// && lambda0 != 0.0);
                 lambdas.push_back(lambda0);
                 break;
-            case BP_UNEQUAL:
+            case BRANCHING_PREDICATE::BP_UNEQUAL:
                 //ASSUMPTION(value == 0.0);
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
-            case BP_LESS:
+            case BRANCHING_PREDICATE::BP_LESS:
                 //ASSUMPTION(value >= 0.0);// && lambda0 <= 0.0);
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
-            case BP_LESS_EQUAL:
+            case BRANCHING_PREDICATE::BP_LESS_EQUAL:
                 //ASSUMPTION(value > 0.0);// && lambda0 < 0.0);
                 lambdas.push_back(lambda0);
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, -param, ignored_points));
                 break;
-            case BP_GREATER:
+            case BRANCHING_PREDICATE::BP_GREATER:
                 //ASSUMPTION(value <= 0.0);// && lambda0 >= 0.0);
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
                 break;
-            case BP_GREATER_EQUAL:
+            case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
                 //ASSUMPTION(value < 0.0);// && lambda0 > 0.0);
                 lambdas.push_back(lambda0);
                 lambdas.push_back(lambda0 + compute_best_shift_along_ray(ray_start, ray_dir, +param, ignored_points));
@@ -831,21 +831,21 @@ bool  local_search_analysis::apply_best_gradient_step()
         bool  is_improving{ false };
         switch (path.back().predicate)
         {
-            case BP_EQUAL:
+            case BRANCHING_PREDICATE::BP_EQUAL:
                 if (std::fabs(i_value) < std::fabs(best_value))
                     is_improving = true;
                 break;
-            case BP_UNEQUAL:
+            case BRANCHING_PREDICATE::BP_UNEQUAL:
                 if (std::fabs(i_value) > std::fabs(best_value))
                     is_improving = true;
                 break;
-            case BP_LESS:
-            case BP_LESS_EQUAL:
+            case BRANCHING_PREDICATE::BP_LESS:
+            case BRANCHING_PREDICATE::BP_LESS_EQUAL:
                 if (i_value < best_value)
                     is_improving = true;
                 break;
-            case BP_GREATER:
-            case BP_GREATER_EQUAL:
+            case BRANCHING_PREDICATE::BP_GREATER:
+            case BRANCHING_PREDICATE::BP_GREATER_EQUAL:
                 if (i_value > best_value)
                     is_improving = true;
                 break;

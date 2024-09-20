@@ -3,7 +3,7 @@
 
 #   include <fuzzing/execution_record.hpp>
 #   include <fuzzing/execution_record_writer.hpp>
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/instrumentation_types.hpp>
 #   include <connection/benchmark_executor.hpp>
 #   include <utility/math.hpp>
 #   include <chrono>
