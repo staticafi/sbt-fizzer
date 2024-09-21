@@ -181,8 +181,16 @@ private:
             std::vector<vecf64>&  resulting_shifts,
             origin_set&  used_origins,
             vecf64 const&  g,
-            std::size_t  space_index,
-            float_64_bit  value
+            float_64_bit  value,
+            std::size_t  space_index
+            );
+    bool  compute_descent_lambda(float_64_bit&  lambda, vecf64 const&  g, float_64_bit  value);
+    void  insert_shift_if_valid_and_unique(
+            std::vector<vecf64>&  resulting_shifts,
+            origin_set&  used_origins,
+            vecf64  shift,
+            vecf64 const&  grad,
+            std::size_t  space_index
             );
     float_64_bit  compute_best_shift_along_ray(
             vecf64 const&  ray_start,

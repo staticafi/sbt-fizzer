@@ -720,7 +720,7 @@ void  local_search_analysis::compute_descent_shifts()
     origin_set  used_origins{ &types_of_variables };
 
     vecf64 const&  grad{ local_spaces.back().gradient };
-    compute_descent_shifts(descent_props.shifts, used_origins, grad, local_spaces.size() - 1UL, path.back().value);
+    compute_descent_shifts(descent_props.shifts, used_origins, grad, path.back().value, local_spaces.size() - 1UL);
 
     std::size_t const  dim{ size(grad) };
     vecf64  g; reset(g, dim, 0.0);
@@ -729,7 +729,7 @@ void  local_search_analysis::compute_descent_shifts()
         {
             set(g, 0.0);
             at(g, i) = at(grad, i);
-            compute_descent_shifts(descent_props.shifts, used_origins, g, local_spaces.size() - 1UL, path.back().value);
+            compute_descent_shifts(descent_props.shifts, used_origins, g, path.back().value, local_spaces.size() - 1UL);
         }
 
     std::reverse(descent_props.shifts.begin(), descent_props.shifts.end());
@@ -740,20 +740,13 @@ void  local_search_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
         origin_set&  used_origins,
         vecf64 const&  g,
-        std::size_t const  space_index,
-        float_64_bit const  value
+        float_64_bit const  value,
+        std::size_t const  space_index
         )
 {
-    float_64_bit const  gg_inv{ 1.0 / dot_product(g, g)};
-    float_64_bit const  lambda0{ -value * gg_inv };
-    if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
+    float_64_bit  lambda0;
+    if (!compute_descent_lambda(lambda0, g, value))
         return;
-    for (auto const coord : g)
-    {
-        float_64_bit const  x{ coord * lambda0 };
-        if (!std::isfinite(x) || std::isnan(x))
-            return;
-    }
 
     vecf64  lambdas;
     {
@@ -809,27 +802,51 @@ void  local_search_analysis::compute_descent_shifts(
         lambdas_filtered.push_back(cast_float_value<float_64_bit>(lambda));
 
     for (float_64_bit const  lambda : lambdas_filtered)
+        insert_shift_if_valid_and_unique(resulting_shifts, used_origins, scale_cp(g, lambda), g, space_index);
+}
+
+
+bool  local_search_analysis::compute_descent_lambda(float_64_bit&  lambda, vecf64 const&  g, float_64_bit const  value)
+{
+    float_64_bit const  gg_inv{ 1.0 / dot_product(g, g)};
+    lambda = -value * gg_inv;
+    if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda) || std::isnan(lambda))
+        return false;
+    for (auto const coord : g)
     {
-        vecf64  shift{ scale_cp(g, lambda) };
-
-        clip_shift_by_constraints(local_spaces.at(space_index).constraints, g, shift);
-
-        if (!isfinite(shift))
-            continue;
-
-        vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
-        if (!isfinite(point))
-            continue;
-
-        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
-        if (!is_finite(point_overlay, types_of_variables))
-            continue;
-        if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
-            continue;
-
-        resulting_shifts.push_back(shift);
-        used_origins.insert(point_overlay);
+        float_64_bit const  x{ coord * lambda };
+        if (!std::isfinite(x) || std::isnan(x))
+            return false;
     }
+    return true;
+}
+
+
+void  local_search_analysis::insert_shift_if_valid_and_unique(
+        std::vector<vecf64>&  resulting_shifts,
+        origin_set&  used_origins,
+        vecf64  shift,
+        vecf64 const&  grad,
+        std::size_t const  space_index
+        )
+{
+    clip_shift_by_constraints(local_spaces.at(space_index).constraints, grad, shift);
+
+    if (!isfinite(shift))
+        return;
+
+    vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+    if (!isfinite(point))
+        return;
+
+    vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+    if (!is_finite(point_overlay, types_of_variables))
+        return;
+    if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
+        return;
+
+    resulting_shifts.push_back(shift);
+    used_origins.insert(point_overlay);
 }
 
 
