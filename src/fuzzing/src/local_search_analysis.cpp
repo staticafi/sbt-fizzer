@@ -344,16 +344,13 @@ void  local_search_analysis::process_execution_results(
             break;
     }
 
-    if (execution_props.values.size() < local_spaces.size())
-    {
-        stop_with_failure();
-        return;
-    }
-
     switch (progress_stage)
     {
         case PARTIALS:
-            compute_partial_derivative(execution_props.shift, execution_props.values.at(local_spaces.size() - 1UL));
+            if (execution_props.values.size() == local_spaces.size())
+                compute_partial_derivative(execution_props.shift, execution_props.values.at(local_spaces.size() - 1UL));
+            else if (partials_props.shifts.empty())
+                local_spaces.back().gradient.push_back(0.0);
             break;
         case DESCENT:
             if (execution_props.values.size() == path.size()
