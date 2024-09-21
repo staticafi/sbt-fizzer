@@ -43,7 +43,7 @@ R  cast_float_value(T  value)
         value = std::numeric_limits<T>::lowest();
     else if (value > std::numeric_limits<T>::max())
         value = std::numeric_limits<T>::max();
-    if (std::numeric_limits<T>::is_integer)
+    if (std::numeric_limits<R>::is_integer)
         value = std::round(value);
 
     if ((float_64_bit)value <= (float_64_bit)std::numeric_limits<R>::lowest())
