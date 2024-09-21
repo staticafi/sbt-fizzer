@@ -720,7 +720,10 @@ void  local_search_analysis::compute_descent_shifts()
     origin_set  used_origins{ &types_of_variables };
 
     vecf64 const&  grad{ local_spaces.back().gradient };
-    compute_descent_shifts(descent_props.shifts, used_origins, grad, path.back().value, local_spaces.size() - 1UL);
+    float_64_bit const  value{ path.back().value };
+    std::size_t const  space_index{ local_spaces.size() - 1UL };
+
+    compute_descent_shifts(descent_props.shifts, used_origins, grad, value, space_index);
 
     std::size_t const  dim{ size(grad) };
     vecf64  g; reset(g, dim, 0.0);
@@ -729,8 +732,13 @@ void  local_search_analysis::compute_descent_shifts()
         {
             set(g, 0.0);
             at(g, i) = at(grad, i);
-            compute_descent_shifts(descent_props.shifts, used_origins, g, path.back().value, local_spaces.size() - 1UL);
+            compute_descent_shifts(descent_props.shifts, used_origins, g, value, space_index);
         }
+
+    float_64_bit  lambda;
+    if (compute_descent_lambda(lambda, grad, value))
+        compute_random_shifts(descent_props.shifts, used_origins, g, value, scale_cp(grad, lambda), space_index);
+    compute_random_shifts(descent_props.shifts, used_origins, g, value, scale_cp(grad, 0.0), local_spaces.size() - 1UL);
 
     std::reverse(descent_props.shifts.begin(), descent_props.shifts.end());
 }
@@ -803,6 +811,32 @@ void  local_search_analysis::compute_descent_shifts(
 
     for (float_64_bit const  lambda : lambdas_filtered)
         insert_shift_if_valid_and_unique(resulting_shifts, used_origins, scale_cp(g, lambda), g, space_index);
+}
+
+
+void  local_search_analysis::compute_random_shifts(
+        std::vector<vecf64>&  resulting_shifts,
+        origin_set&  used_origins,
+        vecf64 const&  g,
+        float_64_bit  value,
+        vecf64 const&  center,
+        std::size_t const  space_index
+        )
+{
+    ASSUMPTION(size(center) == columns(local_spaces.at(space_index).orthonormal_basis));
+
+    local_space_of_branching const&  space{ local_spaces.at(space_index) };
+    float_64_bit const  max_coord_value{ std::max(100.0, std::log(std::fabs(value) + 1.0)) };
+
+    vecf64  shift;
+    reset(shift, columns(space.orthonormal_basis), 0.0);
+
+    for (std::size_t  counter = 0UL, max_shifts = 10UL * columns(space.orthonormal_basis); counter != max_shifts; ++counter)
+    {
+        for (std::size_t  coord = 0UL; coord != columns(space.orthonormal_basis); ++coord)
+            at(shift, coord) = get_random_float_64_bit_in_range(-max_coord_value, max_coord_value, rnd_generator);
+        insert_shift_if_valid_and_unique(resulting_shifts, used_origins, add_cp(center, shift), g, space_index);
+    }
 }
 
 

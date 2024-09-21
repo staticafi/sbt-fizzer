@@ -184,6 +184,14 @@ private:
             float_64_bit  value,
             std::size_t  space_index
             );
+    void  compute_random_shifts(
+            std::vector<vecf64>&  resulting_shifts,
+            origin_set&  used_origins,
+            vecf64 const&  g,
+            float_64_bit  value,
+            vecf64 const&  center,
+            std::size_t  space_index
+            );
     bool  compute_descent_lambda(float_64_bit&  lambda, vecf64 const&  g, float_64_bit  value);
     void  insert_shift_if_valid_and_unique(
             std::vector<vecf64>&  resulting_shifts,
@@ -224,7 +232,7 @@ private:
     partials_stage_props  partials_props;
     gradient_descent_props  descent_props;
 
-    random_generator_for_natural_32_bit  rnd_generator;
+    random_generator_for_natural_64_bit  rnd_generator;
 
     performance_statistics  statistics;
 };
