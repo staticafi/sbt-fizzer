@@ -266,7 +266,7 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
                     if (has_all_spaces && has_all_partials)
                     {
                         descent_props.clear();
-                        compute_descent_shifts(descent_props.shifts, local_spaces.size() - 1UL, path.back().value);
+                        compute_descent_shifts();
 
                         progress_stage = DESCENT;
 
@@ -715,16 +715,32 @@ bool  local_search_analysis::clip_shift_by_constraints(
 }
 
 
+void  local_search_analysis::compute_descent_shifts()
+{
+    vecf64 const&  grad{ local_spaces.back().gradient };
+    compute_descent_shifts(descent_props.shifts, grad, local_spaces.size() - 1UL, path.back().value);
+
+    std::size_t const  dim{ size(grad) };
+    vecf64  g; reset(g, dim, 0.0);
+    for (std::size_t i = 0UL; i != dim; ++i)
+        if (at(grad, i) != 0.0)
+        {
+            set(g, 0.0);
+            at(g, i) = at(grad, i);
+            compute_descent_shifts(descent_props.shifts, g, local_spaces.size() - 1UL, path.back().value);
+        }
+
+    std::reverse(descent_props.shifts.begin(), descent_props.shifts.end());
+}
+
+
 void  local_search_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
+        vecf64 const&  g,
         std::size_t const  space_index,
         float_64_bit const  value
         )
 {
-    local_space_of_branching const&  space{ local_spaces.at(space_index) };
-    BRANCHING_PREDICATE const  predicate{ path.at(space_index).predicate };
-
-    vecf64 const  g{ space.gradient };
     float_64_bit const  gg_inv{ 1.0 / dot_product(g, g)};
     float_64_bit const  lambda0{ -value * gg_inv };
     if (!std::isfinite(gg_inv) || std::isnan(gg_inv) || !std::isfinite(lambda0) || std::isnan(lambda0))
@@ -746,7 +762,7 @@ void  local_search_analysis::compute_descent_shifts(
         float_64_bit  param;
         {
             float_64_bit constexpr  coef{ 0.01 };
-            float_64_bit const  interpolant{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(path.at(space_index).value) };
+            float_64_bit const  interpolant{ (1.0 - coef) * max_abs(ray_start) + coef * std::fabs(value) };
             param = small_delta_around(cast_float_value<float_64_bit>(interpolant));
             param /= length(ray_dir);
         }
@@ -754,7 +770,7 @@ void  local_search_analysis::compute_descent_shifts(
         origin_set  ignored_points{ tested_origins };
         ignored_points.insert(make_vector_overlay(ray_start, types_of_variables));
 
-        switch (predicate)
+        switch (path.at(space_index).predicate)
         {
             case BRANCHING_PREDICATE::BP_EQUAL:
                 //ASSUMPTION(value != 0.0);// && lambda0 != 0.0);
@@ -785,15 +801,6 @@ void  local_search_analysis::compute_descent_shifts(
                 break;
             default: { UNREACHABLE(); } break;
         }
-
-        static vecf64 const multipliers {
-            100.0,
-            10.0,
-            0.1,
-            0.01,
-            };
-        for (float_64_bit const  m : multipliers)
-            lambdas.push_back(m * lambda0);
     }
 
     vecf64  lambdas_filtered;
@@ -804,7 +811,7 @@ void  local_search_analysis::compute_descent_shifts(
     {
         vecf64  shift{ scale_cp(g, lambda) };
 
-        clip_shift_by_constraints(space.constraints, g, shift);
+        clip_shift_by_constraints(local_spaces.at(space_index).constraints, g, shift);
 
         if (!isfinite(shift))
             continue;
@@ -822,8 +829,6 @@ void  local_search_analysis::compute_descent_shifts(
         resulting_shifts.push_back(shift);
         used_origins.insert(point_overlay);
     }
-
-    std::reverse(resulting_shifts.begin(), resulting_shifts.end());
 }
 
 

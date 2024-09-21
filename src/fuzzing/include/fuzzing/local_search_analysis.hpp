@@ -176,8 +176,10 @@ private:
             vecf64&  shift,
             std::size_t  max_iterations = 10UL
             ) const;
+    void  compute_descent_shifts();
     void  compute_descent_shifts(
             std::vector<vecf64>&  resulting_shifts,
+            vecf64 const&  g,
             std::size_t  space_index,
             float_64_bit  value
             );
