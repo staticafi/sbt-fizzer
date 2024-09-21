@@ -1,6 +1,6 @@
 {
     "args": {
-        "max_executions": 200,
+        "max_executions": 1000,
         "max_seconds": 10,
         "max_trace_length": 10000,
         "max_stack_size": 25,
@@ -17,14 +17,14 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "num_executions": 200,
-        "num_covered_branchings": 2,
+        "num_executions": 1000,
+        "num_covered_branchings": 4,
         "covered_branchings": [
-            2,0,    4,0
+            2,0,    3,0,    4,0,    5,0
         ],
         "output_statistics": {
-            "typed_minimization_analysis": {
-                "num_generated_tests": 1,
+            "local_search": {
+                "num_generated_tests": 4,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },

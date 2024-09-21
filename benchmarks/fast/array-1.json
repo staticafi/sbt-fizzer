@@ -16,14 +16,14 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "num_executions": 200,
+        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
+        "num_executions": 44,
         "num_covered_branchings": 2,
         "covered_branchings": [
             2,0,    3,0
         ],
         "output_statistics": {
-            "typed_minimization_analysis": {
+            "local_search": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0

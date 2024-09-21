@@ -16,15 +16,16 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 6624,
-        "num_covered_branchings": 2,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "num_executions": 45,
+        "num_covered_branchings": 6,
         "covered_branchings": [
-            1,2654435832,    2,2654435832
+            1,2654435832,    2,2654435832,    3,2654435832,    4,2654435832,    
+            5,2654435832,    6,2654435832
         ],
         "output_statistics": {
-            "typed_minimization_analysis": {
-                "num_generated_tests": 1,
+            "local_search": {
+                "num_generated_tests": 4,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },

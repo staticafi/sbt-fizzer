@@ -23,7 +23,7 @@
             1,0,    2,0
         ],
         "output_statistics": {
-            "typed_minimization_analysis": {
+            "local_search": {
                 "num_generated_tests": 2,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
