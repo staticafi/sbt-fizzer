@@ -179,6 +179,7 @@ private:
     void  compute_descent_shifts();
     void  compute_descent_shifts(
             std::vector<vecf64>&  resulting_shifts,
+            origin_set&  used_origins,
             vecf64 const&  g,
             std::size_t  space_index,
             float_64_bit  value

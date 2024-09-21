@@ -717,8 +717,10 @@ bool  local_search_analysis::clip_shift_by_constraints(
 
 void  local_search_analysis::compute_descent_shifts()
 {
+    origin_set  used_origins{ &types_of_variables };
+
     vecf64 const&  grad{ local_spaces.back().gradient };
-    compute_descent_shifts(descent_props.shifts, grad, local_spaces.size() - 1UL, path.back().value);
+    compute_descent_shifts(descent_props.shifts, used_origins, grad, local_spaces.size() - 1UL, path.back().value);
 
     std::size_t const  dim{ size(grad) };
     vecf64  g; reset(g, dim, 0.0);
@@ -727,7 +729,7 @@ void  local_search_analysis::compute_descent_shifts()
         {
             set(g, 0.0);
             at(g, i) = at(grad, i);
-            compute_descent_shifts(descent_props.shifts, g, local_spaces.size() - 1UL, path.back().value);
+            compute_descent_shifts(descent_props.shifts, used_origins, g, local_spaces.size() - 1UL, path.back().value);
         }
 
     std::reverse(descent_props.shifts.begin(), descent_props.shifts.end());
@@ -736,6 +738,7 @@ void  local_search_analysis::compute_descent_shifts()
 
 void  local_search_analysis::compute_descent_shifts(
         std::vector<vecf64>&  resulting_shifts,
+        origin_set&  used_origins,
         vecf64 const&  g,
         std::size_t const  space_index,
         float_64_bit const  value
@@ -751,8 +754,6 @@ void  local_search_analysis::compute_descent_shifts(
         if (!std::isfinite(x) || std::isnan(x))
             return;
     }
-
-    origin_set  used_origins{ &types_of_variables };
 
     vecf64  lambdas;
     {
