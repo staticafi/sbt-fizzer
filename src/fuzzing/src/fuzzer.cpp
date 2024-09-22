@@ -1131,6 +1131,27 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
     best_values.push_back(node->best_coverage_value);
 }
 
+/**
+ * @brief Approximates the weight matrix using gradient descent.
+ *
+ * This function performs gradient descent to approximate the weight matrix
+ * that minimizes the error between the dot product of the input matrix and
+ * the best values. The gradient descent algorithm iteratively updates the
+ * weights until convergence or until the maximum number of iterations is reached.
+ *
+ * @return A vector of floats representing the approximated weights.
+ *
+ * The function uses the following parameters:
+ * - learning_rate: The rate at which the weights are updated during each iteration.
+ * - max_iterations: The maximum number of iterations for the gradient descent algorithm.
+ * - tolerance: The threshold for convergence. If the maximum change in weights is less than this value, the algorithm stops.
+ *
+ * The function performs the following steps:
+ * 1. Initializes the weights to 1.0.
+ * 2. Iteratively computes the gradient of the error with respect to the weights.
+ * 3. Updates the weights using the computed gradient and the learning rate.
+ * 4. Checks for convergence by comparing the maximum change in weights to the tolerance.
+ */
 std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
 {
     const float learning_rate = 0.001f;
