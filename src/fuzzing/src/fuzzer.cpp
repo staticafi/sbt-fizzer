@@ -980,10 +980,22 @@ auto fuzzing::fuzzer::node_navigation::operator<=>(node_navigation const &other)
     return direction <=> other.direction;
 }
 
+/**
+ * @brief Processes the dependencies of a branching node.
+ * 
+ * This function checks if the given node's location ID is contained within
+ * the non-IID nodes. If it is, the function returns early. Otherwise, it
+ * retrieves the properties associated with the node's location ID and updates
+ * the list of all paths with the given node. If the node is deemed interesting,
+ * the function recomputes the matrix. Finally, it adds an equation for the node.
+ * 
+ * @param node A pointer to the branching node whose dependencies are to be processed.
+ */
 void fuzzer::process_node_dependance(branching_node *node)
 {
     if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
         return;
+        
     iid_dependence_props &props = iid_dependences.id_to_equation_map[node->get_location_id()];
 
     props.all_paths.push_back(node);
@@ -996,6 +1008,16 @@ void fuzzer::process_node_dependance(branching_node *node)
     props.add_equation(node);
 }
 
+/**
+ * @brief Updates the set of interesting nodes based on the given branching node.
+ *
+ * This function traverses the paths from the given branching node and updates the set of interesting nodes
+ * by comparing the paths with all existing paths. If new interesting nodes are found, the set is updated
+ * and the function returns true.
+ *
+ * @param node A pointer to the branching node from which to start the path traversal.
+ * @return true if the set of interesting nodes was updated, false otherwise.
+ */
 bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_node *node)
 {
     bool set_changed = false;
@@ -1054,6 +1076,13 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_n
     return set_changed;
 }
 
+/**
+ * @brief Recomputes the matrix based on the current paths.
+ * 
+ * This function clears the existing matrix and then iterates over all paths,
+ * adding an equation for each path to the matrix. If there are no paths, 
+ * the function returns immediately without modifying the matrix.
+ */
 void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 {
     if (all_paths.empty())
@@ -1067,6 +1096,14 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
     }
 }
 
+/**
+ * @brief Adds an equation to the IID dependence properties based on the given branching path.
+ *
+ * This function traverses the given branching path, collects the directions of interesting nodes,
+ * and updates the internal matrix and best values with the collected data.
+ *
+ * @param path A pointer to the branching node representing the path to be analyzed.
+ */
 void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
 {
     std::map<node_navigation, int> directions_in_path;
