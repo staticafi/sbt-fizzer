@@ -1007,6 +1007,8 @@ auto fuzzer::node_navigation::operator<=>(node_navigation const &other) const
  */
 void fuzzer::process_node_dependance(branching_node *node)
 {
+    TMPROF_BLOCK();
+    
     if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
         return;
         
@@ -1035,6 +1037,8 @@ void fuzzer::process_node_dependance(branching_node *node)
  */
 bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_node *node)
 {
+    TMPROF_BLOCK();
+
     bool set_changed = false;
 
     auto get_path = [](branching_node *node)
@@ -1101,6 +1105,8 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_n
  */
 void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 {
+    TMPROF_BLOCK();
+
     if (all_paths.empty())
         return;
 
@@ -1123,6 +1129,8 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
  */
 void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
 {
+    TMPROF_BLOCK();
+
     std::map<node_navigation, int> directions_in_path;
     for (const node_navigation& navigation : interesting_nodes)
     {
@@ -1176,6 +1184,8 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
  */
 std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
 {
+    TMPROF_BLOCK();
+
     const float learning_rate = 0.001f;
     const int max_iterations = 1000;
     const float tolerance = 1e-6f;
