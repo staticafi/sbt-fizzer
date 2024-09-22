@@ -224,6 +224,11 @@ private:
         bool direction;
 
         auto operator<=>(node_navigation const& other) const;
+        friend std::ostream& operator<<(std::ostream& os, node_navigation const& nn)
+        {
+            os << nn.node_id.id << " " << (nn.direction ? "right" : "left");
+            return os;
+        }
     };
 
     struct iid_dependence_props

@@ -972,13 +972,27 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
-auto fuzzing::fuzzer::node_navigation::operator<=>(node_navigation const &other) const
+/**
+ * @brief Compares this node_navigation object with another node_navigation object.
+ * 
+ * This operator performs a three-way comparison between the current node_navigation 
+ * object and another node_navigation object. The comparison is first based on the 
+ * node_id.id. If the node_id.id values are equal, it then compares the direction.
+ * 
+ * @param other The other node_navigation object to compare with.
+ * @return std::strong_ordering Result of the comparison:
+ *         - std::strong_ordering::less if this object is less than the other.
+ *         - std::strong_ordering::equal if this object is equal to the other.
+ *         - std::strong_ordering::greater if this object is greater than the other.
+ */
+auto fuzzer::node_navigation::operator<=>(node_navigation const &other) const
 {
     if (auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
         return cmp;
 
     return direction <=> other.direction;
 }
+
 
 /**
  * @brief Processes the dependencies of a branching node.
@@ -1007,6 +1021,7 @@ void fuzzer::process_node_dependance(branching_node *node)
 
     props.add_equation(node);
 }
+
 
 /**
  * @brief Updates the set of interesting nodes based on the given branching node.
@@ -1076,6 +1091,7 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_n
     return set_changed;
 }
 
+
 /**
  * @brief Recomputes the matrix based on the current paths.
  * 
@@ -1096,6 +1112,7 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
     }
 }
 
+
 /**
  * @brief Adds an equation to the IID dependence properties based on the given branching path.
  *
@@ -1107,6 +1124,10 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
 {
     std::map<node_navigation, int> directions_in_path;
+    for (const node_navigation& navigation : interesting_nodes)
+    {
+        directions_in_path[navigation] = 0;
+    }
 
     branching_node *node = path;
     branching_node *prev_node = node->predecessor;
@@ -1130,6 +1151,7 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
     matrix.push_back(values_in_path);
     best_values.push_back(node->best_coverage_value);
 }
+
 
 /**
  * @brief Approximates the weight matrix using gradient descent.
@@ -1835,11 +1857,9 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(winner->get_location_id());
     std::vector<float> weights = props.approximate_matrix();
 
-    std::cout << weights.size() << " " << props.interesting_nodes.size() << std::endl;
-
     std::cout << "ID: " << winner->get_location_id().id << std::endl;
-    for (const auto& node : props.interesting_nodes){
-        std::cout << node.node_id.id << " " << node.direction << std::endl;
+    for (const auto& nav : props.interesting_nodes) {
+        std::cout << nav << " ";
     }
     std::cout << std::endl;
     for (const auto& weight : weights) {
