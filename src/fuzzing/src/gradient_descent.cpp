@@ -1,11 +1,11 @@
 #include <algorithm>
 #include <cmath>
 #include <fuzzing/gradient_descent.hpp>
+#include <iostream>
+#include <random>
+#include <stdexcept>
 #include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
-#include <iostream>
-#include <stdexcept>
-#include <random>
 
 GradientDescent::GradientDescent( float learning_rate, int max_iterations, float convergence_threshold )
     : _learning_rate( learning_rate )
@@ -122,16 +122,17 @@ std::vector< float > GradientDescent::normalize( std::vector< float >& values,
                                                  float min_value,
                                                  float max_value )
 {
-    if (values.empty()) {
+    if ( values.empty() ) {
         return values;
     }
 
-    float min_elem = *std::min_element(values.begin(), values.end());
-    float max_elem = *std::max_element(values.begin(), values.end());
+    float min_elem = *std::min_element( values.begin(), values.end() );
+    float max_elem = *std::max_element( values.begin(), values.end() );
 
-    if (min_elem != max_elem) {
-        for (auto& value : values) {
-            value = min_value + (value - min_elem) * (max_value - min_value) / (max_elem - min_elem);
+    if ( min_elem != max_elem ) {
+        for ( auto& value : values ) {
+            value = min_value +
+                    ( value - min_elem ) * ( max_value - min_value ) / ( max_elem - min_elem );
         }
     }
 

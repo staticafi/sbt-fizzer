@@ -995,6 +995,14 @@ auto fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
     return direction <=> other.direction;
 }
 
+/**
+ * @brief Equality operator for node_navigation.
+ * 
+ * Compares two node_navigation objects for equality based on their node_id and direction.
+ * 
+ * @param other The other node_navigation object to compare with.
+ * @return true if both node_id and direction are equal, false otherwise.
+ */
 bool fuzzer::node_navigation::operator==( node_navigation const& other ) const
 {
     return node_id.id == other.node_id.id && direction == other.direction;
@@ -1088,7 +1096,8 @@ std::vector< fuzzer::node_navigation > fuzzer::iid_dependence_props::get_path( b
     while ( current != nullptr ) {
         branching_node* predecessor = current->predecessor;
         if ( predecessor != nullptr ) {
-            node_navigation nav = { predecessor->get_location_id(), predecessor->successor_direction( current ) };
+            node_navigation nav = { predecessor->get_location_id(),
+                                    predecessor->successor_direction( current ) };
             path.push_back( nav );
         }
         current = predecessor;
@@ -1166,7 +1175,7 @@ void fuzzer::iid_dependence_props::add_equation( branching_node* path )
 std::vector< float > fuzzer::iid_dependence_props::approximate_matrix() const
 {
     GradientDescent gd;
-    std::vector<float> weights = gd.optimize(matrix, best_values);
+    std::vector< float > weights = gd.optimize( matrix, best_values );
 }
 
 
