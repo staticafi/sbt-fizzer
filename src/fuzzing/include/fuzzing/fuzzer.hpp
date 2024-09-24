@@ -318,7 +318,7 @@ private:
             );
 
     void  generate_next_input(vecb&  stdin_bits);
-    void  process_node_dependance(branching_node* node);
+    void  process_node_dependence(branching_node* node);
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();

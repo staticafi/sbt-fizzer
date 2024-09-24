@@ -7,6 +7,8 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <iterator>
+#include <fuzzing/gradient_descent.hpp>
 
 namespace  fuzzing {
 
@@ -974,20 +976,20 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
 
 /**
  * @brief Compares this node_navigation object with another node_navigation object.
- * 
- * This operator performs a three-way comparison between the current node_navigation 
- * object and another node_navigation object. The comparison is first based on the 
+ *
+ * This operator performs a three-way comparison between the current node_navigation
+ * object and another node_navigation object. The comparison is first based on the
  * node_id.id. If the node_id.id values are equal, it then compares the direction.
- * 
+ *
  * @param other The other node_navigation object to compare with.
  * @return std::strong_ordering Result of the comparison:
  *         - std::strong_ordering::less if this object is less than the other.
  *         - std::strong_ordering::equal if this object is equal to the other.
  *         - std::strong_ordering::greater if this object is greater than the other.
  */
-auto fuzzer::node_navigation::operator<=>(node_navigation const &other) const
+auto fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
 {
-    if (auto const cmp = node_id.id <=> other.node_id.id; cmp != 0)
+    if ( auto const cmp = node_id.id <=> other.node_id.id; cmp != 0 )
         return cmp;
 
     return direction <=> other.direction;
@@ -996,100 +998,93 @@ auto fuzzer::node_navigation::operator<=>(node_navigation const &other) const
 
 /**
  * @brief Processes the dependencies of a branching node.
- * 
+ *
  * This function checks if the given node's location ID is contained within
  * the non-IID nodes. If it is, the function returns early. Otherwise, it
  * retrieves the properties associated with the node's location ID and updates
  * the list of all paths with the given node. If the node is deemed interesting,
  * the function recomputes the matrix. Finally, it adds an equation for the node.
- * 
+ *
  * @param node A pointer to the branching node whose dependencies are to be processed.
  */
-void fuzzer::process_node_dependance(branching_node *node)
+void fuzzer::process_node_dependence( branching_node* node )
 {
     TMPROF_BLOCK();
-    
-    if (iid_dependences.non_iid_nodes.contains(node->get_location_id()))
+
+    if ( iid_dependences.non_iid_nodes.contains( node->get_location_id() ) )
         return;
-        
-    iid_dependence_props &props = iid_dependences.id_to_equation_map[node->get_location_id()];
 
-    props.all_paths.push_back(node);
+    iid_dependence_props& props = iid_dependences.id_to_equation_map[ node->get_location_id() ];
 
-    if (props.update_interesting_nodes(node))
-    {
+    props.all_paths.push_back( node );
+
+    if ( props.update_interesting_nodes( node ) ) {
         props.recompute_matrix();
     }
 
-    props.add_equation(node);
+    props.add_equation( node );
 }
 
 
 /**
  * @brief Updates the set of interesting nodes based on the given branching node.
  *
- * This function traverses the paths from the given branching node and updates the set of interesting nodes
- * by comparing the paths with all existing paths. If new interesting nodes are found, the set is updated
- * and the function returns true.
+ * This function traverses the paths from the given branching node and updates the set of
+ * interesting nodes by comparing the paths with all existing paths. If new interesting nodes are
+ * found, the set is updated and the function returns true.
  *
  * @param node A pointer to the branching node from which to start the path traversal.
  * @return true if the set of interesting nodes was updated, false otherwise.
  */
-bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_node *node)
+bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* node )
 {
     TMPROF_BLOCK();
 
     bool set_changed = false;
 
-    auto get_path = [](branching_node *node)
-    {
-        std::vector<branching_node *> path;
-        branching_node *current = node;
-        while (current != nullptr)
-        {
-            path.push_back(current);
+    auto get_path = []( branching_node* node ) {
+        std::vector< branching_node* > path;
+        branching_node* current = node;
+        while ( current != nullptr ) {
+            path.push_back( current );
             current = current->predecessor;
         }
         return path;
     };
 
-    auto add_to_interesting = [this, &set_changed](std::vector<branching_node *> &nodes, int i)
-    {
-        for (; i >= 0; --i)
-        {
-            branching_node *node = nodes[i];
-            branching_node *predecessor = node->predecessor;
+    auto add_to_interesting = [ this, &set_changed ]( std::vector< branching_node* >& nodes, int i ) {
+        for ( ; i >= 0; --i ) {
+            branching_node* node = nodes[ i ];
+            branching_node* predecessor = node->predecessor;
 
-            if (predecessor == nullptr)
+            if ( predecessor == nullptr )
                 continue;
 
-            bool direction = node == predecessor->successor(true).pointer;
-            auto result = this->interesting_nodes.emplace(node->get_location_id(), direction);
-            if (result.second)
-            {
+            bool direction = node == predecessor->successor( true ).pointer;
+            auto result = this->interesting_nodes.emplace( node->get_location_id(), !direction );
+            result = this->interesting_nodes.emplace( node->get_location_id(), direction );
+            if ( result.second ) {
                 set_changed = true;
             }
         }
     };
 
-    for (const auto &path : all_paths)
-    {
-        std::vector<branching_node *> path_1 = get_path(node);
-        std::vector<branching_node *> path_2 = get_path(path);
+    for ( const auto& path : all_paths ) {
+        std::vector< branching_node* > path_1 = get_path( node );
+        std::vector< branching_node* > path_2 = get_path( path );
 
-        ASSUMPTION(path_1.back() == path_2.back());
+        ASSUMPTION( path_1.back() == path_2.back() );
 
         std::size_t i_1 = path_1.size() - 1;
         std::size_t i_2 = path_2.size() - 1;
 
-        while (i_1 > 0 && i_2 > 0 && path_1[i_1] == path_2[i_2])
-        {
+        while ( i_1 > 0 && i_2 > 0 && path_1[ i_1 ] == path_2[ i_2 ] ) {
             --i_1;
             --i_2;
         }
 
-        add_to_interesting(path_1, i_1);
-        add_to_interesting(path_2, i_2);
+        add_to_interesting( path_1, i_1 );
+        add_to_interesting( path_2, i_2 );
     }
 
     return set_changed;
@@ -1098,23 +1093,23 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes(branching_n
 
 /**
  * @brief Recomputes the matrix based on the current paths.
- * 
+ *
  * This function clears the existing matrix and then iterates over all paths,
- * adding an equation for each path to the matrix. If there are no paths, 
+ * adding an equation for each path to the matrix. If there are no paths,
  * the function returns immediately without modifying the matrix.
  */
 void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 {
     TMPROF_BLOCK();
 
-    if (all_paths.empty())
+    if ( all_paths.empty() )
         return;
 
     matrix.clear(); // This could be done better, but for now it's fine
+    best_values.clear();
 
-    for (const auto &path : all_paths)
-    {
-        add_equation(path);
+    for ( const auto& path : all_paths ) {
+        add_equation( path );
     }
 }
 
@@ -1127,37 +1122,35 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
  *
  * @param path A pointer to the branching node representing the path to be analyzed.
  */
-void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
+void fuzzing::fuzzer::iid_dependence_props::add_equation( branching_node* path )
 {
     TMPROF_BLOCK();
 
-    std::map<node_navigation, int> directions_in_path;
-    for (const node_navigation& navigation : interesting_nodes)
-    {
-        directions_in_path[navigation] = 0;
+    std::map< node_navigation, int > directions_in_path;
+    for ( const node_navigation& navigation : interesting_nodes ) {
+        directions_in_path[ navigation ] = 0;
     }
 
-    branching_node *node = path;
-    branching_node *prev_node = node->predecessor;
+    branching_node* node = path;
+    branching_node* prev_node = node->predecessor;
 
-    while (prev_node != nullptr)
-    {
-        node_navigation nav = {prev_node->get_location_id(), prev_node->successor(true).pointer == node};
-        if (interesting_nodes.contains(nav))
-            directions_in_path[nav]++;
+    while ( prev_node != nullptr ) {
+        node_navigation nav = { prev_node->get_location_id(),
+                                prev_node->successor( true ).pointer == node };
+        if ( interesting_nodes.contains( nav ) )
+            directions_in_path[ nav ]++;
 
         node = prev_node;
         prev_node = node->predecessor;
     }
 
-    std::vector<float> values_in_path;
-    for (const auto &[direction, count] : directions_in_path)
-    {
-        values_in_path.push_back(count);
+    std::vector< float > values_in_path;
+    for ( const auto& [ direction, count ] : directions_in_path ) {
+        values_in_path.push_back( count );
     }
 
-    matrix.push_back(values_in_path);
-    best_values.push_back(node->best_coverage_value);
+    matrix.push_back( values_in_path );
+    best_values.push_back( node->best_coverage_value );
 }
 
 
@@ -1174,7 +1167,8 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
  * The function uses the following parameters:
  * - learning_rate: The rate at which the weights are updated during each iteration.
  * - max_iterations: The maximum number of iterations for the gradient descent algorithm.
- * - tolerance: The threshold for convergence. If the maximum change in weights is less than this value, the algorithm stops.
+ * - tolerance: The threshold for convergence. If the maximum change in weights is less than this
+ * value, the algorithm stops.
  *
  * The function performs the following steps:
  * 1. Initializes the weights to 1.0.
@@ -1182,52 +1176,85 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation(branching_node *path)
  * 3. Updates the weights using the computed gradient and the learning rate.
  * 4. Checks for convergence by comparing the maximum change in weights to the tolerance.
  */
-std::vector<float> fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
+std::vector< float > fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
 {
     TMPROF_BLOCK();
 
-    const float learning_rate = 0.001f;
-    const int max_iterations = 1000;
+    const float initial_learning_rate = 0.01f;
+    const int max_iterations = 10000;
     const float tolerance = 1e-6f;
+    const float momentum = 0.9f;
 
-    size_t m = matrix.size();
-    size_t n = matrix[0].size();
+    float max_value = 0.0f;
+    float min_value = 0.0f;
+    for ( const auto& row : matrix ) {
+        for ( const auto& value : row ) {
+            max_value = std::max( max_value, value );
+            min_value = std::min( min_value, value );
+        }
+    }
+    auto normalize = [ min_value, max_value ]( float value ) {
+        return ( value - min_value ) / ( max_value - min_value );
+    };
 
-    std::vector<float> weights(n, 1.0f); // Initialize weights to zero
+    std::vector< std::vector< float > > normalized_matrix;
+    for ( const auto& row : matrix ) {
+        std::vector< float > normalized_row;
+        for ( const auto& value : row ) {
+            normalized_row.push_back( normalize( value ) );
+        }
+        normalized_matrix.push_back( normalized_row );
+    }
 
-    for (int iter = 0; iter < max_iterations; ++iter)
-    {
-        std::vector<float> gradient(n, 0.0f);
+    size_t m = normalized_matrix.size();
+    size_t n = normalized_matrix[ 0 ].size();
+
+    // Initialize weights with small random values
+    std::vector< float > weights( n );
+    std::random_device rd;
+    std::mt19937 gen( rd() );
+    std::normal_distribution<> d( 0, 1.0 / std::sqrt( n ) );
+    for ( auto& weight : weights ) {
+        weight = d( gen );
+    }
+
+    std::vector< float > velocity( n, 0.0f );
+    float adaptive_learning_rate = initial_learning_rate;
+
+    for ( int iter = 0; iter < max_iterations; ++iter ) {
+        std::vector< float > gradient( n, 0.0f );
+        float total_error = 0.0f;
 
         // Compute gradient
-        for (size_t i = 0; i < m; ++i)
-        {
+        for ( size_t i = 0; i < m; ++i ) {
             float dot_product = 0.0f;
-            for (size_t j = 0; j < n; ++j)
-            {
-                dot_product += matrix[i][j] * weights[j];
+            for ( size_t j = 0; j < n; ++j ) {
+                dot_product += normalized_matrix[ i ][ j ] * weights[ j ];
             }
-            float error = dot_product - best_values[i];
-            for (size_t j = 0; j < n; ++j)
-            {
-                gradient[j] += (matrix[i][j] * error) / m;
+            float error = dot_product - best_values[ i ];
+            total_error += error * error;
+            for ( size_t j = 0; j < n; ++j ) {
+                gradient[ j ] += ( normalized_matrix[ i ][ j ] * error ) / m;
             }
         }
 
-        // Update weights
-        for (size_t j = 0; j < n; ++j)
-        {
-            weights[j] -= learning_rate * gradient[j];
+        // Update weights with momentum
+        for ( size_t j = 0; j < n; ++j ) {
+            velocity[ j ] = momentum * velocity[ j ] - adaptive_learning_rate * gradient[ j ];
+            weights[ j ] += velocity[ j ];
+        }
+
+        // Decay learning rate
+        adaptive_learning_rate *= 0.99f;
+
+        // Print debug information
+        if ( iter % 100 == 0 ) {
+            std::cout << "Iteration " << iter << ", Error: " << total_error / m << std::endl;
         }
 
         // Check for convergence
-        float max_change = 0.0f;
-        for (size_t j = 0; j < n; ++j)
-        {
-            max_change = std::max(max_change, std::abs(learning_rate * gradient[j]));
-        }
-        if (max_change < tolerance)
-        {
+        if ( total_error / m < tolerance ) {
+            std::cout << "Converged after " << iter << " iterations." << std::endl;
             break;
         }
     }
@@ -1272,7 +1299,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     );
             construction_props.diverging_node = entry_branching;
 
-            process_node_dependance(entry_branching);
+            process_node_dependence(entry_branching);
 
             ++statistics.nodes_created;
         }
@@ -1357,7 +1384,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     new_node
                 });
 
-                process_node_dependance(new_node);
+                process_node_dependence(new_node);
 
                 ++statistics.nodes_created;
 
@@ -1864,18 +1891,20 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     
     INVARIANT(winner != nullptr);
 
-    const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(winner->get_location_id());
-    std::vector<float> weights = props.approximate_matrix();
+    instrumentation::location_id loc_id(7);
+    const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    if (props.matrix.empty())
+        return winner;
+
+    // std::vector<float> weights = props.approximate_matrix();
+    GradientDescent gd;
+    std::vector<float> weights = gd.optimize(props.matrix, props.best_values);
 
     std::cout << "ID: " << winner->get_location_id().id << std::endl;
-    for (const auto& nav : props.interesting_nodes) {
-        std::cout << nav << " ";
+
+    for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
+        std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
     }
-    std::cout << std::endl;
-    for (const auto& weight : weights) {
-        std::cout << weight << " ";
-    }
-    std::cout << std::endl;
 
     return winner;
 }
