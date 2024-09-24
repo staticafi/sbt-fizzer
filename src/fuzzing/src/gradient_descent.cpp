@@ -41,17 +41,19 @@ std::vector< float > GradientDescent::optimize( const std::vector< std::vector< 
         computeMeanSquaredError( current_solution, coefficient_matrix, target_vector );
 
         // Debug output
-        if ( iteration % 25 == 0 ) {
+        if ( _debug && iteration % 50 == 0 ) {
             std::cout << "Iteration " << iteration << ", Cost: " << current_cost << std::endl;
         }
 
         if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
             std::cout << "Converged after " << iteration << " iterations." << std::endl;
+            std::cout << "Number of equations: " << coefficient_matrix.size() << std::endl;
             break;
         }
         prev_cost = current_cost;
     }
 
+    normalize( current_solution, 0.0f, 100.0f );
     return current_solution;
 }
 
@@ -114,4 +116,24 @@ std::vector< float > GradientDescent::generateRandomWeights( size_t n )
     }
 
     return weights;
+}
+
+std::vector< float > GradientDescent::normalize( std::vector< float >& values,
+                                                 float min_value,
+                                                 float max_value )
+{
+    if (values.empty()) {
+        return values;
+    }
+
+    float min_elem = *std::min_element(values.begin(), values.end());
+    float max_elem = *std::max_element(values.begin(), values.end());
+
+    if (min_elem != max_elem) {
+        for (auto& value : values) {
+            value = min_value + (value - min_elem) * (max_value - min_value) / (max_elem - min_elem);
+        }
+    }
+
+    return values;
 }

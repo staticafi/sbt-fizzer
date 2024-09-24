@@ -224,6 +224,7 @@ private:
         bool direction;
 
         auto operator<=>(node_navigation const& other) const;
+        bool operator==(node_navigation const& other) const;
         friend std::ostream& operator<<(std::ostream& os, node_navigation const& nn)
         {
             os << nn.node_id.id << " " << (nn.direction ? "right" : "left");
@@ -239,6 +240,7 @@ private:
         std::vector<float> best_values;
 
         bool update_interesting_nodes(branching_node* node);
+        std::vector<node_navigation> get_path(branching_node* node);
         void recompute_matrix();
         void add_equation(branching_node* path);
         std::vector<float> approximate_matrix() const;

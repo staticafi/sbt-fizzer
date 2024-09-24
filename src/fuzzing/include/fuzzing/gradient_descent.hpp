@@ -19,10 +19,11 @@ private:
     float _learning_rate;
     int _max_iterations;
     float _convergence_threshold;
+    bool _debug = false;
 
     std::vector<float> computeGradient(const std::vector<float>& current_solution, const std::vector<std::vector<float>>& coefficient_matrix, const std::vector<float>& target_vector);
     float computeMeanSquaredError(const std::vector<float>& current_solution, const std::vector<std::vector<float>>& coefficient_matrix, const std::vector<float>& target_vector);
     std::vector<float> generateRandomWeights(size_t n);
     float dotProduct(const std::vector<float>& a, const std::vector<float>& b);
-
+    std::vector<float> normalize(std::vector<float>& values, float min_value, float max_value);
 };

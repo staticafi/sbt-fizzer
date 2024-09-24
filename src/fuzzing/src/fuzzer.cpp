@@ -995,6 +995,11 @@ auto fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
     return direction <=> other.direction;
 }
 
+bool fuzzer::node_navigation::operator==( node_navigation const& other ) const
+{
+    return node_id.id == other.node_id.id && direction == other.direction;
+}
+
 
 /**
  * @brief Processes the dependencies of a branching node.
@@ -1036,42 +1041,27 @@ void fuzzer::process_node_dependence( branching_node* node )
  * @param node A pointer to the branching node from which to start the path traversal.
  * @return true if the set of interesting nodes was updated, false otherwise.
  */
-bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* node )
+bool fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* node )
 {
     TMPROF_BLOCK();
 
     bool set_changed = false;
 
-    auto get_path = []( branching_node* node ) {
-        std::vector< branching_node* > path;
-        branching_node* current = node;
-        while ( current != nullptr ) {
-            path.push_back( current );
-            current = current->predecessor;
-        }
-        return path;
-    };
-
-    auto add_to_interesting = [ this, &set_changed ]( std::vector< branching_node* >& nodes, int i ) {
+    auto add_to_interesting = [ this, &set_changed ]( std::vector< node_navigation >& nodes, int i ) {
         for ( ; i >= 0; --i ) {
-            branching_node* node = nodes[ i ];
-            branching_node* predecessor = node->predecessor;
-
-            if ( predecessor == nullptr )
-                continue;
-
-            bool direction = node == predecessor->successor( true ).pointer;
-            auto result = this->interesting_nodes.emplace( node->get_location_id(), !direction );
-            result = this->interesting_nodes.emplace( node->get_location_id(), direction );
+            auto result = this->interesting_nodes.emplace( nodes[ i ] );
             if ( result.second ) {
                 set_changed = true;
             }
         }
     };
 
-    for ( const auto& path : all_paths ) {
-        std::vector< branching_node* > path_1 = get_path( node );
-        std::vector< branching_node* > path_2 = get_path( path );
+    for ( const auto& end_node : all_paths ) {
+        std::vector< node_navigation > path_1 = get_path( node );
+        std::vector< node_navigation > path_2 = get_path( end_node );
+
+        if ( path_1.empty() || path_2.empty() )
+            continue;
 
         ASSUMPTION( path_1.back() == path_2.back() );
 
@@ -1090,6 +1080,22 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes( branching_
     return set_changed;
 }
 
+std::vector< fuzzer::node_navigation > fuzzer::iid_dependence_props::get_path( branching_node* node )
+{
+    std::vector< node_navigation > path;
+
+    branching_node* current = node;
+    while ( current != nullptr ) {
+        branching_node* predecessor = current->predecessor;
+        if ( predecessor != nullptr ) {
+            node_navigation nav = { predecessor->get_location_id(), predecessor->successor_direction( current ) };
+            path.push_back( nav );
+        }
+        current = predecessor;
+    }
+
+    return path;
+}
 
 /**
  * @brief Recomputes the matrix based on the current paths.
@@ -1098,7 +1104,7 @@ bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes( branching_
  * adding an equation for each path to the matrix. If there are no paths,
  * the function returns immediately without modifying the matrix.
  */
-void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
+void fuzzer::iid_dependence_props::recompute_matrix()
 {
     TMPROF_BLOCK();
 
@@ -1122,7 +1128,7 @@ void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
  *
  * @param path A pointer to the branching node representing the path to be analyzed.
  */
-void fuzzing::fuzzer::iid_dependence_props::add_equation( branching_node* path )
+void fuzzer::iid_dependence_props::add_equation( branching_node* path )
 {
     TMPROF_BLOCK();
 
@@ -1131,17 +1137,12 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation( branching_node* path )
         directions_in_path[ navigation ] = 0;
     }
 
-    branching_node* node = path;
-    branching_node* prev_node = node->predecessor;
+    std::vector< node_navigation > path_nodes = get_path( path );
 
-    while ( prev_node != nullptr ) {
-        node_navigation nav = { prev_node->get_location_id(),
-                                prev_node->successor( true ).pointer == node };
-        if ( interesting_nodes.contains( nav ) )
+    for ( const node_navigation& nav : path_nodes ) {
+        if ( interesting_nodes.contains( nav ) ) {
             directions_in_path[ nav ]++;
-
-        node = prev_node;
-        prev_node = node->predecessor;
+        }
     }
 
     std::vector< float > values_in_path;
@@ -1150,117 +1151,24 @@ void fuzzing::fuzzer::iid_dependence_props::add_equation( branching_node* path )
     }
 
     matrix.push_back( values_in_path );
-    best_values.push_back( node->best_coverage_value );
+    best_values.push_back( path->best_coverage_value );
 }
 
 
 /**
- * @brief Approximates the weight matrix using gradient descent.
+ * @brief Approximates a matrix using gradient descent optimization.
  *
- * This function performs gradient descent to approximate the weight matrix
- * that minimizes the error between the dot product of the input matrix and
- * the best values. The gradient descent algorithm iteratively updates the
- * weights until convergence or until the maximum number of iterations is reached.
+ * This function utilizes the GradientDescent class to optimize the given matrix
+ * and best values, returning a vector of optimized weights.
  *
- * @return A vector of floats representing the approximated weights.
- *
- * The function uses the following parameters:
- * - learning_rate: The rate at which the weights are updated during each iteration.
- * - max_iterations: The maximum number of iterations for the gradient descent algorithm.
- * - tolerance: The threshold for convergence. If the maximum change in weights is less than this
- * value, the algorithm stops.
- *
- * The function performs the following steps:
- * 1. Initializes the weights to 1.0.
- * 2. Iteratively computes the gradient of the error with respect to the weights.
- * 3. Updates the weights using the computed gradient and the learning rate.
- * 4. Checks for convergence by comparing the maximum change in weights to the tolerance.
+ * @return A vector of floats representing the optimized weights.
  */
-std::vector< float > fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
+std::vector< float > fuzzer::iid_dependence_props::approximate_matrix() const
 {
-    TMPROF_BLOCK();
-
-    const float initial_learning_rate = 0.01f;
-    const int max_iterations = 10000;
-    const float tolerance = 1e-6f;
-    const float momentum = 0.9f;
-
-    float max_value = 0.0f;
-    float min_value = 0.0f;
-    for ( const auto& row : matrix ) {
-        for ( const auto& value : row ) {
-            max_value = std::max( max_value, value );
-            min_value = std::min( min_value, value );
-        }
-    }
-    auto normalize = [ min_value, max_value ]( float value ) {
-        return ( value - min_value ) / ( max_value - min_value );
-    };
-
-    std::vector< std::vector< float > > normalized_matrix;
-    for ( const auto& row : matrix ) {
-        std::vector< float > normalized_row;
-        for ( const auto& value : row ) {
-            normalized_row.push_back( normalize( value ) );
-        }
-        normalized_matrix.push_back( normalized_row );
-    }
-
-    size_t m = normalized_matrix.size();
-    size_t n = normalized_matrix[ 0 ].size();
-
-    // Initialize weights with small random values
-    std::vector< float > weights( n );
-    std::random_device rd;
-    std::mt19937 gen( rd() );
-    std::normal_distribution<> d( 0, 1.0 / std::sqrt( n ) );
-    for ( auto& weight : weights ) {
-        weight = d( gen );
-    }
-
-    std::vector< float > velocity( n, 0.0f );
-    float adaptive_learning_rate = initial_learning_rate;
-
-    for ( int iter = 0; iter < max_iterations; ++iter ) {
-        std::vector< float > gradient( n, 0.0f );
-        float total_error = 0.0f;
-
-        // Compute gradient
-        for ( size_t i = 0; i < m; ++i ) {
-            float dot_product = 0.0f;
-            for ( size_t j = 0; j < n; ++j ) {
-                dot_product += normalized_matrix[ i ][ j ] * weights[ j ];
-            }
-            float error = dot_product - best_values[ i ];
-            total_error += error * error;
-            for ( size_t j = 0; j < n; ++j ) {
-                gradient[ j ] += ( normalized_matrix[ i ][ j ] * error ) / m;
-            }
-        }
-
-        // Update weights with momentum
-        for ( size_t j = 0; j < n; ++j ) {
-            velocity[ j ] = momentum * velocity[ j ] - adaptive_learning_rate * gradient[ j ];
-            weights[ j ] += velocity[ j ];
-        }
-
-        // Decay learning rate
-        adaptive_learning_rate *= 0.99f;
-
-        // Print debug information
-        if ( iter % 100 == 0 ) {
-            std::cout << "Iteration " << iter << ", Error: " << total_error / m << std::endl;
-        }
-
-        // Check for convergence
-        if ( total_error / m < tolerance ) {
-            std::cout << "Converged after " << iter << " iterations." << std::endl;
-            break;
-        }
-    }
-
-    return weights;
+    GradientDescent gd;
+    std::vector<float> weights = gd.optimize(matrix, best_values);
 }
+
 
 execution_record::execution_flags  fuzzer::process_execution_results()
 {
@@ -1751,6 +1659,19 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
 void  fuzzer::select_next_state()
 {
+    instrumentation::location_id loc_id(7);
+    if (iid_dependences.id_to_equation_map.contains(loc_id))
+    {
+        const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+
+        std::vector<float> weights = props.approximate_matrix();
+
+        std::cout << "ID: " << loc_id.id << std::endl;
+        for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
+            std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
+        }
+    }
+
     TMPROF_BLOCK();
 
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
@@ -1891,20 +1812,20 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     
     INVARIANT(winner != nullptr);
 
-    instrumentation::location_id loc_id(7);
-    const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
-    if (props.matrix.empty())
-        return winner;
+    // instrumentation::location_id loc_id(6);
+    // const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    // if (props.matrix.empty())
+    //     return winner;
 
-    // std::vector<float> weights = props.approximate_matrix();
-    GradientDescent gd;
-    std::vector<float> weights = gd.optimize(props.matrix, props.best_values);
+    // // std::vector<float> weights = props.approximate_matrix();
+    // GradientDescent gd;
+    // std::vector<float> weights = gd.optimize(props.matrix, props.best_values);
 
-    std::cout << "ID: " << winner->get_location_id().id << std::endl;
+    // std::cout << "ID: " << loc_id.id << std::endl;
 
-    for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
-        std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
-    }
+    // for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
+    //     std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
+    // }
 
     return winner;
 }
