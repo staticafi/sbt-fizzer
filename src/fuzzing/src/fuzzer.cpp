@@ -974,20 +974,14 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
+
 /**
- * @brief Compares this node_navigation object with another node_navigation object.
- *
- * This operator performs a three-way comparison between the current node_navigation
- * object and another node_navigation object. The comparison is first based on the
- * node_id.id. If the node_id.id values are equal, it then compares the direction.
+ * @brief Three-way comparison for node_navigation.
  *
  * @param other The other node_navigation object to compare with.
- * @return std::strong_ordering Result of the comparison:
- *         - std::strong_ordering::less if this object is less than the other.
- *         - std::strong_ordering::equal if this object is equal to the other.
- *         - std::strong_ordering::greater if this object is greater than the other.
+ * @return std::strong_ordering Result of the comparison.
  */
-auto fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
+auto fuzzing::fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
 {
     if ( auto const cmp = node_id.id <=> other.node_id.id; cmp != 0 )
         return cmp;
@@ -995,47 +989,18 @@ auto fuzzer::node_navigation::operator<=>( node_navigation const& other ) const
     return direction <=> other.direction;
 }
 
+
 /**
  * @brief Equality operator for node_navigation.
- * 
+ *
  * Compares two node_navigation objects for equality based on their node_id and direction.
- * 
+ *
  * @param other The other node_navigation object to compare with.
  * @return true if both node_id and direction are equal, false otherwise.
  */
-bool fuzzer::node_navigation::operator==( node_navigation const& other ) const
+bool fuzzing::fuzzer::node_navigation::operator==( node_navigation const& other ) const
 {
     return node_id.id == other.node_id.id && direction == other.direction;
-}
-
-
-/**
- * @brief Processes the dependencies of a branching node.
- *
- * This function checks if the given node's location ID is contained within
- * the non-IID nodes. If it is, the function returns early. Otherwise, it
- * retrieves the properties associated with the node's location ID and updates
- * the list of all paths with the given node. If the node is deemed interesting,
- * the function recomputes the matrix. Finally, it adds an equation for the node.
- *
- * @param node A pointer to the branching node whose dependencies are to be processed.
- */
-void fuzzer::process_node_dependence( branching_node* node )
-{
-    TMPROF_BLOCK();
-
-    if ( iid_dependences.non_iid_nodes.contains( node->get_location_id() ) )
-        return;
-
-    iid_dependence_props& props = iid_dependences.id_to_equation_map[ node->get_location_id() ];
-
-    props.all_paths.push_back( node );
-
-    if ( props.update_interesting_nodes( node ) ) {
-        props.recompute_matrix();
-    }
-
-    props.add_equation( node );
 }
 
 
@@ -1049,7 +1014,7 @@ void fuzzer::process_node_dependence( branching_node* node )
  * @param node A pointer to the branching node from which to start the path traversal.
  * @return true if the set of interesting nodes was updated, false otherwise.
  */
-bool fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* node )
+bool fuzzing::fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* node )
 {
     TMPROF_BLOCK();
 
@@ -1088,7 +1053,20 @@ bool fuzzer::iid_dependence_props::update_interesting_nodes( branching_node* nod
     return set_changed;
 }
 
-std::vector< fuzzer::node_navigation > fuzzer::iid_dependence_props::get_path( branching_node* node )
+
+/**
+ * @brief Retrieves the path of node navigations from the given branching node to the root.
+ *
+ * This function constructs a vector of `node_navigation` objects representing the path
+ * from the specified branching node to the root node. Each `node_navigation` object
+ * contains the location ID of the predecessor node and the direction to the current node.
+ *
+ * @param node A pointer to the starting branching node.
+ * @return A vector of `node_navigation` objects representing the path from the given node to the
+ * root.
+ */
+std::vector< fuzzer::node_navigation >
+fuzzing::fuzzer::iid_dependence_props::get_path( branching_node* node ) const
 {
     std::vector< node_navigation > path;
 
@@ -1106,14 +1084,17 @@ std::vector< fuzzer::node_navigation > fuzzer::iid_dependence_props::get_path( b
     return path;
 }
 
+
 /**
- * @brief Recomputes the matrix based on the current paths.
+ * @brief Recomputes the matrix of IID dependence properties.
  *
- * This function clears the existing matrix and then iterates over all paths,
- * adding an equation for each path to the matrix. If there are no paths,
- * the function returns immediately without modifying the matrix.
+ * This function clears the current matrix and best values, then iterates
+ * through all paths to add equations to the matrix. If there are no paths,
+ * the function returns immediately.
+ *
+ * @note The matrix clearing could be optimized in the future.
  */
-void fuzzer::iid_dependence_props::recompute_matrix()
+void fuzzing::fuzzer::iid_dependence_props::recompute_matrix()
 {
     TMPROF_BLOCK();
 
@@ -1132,12 +1113,12 @@ void fuzzer::iid_dependence_props::recompute_matrix()
 /**
  * @brief Adds an equation to the IID dependence properties based on the given branching path.
  *
- * This function traverses the given branching path, collects the directions of interesting nodes,
- * and updates the internal matrix and best values with the collected data.
+ * This function updates the internal matrix and best values with the direction counts of
+ * interesting nodes encountered in the path.
  *
- * @param path A pointer to the branching node representing the path to be analyzed.
+ * @param path A pointer to the branching_node representing the path to be processed.
  */
-void fuzzer::iid_dependence_props::add_equation( branching_node* path )
+void fuzzing::fuzzer::iid_dependence_props::add_equation( branching_node* path )
 {
     TMPROF_BLOCK();
 
@@ -1172,10 +1153,107 @@ void fuzzer::iid_dependence_props::add_equation( branching_node* path )
  *
  * @return A vector of floats representing the optimized weights.
  */
-std::vector< float > fuzzer::iid_dependence_props::approximate_matrix() const
+std::vector< float > fuzzing::fuzzer::iid_dependence_props::approximate_matrix() const
 {
     GradientDescent gd;
     std::vector< float > weights = gd.optimize( matrix, best_values );
+
+
+    // std::vector<std::pair<int, node_navigation>> path = weights_to_path( weights );
+    // for (const auto& [value, nav] : path) {
+    //     std::cout << "Node ID: " << nav.node_id.id << ", Direction: " << nav.direction << ",
+    //     Value: " << value << std::endl;
+    // }
+
+    return weights;
+}
+
+
+std::vector< std::pair< int, fuzzer::node_navigation > >
+fuzzing::fuzzer::iid_dependence_props::weights_to_path( std::vector< float > const& weights ) const
+{
+    // *std::next(props.interesting_nodes.begin(), i)
+
+    std::vector< std::pair< float, size_t > > positive_values;
+
+    // Step 1: Consider only positive values and store their indices
+    for ( size_t i = 0; i < weights.size(); ++i ) {
+        if ( weights[ i ] > 0 ) {
+            positive_values.emplace_back( weights[ i ], i );
+            // std::cout << "Value: " << weights[i] << std::endl;
+        }
+    }
+
+    // Sort the positive values
+    std::sort( positive_values.begin(), positive_values.end() );
+    std::vector< std::pair< int, node_navigation > > result;
+
+    if ( !positive_values.empty() ) {
+        float smallest = positive_values[ 0 ].first;
+
+        // Steps 2-4: Create new values and store as integers
+        for ( const auto& [ value, index ] : positive_values ) {
+            int new_value = std::round( value / smallest );
+            result.emplace_back( new_value, *std::next( interesting_nodes.begin(), index ) );
+        }
+    }
+
+    return result;
+}
+
+
+/**
+ * @brief Updates the set of non-IID nodes based on sensitivity analysis.
+ *
+ * This function iterates through the nodes that have changed according to the
+ * provided sensitivity analysis. For each node that has undergone branching,
+ * it retrieves the node's location ID and attempts to insert it into the set
+ * of non-IID nodes. If the insertion is successful, it also removes the
+ * corresponding entry from the ID-to-equation map.
+ *
+ * @param sensitivity A reference to the sensitivity analysis object that
+ *                    provides the changed nodes.
+ */
+void fuzzing::fuzzer::iid_node_dependence::update_non_iid_nodes( sensitivity_analysis& sensitivity )
+{
+    for ( branching_node* node : sensitivity.get_changed_nodes() ) {
+        if ( node->is_did_branching() ) {
+            auto location_id = node->get_location_id();
+            if ( non_iid_nodes.insert( location_id ).second ) {
+                id_to_equation_map.erase( location_id );
+            }
+        }
+    }
+}
+
+
+/**
+ * @brief Processes the dependence of a given branching node.
+ *
+ * This function processes the dependence of a branching node by updating
+ * the internal state and properties associated with the node's location ID.
+ * It ensures that non-IID nodes are skipped, updates the list of all paths,
+ * and recomputes the matrix if the node is deemed interesting. Additionally,
+ * it adds the node to the equation map.
+ *
+ * @param node A pointer to the branching node to be processed.
+ */
+void fuzzing::fuzzer::iid_node_dependence::process_node_dependence( branching_node* node )
+{
+    TMPROF_BLOCK();
+
+    if ( non_iid_nodes.contains( node->get_location_id() ) )
+        return;
+
+    iid_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
+
+    props.all_paths.push_back( node );
+
+    if ( props.update_interesting_nodes( node ) ) {
+        props.recompute_matrix();
+    }
+
+    props.add_equation( node );
 }
 
 
@@ -1216,7 +1294,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     );
             construction_props.diverging_node = entry_branching;
 
-            process_node_dependence(entry_branching);
+            iid_dependences.process_node_dependence(entry_branching);
 
             ++statistics.nodes_created;
         }
@@ -1301,7 +1379,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     new_node
                 });
 
-                process_node_dependence(new_node);
+                iid_dependences.process_node_dependence(new_node);
 
                 ++statistics.nodes_created;
 
@@ -1468,6 +1546,7 @@ void  fuzzer::do_cleanup()
                     update_close_flags_from(node);
                     break;
                 }
+            iid_dependences.update_non_iid_nodes(sensitivity);
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
@@ -1533,8 +1612,6 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
                 pivots.push_back({ node, &pivot_it_and_state.first->second });
             }
-
-            // iid_dependence_props& deps = iid_dependences[node->get_location_id()];
         }
     if (pivots.empty())
         return;
@@ -1675,10 +1752,10 @@ void  fuzzer::select_next_state()
 
         std::vector<float> weights = props.approximate_matrix();
 
-        std::cout << "ID: " << loc_id.id << std::endl;
-        for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
-            std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
-        }
+        // std::cout << "ID: " << loc_id.id << std::endl;
+        // for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
+        //     std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
+        // }
     }
 
     TMPROF_BLOCK();

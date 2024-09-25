@@ -240,16 +240,20 @@ private:
         std::vector<float> best_values;
 
         bool update_interesting_nodes(branching_node* node);
-        std::vector<node_navigation> get_path(branching_node* node);
+        std::vector<node_navigation> get_path(branching_node* node) const;
         void recompute_matrix();
         void add_equation(branching_node* path);
         std::vector<float> approximate_matrix() const;
+        std::vector<std::pair<int, node_navigation>> weights_to_path(std::vector<float> const& weights) const;
     };
 
     struct iid_node_dependence
     {
         std::unordered_map<location_id, iid_dependence_props>  id_to_equation_map;
         std::set<location_id>  non_iid_nodes;
+
+        void update_non_iid_nodes(sensitivity_analysis& sensitivity);
+        void process_node_dependence(branching_node* node);
     };
 
     static void  update_close_flags_from(branching_node*  node);
@@ -320,7 +324,6 @@ private:
             );
 
     void  generate_next_input(vecb&  stdin_bits);
-    void  process_node_dependence(branching_node* node);
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
