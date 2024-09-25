@@ -418,11 +418,19 @@ void  local_search_analysis::compute_shifts_of_next_partial()
         }
     }
 
+    origin_set  used_origins{ &types_of_variables };
     for (vecf64 const&  shift : shifts)
     {
         vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
-        if (isfinite(point))
-            partials_props.shifts.push_back(shift);
+        if (!isfinite(point))
+            continue;
+
+        vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+        if (!is_finite(point_overlay, types_of_variables) || used_origins.contains(point_overlay))
+            continue;
+
+        partials_props.shifts.push_back(shift);
+        used_origins.insert(point_overlay);
     }
 
     if (partials_props.shifts.empty())
