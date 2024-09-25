@@ -32,12 +32,12 @@
         ],
         "output_statistics": {
             "bitshare_analysis": {
-                "num_generated_tests": 10,
+                "num_generated_tests": 9,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
             "local_search": {
-                "num_generated_tests": 17,
+                "num_generated_tests": 18,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
