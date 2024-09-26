@@ -1,12 +1,21 @@
 #include <algorithm>
 #include <cmath>
+#include <fuzzing/gradient_descent.hpp>
 #include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
-#include <fuzzing/gradient_descent.hpp>
 
-
+/**
+ * @brief Constructs a GradientDescent object.
+ *
+ * @param coefficient_matrix The matrix of coefficients for the linear system.
+ * @param target_vector The target vector for the linear system.
+ * @param learning_rate The learning rate for gradient descent (default: 0.001).
+ * @param max_iterations The maximum number of iterations (default: 10000).
+ * @param convergence_threshold The threshold for convergence (default: 1e-6).
+ * @throws std::invalid_argument if input dimensions are invalid.
+ */
 GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
                                   const std::vector< float >& target_vector,
                                   float learning_rate,
@@ -24,6 +33,11 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
     }
 }
 
+/**
+ * @brief Performs gradient descent optimization.
+ *
+ * @return std::vector<float> The optimized solution vector.
+ */
 std::vector< float > GradientDescent::optimize()
 {
     std::vector< float > current_solution = generateRandomWeights( _coefficient_matrix[ 0 ].size() );
@@ -63,6 +77,12 @@ std::vector< float > GradientDescent::optimize()
     return current_solution;
 }
 
+/**
+ * @brief Computes the gradient for the current solution.
+ *
+ * @param current_solution The current solution vector.
+ * @return std::vector<float> The computed gradient vector.
+ */
 std::vector< float > GradientDescent::computeGradient( const std::vector< float >& current_solution )
 {
     std::vector< float > gradient( current_solution.size(), 0.0f );
@@ -83,6 +103,12 @@ std::vector< float > GradientDescent::computeGradient( const std::vector< float 
     return gradient;
 }
 
+/**
+ * @brief Computes the mean squared error for the current solution.
+ *
+ * @param current_solution The current solution vector.
+ * @return float The computed mean squared error.
+ */
 float GradientDescent::computeMeanSquaredError( const std::vector< float >& current_solution )
 {
     float mse = 0.0f;
@@ -96,6 +122,14 @@ float GradientDescent::computeMeanSquaredError( const std::vector< float >& curr
     return mse / _coefficient_matrix.size();
 }
 
+/**
+ * @brief Computes the dot product of two vectors.
+ *
+ * @param a The first vector.
+ * @param b The second vector.
+ * @return float The dot product of the two vectors.
+ * @throws std::invalid_argument if the vectors have different sizes.
+ */
 float GradientDescent::dotProduct( const std::vector< float >& a, const std::vector< float >& b )
 {
     if ( a.size() != b.size() ) {
@@ -105,6 +139,12 @@ float GradientDescent::dotProduct( const std::vector< float >& a, const std::vec
     return std::inner_product( a.begin(), a.end(), b.begin(), 0.0f );
 }
 
+/**
+ * @brief Generates a vector of random weights.
+ *
+ * @param n The size of the weight vector to generate.
+ * @return std::vector<float> A vector of random weights.
+ */
 std::vector< float > GradientDescent::generateRandomWeights( size_t n )
 {
     std::vector< float > weights( n );
@@ -117,6 +157,13 @@ std::vector< float > GradientDescent::generateRandomWeights( size_t n )
     return weights;
 }
 
+/**
+ * @brief Rescales the values in a vector to a specified range.
+ *
+ * @param values The vector of values to rescale.
+ * @param min_value The minimum value of the new range.
+ * @param max_value The maximum value of the new range.
+ */
 void GradientDescent::rescale( std::vector< float >& values, float min_value, float max_value )
 {
     if ( values.empty() ) {
