@@ -32,10 +32,12 @@ branching_node::branching_node(
     , sensitive_stdin_bits{}
 
     , sensitivity_performed{ false }
+    , bitshare_performed{ false }
     , local_search_performed{ false }
     , closed{ false }
 
     , sensitivity_start_execution{ std::numeric_limits<natural_32_bit>::max() }
+    , bitshare_start_execution{ std::numeric_limits<natural_32_bit>::max() }
     , local_search_start_execution{ std::numeric_limits<natural_32_bit>::max() }
     , best_value_execution{ execution_number }
 
