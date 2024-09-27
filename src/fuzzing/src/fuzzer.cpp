@@ -1203,6 +1203,50 @@ fuzzing::fuzzer::iid_dependence_props::weights_to_path( std::vector< float > con
 
 
 /**
+ * @brief Calculates the depth of a given branching node in the tree.
+ *
+ * This function traverses the tree from the given node to the root,
+ * counting the number of edges (or levels) to determine the depth of the node.
+ *
+ * @param node A pointer to the branching_node whose depth is to be calculated.
+ * @return The depth of the node as an integer.
+ */
+int fuzzing::fuzzer::iid_dependence_props::get_node_depth( branching_node* node ) const
+{
+    int depth = 0;
+    branching_node* current = node;
+    while ( current != nullptr ) {
+        current = current->predecessor;
+        ++depth;
+    }
+
+    return depth;
+}
+
+
+/**
+ * @brief Updates the mean depth value for a given branching node.
+ *
+ * This function calculates the depth of the provided branching node and updates
+ * the mean depth value associated with the node's best coverage value. The mean
+ * depth is updated incrementally using the formula:
+ *
+ *     new_mean = current_mean + (depth - current_mean) / count
+ *
+ * where `depth` is the depth of the node, `current_mean` is the current mean depth,
+ * and `count` is the number of times the mean has been updated.
+ *
+ * @param node A pointer to the branching node whose mean depth value is to be updated.
+ */
+void fuzzing::fuzzer::iid_dependence_props::update_value_to_mean_depth( branching_node* node )
+{
+    int depth = get_node_depth( node );
+    auto& [ current_mean, count ] = value_to_mean_depth[ node->best_coverage_value ];
+    current_mean = current_mean + ( depth - current_mean ) / ++count;
+}
+
+
+/**
  * @brief Updates the set of non-IID nodes based on sensitivity analysis.
  *
  * This function iterates through the nodes that have changed according to the
@@ -1254,6 +1298,7 @@ void fuzzing::fuzzer::iid_node_dependence::process_node_dependence( branching_no
     }
 
     props.add_equation( node );
+    props.update_value_to_mean_depth( node );
 }
 
 
@@ -1748,7 +1793,6 @@ void  fuzzer::select_next_state()
     instrumentation::location_id loc_id(7);
     if (iid_dependences.id_to_equation_map.contains(loc_id))
     {
-        std::cout << "ID: " << loc_id.id << std::endl;
         const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
 
         std::vector<float> weights = props.approximate_matrix();

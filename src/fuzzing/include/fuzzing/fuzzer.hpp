@@ -18,6 +18,7 @@
 #   include <memory>
 #   include <limits>
 #   include <set>
+#   include <map>
 
 namespace  fuzzing {
 
@@ -234,10 +235,20 @@ private:
 
     struct iid_dependence_props
     {
+    private:
+        struct FloatCompare {
+            bool operator()(const float& a, const float& b) const {
+                const float epsilon = 1e-6f;
+                return std::abs(a - b) > epsilon && a < b;
+            }
+        };
+
+    public:
         std::vector<branching_node*> all_paths;
         std::set<node_navigation> interesting_nodes;
         std::vector<std::vector<float>> matrix;
         std::vector<float> best_values;
+        std::map<float, std::tuple<float, int>, FloatCompare> value_to_mean_depth;
 
         bool update_interesting_nodes(branching_node* node);
         std::vector<node_navigation> get_path(branching_node* node) const;
@@ -245,6 +256,8 @@ private:
         void add_equation(branching_node* path);
         std::vector<float> approximate_matrix() const;
         std::vector<std::pair<int, node_navigation>> weights_to_path(std::vector<float> const& weights) const;
+        int get_node_depth(branching_node* node) const;
+        void update_value_to_mean_depth(branching_node* node);
     };
 
     struct iid_node_dependence
