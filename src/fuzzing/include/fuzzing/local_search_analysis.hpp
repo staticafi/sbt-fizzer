@@ -26,6 +26,7 @@ struct  local_search_analysis
     {
         PARTIALS,
         DESCENT,
+        MUTATIONS,
         RANDOM
     };
 
@@ -87,6 +88,12 @@ struct  local_search_analysis
     };
 
     struct  descent_stage_props
+    {
+        void clear() { *this = {}; }
+        std::vector<vecf64>  shifts{};
+    };
+
+    struct  mutations_stage_props
     {
         void clear() { *this = {}; }
         std::vector<vecf64>  shifts{};
@@ -199,6 +206,15 @@ private:
             float_64_bit  param,
             origin_set const&  excluded_points
             ) const;
+    void  compute_mutations_shifts();
+    void  compute_mutations_shift(
+            vecf64&  x,
+            natural_32_bit  var_idx,
+            float_64_bit  v,
+            matf64 const&  B,
+            matf64 const&  D,
+            std::size_t  p
+            );
     void  compute_random_shifts();
     void  compute_random_shifts(
             std::vector<vecf64>&  resulting_shifts,
@@ -233,6 +249,7 @@ private:
 
     partials_stage_props  partials_props;
     descent_stage_props  descent_props;
+    mutations_stage_props  mutations_props;
     random_stage_props  random_props;
 
     random_generator_for_natural_64_bit  rnd_generator;

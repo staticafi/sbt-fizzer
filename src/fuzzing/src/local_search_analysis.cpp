@@ -28,6 +28,7 @@ local_search_analysis::local_search_analysis()
     , execution_props{}
     , partials_props{}
     , descent_props{}
+    , mutations_props{}
     , random_props{}
     , rnd_generator{}
     , statistics{}
@@ -65,6 +66,7 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
 
     partials_props.clear();
     descent_props.clear();
+    mutations_props.clear();
     random_props.clear();
 
     reset(rnd_generator);
@@ -307,6 +309,24 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
                     done = true;
                 }
                 break;
+            case MUTATIONS:
+                {
+                    if (mutations_props.shifts.empty())
+                    {
+                        random_props.clear();
+                        compute_random_shifts();
+
+                        progress_stage = RANDOM;
+
+                        break;
+                    }
+
+                    execution_props.shift = mutations_props.shifts.back();
+                    mutations_props.shifts.pop_back();
+
+                    done = true;
+                }
+                break;
             case RANDOM:
                 {
                     if (random_props.shifts.empty())
@@ -373,6 +393,7 @@ void  local_search_analysis::process_execution_results(
                 local_spaces.back().gradient.push_back(0.0);
             break;
         case DESCENT:
+        case MUTATIONS:
         case RANDOM:
             if (execution_props.values.size() == path.size()
                     && isfinite(execution_props.values)
@@ -938,6 +959,114 @@ float_64_bit  local_search_analysis::compute_best_shift_along_ray(
     }
     std::sort(samples.begin(), samples.end());
     return samples.empty() ? 0.0 : sign * samples.front().second;
+}
+
+
+void  local_search_analysis::compute_mutations_shifts()
+{
+    vecf64 const&  grad{ local_spaces.back().gradient };
+    std::size_t const  space_index{ local_spaces.size() - 1UL };
+
+    vector_overlay const  origin_overlay{ make_vector_overlay(origin, types_of_variables) };
+    origin_set  used_origins{ &types_of_variables };
+
+    matf64 const&  B{ local_spaces.back().basis_vectors_in_world_space };
+    std::size_t const  dim{ columns(B) };
+    matf64  D{ mkmatf64(dim, dim) };
+    for (std::size_t  i = 0UL; i < dim; ++i)
+    {
+        at(D,i,i) = 1.0;
+        for (std::size_t  j = i + 1UL; j < dim; ++j)
+        {
+            at(D,i,j) = dot_product(column(B,i), column(B,j));
+            at(D,j,i) = at(D,i,j);
+        }
+    }
+
+    std::unordered_set<natural_32_bit>  processed_indices;
+    for (auto const&  var_indices_vector : local_spaces.back().variable_indices)
+        for (natural_32_bit const  var_idx : var_indices_vector)
+        {
+            type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
+            if (is_floating_point_type(var_type) || processed_indices.contains(var_idx))
+                continue;
+            INVARIANT(is_known_type(var_type));
+            processed_indices.insert(var_idx);
+
+            std::size_t  p{ 0UL };
+            for (std::size_t  i = 1UL; i < dim; ++i)
+                if (std::fabs(at(B,i,var_idx)) > std::fabs(at(B,p,var_idx)))
+                    p = i;
+
+            vecf64  shift{ mkvecf64(dim) };
+            for (natural_8_bit  bit_idx = 0U, bit_end = num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
+            {
+                float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
+                float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
+                compute_mutations_shift(shift, var_idx, sign * magnitude, B, D, p);
+                insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
+            }
+        }
+}
+
+
+void  local_search_analysis::compute_mutations_shift(
+        vecf64&  x,
+        natural_32_bit const  var_idx,
+        float_64_bit const  v,
+        matf64 const&  B,
+        matf64 const&  D,
+        std::size_t const  p
+        )
+{
+    std::size_t const  dim{ columns(B) };
+
+    for (std::size_t  i = 0UL; i < dim; ++i)
+        at(x,i) = get_random_float_64_bit_in_range(-1.0, 1.0, rnd_generator);
+
+    vecf64  dist_vec{ mkvecf64(rows(B)) };
+
+    vecf64  grad{ mkvecf64(dim, 0.0) };
+    for (std::size_t  grad_iter = 0UL, max_grad_iters = 10UL; grad_iter < max_grad_iters; ++grad_iter)
+    {
+        at(x,p) = v;
+        for (std::size_t  i = 0UL; i < dim; ++i)
+        {
+            if (i == p) continue;
+            at(x,p) -= at(B,i,var_idx) / at(B,p,var_idx) * at(x,i);
+        }
+
+        for (std::size_t  k = 0UL; k < dim; ++k)
+        {
+            if (k == p) continue;
+
+            float_64_bit const  fraction{ at(B,k,var_idx) / at(B,p,var_idx) };
+            float_64_bit const  fraction_1{ 1.0 - fraction_1 };
+
+            at(grad, k) = 0;
+            for (std::size_t  i = 0UL; i < dim; ++i)
+            {
+                if (i == p || i == k) continue;
+                at(grad, k) += at(D,p,i) * fraction_1 * at(x,i);
+            }
+            at(grad, k) += (at(D,p,k) - fraction) * at(x,p);
+            at(grad, k) += fraction_1 * at(x,k);
+            at(grad, k) *= 2.0;
+        }
+
+        set(dist_vec, 0.0);
+        for (std::size_t  i = 0UL; i < dim; ++i)
+            add_scaled(dist_vec, at(x, i), column(B, i));
+        at(dist_vec, var_idx) -= v;
+
+        float_64_bit const  value{ dot_product(dist_vec, dist_vec) };
+
+        float_64_bit  lambda;
+        if (!compute_descent_lambda(lambda, grad, value))
+            break;
+        
+        add_scaled(x, lambda, grad);
+    }
 }
 
 
