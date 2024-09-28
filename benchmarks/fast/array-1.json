@@ -1,7 +1,7 @@
 {
     "args": {
         "max_executions": 200,
-        "max_seconds": 300,
+        "max_seconds": 10,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -16,8 +16,8 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "FUZZING_STRATEGY_DEPLETED",
-        "num_executions": 132,
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "num_executions": 200,
         "num_covered_branchings": 2,
         "covered_branchings": [
             2,0,    3,0
