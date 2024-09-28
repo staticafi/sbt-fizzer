@@ -25,7 +25,8 @@ struct  local_search_analysis
     enum PROGRESS_STAGE
     {
         PARTIALS,
-        DESCENT
+        DESCENT,
+        RANDOM
     };
 
     struct  mapping_to_input_bits
@@ -86,6 +87,12 @@ struct  local_search_analysis
     };
 
     struct  descent_stage_props
+    {
+        void clear() { *this = {}; }
+        std::vector<vecf64>  shifts{};
+    };
+
+    struct  random_stage_props
     {
         void clear() { *this = {}; }
         std::vector<vecf64>  shifts{};
@@ -178,14 +185,6 @@ private:
             float_64_bit  value,
             std::size_t  space_index
             );
-    void  compute_random_shifts(
-            std::vector<vecf64>&  resulting_shifts,
-            origin_set&  used_origins,
-            vecf64 const&  g,
-            float_64_bit  value,
-            vecf64 const&  center,
-            std::size_t  space_index
-            );
     bool  compute_descent_lambda(float_64_bit&  lambda, vecf64 const&  g, float_64_bit  value);
     void  insert_shift_if_valid_and_unique(
             std::vector<vecf64>&  resulting_shifts,
@@ -200,6 +199,15 @@ private:
             float_64_bit  param,
             origin_set const&  excluded_points
             ) const;
+    void  compute_random_shifts();
+    void  compute_random_shifts(
+            std::vector<vecf64>&  resulting_shifts,
+            origin_set&  used_origins,
+            vecf64 const&  g,
+            float_64_bit  value,
+            vecf64 const&  center,
+            std::size_t  space_index
+            );
     bool  is_improving_value(float_64_bit  value) const;
     void  commit_execution_results(stdin_bits_and_types_pointer  bits_and_types_ptr, vecf64 const&  values);
     void  bits_to_point(vecb const&  bits, vecf64&  point);
@@ -225,6 +233,7 @@ private:
 
     partials_stage_props  partials_props;
     descent_stage_props  descent_props;
+    random_stage_props  random_props;
 
     random_generator_for_natural_64_bit  rnd_generator;
 
