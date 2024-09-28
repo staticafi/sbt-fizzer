@@ -150,6 +150,24 @@ bool is_high_extreme(number_overlay const  value, type_of_input_bits const  type
 }
 
 
+bool bit_value(number_overlay const  value, type_of_input_bits const  type, natural_8_bit const  bit_idx)
+{
+    switch (type)
+    {
+        case type_of_input_bits::BOOLEAN:  ASSUMPTION(bit_idx <  1U); return value._boolean;
+        case type_of_input_bits::UINT8:    ASSUMPTION(bit_idx <  8U); return (value._uint8  & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::SINT8:    ASSUMPTION(bit_idx <  8U); return (value._sint8  & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::UINT16:   ASSUMPTION(bit_idx < 16U); return (value._uint16 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::SINT16:   ASSUMPTION(bit_idx < 16U); return (value._sint16 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::UINT32:   ASSUMPTION(bit_idx < 32U); return (value._uint32 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::SINT32:   ASSUMPTION(bit_idx < 32U); return (value._sint32 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::UINT64:   ASSUMPTION(bit_idx < 64U); return (value._uint64 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::SINT64:   ASSUMPTION(bit_idx < 64U); return (value._sint64 & (1U << bit_idx)) != 0U;
+        default: { UNREACHABLE(); } return false;
+    }
+}
+
+
 vector_overlay  make_vector_overlay(vecf64 const&  v, type_vector const&  types)
 {
     ASSUMPTION(size(v) == types.size());

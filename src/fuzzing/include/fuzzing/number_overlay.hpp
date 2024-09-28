@@ -95,6 +95,7 @@ bool compare(number_overlay  v1, number_overlay  v2, type_of_input_bits  type, B
 std::size_t  hash(number_overlay  value, type_of_input_bits  type);
 bool is_finite(number_overlay  value, type_of_input_bits  type);
 bool is_high_extreme(number_overlay  value, type_of_input_bits  type, float_64_bit  extreme_multiplier = 0.95);
+bool bit_value(number_overlay  value, type_of_input_bits  type, natural_8_bit  bit_idx);
 
 
 template<typename T>
