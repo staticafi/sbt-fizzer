@@ -1,7 +1,7 @@
 {
     "args": {
         "max_executions": 500,
-        "max_seconds": 10,
+        "max_seconds": 30,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -16,17 +16,22 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "num_executions": 500,
-        "num_covered_branchings": 4,
+        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
+        "num_executions": 303,
+        "num_covered_branchings": 2,
         "covered_branchings": [
-            2,0,    3,0,    4,0,    5,0
+            1,0,    2,0
         ],
         "output_statistics": {
-            "local_search": {
-                "num_generated_tests": 4,
+            "chain_minimization_analysis": {
+                "num_generated_tests": 1,
                 "num_crashes": 0,
-                "num_boundary_violations": 1
+                "num_boundary_violations": 0
+            },
+            "sensitivity_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
             },
             "STARTUP": {
                 "num_generated_tests": 1,
