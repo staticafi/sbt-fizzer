@@ -91,12 +91,6 @@ struct  local_search_analysis
         std::vector<vecf64>  shifts{};
     };
 
-    struct  gradient_step_result
-    {
-        stdin_bits_and_types_pointer  bits_and_types_ptr{ nullptr };
-        vecf64  values{};
-    };
-
     struct  origin_set
     {
         origin_set(type_vector const*  types) : types_{ types }, origins_{ 0UL, hash{ types_},  equal{ types_ } } {}
