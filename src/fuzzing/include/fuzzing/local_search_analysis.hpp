@@ -85,7 +85,7 @@ struct  local_search_analysis
         std::vector<vecf64>  shifts{};
     };
 
-    struct  gradient_descent_props
+    struct  descent_stage_props
     {
         void clear() { *this = {}; }
         std::vector<vecf64>  shifts{};
@@ -224,7 +224,7 @@ private:
     sample_execution_props  execution_props;
 
     partials_stage_props  partials_props;
-    gradient_descent_props  descent_props;
+    descent_stage_props  descent_props;
 
     random_generator_for_natural_64_bit  rnd_generator;
 
