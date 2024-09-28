@@ -37,7 +37,7 @@ def  benchmark_sala_name(input_file):
     return benchmark_name(input_file) + "_sala" + ".json"
 
 
-def build(self_dir, input_file, output_dir, options, use_m32, silent_mode):
+def build(self_dir, input_file, output_dir, options, use_m32, generate_jsonc, silent_mode):
     ll_file = os.path.join(output_dir, benchmark_ll_name(input_file))
 
     if silent_mode is False: print("\"build_times\": {", flush=True)
@@ -87,8 +87,8 @@ def build(self_dir, input_file, output_dir, options, use_m32, silent_mode):
     if silent_mode is False: print("    \"Compiling[LLVM->sala]\": ", end='', flush=True)
     t0 = time.time()
     if _execute(
-            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] + [
-                # "--jsonx",
+            [ os.path.join(self_dir, "tools", "salac", "salac.py") ] +
+                (["--jsonc"] if generate_jsonc is True else []) + [
                 "--input", instrumented_ll_file,
                 "--output", output_dir,
                 "--rename", os.path.splitext(benchmark_sala_name(input_file))[0],
@@ -199,6 +199,8 @@ def help(self_dir):
     print("silent_mode          When specified, no messages will be printed.")
     print("m32                  When specified, the source C file will be compiled for")
     print("                     32-bit machine (cpu). Otherwise, 64-bit machine is assumed.")
+    print("jsonc                When specified, Sala program with comments will be")
+    print("                     generated together with the standard one.")
     print("\nNext follows a listing of options of tools called from this script. When they are")
     print("passed to the script they will automatically be propagated to the corresponding tool.")
 
@@ -230,6 +232,7 @@ def main():
     copy_source_file = False
     generate_testcomp_metadata = False
     use_m32 = False
+    generate_jsonc = False
     options = []
     options_instument = []
     i = 1
@@ -269,6 +272,8 @@ def main():
             options_instument.append(arg)
         elif arg == "--m32":
             use_m32 = True
+        elif arg == "--jsonc":
+            generate_jsonc = True
         else:
             options.append(arg)
         i += 1
@@ -286,7 +291,7 @@ def main():
             raise Exception("Cannot find the input file.")
         if silent_mode is False: print("### starting fizzer's pipeline ###\n{", flush=True)
         if skip_building is False:
-            build(self_dir, input_file, output_dir, options_instument, use_m32, silent_mode)
+            build(self_dir, input_file, output_dir, options_instument, use_m32, generate_jsonc, silent_mode)
             adjust_timeouts(options, start_time, silent_mode)
         if skip_fuzzing is False:
             if generate_testcomp_metadata is True:
