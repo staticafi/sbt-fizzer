@@ -2,89 +2,34 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "run server",
-            "type": "cppdbg",
+            "name": "run runner.py",
+            "type": "debugpy",
             "request": "launch",
-            "program": "${command:cmake.launchTargetPath}",
+            "program": "${workspaceFolder}/dist/sbt-fizzer.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/dist/benchmarks",
+            "justMyCode": true,
             "args": [
-                "--path_to_target",
-                    // "fast/array-1_sbt-fizzer_target",
-                    // "fast/array1_pattern_sbt-fizzer_target",
-                    // "fast/big_issues_sbt-fizzer_target",
-                    // "fast/bool_flag_one_and_two_sbt-fizzer_target",
-                    // "fast/c_string_count_chars_sbt-fizzer_target",
-                    // "fast/c_string_parse_two_ints_sbt-fizzer_target",
-                    // "fast/call_bool_arg_sbt-fizzer_target",
-                    // "fast/ex2-alloca_sbt-fizzer_target",
-                    // "fast/float_if_deg_to_rad_inline_sbt-fizzer_target",
-                    // "fast/float_if_deg_to_rad_sbt-fizzer_target",
-                    // "fast/float_if_parabola_sbt-fizzer_target",
-                    // "fast/float_if_parabola2_sbt-fizzer_target",
-                    // "fast/float_if_x_eq_c_sbt-fizzer_target",
-                    // "fast/float_if_x_eq_cos_x_sbt-fizzer_target",
-                    // "fast/float_if_x_lt_c_sbt-fizzer_target",
-                    // "fast/float_if_xy_level_ring_sbt-fizzer_target",
-                    // "fast/int16_equal_sbt-fizzer_target",
-                    // "fast/int16_if_parabola_sbt-fizzer_target",
-                    // "fast/int16_if_x_equal_c_sbt-fizzer_target",
-                    // "fast/int16_if_x_equal_y_c_sbt-fizzer_target",
-                    // "fast/int16_if_x_ge_c_sbt-fizzer_target",
-                    // "fast/int16_if_x_lt_c_sbt-fizzer_target",
-                    // "fast/int16_if_x_xor_a_eq_b_sbt-fizzer_target",
-                    // "fast/int16_less_sbt-fizzer_target",
-                    // "fast/int32_ackermann_sbt-fizzer_target",
-                    // "fast/int32_if_parabola_sbt-fizzer_target",
-                    // "fast/int32_if_x_equal_c_sbt-fizzer_target",
-                    // "fast/int32_if_x_equal_y_c_sbt-fizzer_target",
-                    // "fast/int32_if_x_ge_c_sbt-fizzer_target",
-                    // "fast/int32_if_x_lt_c_sbt-fizzer_target",
-                    // "fast/int32_if_x_xor_a_eq_b_sbt-fizzer_target",
-                    // "fast/int32_logical_or_two_vars_sbt-fizzer_target",
-                    // "fast/log_and_sbt-fizzer_target",
-                    // "fast/log_cond_sbt-fizzer_target",
-                    // "fast/machine32bit_sbt-fizzer_target",
-                    // "fast/matrix-2_sbt-fizzer_target",
-                    // "fast/int8_if_hash_x_y_z_eq_c_sbt-fizzer_target",
-                    // "fast/int8_if_x_equal_c_sbt-fizzer_target",
-                    // "fast/int8_if_x_equal_y_c_sbt-fizzer_target",
-                    // "fast/int8_if_x_ge_c_sbt-fizzer_target",
-                    // "fast/int8_if_x_lt_c_sbt-fizzer_target",
-                    // "fast/int8_if_x_xor_a_eq_b_sbt-fizzer_target",
-                    // "fast/mul_two_int16_sbt-fizzer_target",
-                    "fast/nested_ifs_sbt-fizzer_target",
-                    // "fast/std_redef_malloc_free_sbt-fizzer_target",
-                    // "fast/switch_sbt-fizzer_target",
-                    // "fast/uint16_if_parabola_sbt-fizzer_target",
-                    // "fast/uint32_if_parabola_sbt-fizzer_target",
-                    // "fast/infinite01_sbt-fizzer_target"
+                "--output_dir", "${workspaceFolder}/dist/output",
 
-                    // "pending/array_2-1_sbt-fizzer_target",
-                    // "pending/double_req_bl_0660a_sbt-fizzer_target",
-                    // "pending/floppy.i.cil-2_sbt-fizzer_target",
-                    // "pending/linux-43_1a-drivers_sbt-fizzer_target",
-                    // "pending/loop1-1_sbt-fizzer_target",
-                    // "pending/newton_1_1_sbt-fizzer_target",
-                    // "pending/pnr3_sbt-fizzer_target",
-                    // "pending/TelAviv-Amir-Minimum-alloca_sbt-fizzer_target",
-                    // "pending/benchmark08_conjunctive_sbt-fizzer_target",
-                    // "pending/cs_stack-1_sbt-fizzer_target",
-                    // "pending/count_by_nondet_sbt-fizzer_target",
-                    // "pending/printf-1_sbt-fizzer_target",
-                    // "pending/Problem05_label42+token_ring.01.cil-2_sbt-fizzer_target",
-                    // "pending/Problem08_label00_sbt-fizzer_target",
-                    // "pending/tree_del_iter_sbt-fizzer_target",
-                    // "pending/tree_del_iter_sbt-fizzer_target",
-                    // "pending/standard_vector_difference_ground_sbt-fizzer_target",
-                    // "pending/__debug___sbt-fizzer_target",
+                "--jsonc",
+                // "--skip_building",
+                // "--skip_fuzzing",
+                // "--use_network",
+                // "--silent_build",
+                // "--m32",
 
-                "--max_executions", "1000000",
-                "--max_seconds", "300",
+                "--save_mapping",
+                // "--br_too",
+
+                "--max_executions", "10000",
+                "--max_seconds", "15",
                 "--max_trace_length", "10000",
                 "--max_stack_size", "25",
-                "--max_stdin_bytes", "6400",
+                "--max_stdin_bytes", "65536",
                 "--max_exec_milliseconds", "250",
                 "--max_exec_megabytes", "1024",
-                "--stdin_model", "stdin_replay_bytes_then_repeat_85",
+                "--stdin_model", "stdin_replay_bytes_then_repeat_zero",
                 "--stdout_model", "stdout_void",
                 "--optimizer_max_seconds", "10",
                 "--optimizer_max_trace_length", "1000000",
@@ -96,10 +41,42 @@
                     "native",
                     // "testcomp",
                 "--port", "45654",
+
+                "--input_file",
+                    "fast/_.c"
+               ]
+        },
+        {
+            "name": "run server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "--path_to_target", "__sbt-fizzer_target",
+                "--path_to_sala", "__sala.json",
+                "--max_executions", "1000000",
+                "--max_seconds", "300000",
+                "--max_trace_length", "10000",
+                "--max_stack_size", "25",
+                "--max_stdin_bytes", "6400",
+                "--max_exec_milliseconds", "25000000",
+                "--max_exec_megabytes", "1024",
+                "--stdin_model", "stdin_replay_bytes_then_repeat_zero",
+                "--stdout_model", "stdout_void",
+                "--optimizer_max_seconds", "10",
+                "--optimizer_max_trace_length", "1000000",
+                "--optimizer_max_stdin_bytes", "1000000",
+                // "--clear_output_dir",
+                "--progress_recording",
+                // "--silent_mode",
+                "--test_type",
+                    "native",
+                    // "testcomp",
+                "--port", "45654",
                 "--output_dir", "${workspaceFolder}/dist/output"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/dist/benchmarks",
+            "cwd": "${workspaceFolder}/dist/output",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -112,7 +89,7 @@
         },
         {
             "name": "Benman @ dbg",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/benchmarks/benman.py",
             "console": "integratedTerminal",
@@ -128,74 +105,7 @@
                     // "slow"
                     // "pending"
 
-                    // "fast/array-1.c"
-                    // "fast/array1_pattern.c"
-                    // "fast/big_issue.c"
-                    // "fast/bool_flag_one_and_two.c"
-                    // "fast/c_string_count_chars.c"
-                    // "fast/c_string_parse_two_ints.c"
-                    // "fast/call_bool_arg.c"
-                    // "fast/ex2-alloca.c"
-                    // "fast/float_if_deg_to_rad_inline.c"
-                    // "fast/float_if_deg_to_rad.c"
-                    // "fast/float_if_parabola.c"
-                    // "fast/float_if_parabola2.c"
-                    // "fast/float_if_x_eq_c.c"
-                    // "fast/float_if_x_eq_cos_x.c"
-                    // "fast/float_if_x_lt_c.c"
-                    // "fast/float_if_xy_level_ring.c"
-                    // "fast/int16_equal.c"
-                    // "fast/int16_if_parabola.c"
-                    // "fast/int16_if_x_equal_c.c"
-                    // "fast/int16_if_x_equal_y_c.c"
-                    // "fast/int16_if_x_ge_c.c"
-                    // "fast/int16_if_x_lt_c.c"
-                    // "fast/int16_if_x_xor_a_eq_b.c"
-                    // "fast/int16_less.c"
-                    // "fast/int32_ackermann.c"
-                    // "fast/int32_if_parabola.c"
-                    // "fast/int32_if_x_equal_c.c"
-                    // "fast/int32_if_x_equal_y_c.c"
-                    // "fast/int32_if_x_ge_c.c"
-                    // "fast/int32_if_x_lt_c.c"
-                    // "fast/int32_if_x_xor_a_eq_b.c"
-                    // "fast/int32_logical_or_two_vars.c"
-                    // "fast/log_and.c"
-                    // "fast/log_cond.c"
-                    // "fast/machine32bit.c"
-                    // "fast/matrix-2.c"
-                    // "fast/int8_if_hash_x_y_z_eq_c.c"
-                    // "fast/int8_if_x_equal_c.c"
-                    // "fast/int8_if_x_equal_y_c.c"
-                    // "fast/int8_if_x_ge_c.c"
-                    // "fast/int8_if_x_lt_c.c"
-                    // "fast/int8_if_x_xor_a_eq_b.c"
-                    // "fast/mul_two_int16.c
-                    // "fast/switch.c"
-                    // "fast/nested_ifs.c"
-                    // "fast/std_redef_malloc_free.c"
-                    // "fast/uint16_if_parabola.c"
-                    // "fast/uint32_if_parabola.c"
-                    // "fast/infinite01.c"
-
-                    // "pending/array_2-1.i"
-                    // "pending/double_req_bl_0660a.c"
-                    // "pending/floppy.i.cil-2.c"
-                    // "pending/linux-43_1a-drivers.i"
-                    // "pending/loop1-1.c"
-                    // "pending/newton_1_1.i"
-                    // "pending/pnr3.c"
-                    // "pending/TelAviv-Amir-Minimum-alloca.c"
-                    // "pending/benchmark08_conjunctive.i"
-                    // "pending/cs_stack-1.c"
-                    // "pending/count_by_nondet.i"
-                    // "pending/printf-1.i"
-                    // "pending/Problem05_label42+token_ring.01.cil-2.c"
-                    // "pending/Problem08_label00.c"
-                    // "pending/tree_del_iter.c"
-                    // "pending/standard_vector_difference_ground.i"
-                    // "pending/avg.i"
-                    // "pending/__debug__.c"
+                    // "fast/_.c"
                 ],
             "cwd": "${workspaceFolder}/dist/benchmarks",
             "justMyCode": true
@@ -246,119 +156,8 @@
             //"postDebugTask": "kill clients"
         },
         {
-            "name": "run runner.py",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/dist/sbt-fizzer.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/dist/benchmarks",
-            "justMyCode": true,
-            "args": [
-                "--output_dir", "${workspaceFolder}/dist/output",
-
-                // "--skip_building",
-                // "--skip_fuzzing",
-                // "--use_network",
-                // "--silent_build",
-                // "--m32",
-
-                "--save_mapping",
-                // "--br_too",
-
-                "--max_executions", "10000",
-                "--max_seconds", "15",
-                "--max_trace_length", "10000",
-                "--max_stack_size", "25",
-                "--max_stdin_bytes", "65536",
-                "--max_exec_milliseconds", "250",
-                "--max_exec_megabytes", "1024",
-                "--stdin_model", "stdin_replay_bytes_then_repeat_zero",
-                "--stdout_model", "stdout_void",
-                "--optimizer_max_seconds", "10",
-                "--optimizer_max_trace_length", "1000000",
-                "--optimizer_max_stdin_bytes", "1000000",
-                "--clear_output_dir",
-                "--progress_recording",
-                // "--silent_mode",
-                "--test_type",
-                    "native",
-                    // "testcomp",
-                "--port", "45654",
-
-                "--input_file",
-                    // "fast/array-1.c"
-                    // "fast/array1_pattern.c"
-                    // "fast/big_issues.c"
-                    // "fast/bool_flag_one_and_two.c"
-                    // "fast/c_string_count_chars.c"
-                    // "fast/c_string_parse_two_ints.c"
-                    // "fast/call_bool_arg.c"
-                    // "fast/ex2-alloca.c"
-                    // "fast/float_if_deg_to_rad_inline.c"
-                    // "fast/float_if_deg_to_rad.c"
-                    // "fast/float_if_parabola.c"
-                    // "fast/float_if_parabola2.c"
-                    // "fast/float_if_x_eq_c.c"
-                    // "fast/float_if_x_eq_cos_x.c"
-                    // "fast/float_if_x_lt_c.c"
-                    // "fast/float_if_xy_level_ring.c"
-                    // "fast/int16_equal.c"
-                    // "fast/int16_if_parabola.c"
-                    // "fast/int16_if_x_equal_c.c"
-                    // "fast/int16_if_x_equal_y_c.c"
-                    // "fast/int16_if_x_ge_c.c"
-                    // "fast/int16_if_x_lt_c.c"
-                    // "fast/int16_if_x_xor_a_eq_b.c"
-                    // "fast/int16_less.c"
-                    // "fast/int32_ackermann.c"
-                    // "fast/int32_if_parabola.c"
-                    // "fast/int32_if_x_equal_c.c"
-                    // "fast/int32_if_x_equal_y_c.c"
-                    // "fast/int32_if_x_ge_c.c"
-                    // "fast/int32_if_x_lt_c.c"
-                    // "fast/int32_if_x_xor_a_eq_b.c"
-                    // "fast/int32_logical_or_two_vars.c"
-                    // "fast/log_and.c"
-                    // "fast/log_cond.c"
-                    // "fast/machine32bit.c"
-                    // "fast/matrix-2.c"
-                    // "fast/int8_if_hash_x_y_z_eq_c.c"
-                    // "fast/int8_if_x_equal_c.c"
-                    // "fast/int8_if_x_equal_y_c.c"
-                    // "fast/int8_if_x_ge_c.c"
-                    // "fast/int8_if_x_lt_c.c"
-                    // "fast/int8_if_x_xor_a_eq_b.c"
-                    // "fast/mul_two_int16.c
-                    // "fast/switch.c"
-                    "fast/nested_ifs.c"
-                    // "fast/std_redef_malloc_free.c"
-                    // "fast/uint16_if_parabola.c"
-                    // "fast/uint32_if_parabola.c"
-                    // "fast/infinite01.c"
-
-                    // "pending/array_2-1.i"
-                    // "pending/double_req_bl_0660a.c"
-                    // pending/floppy.i.cil-2.c"
-                    // "pending/linux-43_1a-drivers.i"
-                    // "pending/loop1-1.c"
-                    // "pending/newton_1_1.i"
-                    // "pending/pnr3.c"
-                    // "pending/TelAviv-Amir-Minimum-alloca.c"
-                    // "pending/benchmark08_conjunctive.i"
-                    // "pending/cs_stack-1.c"
-                    // "pending/count_by_nondet.i"
-                    // "pending/printf-1.i"
-                    // "pending/Problem05_label42+token_ring.01.cil-2.c"
-                    // "pending/Problem08_label00.c"
-                    // "pending/tree_del_iter.c"
-                    // "pending/standard_vector_difference_ground.i"
-                    // "pending/avg.i"
-                    // "pending/__debug__.c"
-                ]
-        },
-        {
             "name": "salac.py",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/tools/salac/salac.py",
             "console": "integratedTerminal",
@@ -366,41 +165,10 @@
             "justMyCode": true,
             "args": [
                 "--bin", "${workspaceFolder}/dist/tools/salac/",
-                "--jsonx",
+                "--jsonc",
                 "--verbose",
                 "--input",
-                    //"compile/array01.c",
-                    //"compile/array02.c",
-                    //"compile/array03.c",
-                    //"compile/assign00.c",
-                    //"compile/assign01.c",
-                    //"compile/assign02.c",
-                    //"compile/assign03.c",
-                    //"compile/bitfield01.c",
-                    //"compile/cast01.c",
-                    //"compile/cast02.c",
-                    //"compile/cast03.c",
-                    //"compile/cmp01.c",
-                    //"compile/cmp02.c",
-                    //"compile/enum01.c",
-                    //"compile/extern01.c",
-                    //"compile/func_call00.c",
-                    //"compile/func_call01.c",
-                    //"compile/func_call02.c",
-                    //"compile/func_call03.c",
-                    //"compile/func_call04.c",
-                    "compile/func_call05.c",
-                    //"compile/halt.c",
-                    //"compile/heap01.c",
-                    //"compile/label.c",
-                    //"compile/math01.c",
-                    //"compile/math02.c",
-                    //"compile/select.c",
-                    //"compile/struct01.c",
-                    //"compile/struct02.c",
-                    //"compile/union01.c",
-
-                    //"analyze/int8_if_x_equal_c.c",
+                    "compile/_.c",
 
                 "--output",
                     "${workspaceFolder}/dist/output"
@@ -422,33 +190,7 @@
             ],
             "args": [
                 "--input",
-                    "array01.ll",
-                    //"array02.ll",
-                    //"array03.ll",
-                    //"assign00.ll",
-                    //"assign01.ll",
-                    //"assign02.ll",
-                    //"assign03.ll",
-                    //"bitfield01.ll",
-                    //"cast01.ll",
-                    //"cast02.ll",
-                    //"cast03.ll",
-                    //"cmp01.ll",
-                    //"cmp02.ll",
-                    //"enum01.ll",
-                    //"extern01.ll",
-                    //"func_call00.ll",
-                    //"func_call01.ll",
-                    //"func_call02.ll",
-                    //"func_call03.ll",
-                    //"heap01.ll",
-                    //"math01.ll",
-                    //"math02.ll",
-                    //"struct.ll",
-                    //"struct02.ll",
-                    //"union01.ll",
-
-                    //"int8_if_x_equal_c.ll",
+                    "_.ll",
                 ]
         },
         {
@@ -466,37 +208,9 @@
                 }
             ],
             "args": [
-                "--jsonx",
+                "--jsonc",
                 "--input",
-                    //"array01.sim.ll",
-                    //"array02.sim.ll",
-                    //"array03.sim.ll",
-                    //"assign00.sim.ll",
-                    //"assign01.sim.ll",
-                    //"assign02.sim.ll",
-                    //"assign03.sim.ll",
-                    //"bitfield01.sim.ll",
-                    //"cast01.sim.ll",
-                    //"cast02.sim.ll",
-                    //"cast03.sim.ll",
-                    //"cmp01.sim.ll",
-                    //"cmp02.sim.ll",
-                    //"enum01.sim.ll",
-                    //"extern01.sim.ll",
-                    //"func_call00.sim.ll",
-                    //"func_call01.sim.ll",
-                    //"func_call02.sim.ll",
-                    //"func_call03.sim.ll",
-                    "func_call05.sim.ll",
-                    //"heap01.sim.ll",
-                    //"label.sim.ll",
-                    //"math01.sim.ll",
-                    //"math02.sim.ll",
-                    //"struct01.sim.ll",
-                    //"struct02.sim.ll",
-                    //"union01.sim.ll",
-
-                    //"int8_if_x_equal_c.sim.ll",
+                    "_.sim.ll",
                 ]
         },
         {
@@ -515,34 +229,7 @@
             ],
             "args": [
                 "--input",
-                    //"array01.raw.json",
-                    //"array02.raw.json",
-                    //"array03.raw.json",
-                    //"assign00.raw.json",
-                    //"assign01.raw.json",
-                    //"assign02.raw.json",
-                    //"assign03.raw.json",
-                    //"bitfield01.raw.json",
-                    //"cast01.raw.json",
-                    //"cast02.raw.json",
-                    //"cast03.raw.json",
-                    //"cmp01.raw.json",
-                    //"cmp02.raw.json",
-                    //"enum01.raw.json",
-                    //"extern01.raw.json",
-                    //"func_call00.raw.json",
-                    //"func_call01.raw.json",
-                    //"func_call02.raw.json",
-                    //"func_call03.raw.json",
-                    "halt.raw.json",
-                    //"heap01.raw.json",
-                    //"math01.raw.json",
-                    //"math02.raw.json",
-                    //"struct01.raw.json",
-                    //"struct02.raw.json",
-                    //"union01.raw.json",
-
-                    //"int8_if_x_equal_c.raw.json",
+                    "_.raw.json",
 
                 "--output", "."
                 ]
@@ -562,7 +249,7 @@
                 }
             ],
             "args": [
-                "--input", "int8_if_x_equal_c.json", "--data", "../../benchmarks/salatd/interpret/int8_if_x_equal_c.00.txt"
+                "--input", "safety_func_ptr_call.json", "--data", "../../benchmarks/salatd/interpret/safety_func_ptr_call.01.txt"
                 ]
         },
         {
@@ -596,7 +283,7 @@
                 }
             ],
             "args": [
-                "--input", "assign01.json", "--data", "../../benchmarks/salatd/inputflow/assign01.00.txt"
+                "--input", "_.json", "--data", "../../benchmarks/salatd/inputflow/_.00.txt"
                 ]
         },
         {
@@ -617,7 +304,7 @@
         },
         {
             "name": "salat.py",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/benchmarks/salatd/salat.py",
             "console": "integratedTerminal",
@@ -628,7 +315,7 @@
                 "--salat_dir", "../../tools/salat",
                 "--output_dir", "../../output",
 
-                //"--jsonx",
+                //"--jsonc",
                 // "--verbose",
                 "--input",
                     //"analyze"
@@ -636,35 +323,7 @@
                     //"interpret"
                     //"inputflow"
 
-                    "compile/array01.c",
-                    //"compile/array02.c",
-                    //"compile/array03.c",
-                    //"compile/assign00.c",
-                    //"compile/assign01.c",
-                    //"compile/assign02.c",
-                    //"compile/assign03.c",
-                    //"compile/bitfield01.c",
-                    //"compile/cast01.c",
-                    //"compile/cast02.c",
-                    //"compile/cast03.c",
-                    //"compile/cmp01.c",
-                    //"compile/cmp02.c",
-                    //"compile/enum01.c",
-                    //"compile/extern01.c",
-                    //"compile/func_call00.c",
-                    //"compile/func_call01.c",
-                    //"compile/func_call02.c",
-                    //"compile/func_call03.c",
-                    //"compile/heap01.c",
-                    //"compile/math01.c",
-                    //"compile/math02.c",
-                    //"compile/struct01.c",
-                    //"compile/struct02.c",
-                    //"compile/union01.c",
-
-                    //"analyze/int8_if_x_equal_c.c",
-
-                    //"interpret/int8_if_x_equal_c.c",
+                    "compile/_.c",
                 ]
         }
     ]
