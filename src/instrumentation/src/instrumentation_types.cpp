@@ -146,6 +146,19 @@ bool  is_numeric_type(type_of_input_bits const  type)
 }
 
 
+bool  is_floating_point_type(type_of_input_bits const  type)
+{
+    switch (type)
+    {
+        case type_of_input_bits::FLOAT32:
+        case type_of_input_bits::FLOAT64:
+            return true;
+        default:
+            return false;
+    }
+}
+
+
 std::string  to_string(type_of_input_bits  type)
 {
     switch (type)
