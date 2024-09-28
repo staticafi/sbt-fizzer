@@ -130,7 +130,7 @@ struct  extreme
 };
 
 
-bool is_high_extreme(number_overlay  value, type_of_input_bits  type, float_64_bit const  extreme_multiplier)
+bool is_high_extreme(number_overlay const  value, type_of_input_bits const  type, float_64_bit const  extreme_multiplier)
 {
     switch (type)
     {
