@@ -1465,7 +1465,7 @@ void  fuzzer::select_next_state()
     instrumentation::location_id loc_id(7);
     if (iid_dependences.id_to_equation_map.contains(loc_id))
     {
-        const iid_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+        const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
 
         std::vector<float> weights = props.approximate_matrix();
 

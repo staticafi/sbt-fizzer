@@ -313,7 +313,7 @@ private:
 
     primary_coverage_target_branchings  primary_coverage_targets;
     std::unordered_map<location_id, iid_location_props>  iid_pivots;
-    iid_node_dependence  iid_dependences;
+    iid_dependencies  iid_dependences;
 
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
