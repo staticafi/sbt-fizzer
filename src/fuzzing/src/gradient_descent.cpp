@@ -40,12 +40,12 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
  */
 std::vector< float > GradientDescent::optimize()
 {
-    std::vector< float > current_solution = generateRandomWeights( _coefficient_matrix[ 0 ].size() );
+    std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
 
     float prev_cost = std::numeric_limits< float >::max();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
-        std::vector< float > gradient = computeGradient( current_solution );
+        std::vector< float > gradient = compute_gradient( current_solution );
 
         // Update current_solution
         for ( size_t i = 0; i < current_solution.size(); ++i ) {
@@ -53,7 +53,7 @@ std::vector< float > GradientDescent::optimize()
         }
 
         // Check for convergence
-        float current_cost = computeMeanSquaredError( current_solution );
+        float current_cost = compute_mean_squared_error( current_solution );
 
         // Debug output
         if ( _debug && iteration % 100 == 0 ) {
@@ -73,7 +73,8 @@ std::vector< float > GradientDescent::optimize()
         prev_cost = current_cost;
     }
 
-    rescale( current_solution, -1.0f, 1.0f );
+    add_smallest_value( current_solution );
+    rescale( current_solution, 0.0f, 100.0f );
     return current_solution;
 }
 
@@ -83,12 +84,12 @@ std::vector< float > GradientDescent::optimize()
  * @param current_solution The current solution vector.
  * @return std::vector<float> The computed gradient vector.
  */
-std::vector< float > GradientDescent::computeGradient( const std::vector< float >& current_solution )
+std::vector< float > GradientDescent::compute_gradient( const std::vector< float >& current_solution )
 {
     std::vector< float > gradient( current_solution.size(), 0.0f );
 
     for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
-        float predicted = dotProduct( current_solution, _coefficient_matrix[ i ] );
+        float predicted = dot_product( current_solution, _coefficient_matrix[ i ] );
         float error = predicted - _target_vector[ i ];
 
         for ( size_t j = 0; j < current_solution.size(); ++j ) {
@@ -109,12 +110,12 @@ std::vector< float > GradientDescent::computeGradient( const std::vector< float 
  * @param current_solution The current solution vector.
  * @return float The computed mean squared error.
  */
-float GradientDescent::computeMeanSquaredError( const std::vector< float >& current_solution )
+float GradientDescent::compute_mean_squared_error( const std::vector< float >& current_solution )
 {
     float mse = 0.0f;
 
     for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
-        float predicted = dotProduct( current_solution, _coefficient_matrix[ i ] );
+        float predicted = dot_product( current_solution, _coefficient_matrix[ i ] );
         float error = predicted - _target_vector[ i ];
         mse += error * error;
     }
@@ -130,7 +131,7 @@ float GradientDescent::computeMeanSquaredError( const std::vector< float >& curr
  * @return float The dot product of the two vectors.
  * @throws std::invalid_argument if the vectors have different sizes.
  */
-float GradientDescent::dotProduct( const std::vector< float >& a, const std::vector< float >& b )
+float GradientDescent::dot_product( const std::vector< float >& a, const std::vector< float >& b )
 {
     if ( a.size() != b.size() ) {
         throw std::invalid_argument( "Vectors must have the same size for dot product" );
@@ -145,7 +146,7 @@ float GradientDescent::dotProduct( const std::vector< float >& a, const std::vec
  * @param n The size of the weight vector to generate.
  * @return std::vector<float> A vector of random weights.
  */
-std::vector< float > GradientDescent::generateRandomWeights( size_t n )
+std::vector< float > GradientDescent::generate_random_weights( size_t n )
 {
     std::vector< float > weights( n );
     std::random_device rd;
@@ -176,6 +177,26 @@ void GradientDescent::rescale( std::vector< float >& values, float min_value, fl
         std::transform( values.begin(), values.end(), values.begin(), [ & ]( float value ) {
             return min_value +
                    ( value - *min_elem ) * ( max_value - min_value ) / ( *max_elem - *min_elem );
+        } );
+    }
+}
+
+/**
+ * @brief Adds the smallest value in the vector to each element of the vector.
+ *
+ * This function finds the smallest value in the given vector and adds its absolute value
+ * to each element of the vector. If the vector is empty, the function does nothing.
+ *
+ * @param values A reference to a vector of floats to be modified.
+ */
+void GradientDescent::add_smallest_value( std::vector< float >& values )
+{
+    auto min_elem = std::min_element( values.begin(), values.end() );
+
+    if ( min_elem != values.end() ) {
+        float min_value = *min_elem;
+        std::transform( values.begin(), values.end(), values.begin(), [ & ]( float value ) {
+            return value + std::abs( min_value );
         } );
     }
 }

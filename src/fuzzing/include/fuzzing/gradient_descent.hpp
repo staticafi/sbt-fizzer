@@ -20,9 +20,9 @@ public:
     std::vector< float > optimize();
 
     // Setters for easy modification of parameters
-    void setLearningRate( float learning_rate ) { _learning_rate = learning_rate; }
-    void setMaxIterations( int max_iterations ) { _max_iterations = max_iterations; }
-    void setConvergenceThreshold( float convergence_threshold )
+    void set_learning_rate( float learning_rate ) { _learning_rate = learning_rate; }
+    void set_max_iterations( int max_iterations ) { _max_iterations = max_iterations; }
+    void set_convergence_threshold( float convergence_threshold )
     {
         _convergence_threshold = convergence_threshold;
     }
@@ -35,9 +35,10 @@ private:
     float _convergence_threshold;
     bool _debug = false;
 
-    std::vector< float > computeGradient( const std::vector< float >& current_solution );
-    float computeMeanSquaredError( const std::vector< float >& current_solution );
-    static std::vector< float > generateRandomWeights( size_t n );
-    static float dotProduct( const std::vector< float >& a, const std::vector< float >& b );
+    std::vector< float > compute_gradient( const std::vector< float >& current_solution );
+    float compute_mean_squared_error( const std::vector< float >& current_solution );
+    static std::vector< float > generate_random_weights( size_t n );
+    static float dot_product( const std::vector< float >& a, const std::vector< float >& b );
     static void rescale( std::vector< float >& values, float min_value, float max_value );
+    static void add_smallest_value( std::vector< float >& values );
 };
