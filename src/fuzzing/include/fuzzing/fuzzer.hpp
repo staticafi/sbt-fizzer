@@ -294,6 +294,7 @@ private:
     void  collect_iid_pivots_from_sensitivity_results();
     void  select_next_state();
     branching_node*  select_iid_coverage_target() const;
+    branching_node*  select_iid_coverage_target_from_dependencies() const;
 
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();

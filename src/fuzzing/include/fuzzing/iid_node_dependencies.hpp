@@ -36,13 +36,19 @@ struct node_direction {
     }
 };
 
+struct iid_value_props {
+    int value_counts;
+    float mean_depth;
+    std::map< node_direction, std::tuple<int, int> > direction_statistics;
+
+    void process_node( branching_node* node );
+
+private:
+    void update_mean_depth( branching_node* node );
+    void update_direction_counts( branching_node* node );
+};
 
 struct iid_node_dependence_props {
-    struct iid_value_props {
-        int value_counts;
-        float mean_depth;
-    };
-
     std::vector< branching_node* > all_paths;
     std::set< node_direction > interesting_nodes;
     std::vector< std::vector< float > > matrix;
@@ -50,15 +56,14 @@ struct iid_node_dependence_props {
     std::map< float, iid_value_props, FloatCompare > value_to_mean_depth;
 
     bool update_interesting_nodes( branching_node* node );
-    std::vector< node_direction > get_path( branching_node* node ) const;
     void recompute_matrix();
     void add_equation( branching_node* path );
-    std::vector< float > approximate_matrix() const;
-    std::vector< std::pair< int, node_direction > >
-    weights_to_path( std::vector< float > const& weights ) const;
-    int get_node_depth( branching_node* node ) const;
+    std::map< fuzzing::node_direction, int > generate_path() const;
 
-    void update_value_to_mean_depth( branching_node* node );
+private:
+    std::vector< float > approximate_matrix() const;
+    std::map< fuzzing::node_direction, int > weights_to_path( std::vector< float > const& weights ) const;
+    
     int get_possible_depth() const;
 };
 
@@ -69,4 +74,6 @@ struct iid_dependencies {
     void update_non_iid_nodes( sensitivity_analysis& sensitivity );
     void process_node_dependence( branching_node* node );
 };
+
+std::vector< fuzzing::node_direction > get_path( branching_node* node );
 } // namespace fuzzing

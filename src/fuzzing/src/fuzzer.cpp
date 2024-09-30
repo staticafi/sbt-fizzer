@@ -1462,19 +1462,6 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
 void  fuzzer::select_next_state()
 {
-    instrumentation::location_id loc_id(7);
-    if (iid_dependences.id_to_equation_map.contains(loc_id))
-    {
-        const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
-
-        std::vector<float> weights = props.approximate_matrix();
-
-        // std::cout << "ID: " << loc_id.id << std::endl;
-        for (size_t i = 0; i < props.interesting_nodes.size() && i < weights.size(); ++i) {
-            std::cout << *std::next(props.interesting_nodes.begin(), i) << " : " << weights[i] << std::endl;
-        }
-    }
-
     TMPROF_BLOCK();
 
     INVARIANT(sensitivity.is_ready() && typed_minimization.is_ready() && minimization.is_ready() && bitshare.is_ready());
@@ -1543,6 +1530,10 @@ branching_node*  fuzzer::select_iid_coverage_target() const
 
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
+    
+    branching_node* possible_winner = select_iid_coverage_target_from_dependencies();
+    if (possible_winner != nullptr)
+        return possible_winner;
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),
@@ -1618,6 +1609,22 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     return winner;
 }
 
+branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
+{
+    instrumentation::location_id loc_id(7);
+    if (!iid_dependences.id_to_equation_map.contains(loc_id)) {
+        return nullptr;
+    }
+
+    const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    std::map< fuzzing::node_direction, int > path = props.generate_path();
+
+    for (const auto& [direction, count] : path) {
+        std::cout << "Node ID: " << direction.node_id.id << ", Direction: " << direction.direction << ", Count: " << count << std::endl;
+    }
+
+    return nullptr;
+}
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {

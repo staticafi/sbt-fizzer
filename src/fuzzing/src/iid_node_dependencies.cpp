@@ -2,6 +2,62 @@
 #include <fuzzing/iid_node_dependencies.hpp>
 #include <utility/timeprof.hpp>
 
+
+/**
+ * @brief Processes a branching node to update its properties.
+ * 
+ * This function updates the mean depth and direction counts of the given branching node.
+ * 
+ * @param node A pointer to the branching node to be processed.
+ */
+void fuzzing::iid_value_props::process_node( branching_node* node ) 
+{
+    update_mean_depth( node );
+    update_direction_counts( node );
+}
+
+
+/**
+ * @brief Updates the mean depth of a branching node.
+ *
+ * This function recalculates the mean depth of a branching node using the 
+ * incremental average formula. It retrieves the depth of the provided node 
+ * and updates the mean depth accordingly.
+ *
+ * @param node A pointer to the branching_node whose depth is to be used 
+ *             for updating the mean depth.
+ */
+void fuzzing::iid_value_props::update_mean_depth( branching_node* node )
+{
+    int depth = node->get_depth();
+    mean_depth = mean_depth + ( depth - mean_depth ) / ++value_counts;
+}
+
+
+/**
+ * @brief Updates the direction counts for a given branching node.
+ *
+ * This function calculates the direction counts for the path of the given branching node
+ * and updates the minimum and maximum statistics for each direction.
+ *
+ * @param node A pointer to the branching node for which the direction counts are to be updated.
+ */
+void fuzzing::iid_value_props::update_direction_counts( branching_node* node ) 
+{
+    std::vector< node_direction > path = get_path( node );
+
+    std::map< node_direction, int > direction_counts;
+    for ( const node_direction& nav : path ) {
+        direction_counts[ nav ]++;
+    }
+
+    for ( auto& [ direction, stats ] : direction_statistics ) {
+        std::get< 0 >( stats ) = std::min(direction_counts[ direction ], std::get< 0 >( stats ));
+        std::get< 1 >( stats ) = std::max(direction_counts[ direction ], std::get< 1 >( stats ));
+    }
+}
+
+
 /**
  * @brief Three-way comparison for node_direction.
  *
@@ -82,36 +138,6 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
 
 
 /**
- * @brief Retrieves the path of node navigations from the given branching node to the root.
- *
- * This function constructs a vector of `node_direction` objects representing the path
- * from the specified branching node to the root node. Each `node_direction` object
- * contains the location ID of the predecessor node and the direction to the current node.
- *
- * @param node A pointer to the starting branching node.
- * @return A vector of `node_direction` objects representing the path from the given node to the
- * root.
- */
-std::vector< fuzzing::node_direction > fuzzing::iid_node_dependence_props::get_path( branching_node* node ) const
-{
-    std::vector< node_direction > path;
-
-    branching_node* current = node;
-    while ( current != nullptr ) {
-        branching_node* predecessor = current->predecessor;
-        if ( predecessor != nullptr ) {
-            node_direction nav = { predecessor->get_location_id(),
-                                    predecessor->successor_direction( current ) };
-            path.push_back( nav );
-        }
-        current = predecessor;
-    }
-
-    return path;
-}
-
-
-/**
  * @brief Recomputes the matrix of IID dependence properties.
  *
  * This function clears the current matrix and best values, then iterates
@@ -183,18 +209,11 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
 {
     GradientDescent gd( matrix, best_values );
     std::vector< float > weights = gd.optimize();
-
-    std::vector< std::pair< int, node_direction > > path = weights_to_path( weights );
-    for ( const auto& [ value, nav ] : path ) {
-        std::cout << "Node ID: " << nav.node_id.id << ", Direction: " << nav.direction
-                  << ", Value: " << value << std::endl;
-    }
-
     return weights;
 }
 
 
-std::vector< std::pair< int, fuzzing::node_direction > >
+std::map< fuzzing::node_direction, int >
 fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const& weights ) const
 {
     int path_size = get_possible_depth();
@@ -204,11 +223,11 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
     }
 
     float weights_sum = std::accumulate( weights.begin(), weights.end(), 0.0f );
-    std::vector< std::pair< int, node_direction > > path;
+    std::map< node_direction, int > path;
 
     for ( int i = 0; i < weights.size(); ++i ) {
         float value = static_cast< float >( path_size ) * weights[ i ] / weights_sum;
-        path.push_back( { static_cast< int >( value ), *std::next( interesting_nodes.begin(), i ) } );
+        path[*std::next( interesting_nodes.begin(), i )] = static_cast< int >( value );
     }
 
     return path;
@@ -216,49 +235,15 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
 
 
 /**
- * @brief Calculates the depth of a given branching node in the tree.
+ * @brief Computes the possible depth based on the value to mean depth mapping.
  *
- * This function traverses the tree from the given node to the root,
- * counting the number of edges (or levels) to determine the depth of the node.
+ * This function calculates the possible depth by examining the `value_to_mean_depth` map.
+ * If the map is empty, it returns 0. If the map contains only one element, it returns the mean depth
+ * of that element. If the map contains more than one element, it calculates the depth using linear
+ * interpolation based on the first two elements in the map.
  *
- * @param node A pointer to the branching_node whose depth is to be calculated.
- * @return The depth of the node as an integer.
+ * @return The computed possible depth.
  */
-int fuzzing::iid_node_dependence_props::get_node_depth( branching_node* node ) const
-{
-    int depth = 0;
-    branching_node* current = node;
-    while ( current != nullptr ) {
-        current = current->predecessor;
-        ++depth;
-    }
-
-    return depth;
-}
-
-
-/**
- * @brief Updates the mean depth value for a given branching node.
- *
- * This function calculates the depth of the provided branching node and updates
- * the mean depth value associated with the node's best coverage value. The mean
- * depth is updated incrementally using the formula:
- *
- *     new_mean = current_mean + (depth - current_mean) / count
- *
- * where `depth` is the depth of the node, `current_mean` is the current mean depth,
- * and `count` is the number of times the mean has been updated.
- *
- * @param node A pointer to the branching node whose mean depth value is to be updated.
- */
-void fuzzing::iid_node_dependence_props::update_value_to_mean_depth( branching_node* node )
-{
-    int depth = get_node_depth( node );
-    iid_value_props& value_props = value_to_mean_depth[ node->best_coverage_value ];
-    value_props.mean_depth = value_props.mean_depth + ( depth - value_props.mean_depth ) / ++value_props.value_counts;
-}
-
-
 int fuzzing::iid_node_dependence_props::get_possible_depth() const 
 {
     if ( value_to_mean_depth.empty() ) {
@@ -285,6 +270,23 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
 
     int result = static_cast<int>(slope * 0 + intercept);
     return result;
+}
+
+
+/**
+ * @brief Generates a path based on node dependencies.
+ *
+ * This function approximates a matrix to generate weights and then converts 
+ * these weights into a path represented as a map of node directions to integers.
+ *
+ * @return A map where the keys are node directions and the values are integers 
+ *         representing the path.
+ */
+std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::generate_path() const
+{
+    std::vector< float > weights = approximate_matrix();
+    std::map< fuzzing::node_direction, int > path = weights_to_path( weights );
+    return path;
 }
 
 /**
@@ -336,8 +338,40 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
 
     if ( props.update_interesting_nodes( node ) ) {
         props.recompute_matrix();
+    } else {
+        props.add_equation( node );
     }
 
-    props.add_equation( node );
-    props.update_value_to_mean_depth( node );
+    iid_value_props& value_props = props.value_to_mean_depth[ node->best_coverage_value ];
+    value_props.process_node( node );
+}
+
+
+/**
+ * @brief Retrieves the path of node navigations from the given branching node to the root.
+ *
+ * This function constructs a vector of `node_direction` objects representing the path
+ * from the specified branching node to the root node. Each `node_direction` object
+ * contains the location ID of the predecessor node and the direction to the current node.
+ *
+ * @param node A pointer to the starting branching node.
+ * @return A vector of `node_direction` objects representing the path from the given node to the
+ * root.
+ */
+std::vector< fuzzing::node_direction > fuzzing::get_path( branching_node* node )
+{
+    std::vector< node_direction > path;
+
+    branching_node* current = node;
+    while ( current != nullptr ) {
+        branching_node* predecessor = current->predecessor;
+        if ( predecessor != nullptr ) {
+            node_direction nav = { predecessor->get_location_id(),
+                                    predecessor->successor_direction( current ) };
+            path.push_back( nav );
+        }
+        current = predecessor;
+    }
+
+    return path;
 }
