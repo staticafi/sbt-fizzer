@@ -21,6 +21,24 @@ struct FloatCompare {
     }
 };
 
+
+struct Mean {
+public:
+    float value;
+
+    Mean()
+        : value( 0 )
+        , count( 0 )
+    {}
+
+    void add( float new_value ) { value = value + ( new_value - value ) / ++count; }
+
+    friend std::ostream& operator<<( std::ostream& os, Mean const& m ) { return os << m.value; }
+
+private:
+    size_t count;
+};
+
 namespace fuzzing
 {
 struct node_direction {
@@ -31,15 +49,29 @@ struct node_direction {
     bool operator==( node_direction const& other ) const;
     friend std::ostream& operator<<( std::ostream& os, node_direction const& nn )
     {
-        os << nn.node_id.id << " " << ( nn.direction ? "right" : "left" );
-        return os;
+        return os << nn.node_id.id << " " << ( nn.direction ? "right" : "left" );
+    }
+};
+
+struct direction_statistics {
+    int min;
+    int max;
+    Mean mean;
+
+    direction_statistics()
+        : min( std::numeric_limits< int >::max() )
+        , max( std::numeric_limits< int >::min() )
+    {}
+
+    friend std::ostream& operator<<( std::ostream& os, direction_statistics const& ds )
+    {
+        return os << "min: " << ds.min << " max: " << ds.max << " mean: " << ds.mean;
     }
 };
 
 struct iid_value_props {
-    int value_counts;
-    float mean_depth;
-    std::map< node_direction, std::tuple<int, int> > direction_statistics;
+    Mean depth;
+    std::map< node_direction, direction_statistics > direction_statistics;
 
     void process_node( branching_node* node );
 
@@ -53,7 +85,7 @@ struct iid_node_dependence_props {
     std::set< node_direction > interesting_nodes;
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
-    std::map< float, iid_value_props, FloatCompare > value_to_mean_depth;
+    std::map< float, iid_value_props, FloatCompare > best_value_props;
 
     bool update_interesting_nodes( branching_node* node );
     void recompute_matrix();
@@ -63,7 +95,7 @@ struct iid_node_dependence_props {
 private:
     std::vector< float > approximate_matrix() const;
     std::map< fuzzing::node_direction, int > weights_to_path( std::vector< float > const& weights ) const;
-    
+
     int get_possible_depth() const;
 };
 

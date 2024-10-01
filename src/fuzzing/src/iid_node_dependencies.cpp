@@ -5,12 +5,12 @@
 
 /**
  * @brief Processes a branching node to update its properties.
- * 
+ *
  * This function updates the mean depth and direction counts of the given branching node.
- * 
+ *
  * @param node A pointer to the branching node to be processed.
  */
-void fuzzing::iid_value_props::process_node( branching_node* node ) 
+void fuzzing::iid_value_props::process_node( branching_node* node )
 {
     update_mean_depth( node );
     update_direction_counts( node );
@@ -20,17 +20,17 @@ void fuzzing::iid_value_props::process_node( branching_node* node )
 /**
  * @brief Updates the mean depth of a branching node.
  *
- * This function recalculates the mean depth of a branching node using the 
- * incremental average formula. It retrieves the depth of the provided node 
+ * This function recalculates the mean depth of a branching node using the
+ * incremental average formula. It retrieves the depth of the provided node
  * and updates the mean depth accordingly.
  *
- * @param node A pointer to the branching_node whose depth is to be used 
+ * @param node A pointer to the branching_node whose depth is to be used
  *             for updating the mean depth.
  */
 void fuzzing::iid_value_props::update_mean_depth( branching_node* node )
 {
-    int depth = node->get_depth();
-    mean_depth = mean_depth + ( depth - mean_depth ) / ++value_counts;
+    int node_depth = node->get_depth();
+    depth.add( node_depth );
 }
 
 
@@ -42,7 +42,7 @@ void fuzzing::iid_value_props::update_mean_depth( branching_node* node )
  *
  * @param node A pointer to the branching node for which the direction counts are to be updated.
  */
-void fuzzing::iid_value_props::update_direction_counts( branching_node* node ) 
+void fuzzing::iid_value_props::update_direction_counts( branching_node* node )
 {
     std::vector< node_direction > path = get_path( node );
 
@@ -51,9 +51,11 @@ void fuzzing::iid_value_props::update_direction_counts( branching_node* node )
         direction_counts[ nav ]++;
     }
 
-    for ( auto& [ direction, stats ] : direction_statistics ) {
-        std::get< 0 >( stats ) = std::min(direction_counts[ direction ], std::get< 0 >( stats ));
-        std::get< 1 >( stats ) = std::max(direction_counts[ direction ], std::get< 1 >( stats ));
+    for ( auto& [ direction, count ] : direction_counts ) {
+        auto& stats = direction_statistics[ direction ];
+        stats.min = std::min( count, stats.min );
+        stats.max = std::max( count, stats.max );
+        stats.mean.add( count );
     }
 }
 
@@ -227,7 +229,7 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
 
     for ( int i = 0; i < weights.size(); ++i ) {
         float value = static_cast< float >( path_size ) * weights[ i ] / weights_sum;
-        path[*std::next( interesting_nodes.begin(), i )] = static_cast< int >( value );
+        path[ *std::next( interesting_nodes.begin(), i ) ] = static_cast< int >( value );
     }
 
     return path;
@@ -237,38 +239,39 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
 /**
  * @brief Computes the possible depth based on the value to mean depth mapping.
  *
- * This function calculates the possible depth by examining the `value_to_mean_depth` map.
- * If the map is empty, it returns 0. If the map contains only one element, it returns the mean depth
- * of that element. If the map contains more than one element, it calculates the depth using linear
- * interpolation based on the first two elements in the map.
+ * This function calculates the possible depth by examining the `best_value_props` map.
+ * If the map is empty, it returns 0. If the map contains only one element, it returns the mean
+ * depth of that element. If the map contains more than one element, it calculates the depth using
+ * linear interpolation based on the first two elements in the map.
  *
  * @return The computed possible depth.
  */
-int fuzzing::iid_node_dependence_props::get_possible_depth() const 
+int fuzzing::iid_node_dependence_props::get_possible_depth() const
 {
-    if ( value_to_mean_depth.empty() ) {
+    if ( best_value_props.empty() ) {
         return 0;
     }
 
-    if (value_to_mean_depth.size() == 1) {
-        return value_to_mean_depth.begin()->second.mean_depth;
+    if ( best_value_props.size() == 1 ) {
+        return best_value_props.begin()->second.depth.value;
     }
 
-    auto it = value_to_mean_depth.begin();
-    int first_depth = it->second.mean_depth;
+    auto it = best_value_props.begin();
+    int first_depth = it->second.depth.value;
     float first_value = it->first;
+
     ++it;
-    int second_depth = it->second.mean_depth;
+    int second_depth = it->second.depth.value;
     float second_value = it->first;
 
-    if (first_value == second_value) {
+    if ( first_value == second_value ) {
         return first_depth;
     }
 
-    float slope = static_cast<float>(second_depth - first_depth) / (second_value - first_value);
+    float slope = static_cast< float >( second_depth - first_depth ) / ( second_value - first_value );
     float intercept = first_depth - slope * first_value;
 
-    int result = static_cast<int>(slope * 0 + intercept);
+    int result = static_cast< int >( slope * 0 + intercept );
     return result;
 }
 
@@ -276,10 +279,10 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
 /**
  * @brief Generates a path based on node dependencies.
  *
- * This function approximates a matrix to generate weights and then converts 
+ * This function approximates a matrix to generate weights and then converts
  * these weights into a path represented as a map of node directions to integers.
  *
- * @return A map where the keys are node directions and the values are integers 
+ * @return A map where the keys are node directions and the values are integers
  *         representing the path.
  */
 std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::generate_path() const
@@ -342,7 +345,7 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
         props.add_equation( node );
     }
 
-    iid_value_props& value_props = props.value_to_mean_depth[ node->best_coverage_value ];
+    iid_value_props& value_props = props.best_value_props[ node->best_coverage_value ];
     value_props.process_node( node );
 }
 
@@ -367,7 +370,7 @@ std::vector< fuzzing::node_direction > fuzzing::get_path( branching_node* node )
         branching_node* predecessor = current->predecessor;
         if ( predecessor != nullptr ) {
             node_direction nav = { predecessor->get_location_id(),
-                                    predecessor->successor_direction( current ) };
+                                   predecessor->successor_direction( current ) };
             path.push_back( nav );
         }
         current = predecessor;
