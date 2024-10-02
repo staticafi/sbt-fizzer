@@ -41,6 +41,11 @@ private:
 
 namespace fuzzing
 {
+struct path_part {
+    
+}
+
+
 struct node_direction {
     location_id node_id;
     bool direction;
@@ -85,6 +90,7 @@ struct iid_node_dependence_props {
     std::set< node_direction > interesting_nodes;
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
+    iid_value_props all_value_props;
     std::map< float, iid_value_props, FloatCompare > best_value_props;
 
     bool update_interesting_nodes( branching_node* node );

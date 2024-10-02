@@ -14,7 +14,7 @@
  * @param learning_rate The learning rate for gradient descent (default: 0.001).
  * @param max_iterations The maximum number of iterations (default: 10000).
  * @param convergence_threshold The threshold for convergence (default: 1e-6).
- * @throws std::invalid_argument if input dimensions are invalid.
+ * @throws `std::invalid_argument` if input dimensions are invalid.
  */
 GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
                                   const std::vector< float >& target_vector,
@@ -73,8 +73,8 @@ std::vector< float > GradientDescent::optimize()
         prev_cost = current_cost;
     }
 
-    add_smallest_value( current_solution );
-    rescale( current_solution, 0.0f, 100.0f );
+    // add_smallest_value( current_solution );
+    rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
 

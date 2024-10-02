@@ -4,6 +4,35 @@
 
 
 /**
+ * @brief Three-way comparison for node_direction.
+ *
+ * @param other The other node_direction object to compare with.
+ * @return std::strong_ordering Result of the comparison.
+ */
+auto fuzzing::node_direction::operator<=>( node_direction const& other ) const
+{
+    if ( auto const cmp = node_id.id <=> other.node_id.id; cmp != 0 )
+        return cmp;
+
+    return direction <=> other.direction;
+}
+
+
+/**
+ * @brief Equality operator for node_direction.
+ *
+ * Compares two node_direction objects for equality based on their node_id and direction.
+ *
+ * @param other The other node_direction object to compare with.
+ * @return true if both node_id and direction are equal, false otherwise.
+ */
+bool fuzzing::node_direction::operator==( node_direction const& other ) const
+{
+    return node_id.id == other.node_id.id && direction == other.direction;
+}
+
+
+/**
  * @brief Processes a branching node to update its properties.
  *
  * This function updates the mean depth and direction counts of the given branching node.
@@ -61,35 +90,6 @@ void fuzzing::iid_value_props::update_direction_counts( branching_node* node )
 
 
 /**
- * @brief Three-way comparison for node_direction.
- *
- * @param other The other node_direction object to compare with.
- * @return std::strong_ordering Result of the comparison.
- */
-auto fuzzing::node_direction::operator<=>( node_direction const& other ) const
-{
-    if ( auto const cmp = node_id.id <=> other.node_id.id; cmp != 0 )
-        return cmp;
-
-    return direction <=> other.direction;
-}
-
-
-/**
- * @brief Equality operator for node_direction.
- *
- * Compares two node_direction objects for equality based on their node_id and direction.
- *
- * @param other The other node_direction object to compare with.
- * @return true if both node_id and direction are equal, false otherwise.
- */
-bool fuzzing::node_direction::operator==( node_direction const& other ) const
-{
-    return node_id.id == other.node_id.id && direction == other.direction;
-}
-
-
-/**
  * @brief Updates the set of interesting nodes based on the given branching node.
  *
  * This function traverses the paths from the given branching node and updates the set of
@@ -107,6 +107,10 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
 
     auto add_to_interesting = [ this, &set_changed ]( std::vector< node_direction >& nodes, int i ) {
         for ( ; i >= 0; --i ) {
+            direction_statistics& stats = all_value_props.direction_statistics[ nodes[ i ] ];
+            if ( stats.min == stats.max )
+                continue;
+
             auto result = this->interesting_nodes.emplace( nodes[ i ] );
             if ( result.second ) {
                 set_changed = true;
@@ -200,6 +204,56 @@ void fuzzing::iid_node_dependence_props::add_equation( branching_node* path )
 
 
 /**
+ * @brief Generates a path based on node dependencies.
+ *
+ * This function approximates a matrix to generate weights and then converts
+ * these weights into a path represented as a map of node directions to integers.
+ *
+ * @return A map where the keys are node directions and the values are integers
+ *         representing the path.
+ */
+std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::generate_path() const
+{
+    std::vector< float > weights = approximate_matrix();
+
+    std::map< fuzzing::node_direction, int > path;
+    int path_size = 0;
+    int possible_depth = get_possible_depth();
+
+    for ( const auto& [ dir, stats ] : all_value_props.direction_statistics ) {
+        if ( stats.min == stats.max ) {
+            path[ dir ] = stats.min;
+            path_size += stats.min;
+        } 
+    }
+
+    int computed_size = 0;
+    std::map< fuzzing::node_direction, int > computed_path;
+    for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
+        const auto& node = *std::next( interesting_nodes.begin(), i );
+        int max_count = all_value_props.direction_statistics.at( node ).max;
+        int computed_count = static_cast< int >( max_count * weights[ i ] );
+        computed_size += computed_count;
+        computed_path[ node ] = computed_count;
+    }
+
+    float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
+    for ( auto& [ node, count ] : computed_path ) {
+        count = static_cast< int >( count * scale );
+    }
+
+    path.insert( computed_path.begin(), computed_path.end() );
+
+    for (const auto& [node, count] : path) {
+        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+        //           << ", Count: " << count << std::endl;
+    }
+
+    return path;
+}
+
+
+/**
  * @brief Approximates a matrix using gradient descent optimization.
  *
  * This function utilizes the GradientDescent class to optimize the given matrix
@@ -211,6 +265,14 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
 {
     GradientDescent gd( matrix, best_values );
     std::vector< float > weights = gd.optimize();
+
+    // std::cout << "Interesting nodes: " << std::endl;
+    for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
+        const auto& node = *std::next( interesting_nodes.begin(), i );
+        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+        //           << ", Weight: " << weights[ i ] << std::endl;
+    }
+
     return weights;
 }
 
@@ -277,22 +339,6 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
 
 
 /**
- * @brief Generates a path based on node dependencies.
- *
- * This function approximates a matrix to generate weights and then converts
- * these weights into a path represented as a map of node directions to integers.
- *
- * @return A map where the keys are node directions and the values are integers
- *         representing the path.
- */
-std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::generate_path() const
-{
-    std::vector< float > weights = approximate_matrix();
-    std::map< fuzzing::node_direction, int > path = weights_to_path( weights );
-    return path;
-}
-
-/**
  * @brief Updates the set of non-IID nodes based on sensitivity analysis.
  *
  * This function iterates through the nodes that have changed according to the
@@ -336,6 +382,9 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
         return;
 
     iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
+    iid_value_props& value_props = props.best_value_props[ node->best_coverage_value ];
+    value_props.process_node( node );
+    props.all_value_props.process_node( node );
 
     props.all_paths.push_back( node );
 
@@ -344,9 +393,6 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
     } else {
         props.add_equation( node );
     }
-
-    iid_value_props& value_props = props.best_value_props[ node->best_coverage_value ];
-    value_props.process_node( node );
 }
 
 

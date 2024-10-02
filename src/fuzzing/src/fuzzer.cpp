@@ -1619,22 +1619,7 @@ branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
     const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
     std::map< fuzzing::node_direction, int > path = props.generate_path();
 
-    for (const auto& [direction, count] : path) {
-        // std::cout << "Node ID: " << direction.node_id.id << ", Direction: " << direction.direction << ", Count: " << count << std::endl;
-    }
-
-    for (const auto&[value, value_props] : props.best_value_props)
-    {
-        std::cout << "Value: " << value << std::endl;
-        for (const auto& [direction, stats] : value_props.direction_statistics)
-        {
-            std::cout << "\t" << "Direction: " << direction << std::endl;
-            std::cout << "\t" << "\t" << "Min: " << stats.min << std::endl;
-            std::cout << "\t" << "\t" << "Average: " << stats.mean << std::endl;
-            std::cout << "\t" << "\t" << "Max: " << stats.max << std::endl;
-        }
-    }
-
+    branching_node* node = entry_branching;
     return nullptr;
 }
 
