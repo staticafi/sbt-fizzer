@@ -6,7 +6,7 @@ int main(){
     if (x == y)
     if (x >= 10)
     if (x + y == z)
-    if ((x << 8) || 2560 == 7936)
+    if (((x << 8) || 2560) == 7936)
         return 1;
     return 0;
 }
