@@ -3,6 +3,31 @@
 #include <utility/timeprof.hpp>
 
 
+bool fuzzing::path_decision::get_next_direction() 
+{ 
+    if ( left_max == 0) {
+        right_current++;
+        return true;
+    }
+
+    if ( right_max == 0) {
+        left_current++;
+        return false;
+    }
+
+    if ( right_max < left_max ) {
+        left_current++;
+        return false;
+    }
+
+    if ( left_max < right_max ) {
+        right_current++;
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * @brief Three-way comparison for node_direction.
  *
@@ -212,7 +237,7 @@ void fuzzing::iid_node_dependence_props::add_equation( branching_node* path )
  * @return A map where the keys are node directions and the values are integers
  *         representing the path.
  */
-std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::generate_path() const
+std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path() const
 {
     std::vector< float > weights = approximate_matrix();
 
@@ -224,15 +249,16 @@ std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::gen
         if ( stats.min == stats.max ) {
             path[ dir ] = stats.min;
             path_size += stats.min;
-        } 
+        }
     }
 
     int computed_size = 0;
     std::map< fuzzing::node_direction, int > computed_path;
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
-        int max_count = all_value_props.direction_statistics.at( node ).max;
+        int max_count = all_value_props.direction_statistics.at( node ).mean.value;
         int computed_count = static_cast< int >( max_count * weights[ i ] );
+        computed_count = std::max( 0, computed_count);
         computed_size += computed_count;
         computed_path[ node ] = computed_count;
     }
@@ -244,12 +270,33 @@ std::map< fuzzing::node_direction, int > fuzzing::iid_node_dependence_props::gen
 
     path.insert( computed_path.begin(), computed_path.end() );
 
-    for (const auto& [node, count] : path) {
+    std::map< location_id, path_decision > decisions;
+    for ( int i = 1; i < path.size(); ++i ) {
+        auto first_p = std::next( path.begin(), i - 1 );
+        auto second_p = std::next( path.begin(), i );
+
+        if ( first_p->first.node_id == second_p->first.node_id ) {
+            decisions[ first_p->first.node_id ] = { first_p->second, second_p->second };
+            ++i;
+        } else {
+            if ( first_p->first.direction ) {
+                decisions[ first_p->first.node_id ] = { 0, first_p->second };
+            } else {
+                decisions[ first_p->first.node_id ] = { first_p->second, 0 };
+            }
+        }
+    }
+
+    for ( const auto& [location , decision] : decisions ) {
+        std::cout << location.id << decision << std::endl;
+    }
+
+    for ( const auto& [ node, count ] : path ) {
         // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
         //           << ", Count: " << count << std::endl;
     }
 
-    return path;
+    return decisions;
 }
 
 
@@ -266,11 +313,10 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
     GradientDescent gd( matrix, best_values );
     std::vector< float > weights = gd.optimize();
 
-    // std::cout << "Interesting nodes: " << std::endl;
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
-        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
-        //           << ", Weight: " << weights[ i ] << std::endl;
+        std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+                  << ", Weight: " << weights[ i ] << std::endl;
     }
 
     return weights;

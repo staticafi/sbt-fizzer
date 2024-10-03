@@ -41,9 +41,34 @@ private:
 
 namespace fuzzing
 {
-struct path_part {
-    
-}
+struct path_decision {
+    int left_current;
+    int left_max;
+
+    int right_current;
+    int right_max;
+
+    path_decision( int left, int right )
+        : left_current( 0 )
+        , left_max( left )
+        , right_current( 0 )
+        , right_max( right )
+    {}
+
+    path_decision()
+        : left_current( 0 )
+        , left_max( 0 )
+        , right_current( 0 )
+        , right_max( 0 )
+    {}
+
+    friend std::ostream& operator<<( std::ostream& os, path_decision const& pd )
+    {
+        return os << " left: " << pd.left_current << "/" << pd.left_max << " right: " << pd.right_current << "/" << pd.right_max;
+    }
+
+    bool get_next_direction();
+};
 
 
 struct node_direction {
@@ -96,7 +121,7 @@ struct iid_node_dependence_props {
     bool update_interesting_nodes( branching_node* node );
     void recompute_matrix();
     void add_equation( branching_node* path );
-    std::map< fuzzing::node_direction, int > generate_path() const;
+    std::map< location_id, path_decision > generate_path() const;
 
 private:
     std::vector< float > approximate_matrix() const;

@@ -94,7 +94,7 @@ struct  progress_recorder
         PRIORITY_STEP_DISTANCE_TO_WIDTH         = 5,
         PRIORITY_STEP_STDIN_SIZE                = 6,
         PRIORITY_STEP_TRACE_INDEX               = 7,
-        PRIORITY_STEP_SUCCESOR_TRACE_INDEX      = 8,
+        PRIORITY_STEP_SUCCESSOR_TRACE_INDEX      = 8,
         
         BEST_LOOP_HEAD                          = 9,
         BEST_SENSITIVE                          = 10,
@@ -111,7 +111,10 @@ struct  progress_recorder
         MONTE_CARLO_STEP_BACKWARD               = 18,
         BEST_MONTE_CARLO_BACKWARD               = 19,
 
-        STARTUP                                 = 20,
+        DEPENDENCY_STEP                         = 20,
+        DEPENDENCY_END                          = 21,
+
+        STARTUP                                 = 22,
     };
 
     void  flush_node_choosing_data();

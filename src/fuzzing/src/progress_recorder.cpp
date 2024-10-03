@@ -943,7 +943,7 @@ void progress_recorder::node_chossing_data::save() const
             case SELECTION_REASON::PRIORITY_STEP_DISTANCE_TO_WIDTH: ostr << "PRIORITY_STEP_DISTANCE_TO_WIDTH"; break;
             case SELECTION_REASON::PRIORITY_STEP_STDIN_SIZE: ostr << "PRIORITY_STEP_STDIN_SIZE"; break;
             case SELECTION_REASON::PRIORITY_STEP_TRACE_INDEX: ostr << "PRIORITY_STEP_TRACE_INDEX"; break;
-            case SELECTION_REASON::PRIORITY_STEP_SUCCESOR_TRACE_INDEX: ostr << "PRIORITY_STEP_SUCCESOR_TRACE_INDEX"; break;
+            case SELECTION_REASON::PRIORITY_STEP_SUCCESSOR_TRACE_INDEX: ostr << "PRIORITY_STEP_SUCCESSOR_TRACE_INDEX"; break;
             case SELECTION_REASON::BEST_LOOP_HEAD: ostr << "BEST_LOOP_HEAD"; break;
             case SELECTION_REASON::BEST_SENSITIVE: ostr << "BEST_SENSITIVE"; break;
             case SELECTION_REASON::BEST_UNTOUCHED: ostr << "BEST_UNTOUCHED"; break;
@@ -955,6 +955,8 @@ void progress_recorder::node_chossing_data::save() const
             case SELECTION_REASON::START_MONTE_CARLO_BACKWARD: ostr << "START_MONTE_CARLO_BACKWARD"; break;
             case SELECTION_REASON::MONTE_CARLO_STEP_BACKWARD: ostr << "MONTE_CARLO_STEP_BACKWARD"; break;
             case SELECTION_REASON::BEST_MONTE_CARLO_BACKWARD: ostr << "BEST_MONTE_CARLO_BACKWARD"; break;
+            case SELECTION_REASON::DEPENDENCY_STEP: ostr << "DEPENDENCY_STEP"; break;
+            case SELECTION_REASON::DEPENDENCY_END: ostr << "DEPENDENCY_END"; break;
             case SELECTION_REASON::STARTUP: ostr << "STARTUP"; break;
             default: UNREACHABLE(); break;
         }

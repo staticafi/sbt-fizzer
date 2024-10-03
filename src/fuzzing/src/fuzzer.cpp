@@ -275,7 +275,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
 
             if (node->max_successors_trace_index > other.node->max_successors_trace_index)
             {
-                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESOR_TRACE_INDEX);
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESSOR_TRACE_INDEX);
                 return true;
             }
             return false;
@@ -1617,9 +1617,20 @@ branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
     }
 
     const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
-    std::map< fuzzing::node_direction, int > path = props.generate_path();
+    std::map< location_id, fuzzing::path_decision > path = props.generate_path();
 
     branching_node* node = entry_branching;
+    while ( true ) {
+        bool direction = path[node->get_location_id()].get_next_direction();
+        branching_node* next_node = node->successor(direction).pointer;
+        if (next_node == nullptr) {
+            break;
+        }
+        recorder().on_node_chosen(next_node, fuzzing::progress_recorder::DEPENDENCY_STEP);
+        node = next_node;
+    }
+    recorder().on_node_chosen(node, fuzzing::progress_recorder::DEPENDENCY_END);
+
     return nullptr;
 }
 
