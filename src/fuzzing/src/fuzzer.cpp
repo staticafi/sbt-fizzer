@@ -7,6 +7,8 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <iterator>
+#include <fuzzing/gradient_descent.hpp>
 
 namespace  fuzzing {
 
@@ -813,6 +815,7 @@ fuzzer::fuzzer(termination_info const&  info)
             &statistics
             }
     , iid_pivots{}
+    , iid_dependences{}
 
     , coverage_failures_with_hope{}
 
@@ -971,7 +974,6 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
-
 execution_record::execution_flags  fuzzer::process_execution_results()
 {
     TMPROF_BLOCK();
@@ -1008,6 +1010,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     trace->front().xor_like_branching_function
                     );
             construction_props.diverging_node = entry_branching;
+
+            iid_dependences.process_node_dependence(entry_branching);
 
             ++statistics.nodes_created;
         }
@@ -1074,9 +1078,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     node->set_closed(false);
 
                 branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
-                construction_props.leaf->set_successor(info.direction, {
-                    branching_node::successor_pointer::VISITED,
-                    new branching_node(
+                auto new_node = new branching_node(
                         succ_info.id,
                         trace_index + 1,
                         succ_info.num_input_bytes,
@@ -1088,8 +1090,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value * succ_info.value,
                         num_driver_executions,
                         succ_info.xor_like_branching_function
-                        )
+                        );
+                construction_props.leaf->set_successor(info.direction, {
+                    branching_node::successor_pointer::VISITED,
+                    new_node
                 });
+
+                iid_dependences.process_node_dependence(new_node);
 
                 ++statistics.nodes_created;
 
@@ -1256,6 +1263,7 @@ void  fuzzer::do_cleanup()
                     update_close_flags_from(node);
                     break;
                 }
+            iid_dependences.update_non_iid_nodes(sensitivity);
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
@@ -1522,6 +1530,10 @@ branching_node*  fuzzer::select_iid_coverage_target() const
 
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
+    
+    branching_node* possible_winner = select_iid_coverage_target_from_dependencies();
+    if (possible_winner != nullptr)
+        return possible_winner;
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),
@@ -1597,6 +1609,19 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     return winner;
 }
 
+branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
+{
+    instrumentation::location_id loc_id(7);
+    if (!iid_dependences.id_to_equation_map.contains(loc_id)) {
+        return nullptr;
+    }
+
+    const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    std::map< fuzzing::node_direction, int > path = props.generate_path();
+
+    branching_node* node = entry_branching;
+    return nullptr;
+}
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {

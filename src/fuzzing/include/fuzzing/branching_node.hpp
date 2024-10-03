@@ -108,6 +108,8 @@ struct  branching_node
     bool  is_closed() const { return closed; }
     void  set_closed(bool const  state = true) { closed = state; }
 
+    int get_depth() const;
+
     guid_type  guid() const { return guid__; }
 
     location_id  id;
