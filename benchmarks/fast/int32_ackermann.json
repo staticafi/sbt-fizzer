@@ -29,13 +29,8 @@
             8,3668340520,    8,3668340524
         ],
         "output_statistics": {
-            "bitshare_analysis": {
-                "num_generated_tests": 1,
-                "num_crashes": 0,
-                "num_boundary_violations": 0
-            },
             "local_search": {
-                "num_generated_tests": 11,
+                "num_generated_tests": 12,
                 "num_crashes": 0,
                 "num_boundary_violations": 1
             },
