@@ -159,8 +159,6 @@ struct  local_search_analysis
     void  stop();
     void  stop_with_failure();
 
-    natural_32_bit  max_num_executions() const { return max_executions; }
-
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr);
 
@@ -200,6 +198,12 @@ private:
             vecf64 const&  grad,
             std::size_t  space_index
             );
+    void  insert_shift_if_unique(
+            std::vector<vecf64>&  resulting_shifts,
+            origin_set&  used_origins,
+            vecf64  shift,
+            std::size_t  space_index
+            );
     float_64_bit  compute_best_shift_along_ray(
             vecf64 const&  ray_start,
             vecf64  ray_dir,
@@ -212,7 +216,6 @@ private:
             natural_32_bit  var_idx,
             float_64_bit  v,
             matf64 const&  B,
-            matf64 const&  D,
             std::size_t  p
             );
     void  compute_random_shifts();
@@ -222,6 +225,7 @@ private:
             vecf64 const&  g,
             float_64_bit  value,
             vecf64 const&  center,
+            std::vector<std::vector<std::size_t> > const&  var_indices,
             std::size_t  space_index
             );
     bool  is_improving_value(float_64_bit  value) const;
@@ -238,8 +242,6 @@ private:
     std::vector<mapping_to_input_bits>  from_variables_to_input;
     type_vector  types_of_variables;
     bool stopped_early;
-    natural_32_bit  num_executions;
-    natural_32_bit  max_executions;
 
     PROGRESS_STAGE  progress_stage;
     vecf64  origin;

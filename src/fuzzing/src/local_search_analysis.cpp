@@ -19,8 +19,6 @@ local_search_analysis::local_search_analysis()
     , from_variables_to_input{}
     , types_of_variables{}
     , stopped_early{ false }
-    , num_executions{ 0U }
-    , max_executions{ 0U }
     , progress_stage{ PARTIALS }
     , origin{}
     , tested_origins{ &types_of_variables }
@@ -55,8 +53,6 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     types_of_variables.clear();
     from_variables_to_input.clear();
     stopped_early = false;
-    num_executions = 0U;
-    max_executions = 0U;
 
     progress_stage = PARTIALS;
     origin.clear();
@@ -68,8 +64,6 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     descent_props.clear();
     mutations_props.clear();
     random_props.clear();
-
-    reset(rnd_generator);
 
     for (trace_index_type  i = 0U; i <= node->get_trace_index(); ++i)
         full_path.push_back({
@@ -183,15 +177,6 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
         }
     }
 
-    {
-        natural_32_bit const  nvars{ (natural_32_bit)types_of_variables.size() };
-        natural_32_bit const  nspaces{ (natural_32_bit)path.size() };
-        natural_32_bit const  npartial_shifts{ 2U * nvars };
-        natural_32_bit const  nstep_shifts{ 2U + 4U };
-
-        max_executions = std::min(10U * (nspaces * npartial_shifts + nstep_shifts), 10000U);
-    }
-
     bits_to_point(bits_and_types->bits, origin);
     tested_origins.insert(make_vector_overlay(origin, types_of_variables));
 
@@ -206,7 +191,7 @@ void  local_search_analysis::stop()
     if (!is_busy())
         return;
 
-    if (num_executions < max_num_executions())
+    if (progress_stage != RANDOM || !random_props.shifts.empty())
     {
         stopped_early = true;
 
@@ -243,12 +228,6 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
     if (!is_busy())
         return false;
 
-    if (num_executions >= max_num_executions())
-    {
-        stop_with_failure();
-        return false;
-    }
-
     for (bool done = false; !done; )
         switch (progress_stage)
         {
@@ -283,8 +262,14 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
 
                         if (columns(local_spaces.back().orthonormal_basis) == 0UL)
                         {
-                            stop_with_failure();
-                            return false;
+                            local_spaces.pop_back();
+
+                            mutations_props.clear();
+                            compute_mutations_shifts();
+
+                            progress_stage = MUTATIONS;
+
+                            break;
                         }
                     }
 
@@ -346,7 +331,7 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
 
     execution_props.shift_in_world_space = transform_shift(execution_props.shift, local_spaces.size() - 1UL);
     execution_props.sample = add_cp(origin, execution_props.shift_in_world_space);
-    ASSUMPTION(isfinite(execution_props.sample));
+    ASSUMPTION(node->get_num_coverage_failure_resets() > 0U || isfinite(execution_props.sample));
     execution_props.sample_overlay = point_to_bits(execution_props.sample, bits_ref);
 
     tested_origins.insert(execution_props.sample_overlay);
@@ -366,8 +351,6 @@ void  local_search_analysis::process_execution_results(
 
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr);
-
-    ++num_executions;
 
     execution_props.bits_and_types_ptr = bits_and_types_ptr;
     execution_props.values.clear();
@@ -500,7 +483,7 @@ void  local_search_analysis::compute_partial_derivative(vecf64 const&  shift, fl
 
 vecf64  local_search_analysis::transform_shift(vecf64  shift, std::size_t const  src_space_index) const
 {
-    ASSUMPTION(src_space_index < local_spaces.size() && isfinite(shift) && size(shift) == columns(local_spaces.at(src_space_index).orthonormal_basis));
+    ASSUMPTION(src_space_index < local_spaces.size() && size(shift) == columns(local_spaces.at(src_space_index).orthonormal_basis));
     vecf64  temp;
     vecf64*  src_shift{ &shift };
     vecf64*  dst_shift{ &temp };
@@ -770,8 +753,8 @@ void  local_search_analysis::compute_descent_shifts()
     origin_set  used_origins{ &types_of_variables };
 
     vecf64 const&  grad{ local_spaces.back().gradient };
-    float_64_bit const  value{ path.back().value };
     std::size_t const  space_index{ local_spaces.size() - 1UL };
+    float_64_bit const  value{ path.at(space_index).value };
 
     compute_descent_shifts(descent_props.shifts, used_origins, grad, value, space_index);
 
@@ -903,6 +886,23 @@ void  local_search_analysis::insert_shift_if_valid_and_unique(
 }
 
 
+void  local_search_analysis::insert_shift_if_unique(
+        std::vector<vecf64>&  resulting_shifts,
+        origin_set&  used_origins,
+        vecf64  shift,
+        std::size_t const  space_index
+        )
+{
+    vecf64 const  point{ add_cp(origin, transform_shift(shift, space_index)) };
+    vector_overlay const  point_overlay{ make_vector_overlay(point, types_of_variables) };
+    if (tested_origins.contains(point_overlay) || used_origins.contains(point_overlay))
+        return;
+
+    resulting_shifts.push_back(shift);
+    used_origins.insert(point_overlay);
+}
+
+
 float_64_bit  local_search_analysis::compute_best_shift_along_ray(
         vecf64 const&  ray_start,
         vecf64  ray_dir,
@@ -972,41 +972,72 @@ void  local_search_analysis::compute_mutations_shifts()
 
     matf64 const&  B{ local_spaces.back().basis_vectors_in_world_space };
     std::size_t const  dim{ columns(B) };
-    matf64  D{ mkmatf64(dim, dim) };
-    for (std::size_t  i = 0UL; i < dim; ++i)
+
+    std::vector<natural_32_bit>  variable_indices;
     {
-        at(D,i,i) = 1.0;
-        for (std::size_t  j = i + 1UL; j < dim; ++j)
+        std::unordered_set<natural_32_bit>  indices;
+        for (auto const&  var_indices_vector : local_spaces.back().variable_indices)
+            for (natural_32_bit const  var_idx : var_indices_vector)
+                indices.insert(var_idx);
+        variable_indices.assign(indices.begin(), indices.end());
+        std::sort(variable_indices.begin(), variable_indices.end());
+    }
+
+    std::size_t  num_mutable_bits{ 0UL };
+    std::vector<natural_32_bit>  p;
+    for (natural_32_bit const  var_idx : variable_indices)
+    {
+        num_mutable_bits += 8UL * num_bytes(types_of_variables.at(var_idx));
+        p.push_back(0UL);
+        for (std::size_t  i = 1UL; i < dim; ++i)
+            if (std::fabs(at(B,i,var_idx)) > std::fabs(at(B,p.back(),var_idx)))
+                p.back() = i;
+    }
+
+    vecf64  shift{ mkvecf64(dim) };
+
+    for (natural_32_bit const  var_idx : variable_indices)
+    {
+        type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
+        if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
+            continue;
+        INVARIANT(is_known_type(var_type));
+
+        for (natural_8_bit  bit_idx = 0U, bit_end = num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
         {
-            at(D,i,j) = dot_product(column(B,i), column(B,j));
-            at(D,j,i) = at(D,i,j);
+            float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
+            float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
+            compute_mutations_shift(shift, var_idx, sign * magnitude, B, p.at(var_idx));
+            if (node->get_num_coverage_failure_resets() == 0U)
+                insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
+            else
+                insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
         }
     }
 
-    std::unordered_set<natural_32_bit>  processed_indices;
-    for (auto const&  var_indices_vector : local_spaces.back().variable_indices)
-        for (natural_32_bit const  var_idx : var_indices_vector)
+    vecf64  shift_round{ mkvecf64(dim) };
+
+    for (std::size_t  round = 0UL, round_end = num_mutable_bits; round < round_end; ++round)
+    {
+        set(shift, 0.0);
+        for (std::size_t  counter = 0UL, counter_end = num_mutable_bits / 4UL; counter < counter_end; ++counter)
         {
+            natural_32_bit const  var_idx{ (natural_32_bit)get_random_natural_64_bit_in_range(0UL, variable_indices.size() - 1UL, rnd_generator) };
             type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
-            if (is_floating_point_type(var_type) || processed_indices.contains(var_idx))
+            if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
                 continue;
-            INVARIANT(is_known_type(var_type));
-            processed_indices.insert(var_idx);
-
-            std::size_t  p{ 0UL };
-            for (std::size_t  i = 1UL; i < dim; ++i)
-                if (std::fabs(at(B,i,var_idx)) > std::fabs(at(B,p,var_idx)))
-                    p = i;
-
-            vecf64  shift{ mkvecf64(dim) };
-            for (natural_8_bit  bit_idx = 0U, bit_end = num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
-            {
-                float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
-                float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
-                compute_mutations_shift(shift, var_idx, sign * magnitude, B, D, p);
-                insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
-            }
+            natural_8_bit const  bit_idx{ (natural_8_bit)get_random_natural_64_bit_in_range(0UL, num_bits(var_type) - 1UL, rnd_generator) };
+            float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
+            float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
+            compute_mutations_shift(shift_round, var_idx, sign * magnitude, B, p.at(var_idx));
+            add(shift, shift_round);
         }
+
+        if (node->get_num_coverage_failure_resets() == 0U)
+            insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
+        else
+            insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
+    }
 }
 
 
@@ -1015,14 +1046,12 @@ void  local_search_analysis::compute_mutations_shift(
         natural_32_bit const  var_idx,
         float_64_bit const  v,
         matf64 const&  B,
-        matf64 const&  D,
         std::size_t const  p
         )
 {
     std::size_t const  dim{ columns(B) };
 
-    for (std::size_t  i = 0UL; i < dim; ++i)
-        at(x,i) = get_random_float_64_bit_in_range(-1.0, 1.0, rnd_generator);
+    set(x, 0.0);
 
     vecf64  dist_vec{ mkvecf64(rows(B)) };
 
@@ -1039,19 +1068,7 @@ void  local_search_analysis::compute_mutations_shift(
         for (std::size_t  k = 0UL; k < dim; ++k)
         {
             if (k == p) continue;
-
-            float_64_bit const  fraction{ at(B,k,var_idx) / at(B,p,var_idx) };
-            float_64_bit const  fraction_1{ 1.0 - fraction_1 };
-
-            at(grad, k) = 0;
-            for (std::size_t  i = 0UL; i < dim; ++i)
-            {
-                if (i == p || i == k) continue;
-                at(grad, k) += at(D,p,i) * fraction_1 * at(x,i);
-            }
-            at(grad, k) += (at(D,p,k) - fraction) * at(x,p);
-            at(grad, k) += fraction_1 * at(x,k);
-            at(grad, k) *= 2.0;
+            at(grad, k) = 2.0 * (at(x,k) - at(B,k,var_idx) / at(B,p,var_idx) * at(x,p));
         }
 
         set(dist_vec, 0.0);
@@ -1074,15 +1091,46 @@ void  local_search_analysis::compute_random_shifts()
 {
     origin_set  used_origins{ &types_of_variables };
 
-    vecf64 const&  grad{ local_spaces.back().gradient };
-    float_64_bit const  value{ path.back().value };
     std::size_t const  space_index{ local_spaces.size() - 1UL };
+    local_space_of_branching const&  space{ local_spaces.at(space_index) };
+    float_64_bit const  value{ path.at(space_index).value };
+
+    std::vector<std::vector<std::size_t> >  var_indices;
+    for (std::size_t  i = 0UL; i != columns(space.orthonormal_basis); ++i)
+    {
+        var_indices.push_back({});
+        vecf64 const&  u{ at(space.basis_vectors_in_world_space, i) };
+        for (std::size_t  j = 0UL; j != size(u); ++j)
+            if (at(u, j) != 0.0)
+                var_indices.back().push_back(j);
+        INVARIANT(!var_indices.back().empty());
+    }
 
     float_64_bit  lambda;
-    if (compute_descent_lambda(lambda, grad, value))
-        compute_random_shifts(random_props.shifts, used_origins, grad, value, scale_cp(grad, lambda), space_index);
-    compute_random_shifts(random_props.shifts, used_origins, grad, value, scale_cp(grad, 0.0), local_spaces.size() - 1UL);
+    if (compute_descent_lambda(lambda, space.gradient, value))
+        compute_random_shifts(random_props.shifts, used_origins, space.gradient, value, scale_cp(space.gradient, lambda), var_indices, space_index);
+    compute_random_shifts(random_props.shifts, used_origins, space.gradient, value, scale_cp(space.gradient, 0.0), var_indices, space_index);
 }
+
+
+template<typename T>
+struct special_floating_point_values
+{
+    static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value);
+    static float_64_bit constexpr  data[] = {
+        std::numeric_limits<T>::infinity(),
+        std::numeric_limits<T>::quiet_NaN(),
+        std::numeric_limits<T>::signaling_NaN(),
+        std::numeric_limits<T>::epsilon(),
+        std::numeric_limits<T>::min(),
+        std::numeric_limits<T>::max(),
+        3.5, // useful for fesetround(FE_NEAREST) where rint(3.5)==4 while trunc(3.5)==3
+    };
+    static std::size_t constexpr  bad_count{ 3UL };
+    static std::size_t constexpr  count{ sizeof(data) / sizeof(data[0]) };
+};
+using special_floats_32 = special_floating_point_values<float_32_bit>;
+using special_floats_64 = special_floating_point_values<float_64_bit>;
 
 
 void  local_search_analysis::compute_random_shifts(
@@ -1091,22 +1139,86 @@ void  local_search_analysis::compute_random_shifts(
         vecf64 const&  g,
         float_64_bit  value,
         vecf64 const&  center,
+        std::vector<std::vector<std::size_t> > const&  var_indices,
         std::size_t const  space_index
         )
 {
-    ASSUMPTION(size(center) == columns(local_spaces.at(space_index).orthonormal_basis));
+    ASSUMPTION(
+        size(center) == columns(local_spaces.at(space_index).orthonormal_basis) &&
+        var_indices.size() == columns(local_spaces.at(space_index).orthonormal_basis)
+        );
 
     local_space_of_branching const&  space{ local_spaces.at(space_index) };
-    float_64_bit const  max_coord_value{ std::max(100.0, std::log(std::fabs(value) + 1.0)) };
+    float_64_bit const  max_coord_value{ std::max(1000.0, std::log(std::fabs(value) + 1.0)) };
+    std::size_t const  max_loop_iterations{ 100UL * columns(space.orthonormal_basis) };
 
     vecf64  shift;
     reset(shift, columns(space.orthonormal_basis), 0.0);
 
-    for (std::size_t  counter = 0UL, max_shifts = 10UL * columns(space.orthonormal_basis); counter != max_shifts; ++counter)
+    for (std::size_t  counter = 0UL; counter != max_loop_iterations; ++counter)
     {
-        for (std::size_t  coord = 0UL; coord != columns(space.orthonormal_basis); ++coord)
-            at(shift, coord) = get_random_float_64_bit_in_range(-max_coord_value, max_coord_value, rnd_generator);
-        insert_shift_if_valid_and_unique(resulting_shifts, used_origins, add_cp(center, shift), g, space_index);
+        for (std::size_t  i = 0UL; i != columns(space.orthonormal_basis); ++i)
+        {
+            float_64_bit const  sign{ get_random_natural_64_bit_in_range(0L, 100L, rnd_generator) < 50UL ? -1.0 : 1.0 };
+            float_64_bit  magnitude;
+            {
+                std::size_t const  var_idx{
+                    var_indices.at(i).at(get_random_natural_64_bit_in_range(0UL, var_indices.at(i).size() - 1UL, rnd_generator))
+                    };
+                type_of_input_bits const  var_type{ types_of_variables.at(var_idx) };
+
+                if (node->get_num_coverage_failure_resets() == 0)
+                {
+                    float_64_bit const  max_coord_value{ 100.0 * (std::log(std::fabs(value) + 1.0) + 1.0) };
+                    if (is_floating_point_type(var_type))
+                    {
+                        if (num_bytes(var_type) == 4U)
+                            magnitude = get_random_float_64_bit_in_range(0.0, max_coord_value, rnd_generator);
+                        else
+                            magnitude = get_random_float_64_bit_in_range(0.0, max_coord_value, rnd_generator);
+                    }
+                    else
+                    {
+                        float_64_bit const  coef{ (float_64_bit)(8U * num_bytes(var_type)) / (float_64_bit)max_loop_iterations };
+                        auto const max_coord{ std::pow(2.0, coef * (float_64_bit)counter) };
+                        magnitude = get_random_float_64_bit_in_range(0.0, max_coord, rnd_generator);
+                    }
+                }
+                else
+                {
+                    if (is_floating_point_type(var_type))
+                    {
+                        if (get_random_natural_64_bit_in_range(0L, 100L, rnd_generator) < 25UL)
+                        {
+                            if (num_bytes(var_type) == 4U)
+                                magnitude = special_floats_32::data[
+                                    get_random_natural_64_bit_in_range(0UL, special_floats_32::count - 1UL, rnd_generator)
+                                    ];
+                            else
+                                magnitude = special_floats_64::data[
+                                    get_random_natural_64_bit_in_range(0UL, special_floats_64::count - 1UL, rnd_generator)
+                                    ];
+                        }
+                        else if (num_bytes(var_type) == 4U)
+                            magnitude = get_random_float_64_bit_in_range(0.0, std::numeric_limits<float_32_bit>::max(), rnd_generator);
+                        else
+                            magnitude = get_random_float_64_bit_in_range(0.0, std::numeric_limits<float_64_bit>::max(), rnd_generator);
+                    }
+                    else
+                    {
+                        float_64_bit const  coef{ (float_64_bit)(8U * num_bytes(var_type)) / (float_64_bit)max_loop_iterations };
+                        auto const max_coord{ std::pow(2.0, coef * (float_64_bit)counter) };
+                        magnitude = get_random_float_64_bit_in_range(0.0, max_coord, rnd_generator);
+                    }
+                }
+            }
+
+            at(shift, i) = sign * magnitude;
+        }
+        if (node->get_num_coverage_failure_resets() == 0)
+            insert_shift_if_valid_and_unique(resulting_shifts, used_origins, add_cp(center, shift), g, space_index);
+        else
+            insert_shift_if_unique(resulting_shifts, used_origins, add_cp(center, shift), space_index);
     }
 }
 

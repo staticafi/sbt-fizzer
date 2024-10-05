@@ -163,6 +163,8 @@ bool bit_value(number_overlay const  value, type_of_input_bits const  type, natu
         case type_of_input_bits::SINT32:   ASSUMPTION(bit_idx < 32U); return (value._sint32 & (1U << bit_idx)) != 0U;
         case type_of_input_bits::UINT64:   ASSUMPTION(bit_idx < 64U); return (value._uint64 & (1U << bit_idx)) != 0U;
         case type_of_input_bits::SINT64:   ASSUMPTION(bit_idx < 64U); return (value._sint64 & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::FLOAT32:  ASSUMPTION(bit_idx < 32U); return ((*(natural_32_bit*)&value._float32) & (1U << bit_idx)) != 0U;
+        case type_of_input_bits::FLOAT64:  ASSUMPTION(bit_idx < 64U); return ((*(natural_64_bit*)&value._float64) & (1U << bit_idx)) != 0U;
         default: { UNREACHABLE(); } return false;
     }
 }

@@ -1606,14 +1606,11 @@ bool  fuzzer::apply_coverage_failures_with_hope()
     {
         INVARIANT(node->was_local_search_performed());
 
-        if (node->get_local_search_start_execution() < node->get_best_value_execution())
-        {
-            node->perform_failure_reset();
+        node->perform_failure_reset();
 
-            primary_coverage_targets.process_potential_coverage_target({ node, true });
+        primary_coverage_targets.process_potential_coverage_target({ node, true });
 
-            ++statistics.coverage_failure_resets;
-        }
+        ++statistics.coverage_failure_resets;
     }
     coverage_failures_with_hope.clear();
     return !primary_coverage_targets.empty();
