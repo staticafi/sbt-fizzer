@@ -1,7 +1,7 @@
 {
     "args": {
-        "max_executions": 10000,
-        "max_seconds": 300,
+        "max_executions": 1000,
+        "max_seconds": 30,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,

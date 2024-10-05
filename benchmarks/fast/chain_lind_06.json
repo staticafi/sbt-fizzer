@@ -1,6 +1,6 @@
 {
     "args": {
-        "max_executions": 3500,
+        "max_executions": 1000,
         "max_seconds": 60,
         "max_trace_length": 10000,
         "max_stack_size": 25,
