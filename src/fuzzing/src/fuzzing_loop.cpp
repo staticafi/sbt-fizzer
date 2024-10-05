@@ -74,7 +74,8 @@ analysis_outcomes  run(
                 }
                 else if ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0)
                 {
-                    exit_locations_of_boundary_violations.insert(record.path.back().first.id);
+                    if (!record.path.empty())
+                        exit_locations_of_boundary_violations.insert(record.path.back().first.id);
                     collector_of_boundary_violations(record);
                     ++results.output_statistics[record.analysis_name].num_boundary_violations;
                 }
