@@ -1,7 +1,7 @@
 {
     "args": {
         "max_executions": 500,
-        "max_seconds": 5,
+        "max_seconds": 10,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "TIME_BUDGET_DEPLETED",
-        "num_executions": 77,
+        "num_executions": 148,
         "num_covered_branchings": 5,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    
