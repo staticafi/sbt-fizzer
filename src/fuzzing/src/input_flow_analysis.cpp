@@ -330,15 +330,7 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
     extern_code  externals{ &state };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
-    float_64_bit constexpr native_vs_interpreter_speed_ratio{ 10.0 };
-    float_64_bit const  run_time{
-            std::min(
-                remaining_seconds,
-                native_vs_interpreter_speed_ratio * (iomodels::iomanager::instance().get_config().max_exec_milliseconds * 0.001)
-                )
-    };
-
-    interpreter.run(run_time);
+    interpreter.run(remaining_seconds);
 
     last_visited_path_node = flow.get_last_visited_path_node();
 
