@@ -40,6 +40,7 @@ struct  input_flow_analysis
 
     branching_node*  get_node() const { return node; }
     std::unordered_set<branching_node*> const&  get_changed_nodes() { return changed_nodes; }
+    branching_node*  get_last_visited_path_node() const { return last_visited_path_node; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
 
@@ -55,6 +56,7 @@ private:
     branching_node*  node;
     natural_32_bit  execution_id;
     std::unordered_set<branching_node*>  changed_nodes;
+    branching_node*  last_visited_path_node;
 
     performance_statistics  statistics;
 };

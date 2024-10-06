@@ -113,7 +113,8 @@ struct input_flow_analysis::input_flow : public sala::InputFlow
 {
     input_flow(input_flow_analysis*  analysis, sala::ExecState*  state);
     bool  target_reached() const { return target_reached_; }
-    branching_node*  get_last_visited_path_node() const { return path_index_ < path_nodes_.size() ? path_nodes_.at(path_index_) : path_nodes_.back(); }
+    branching_node*  get_last_visited_path_node() const
+    { return path_index_ > 0UL && path_index_ <= path_nodes_.size() ? path_nodes_.at(path_index_ - 1UL) : nullptr; }
 
     std::size_t  path_length() const { return path_nodes_.size(); }
     std::size_t  path_index() const { return path_index_; }
@@ -249,6 +250,7 @@ input_flow_analysis::input_flow_analysis(sala::Program const* const sala_program
     , node{ nullptr }
     , execution_id{ 0 }
     , changed_nodes{}
+    , last_visited_path_node{ nullptr }
     , statistics{}
 {}
 
@@ -277,6 +279,7 @@ void  input_flow_analysis::start(branching_node* const  node_ptr, natural_32_bit
     node = node_ptr;
     execution_id = execution_id_;
     changed_nodes.clear();
+    last_visited_path_node = nullptr;
 
     ++statistics.start_calls;
 }
@@ -337,9 +340,11 @@ void  input_flow_analysis::compute_sensitive_bits(float_64_bit const  remaining_
 
     interpreter.run(run_time);
 
+    last_visited_path_node = flow.get_last_visited_path_node();
+
+    if (last_visited_path_node != nullptr)
     {
-        branching_node const* const  last_visited_node = flow.get_last_visited_path_node();
-        std::pair<natural_32_bit,trace_index_type> const key{ last_visited_node->get_trace_index(), last_visited_node->get_num_stdin_bytes() };
+        std::pair<natural_32_bit,trace_index_type> const key{ last_visited_path_node->get_trace_index(), last_visited_path_node->get_num_stdin_bytes() };
         float_64_bit const  value = std::chrono::duration<float_64_bit>(std::chrono::system_clock::now() - start_time).count();
         //statistics.complexity[key].insert(value);
     }
