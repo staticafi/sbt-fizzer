@@ -996,8 +996,9 @@ void  local_search_analysis::compute_mutations_shifts()
 
     vecf64  shift{ mkvecf64(dim) };
 
-    for (natural_32_bit const  var_idx : variable_indices)
+    for (std::size_t  i = 0UL; i < variable_indices.size(); ++i)
     {
+        natural_32_bit const  var_idx{ variable_indices.at(i) };
         type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
         if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
             continue;
@@ -1007,7 +1008,7 @@ void  local_search_analysis::compute_mutations_shifts()
         {
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
-            compute_mutations_shift(shift, var_idx, sign * magnitude, B, p.at(var_idx));
+            compute_mutations_shift(shift, var_idx, sign * magnitude, B, p.at(i));
             if (node->get_num_coverage_failure_resets() == 0U)
                 insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
             else
@@ -1022,14 +1023,15 @@ void  local_search_analysis::compute_mutations_shifts()
         set(shift, 0.0);
         for (std::size_t  counter = 0UL, counter_end = num_mutable_bits / 4UL; counter < counter_end; ++counter)
         {
-            natural_32_bit const  var_idx{ (natural_32_bit)get_random_natural_64_bit_in_range(0UL, variable_indices.size() - 1UL, rnd_generator) };
+            natural_32_bit const  i{ (natural_32_bit)get_random_natural_64_bit_in_range(0UL, variable_indices.size() - 1UL, rnd_generator) };
+            natural_32_bit const  var_idx{ variable_indices.at(i) };
             type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
             if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
                 continue;
             natural_8_bit const  bit_idx{ (natural_8_bit)get_random_natural_64_bit_in_range(0UL, num_bits(var_type) - 1UL, rnd_generator) };
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
-            compute_mutations_shift(shift_round, var_idx, sign * magnitude, B, p.at(var_idx));
+            compute_mutations_shift(shift_round, var_idx, sign * magnitude, B, p.at(i));
             add(shift, shift_round);
         }
 
