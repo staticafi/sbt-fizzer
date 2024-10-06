@@ -1439,6 +1439,23 @@ void  fuzzer::select_next_state()
 
     if (!winner->was_sensitivity_performed())
     {
+        while (true)
+        {
+            branching_node* const  left = winner->successor(false).pointer;
+            branching_node* const  right = winner->successor(true).pointer;
+
+            bool const  can_go_left = left != nullptr;
+            bool const  can_go_right = right != nullptr;
+
+            if (can_go_left && can_go_right)
+                winner = left->get_max_successors_trace_index() >= right->get_max_successors_trace_index() ? left : right;
+            else if (can_go_left)
+                winner = left;
+            else if (can_go_right)
+                winner = right;
+            else
+                break;
+        }
         input_flow.start(winner, num_driver_executions);
         state = INPUT_FLOW;
     }
