@@ -159,6 +159,8 @@ struct  local_search_analysis
     void  stop();
     void  stop_with_failure();
 
+    natural_32_bit  max_num_executions() const { return max_executions; }
+
     bool  generate_next_input(vecb&  bits_ref);
     void  process_execution_results(execution_trace_pointer  trace_ptr, stdin_bits_and_types_pointer  bits_and_types_ptr);
 
@@ -242,6 +244,8 @@ private:
     std::vector<mapping_to_input_bits>  from_variables_to_input;
     type_vector  types_of_variables;
     bool stopped_early;
+    natural_32_bit  num_executions;
+    natural_32_bit  max_executions;
 
     PROGRESS_STAGE  progress_stage;
     vecf64  origin;

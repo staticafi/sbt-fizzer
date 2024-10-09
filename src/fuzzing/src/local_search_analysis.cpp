@@ -19,6 +19,8 @@ local_search_analysis::local_search_analysis()
     , from_variables_to_input{}
     , types_of_variables{}
     , stopped_early{ false }
+    , num_executions{ 0U }
+    , max_executions{ 0U }
     , progress_stage{ PARTIALS }
     , origin{}
     , tested_origins{ &types_of_variables }
@@ -53,6 +55,8 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     types_of_variables.clear();
     from_variables_to_input.clear();
     stopped_early = false;
+    num_executions = 0U;
+    max_executions = 0U;
 
     progress_stage = PARTIALS;
     origin.clear();
@@ -177,6 +181,25 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
         }
     }
 
+    {
+        natural_32_bit const  num_vars{ (natural_32_bit)types_of_variables.size() };
+        natural_32_bit const  num_spaces{ (natural_32_bit)path.size() };
+        natural_32_bit const  num_partial_shifts{ 2U * num_vars };
+        natural_32_bit const  num_descent_shifts{ 2U + 4U };
+        natural_32_bit const  num_mutation_shifts{ 64U * num_vars };
+        natural_32_bit const  num_random_shifts{ 100U };
+
+        natural_32_bit const  num_inputs_per_commit{
+                num_spaces * num_partial_shifts +
+                num_descent_shifts +
+                num_mutation_shifts +
+                num_random_shifts
+                };
+        natural_32_bit const  max_num_commits{ 10U };
+
+        max_executions = std::min(max_num_commits * num_inputs_per_commit, 10000U);
+    }
+
     bits_to_point(bits_and_types->bits, origin);
     tested_origins.insert(make_vector_overlay(origin, types_of_variables));
 
@@ -191,7 +214,7 @@ void  local_search_analysis::stop()
     if (!is_busy())
         return;
 
-    if (progress_stage != RANDOM || !random_props.shifts.empty())
+    if (num_executions < max_num_executions())
     {
         stopped_early = true;
 
@@ -227,6 +250,12 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
 
     if (!is_busy())
         return false;
+
+    if (num_executions >= max_num_executions())
+    {
+        stop_with_failure();
+        return false;
+    }
 
     for (bool done = false; !done; )
         switch (progress_stage)
@@ -351,6 +380,8 @@ void  local_search_analysis::process_execution_results(
 
     ASSUMPTION(is_busy());
     ASSUMPTION(trace_ptr != nullptr);
+
+    ++num_executions;
 
     execution_props.bits_and_types_ptr = bits_and_types_ptr;
     execution_props.values.clear();
