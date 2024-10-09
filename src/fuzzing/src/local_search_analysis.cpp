@@ -1041,7 +1041,7 @@ void  local_search_analysis::compute_mutations_shifts()
             continue;
         INVARIANT(is_known_type(var_type));
 
-        for (natural_8_bit  bit_idx = 0U, bit_end = num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
+        for (natural_8_bit  bit_idx = 0U, bit_end = min_num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
         {
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
@@ -1065,7 +1065,7 @@ void  local_search_analysis::compute_mutations_shifts()
             type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
             if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
                 continue;
-            natural_8_bit const  bit_idx{ (natural_8_bit)get_random_natural_64_bit_in_range(0UL, num_bits(var_type) - 1UL, rnd_generator) };
+            natural_8_bit const  bit_idx{ (natural_8_bit)get_random_natural_64_bit_in_range(0UL, min_num_bits(var_type) - 1UL, rnd_generator) };
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
             compute_mutations_shift(shift_round, var_idx, sign * magnitude, B, p.at(i));
