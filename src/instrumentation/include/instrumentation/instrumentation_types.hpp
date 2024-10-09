@@ -119,6 +119,7 @@ std::string  to_c_type_string(type_of_input_bits  type);
 
 natural_8_bit  num_bytes(type_of_input_bits  type);
 inline natural_8_bit  num_bits(type_of_input_bits const  type) { return (natural_8_bit)(8U * num_bytes(type)); }
+inline natural_8_bit  min_num_bits(type_of_input_bits const  type) { return type == type_of_input_bits::BOOLEAN ? 1U : num_bits(type); }
 
 std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits  type, void const*  value_ptr);
 
