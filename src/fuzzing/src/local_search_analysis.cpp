@@ -581,6 +581,7 @@ void  local_search_analysis::insert_next_local_space()
     {
         for (natural_32_bit  i = 0U; i != columns(src_space.orthonormal_basis); ++i)
         {
+            INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
             dst_space.orthonormal_basis.push_back({});
             axis(dst_space.orthonormal_basis.back(), columns(src_space.orthonormal_basis), i);
             dst_space.variable_indices.push_back(src_space.variable_indices.at(i));
@@ -609,14 +610,18 @@ void  local_search_analysis::insert_next_local_space()
         dst_space.scales_of_basis_vectors_in_world_space.push_back( max_abs(dst_space.basis_vectors_in_world_space.back()) );
     };
 
+    float_64_bit const  g_len_inv{ 1.0 / std::sqrt(gg) };
+
     for (std::size_t  i = 0UL; i < columns(src_space.orthonormal_basis); ++i)
     {
         vecf64  w;
         axis(w, columns(src_space.orthonormal_basis), i);
 
         float_64_bit wg{ dot_product(w, src_space.gradient) };
-        if (std::fabs(wg) < 1e-6)
+        float_64_bit wg_cos_angle{ wg * g_len_inv };
+        if (std::isfinite(wg_cos_angle) && !std::isnan(wg_cos_angle) && std::fabs(wg_cos_angle) < 1e-3)
         {
+            INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
             dst_space.orthonormal_basis.push_back(w);
             collect_variable_indices_for_last_basis_vector();
             push_back_basis_vector_props_in_world_space(w);
@@ -627,9 +632,10 @@ void  local_search_analysis::insert_next_local_space()
             for (vecf64 const&  v : dst_space.orthonormal_basis)
                 add_scaled(w, -dot_product(w, v), v);
             float_64_bit const  ww{ dot_product(w, w) };
-            if (ww > 1e-6)
+            if (std::isfinite(ww) && !std::isnan(ww) && ww > 1e-6)
             {
                 scale(w, 1.0 / std::sqrt(ww));
+                INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
                 dst_space.orthonormal_basis.push_back(w);
                 collect_variable_indices_for_last_basis_vector();
                 push_back_basis_vector_props_in_world_space(w);
@@ -640,7 +646,7 @@ void  local_search_analysis::insert_next_local_space()
     branching_info const&  src_info{ path.at(src_space_index) };
     if (src_info.predicate != BRANCHING_PREDICATE::BP_EQUAL)
     {
-        float_64_bit const  g_len_inv{ 1.0 / std::sqrt(gg) };
+        INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
         dst_space.orthonormal_basis.push_back(scale_cp(src_space.gradient, g_len_inv));
         collect_variable_indices_for_last_basis_vector();
         push_back_basis_vector_props_in_world_space(dst_space.orthonormal_basis.back());
