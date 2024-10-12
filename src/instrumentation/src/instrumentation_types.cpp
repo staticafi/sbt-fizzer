@@ -30,7 +30,7 @@ branching_coverage_info::branching_coverage_info(location_id const  id_)
     , num_input_bytes{}
 {}
 
-size_t branching_coverage_info::flattened_size() {
+std::size_t branching_coverage_info::flattened_size() {
     return sizeof(id)
                 + sizeof(direction)
                 + sizeof(value)
@@ -45,7 +45,7 @@ br_instr_coverage_info::br_instr_coverage_info(location_id const  id)
     , covered_branch{}
 {}
 
-size_t br_instr_coverage_info::flattened_size() {
+std::size_t br_instr_coverage_info::flattened_size() {
     return sizeof(br_instr_id) + sizeof(covered_branch);
 }
 
@@ -142,6 +142,19 @@ bool  is_numeric_type(type_of_input_bits const  type)
         case type_of_input_bits::UNTYPED64:
             return false;
         default: { UNREACHABLE(); return false; }
+    }
+}
+
+
+bool  is_floating_point_type(type_of_input_bits const  type)
+{
+    switch (type)
+    {
+        case type_of_input_bits::FLOAT32:
+        case type_of_input_bits::FLOAT64:
+            return true;
+        default:
+            return false;
     }
 }
 

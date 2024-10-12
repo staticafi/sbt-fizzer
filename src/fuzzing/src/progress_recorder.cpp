@@ -478,7 +478,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
 
     std::vector<branching_node::guid_type>  node_guids;
-    for (branching_node* n = leaf; n != nullptr; n = n->predecessor)
+    for (branching_node* n = leaf; n != nullptr; n = n->get_predecessor())
         node_guids.push_back(n->guid());
     std::reverse(node_guids.begin(), node_guids.end());
 
@@ -568,9 +568,9 @@ void  progress_recorder::analysis_common_info::save() const
 natural_32_bit  progress_recorder::sensitivity_progress_info::get_num_coverage_failure_resets() const
 {
     natural_32_bit  max_num_coverage_failure_resets{ 0U };
-    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
-        if (max_num_coverage_failure_resets < n->num_coverage_failure_resets)
-            max_num_coverage_failure_resets = n->num_coverage_failure_resets;
+    for (branching_node*  n = node; n != nullptr; n = n->get_predecessor())
+        if (max_num_coverage_failure_resets < n->get_num_coverage_failure_resets())
+            max_num_coverage_failure_resets = n->get_num_coverage_failure_resets();
     return max_num_coverage_failure_resets;
 }
 
@@ -580,7 +580,7 @@ void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ost
     TMPROF_BLOCK();
 
     std::vector<branching_node*>  nodes;
-    for (branching_node*  n = node; n != nullptr; n = n->predecessor)
+    for (branching_node*  n = node; n != nullptr; n = n->get_predecessor())
         nodes.push_back(n);
     std::reverse(nodes.begin(), nodes.end());
 
@@ -590,7 +590,7 @@ void  progress_recorder::sensitivity_progress_info::save_info(std::ostream&  ost
         branching_node* const  n = nodes.at(i);
         ostr << '[';
         bool first = true;
-        std::vector<natural_32_bit>  indices(n->sensitive_stdin_bits.begin(), n->sensitive_stdin_bits.end());
+        std::vector<natural_32_bit>  indices(n->get_sensitive_stdin_bits().begin(), n->get_sensitive_stdin_bits().end());
         std::sort(indices.begin(), indices.end());
         for (natural_32_bit idx : indices)
         {

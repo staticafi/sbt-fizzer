@@ -76,6 +76,7 @@ message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
     Libs ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
+set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH "${Boost_LIBRARIES}")
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
 find_package(LLVM REQUIRED CONFIG)
@@ -112,7 +113,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # Add project specific sources
 add_subdirectory(./src)
 
-install(DIRECTORY ./benchmarks DESTINATION .)
-install(FILES ./LICENSE.txt DESTINATION .)
+if(FIZZ_BUILD_LIBS_32_BIT STREQUAL "No")
+    install(DIRECTORY ./benchmarks DESTINATION .)
+    install(FILES ./LICENSE.txt DESTINATION .)
+endif()
 
 message("Generating build files ...")

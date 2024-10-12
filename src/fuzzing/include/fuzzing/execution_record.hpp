@@ -19,7 +19,8 @@ struct  execution_record
     static execution_flags constexpr  MEDIUM_OVERFLOW = 1 << 4;
     static execution_flags constexpr  EMPTY_STARTUP_TRACE = 1 << 5;
 
-    execution_flags  flags { 0 }; 
+    execution_flags  flags { 0 };
+    std::string  analysis_name {};
     vecu8  stdin_bytes {};
     input_types_vector  stdin_types {};
     execution_path  path {};

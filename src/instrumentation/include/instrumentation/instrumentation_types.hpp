@@ -53,7 +53,7 @@ BRANCHING_PREDICATE opposite_predicate(BRANCHING_PREDICATE  predicate);
 struct  branching_coverage_info
 {
     explicit branching_coverage_info(location_id const  id_);
-    static size_t flattened_size();
+    static std::size_t flattened_size();
 
     location_id  id;
     bool  direction;
@@ -68,7 +68,7 @@ struct  branching_coverage_info
 struct  br_instr_coverage_info
 {
     explicit br_instr_coverage_info(location_id const  id);
-    static size_t flattened_size();
+    static std::size_t flattened_size();
 
     location_id  br_instr_id;
     bool  covered_branch;
@@ -112,12 +112,14 @@ type_of_input_bits  from_id(natural_8_bit  id);
 
 bool  is_known_type(type_of_input_bits  type);
 bool  is_numeric_type(type_of_input_bits  type);
+bool  is_floating_point_type(type_of_input_bits  type);
 
 std::string  to_string(type_of_input_bits  type);
 std::string  to_c_type_string(type_of_input_bits  type);
 
 natural_8_bit  num_bytes(type_of_input_bits  type);
 inline natural_8_bit  num_bits(type_of_input_bits const  type) { return (natural_8_bit)(8U * num_bytes(type)); }
+inline natural_8_bit  min_num_bits(type_of_input_bits const  type) { return type == type_of_input_bits::BOOLEAN ? 1U : num_bits(type); }
 
 std::ostream&  save_value(std::ostream&  ostr, type_of_input_bits  type, void const*  value_ptr);
 

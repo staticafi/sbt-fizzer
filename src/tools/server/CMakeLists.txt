@@ -21,7 +21,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     fuzzing     # Duplicating because of Mingw (otherwise linking errors)
     utility
     Threads::Threads
-    ${Boost_LIBRARIES}
+    ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
     )
 
 if (LIBRT)

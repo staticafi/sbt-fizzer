@@ -7,7 +7,7 @@
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
-#   include <instrumentation/instrumentation_types.hpp>
+#   include <fuzzing/instrumentation_types.hpp>
 #   include <utility/math.hpp>
 #   include <utility/random.hpp>
 #   include <utility/std_pair_hash.hpp>
@@ -19,9 +19,6 @@
 #   include <limits>
 
 namespace  fuzzing {
-
-
-using namespace instrumentation;
 
 
 struct  fuzzer final
@@ -54,7 +51,7 @@ struct  fuzzer final
         std::size_t  coverage_failure_resets{ 0 };
     };
 
-    explicit fuzzer(termination_info const&  info);
+    fuzzer(termination_info const&  info);
     ~fuzzer();
 
     void  terminate();
@@ -62,11 +59,11 @@ struct  fuzzer final
 
     termination_info const& get_termination_info() const { return termination_props; }
 
-    long  num_remaining_driver_executions() const { return (long)termination_props.max_executions - (long)num_driver_executions; }
-    long  num_remaining_seconds() const { return (long)termination_props.max_seconds - get_elapsed_seconds(); }
+    natural_32_bit  num_remaining_driver_executions() const { return termination_props.max_executions - get_performed_driver_executions(); }
+    float_64_bit  num_remaining_seconds() const { return (float_64_bit)termination_props.max_seconds - get_elapsed_seconds(); }
 
     natural_32_bit  get_performed_driver_executions() const { return num_driver_executions; }
-    long  get_elapsed_seconds() const { return (long)std::chrono::duration_cast<std::chrono::seconds>(time_point_current - time_point_start).count(); }
+    float_64_bit  get_elapsed_seconds() const { return std::chrono::duration<float_64_bit>(time_point_current - time_point_start).count(); }
 
     std::unordered_set<location_id> const&  get_covered_branchings() const { return covered_branchings; }
     std::unordered_set<branching_location_and_direction> const&  get_uncovered_branchings() const { return uncovered_branchings; }
@@ -74,7 +71,7 @@ struct  fuzzer final
     bool  can_make_progress() const { return state != FINISHED; }
 
     bool  round_begin(TERMINATION_REASON&  termination_reason);
-    execution_record::execution_flags  round_end();
+    std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
     sensitivity_analysis::performance_statistics const&  get_sensitivity_statistics() const { return sensitivity.get_statistics(); }
     typed_minimization_analysis::performance_statistics const&  get_typed_minimization_statistics() const { return typed_minimization.get_statistics(); }
@@ -216,6 +213,8 @@ private:
         mutable random_generator_for_natural_32_bit  generator_for_pivot_selection;
     };
 
+    static std::string const&  get_analysis_name_from_state(STATE state);
+
     static void  update_close_flags_from(branching_node*  node);
 
     static std::vector<natural_32_bit> const&  get_input_width_classes();
@@ -283,7 +282,7 @@ private:
             probability_generator_random_uniform&  location_miss_generator
             );
 
-    void  generate_next_input(vecb&  stdin_bits);
+    bool  generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termination_reason);
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();

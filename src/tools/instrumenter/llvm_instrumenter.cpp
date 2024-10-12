@@ -195,10 +195,16 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
                 break;
         }
     // truncating a number to i1, happens for example with bool in C
-    } else if (dyn_cast<TruncInst>(inst)) {
-        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
-    // i1 as a return from a call to a function
-    } else if (dyn_cast<CallInst>(inst)) {
+    } else if (auto* trunc = dyn_cast<TruncInst>(inst)) {
+        bool  used_in_br{ false };
+        for (auto  it = trunc->user_begin(); it != trunc->user_end(); ++it)
+            if (isa<BranchInst>(*it))
+            {
+                used_in_br = true;
+                break;
+            }
+        if (!used_in_br)
+            return false;
         distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     } else {
         return false;

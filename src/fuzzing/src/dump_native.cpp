@@ -29,6 +29,7 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
          << shift << "\"boundary_violation\": " << ((record.flags & execution_record::BOUNDARY_CONDITION_VIOLATION) != 0) << ",\n"
          << shift << "\"medium_overflow\": " << ((record.flags & execution_record::MEDIUM_OVERFLOW) != 0) << ",\n"
          << shift << "\"empty_startup_trace\": " << ((record.flags & execution_record::EMPTY_STARTUP_TRACE) != 0) << ",\n"
+         << shift << "\"analysis_name\": \"" << record.analysis_name << "\",\n"
          ;
 
     ostr << shift << "\"num_bytes\": " << record.stdin_bytes.size() << ",\n"
@@ -48,7 +49,9 @@ void  save_native_test(std::ostream&  ostr, execution_record const&  record)
     {
         if (i % 8U == 0U) ostr << '\n' << shift << shift;
         ostr << std::dec << '"' << to_string(record.stdin_types.at(i)) << "\",";
+        ostr << '"';
         save_value(ostr, record.stdin_types.at(i), &chunk_values.at(i));
+        ostr << '"';
         if (i + 1 < n)
             ostr << ',' << shift;
     }
