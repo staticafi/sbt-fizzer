@@ -33,10 +33,8 @@ public:
 
     void add( float new_value ) { value = value + ( new_value - value ) / ++count; }
 
-    operator int() const {
-        return static_cast<int>(value);
-    }
-
+    operator int() const { return static_cast<int>(value); }
+    
     friend std::ostream& operator<<( std::ostream& os, Mean const& m ) { return os << m.value; }
 
 private:
@@ -105,8 +103,8 @@ struct number_statistics {
     void add( int value );
 };
 
-struct iid_value_props {
-    number_statistics depth;
+struct coverage_value_props {
+    number_statistics path_depth;
     std::map< node_direction, number_statistics > direction_statistics;
 
     void process_node( branching_node* node );
@@ -122,8 +120,8 @@ struct iid_node_dependence_props {
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
 
-    iid_value_props all_value_props;
-    std::map< float, iid_value_props, FloatCompare > best_value_props;
+    coverage_value_props all_cov_value_props;
+    std::map< float, coverage_value_props, FloatCompare > cov_values_to_props;
 
     bool update_interesting_nodes( branching_node* node );
     void recompute_matrix();

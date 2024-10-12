@@ -59,10 +59,10 @@ bool fuzzing::node_direction::operator==( node_direction const& other ) const
 
 /**
  * @brief Adds a value to the number statistics, updating the minimum, maximum, and mean.
- * 
- * This function updates the minimum and maximum values if the provided value is lower or higher, respectively.
- * It also adds the value to the mean calculation.
- * 
+ *
+ * This function updates the minimum and maximum values if the provided value is lower or higher,
+ * respectively. It also adds the value to the mean calculation.
+ *
  * @param value The integer value to be added to the statistics.
  */
 void fuzzing::number_statistics::add( int value )
@@ -80,7 +80,7 @@ void fuzzing::number_statistics::add( int value )
  *
  * @param node A pointer to the branching node to be processed.
  */
-void fuzzing::iid_value_props::process_node( branching_node* node )
+void fuzzing::coverage_value_props::process_node( branching_node* node )
 {
     update_mean_depth( node );
     update_direction_counts( node );
@@ -97,10 +97,10 @@ void fuzzing::iid_value_props::process_node( branching_node* node )
  * @param node A pointer to the branching_node whose depth is to be used
  *             for updating the mean depth.
  */
-void fuzzing::iid_value_props::update_mean_depth( branching_node* node )
+void fuzzing::coverage_value_props::update_mean_depth( branching_node* node )
 {
     int node_depth = node->get_depth();
-    depth.add( node_depth );
+    path_depth.add( node_depth );
 }
 
 
@@ -112,7 +112,7 @@ void fuzzing::iid_value_props::update_mean_depth( branching_node* node )
  *
  * @param node A pointer to the branching node for which the direction counts are to be updated.
  */
-void fuzzing::iid_value_props::update_direction_counts( branching_node* node )
+void fuzzing::coverage_value_props::update_direction_counts( branching_node* node )
 {
     std::vector< node_direction > path = get_path( node );
 
@@ -146,7 +146,7 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
 
     auto add_to_interesting = [ this, &set_changed ]( std::vector< node_direction >& nodes, int i ) {
         for ( ; i >= 0; --i ) {
-            number_statistics& stats = all_value_props.direction_statistics[ nodes[ i ] ];
+            number_statistics& stats = all_cov_value_props.direction_statistics[ nodes[ i ] ];
             if ( stats.min == stats.max )
                 continue;
 
@@ -198,7 +198,7 @@ void fuzzing::iid_node_dependence_props::recompute_matrix()
     if ( all_paths.empty() )
         return;
 
-    matrix.clear(); // This could be done better, but for now it's fine
+    matrix.clear();
     best_values.clear();
 
     for ( const auto& path : all_paths ) {
@@ -259,7 +259,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
     int path_size = 0;
     int possible_depth = get_possible_depth();
 
-    for ( const auto& [ dir, stats ] : all_value_props.direction_statistics ) {
+    for ( const auto& [ dir, stats ] : all_cov_value_props.direction_statistics ) {
         if ( stats.min == stats.max ) {
             path[ dir ] = stats.min;
             path_size += stats.min;
@@ -270,7 +270,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
     std::map< fuzzing::node_direction, int > computed_path;
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
-        auto it = best_value_props.begin();
+        auto it = cov_values_to_props.begin();
         int x_1 = it->first;
         int y_1 = it->second.direction_statistics.at( node ).mean;
         ++it;
@@ -286,17 +286,17 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
 
     // for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
     //     const auto& node = *std::next( interesting_nodes.begin(), i );
-    //     int max_count = all_value_props.number_statistics.at( node ).max;
+    //     int max_count = all_cov_value_props.number_statistics.at( node ).max;
     //     int computed_count = static_cast< int >( max_count * weights[ i ] );
     //     computed_count = std::max( 0, computed_count);
     //     computed_size += computed_count;
     //     computed_path[ node ] = computed_count;
     // }
 
-    // float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
-    // for ( auto& [ node, count ] : computed_path ) {
-    //     count = static_cast< int >( count * scale );
-    // }
+    float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
+    for ( auto& [ node, count ] : computed_path ) {
+        count = static_cast< int >( count * scale );
+    }
 
     path.insert( computed_path.begin(), computed_path.end() );
 
@@ -317,13 +317,17 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
         }
     }
 
-    for ( const auto& [ location, decision ] : decisions ) {
-        std::cout << location.id << decision << std::endl;
+    if ( false ) {
+        for ( const auto& [ location, decision ] : decisions ) {
+            std::cout << location.id << decision << std::endl;
+        }
     }
 
-    for ( const auto& [ node, count ] : path ) {
-        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
-        //           << ", Count: " << count << std::endl;
+    if ( false ) {
+        for ( const auto& [ node, count ] : path ) {
+            std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+                      << ", Count: " << count << std::endl;
+        }
     }
 
     return decisions;
@@ -343,10 +347,12 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
     GradientDescent gd( matrix, best_values );
     std::vector< float > weights = gd.optimize();
 
-    for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
-        const auto& node = *std::next( interesting_nodes.begin(), i );
-        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
-        //           << ", Weight: " << weights[ i ] << std::endl;
+    if ( false ) {
+        for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
+            const auto& node = *std::next( interesting_nodes.begin(), i );
+            std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+                      << ", Weight: " << weights[ i ] << std::endl;
+        }
     }
 
     return weights;
@@ -377,7 +383,7 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
 /**
  * @brief Computes the possible depth based on the value to mean depth mapping.
  *
- * This function calculates the possible depth by examining the `best_value_props` map.
+ * This function calculates the possible depth by examining the `cov_values_to_props` map.
  * If the map is empty, it returns 0. If the map contains only one element, it returns the mean
  * depth of that element. If the map contains more than one element, it calculates the depth using
  * linear interpolation based on the first two elements in the map.
@@ -386,38 +392,25 @@ fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const&
  */
 int fuzzing::iid_node_dependence_props::get_possible_depth() const
 {
-    if ( best_value_props.empty() ) {
+    if ( cov_values_to_props.empty() ) {
         return 0;
     }
 
-    if ( best_value_props.size() == 1 ) {
-        return best_value_props.begin()->second.depth.mean;
+    if ( cov_values_to_props.size() == 1 ) {
+        return cov_values_to_props.begin()->second.path_depth.min;
     }
 
-    auto it = best_value_props.begin();
-    int first_depth = it->second.depth.mean;
+    auto it = cov_values_to_props.begin();
+    int first_depth = it->second.path_depth.min;
     float first_value = it->first;
 
     ++it;
-    int second_depth = it->second.depth.mean;
+    int second_depth = it->second.path_depth.min;
     float second_value = it->first;
 
     return linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
 }
 
-int fuzzing::linear_interpolation( int x1, int y1, int x2, int y2, int x )
-{
-    if ( x1 == x2 ) {
-        return y1;
-    }
-
-    // Perform linear interpolation
-    double slope = static_cast< double >( y2 - y1 ) / ( x2 - x1 );
-    double y = y1 + slope * ( x - x1 );
-
-    // Round to nearest integer and return
-    return static_cast< int >( std::round( y ) );
-}
 
 /**
  * @brief Updates the set of non-IID nodes based on sensitivity analysis.
@@ -463,9 +456,10 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
         return;
 
     iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
-    iid_value_props& value_props = props.best_value_props[ node->best_coverage_value ];
-    value_props.process_node( node );
-    props.all_value_props.process_node( node );
+
+    props.cov_values_to_props[ node->best_coverage_value ].process_node( node );
+    ;
+    props.all_cov_value_props.process_node( node );
 
     props.all_paths.push_back( node );
 
@@ -504,4 +498,19 @@ std::vector< fuzzing::node_direction > fuzzing::get_path( branching_node* node )
     }
 
     return path;
+}
+
+
+int fuzzing::linear_interpolation( int x1, int y1, int x2, int y2, int x )
+{
+    if ( x1 == x2 ) {
+        return y1;
+    }
+
+    // Perform linear interpolation
+    double slope = static_cast< double >( y2 - y1 ) / ( x2 - x1 );
+    double y = y1 + slope * ( x - x1 );
+
+    // Round to nearest integer and return
+    return static_cast< int >( std::round( y ) );
 }
