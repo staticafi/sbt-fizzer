@@ -33,6 +33,10 @@ public:
 
     void add( float new_value ) { value = value + ( new_value - value ) / ++count; }
 
+    operator int() const {
+        return static_cast<int>(value);
+    }
+
     friend std::ostream& operator<<( std::ostream& os, Mean const& m ) { return os << m.value; }
 
 private:
@@ -83,25 +87,27 @@ struct node_direction {
     }
 };
 
-struct direction_statistics {
+struct number_statistics {
     int min;
     int max;
     Mean mean;
 
-    direction_statistics()
+    number_statistics()
         : min( std::numeric_limits< int >::max() )
         , max( std::numeric_limits< int >::min() )
     {}
 
-    friend std::ostream& operator<<( std::ostream& os, direction_statistics const& ds )
+    friend std::ostream& operator<<( std::ostream& os, number_statistics const& ds )
     {
         return os << "min: " << ds.min << " max: " << ds.max << " mean: " << ds.mean;
     }
+
+    void add( int value );
 };
 
 struct iid_value_props {
-    Mean depth;
-    std::map< node_direction, direction_statistics > direction_statistics;
+    number_statistics depth;
+    std::map< node_direction, number_statistics > direction_statistics;
 
     void process_node( branching_node* node );
 
@@ -115,6 +121,7 @@ struct iid_node_dependence_props {
     std::set< node_direction > interesting_nodes;
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
+
     iid_value_props all_value_props;
     std::map< float, iid_value_props, FloatCompare > best_value_props;
 
@@ -139,4 +146,5 @@ struct iid_dependencies {
 };
 
 std::vector< fuzzing::node_direction > get_path( branching_node* node );
+int linear_interpolation( int x1, int y1, int x2, int y2, int x );
 } // namespace fuzzing

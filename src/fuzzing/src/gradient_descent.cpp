@@ -40,6 +40,16 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
  */
 std::vector< float > GradientDescent::optimize()
 {
+    if (_debug) {
+        std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
+        for (size_t i = 0; i < _coefficient_matrix.size(); ++i) {
+            for (const auto& val : _coefficient_matrix[i]) {
+            std::cout << val << " ";
+            }
+            std::cout << "| " << _target_vector[i] << std::endl;
+        }
+    }
+
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
 
     float prev_cost = std::numeric_limits< float >::max();
@@ -73,7 +83,7 @@ std::vector< float > GradientDescent::optimize()
         prev_cost = current_cost;
     }
 
-    // add_smallest_value( current_solution );
+    add_smallest_value( current_solution );
     rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
@@ -167,6 +177,10 @@ std::vector< float > GradientDescent::generate_random_weights( size_t n )
  */
 void GradientDescent::rescale( std::vector< float >& values, float min_value, float max_value )
 {
+    for ( float& value : values ) {
+        std::cout << value << std::endl;
+    }
+
     if ( values.empty() ) {
         return;
     }
@@ -178,6 +192,10 @@ void GradientDescent::rescale( std::vector< float >& values, float min_value, fl
             return min_value +
                    ( value - *min_elem ) * ( max_value - min_value ) / ( *max_elem - *min_elem );
         } );
+    }
+
+    for ( float& value : values ) {
+        std::cout << value << std::endl;
     }
 }
 

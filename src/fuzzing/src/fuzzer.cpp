@@ -1531,9 +1531,6 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
     
-    branching_node* possible_winner = select_iid_coverage_target_from_dependencies();
-    if (possible_winner != nullptr)
-        return possible_winner;
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),
@@ -1590,12 +1587,16 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     }
     else
     {
-        branching_node* const  start_node = select_start_node_for_monte_carlo_search(
+        branching_node* start_node = select_start_node_for_monte_carlo_search(
                 it_pivot->second.loop_boundaries,
                 it_pivot->second.generator_for_start_node_selection,
                 0.75f,
                 entry_branching
                 );
+
+        branching_node* possible_start = select_iid_coverage_target_from_dependencies();
+        if (possible_start != nullptr)
+            start_node = possible_start;
 
         recorder().on_node_chosen(start_node, fuzzing::progress_recorder::START_MONTE_CARLO);
         winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
@@ -1631,7 +1632,8 @@ branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
     }
     recorder().on_node_chosen(node, fuzzing::progress_recorder::DEPENDENCY_END);
 
-    return nullptr;
+    // return nullptr;
+    return node;
 }
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)

@@ -3,14 +3,14 @@
 #include <utility/timeprof.hpp>
 
 
-bool fuzzing::path_decision::get_next_direction() 
-{ 
-    if ( left_max == 0) {
+bool fuzzing::path_decision::get_next_direction()
+{
+    if ( left_max == 0 ) {
         right_current++;
         return true;
     }
 
-    if ( right_max == 0) {
+    if ( right_max == 0 ) {
         left_current++;
         return false;
     }
@@ -54,6 +54,22 @@ auto fuzzing::node_direction::operator<=>( node_direction const& other ) const
 bool fuzzing::node_direction::operator==( node_direction const& other ) const
 {
     return node_id.id == other.node_id.id && direction == other.direction;
+}
+
+
+/**
+ * @brief Adds a value to the number statistics, updating the minimum, maximum, and mean.
+ * 
+ * This function updates the minimum and maximum values if the provided value is lower or higher, respectively.
+ * It also adds the value to the mean calculation.
+ * 
+ * @param value The integer value to be added to the statistics.
+ */
+void fuzzing::number_statistics::add( int value )
+{
+    min = std::min( min, value );
+    max = std::max( max, value );
+    mean.add( value );
 }
 
 
@@ -107,9 +123,7 @@ void fuzzing::iid_value_props::update_direction_counts( branching_node* node )
 
     for ( auto& [ direction, count ] : direction_counts ) {
         auto& stats = direction_statistics[ direction ];
-        stats.min = std::min( count, stats.min );
-        stats.max = std::max( count, stats.max );
-        stats.mean.add( count );
+        stats.add( count );
     }
 }
 
@@ -132,7 +146,7 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
 
     auto add_to_interesting = [ this, &set_changed ]( std::vector< node_direction >& nodes, int i ) {
         for ( ; i >= 0; --i ) {
-            direction_statistics& stats = all_value_props.direction_statistics[ nodes[ i ] ];
+            number_statistics& stats = all_value_props.direction_statistics[ nodes[ i ] ];
             if ( stats.min == stats.max )
                 continue;
 
@@ -256,17 +270,33 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
     std::map< fuzzing::node_direction, int > computed_path;
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
-        int max_count = all_value_props.direction_statistics.at( node ).mean.value;
-        int computed_count = static_cast< int >( max_count * weights[ i ] );
-        computed_count = std::max( 0, computed_count);
+        auto it = best_value_props.begin();
+        int x_1 = it->first;
+        int y_1 = it->second.direction_statistics.at( node ).mean;
+        ++it;
+        int x_2 = it->first;
+        int y_2 = it->second.direction_statistics.at( node ).mean;
+
+        int interpolated_y = linear_interpolation( x_1, y_1, x_2, y_2, 0 );
+        int computed_count = static_cast< int >( interpolated_y * weights[ i ] );
+        computed_count = std::max( 0, computed_count );
         computed_size += computed_count;
         computed_path[ node ] = computed_count;
     }
 
-    float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
-    for ( auto& [ node, count ] : computed_path ) {
-        count = static_cast< int >( count * scale );
-    }
+    // for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
+    //     const auto& node = *std::next( interesting_nodes.begin(), i );
+    //     int max_count = all_value_props.number_statistics.at( node ).max;
+    //     int computed_count = static_cast< int >( max_count * weights[ i ] );
+    //     computed_count = std::max( 0, computed_count);
+    //     computed_size += computed_count;
+    //     computed_path[ node ] = computed_count;
+    // }
+
+    // float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
+    // for ( auto& [ node, count ] : computed_path ) {
+    //     count = static_cast< int >( count * scale );
+    // }
 
     path.insert( computed_path.begin(), computed_path.end() );
 
@@ -287,7 +317,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
         }
     }
 
-    for ( const auto& [location , decision] : decisions ) {
+    for ( const auto& [ location, decision ] : decisions ) {
         std::cout << location.id << decision << std::endl;
     }
 
@@ -315,8 +345,8 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
 
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
-        std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
-                  << ", Weight: " << weights[ i ] << std::endl;
+        // std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
+        //           << ", Weight: " << weights[ i ] << std::endl;
     }
 
     return weights;
@@ -361,28 +391,33 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
     }
 
     if ( best_value_props.size() == 1 ) {
-        return best_value_props.begin()->second.depth.value;
+        return best_value_props.begin()->second.depth.mean;
     }
 
     auto it = best_value_props.begin();
-    int first_depth = it->second.depth.value;
+    int first_depth = it->second.depth.mean;
     float first_value = it->first;
 
     ++it;
-    int second_depth = it->second.depth.value;
+    int second_depth = it->second.depth.mean;
     float second_value = it->first;
 
-    if ( first_value == second_value ) {
-        return first_depth;
-    }
-
-    float slope = static_cast< float >( second_depth - first_depth ) / ( second_value - first_value );
-    float intercept = first_depth - slope * first_value;
-
-    int result = static_cast< int >( slope * 0 + intercept );
-    return result;
+    return linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
 }
 
+int fuzzing::linear_interpolation( int x1, int y1, int x2, int y2, int x )
+{
+    if ( x1 == x2 ) {
+        return y1;
+    }
+
+    // Perform linear interpolation
+    double slope = static_cast< double >( y2 - y1 ) / ( x2 - x1 );
+    double y = y1 + slope * ( x - x1 );
+
+    // Round to nearest integer and return
+    return static_cast< int >( std::round( y ) );
+}
 
 /**
  * @brief Updates the set of non-IID nodes based on sensitivity analysis.

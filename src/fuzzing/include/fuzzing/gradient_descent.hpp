@@ -33,7 +33,7 @@ private:
     float _learning_rate;
     int _max_iterations;
     float _convergence_threshold;
-    bool _debug = false;
+    bool _debug = true;
 
     std::vector< float > compute_gradient( const std::vector< float >& current_solution );
     float compute_mean_squared_error( const std::vector< float >& current_solution );
