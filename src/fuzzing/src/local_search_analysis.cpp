@@ -1037,8 +1037,6 @@ void  local_search_analysis::compute_mutations_shifts()
     {
         natural_32_bit const  var_idx{ variable_indices.at(i) };
         type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
-        if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
-            continue;
         INVARIANT(is_known_type(var_type));
 
         for (natural_8_bit  bit_idx = 0U, bit_end = min_num_bits(var_type); bit_idx != bit_end; ++ bit_idx)
@@ -1046,10 +1044,7 @@ void  local_search_analysis::compute_mutations_shifts()
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
             compute_mutations_shift(shift, var_idx, sign * magnitude, B, p.at(i));
-            if (node->get_num_coverage_failure_resets() == 0U)
-                insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
-            else
-                insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
+            insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
         }
     }
 
@@ -1063,8 +1058,6 @@ void  local_search_analysis::compute_mutations_shifts()
             natural_32_bit const  i{ (natural_32_bit)get_random_natural_64_bit_in_range(0UL, variable_indices.size() - 1UL, rnd_generator) };
             natural_32_bit const  var_idx{ variable_indices.at(i) };
             type_of_input_bits const var_type{ types_of_variables.at(var_idx) };
-            if (node->get_num_coverage_failure_resets() == 0U && is_floating_point_type(var_type))
-                continue;
             natural_8_bit const  bit_idx{ (natural_8_bit)get_random_natural_64_bit_in_range(0UL, min_num_bits(var_type) - 1UL, rnd_generator) };
             float_64_bit const sign{ bit_value(origin_overlay.at(var_idx), var_type, bit_idx) ? -1.0 : 1.0 };
             float_64_bit const magnitude{ (float_64_bit)(1UL << bit_idx) };
@@ -1072,10 +1065,7 @@ void  local_search_analysis::compute_mutations_shifts()
             add(shift, shift_round);
         }
 
-        if (node->get_num_coverage_failure_resets() == 0U)
-            insert_shift_if_valid_and_unique(mutations_props.shifts, used_origins, shift, grad, space_index);
-        else
-            insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
+        insert_shift_if_unique(mutations_props.shifts, used_origins, shift, space_index);
     }
 }
 
@@ -1254,10 +1244,7 @@ void  local_search_analysis::compute_random_shifts(
 
             at(shift, i) = sign * magnitude;
         }
-        if (node->get_num_coverage_failure_resets() == 0)
-            insert_shift_if_valid_and_unique(resulting_shifts, used_origins, add_cp(center, shift), g, space_index);
-        else
-            insert_shift_if_unique(resulting_shifts, used_origins, add_cp(center, shift), space_index);
+        insert_shift_if_unique(resulting_shifts, used_origins, add_cp(center, shift), space_index);
     }
 }
 
