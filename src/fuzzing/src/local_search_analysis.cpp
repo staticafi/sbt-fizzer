@@ -360,7 +360,6 @@ bool  local_search_analysis::generate_next_input(vecb&  bits_ref)
 
     execution_props.shift_in_world_space = transform_shift(execution_props.shift, local_spaces.size() - 1UL);
     execution_props.sample = add_cp(origin, execution_props.shift_in_world_space);
-    ASSUMPTION(node->get_num_coverage_failure_resets() > 0U || isfinite(execution_props.sample));
     execution_props.sample_overlay = point_to_bits(execution_props.sample, bits_ref);
 
     tested_origins.insert(execution_props.sample_overlay);
@@ -618,28 +617,17 @@ void  local_search_analysis::insert_next_local_space()
         axis(w, columns(src_space.orthonormal_basis), i);
 
         float_64_bit wg{ dot_product(w, src_space.gradient) };
-        float_64_bit wg_cos_angle{ wg * g_len_inv };
-        if (std::isfinite(wg_cos_angle) && !std::isnan(wg_cos_angle) && std::fabs(wg_cos_angle) < 1e-3)
+        add_scaled(w, -wg * gg_inv, src_space.gradient);
+        for (vecf64 const&  v : dst_space.orthonormal_basis)
+            add_scaled(w, -dot_product(w, v), v);
+        float_64_bit const  ww{ dot_product(w, w) };
+        if (std::isfinite(ww) && !std::isnan(ww) && ww > 1e-6)
         {
+            scale(w, 1.0 / std::sqrt(ww));
             INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
             dst_space.orthonormal_basis.push_back(w);
             collect_variable_indices_for_last_basis_vector();
             push_back_basis_vector_props_in_world_space(w);
-        }
-        else
-        {
-            add_scaled(w, -wg * gg_inv, src_space.gradient);
-            for (vecf64 const&  v : dst_space.orthonormal_basis)
-                add_scaled(w, -dot_product(w, v), v);
-            float_64_bit const  ww{ dot_product(w, w) };
-            if (std::isfinite(ww) && !std::isnan(ww) && ww > 1e-6)
-            {
-                scale(w, 1.0 / std::sqrt(ww));
-                INVARIANT(size(dst_space.orthonormal_basis) < size(src_space.orthonormal_basis));
-                dst_space.orthonormal_basis.push_back(w);
-                collect_variable_indices_for_last_basis_vector();
-                push_back_basis_vector_props_in_world_space(w);
-            }
         }
     }
 
