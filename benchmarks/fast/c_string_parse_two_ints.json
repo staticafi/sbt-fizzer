@@ -1,36 +1,39 @@
 {
     "args": {
-        "max_executions": 10000,
-        "max_seconds": 300,
+        "max_executions": 5000,
+        "max_seconds": 15,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
         "max_exec_milliseconds": 250,
         "max_exec_megabytes": 1024,
-        "stdin_model": "stdin_replay_bytes_then_repeat_85",
+        "stdin_model": "stdin_replay_bytes_then_repeat_zero",
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": false
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 3790,
-        "num_covered_branchings": 35,
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "num_executions": 5000,
+        "num_covered_branchings": 5,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    
-            5,2654435832,    6,2654435832,    7,2654435832,    8,1013904435,    
-            8,1013904498,    9,1013904435,    9,1013904498,    10,1013904435,    
-            10,1013904498,    11,1013904435,    11,1013904498,    12,1013904435,    
-            12,1013904498,    13,1013904435,    13,1013904498,    14,1013904435,    
-            14,1013904498,    15,1013904435,    15,1013904498,    16,1013904435,    
-            16,1013904498,    17,1013904435,    17,1013904498,    18,1013904435,    
-            18,1013904498,    19,1013904435,    19,1013904498,    20,1013904435,    
-            20,1013904498,    21,1013904435,    21,1013904498
+            7,1013904435
         ],
-        "num_generated_tests": 30,
-        "num_crashes": 0,
-        "num_boundary_violations": 0
+        "output_statistics": {
+            "sensitivity": {
+                "num_generated_tests": 4,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }
