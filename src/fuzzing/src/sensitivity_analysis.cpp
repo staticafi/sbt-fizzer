@@ -312,9 +312,9 @@ void  sensitivity_analysis::process_execution_results(execution_trace_pointer co
         INVARIANT(info_orig.id == info_curr.id && info_orig.id == n->get_location_id());
 
         if (info_orig.value != info_curr.value)
-            for (stdin_bit_index i = probed_bit_start_index; i != probed_bit_end_index; ++i)
+            for (stdin_bit_index j = probed_bit_start_index, j_end = std::min(probed_bit_end_index, n->get_num_stdin_bits()); j < j_end; ++j)
             {
-                if (n->insert_sensitive_stdin_bit(i))
+                if (n->insert_sensitive_stdin_bit(j))
                     changed_nodes.insert(n);
             }
 
