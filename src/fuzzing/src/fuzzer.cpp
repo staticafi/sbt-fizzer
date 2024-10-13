@@ -170,16 +170,6 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
         return best_node;
     }
 
-    best_node = get_best(untouched, max_input_width);
-    if (best_node != nullptr)
-    {
-        if (!loop_heads.empty())
-            return get_best(max_input_width);
-        ++statistics->strategy_primary_untouched;
-        recorder().on_strategy_turn_primary_untouched();
-        return best_node;
-    }
-
     best_node = get_best(sensitive, max_input_width);
     if (best_node != nullptr)
     {
@@ -187,6 +177,16 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
             return get_best(max_input_width);
         ++statistics->strategy_primary_sensitive;
         recorder().on_strategy_turn_primary_sensitive();
+        return best_node;
+    }
+
+    best_node = get_best(untouched, max_input_width);
+    if (best_node != nullptr)
+    {
+        if (!loop_heads.empty())
+            return get_best(max_input_width);
+        ++statistics->strategy_primary_untouched;
+        recorder().on_strategy_turn_primary_untouched();
         return best_node;
     }
 
