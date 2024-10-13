@@ -1047,8 +1047,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     default: UNREACHABLE(); break;
                 }
             }
-
-            if (std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
+            if (construction_props.leaf->get_best_trace() != nullptr
+                    && std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
                 construction_props.leaf->update_best_data(bits_and_types, trace, br_instr_trace, num_driver_executions);
 
             construction_props.leaf->set_max_successors_trace_index(std::max(
