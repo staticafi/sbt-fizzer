@@ -934,7 +934,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
 
             case FINISHED:
                 if (!apply_coverage_failures_with_hope())
-                    return false;
+                    return true;
                 break;
 
             default: { UNREACHABLE(); break; }
@@ -1048,9 +1048,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 }
             }
 
-            if (!construction_props.leaf->is_direction_unexplored(false) && !construction_props.leaf->is_direction_unexplored(true))
-                construction_props.leaf->release_best_data(false);
-            else if (std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
+            if (std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
                 construction_props.leaf->update_best_data(bits_and_types, trace, br_instr_trace, num_driver_executions);
 
             construction_props.leaf->set_max_successors_trace_index(std::max(
@@ -1245,11 +1243,15 @@ void  fuzzer::do_cleanup()
     {
         case SENSITIVITY:
             for (branching_node*  node = sensitivity.get_node(); node != nullptr; node = node->get_predecessor())
+            {
                 if (!node->is_closed())
                 {
                     update_close_flags_from(node);
                     break;
                 }
+                if (!node->has_unexplored_direction())
+                    node->release_best_data(false);
+            }
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
