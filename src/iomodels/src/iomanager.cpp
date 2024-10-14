@@ -16,6 +16,7 @@ namespace  iomodels {
 
 iomanager::iomanager()
     : config{}
+    , termination{ target_termination::normal }
     , trace()
     , br_instr_trace()
     , stdin_ptr(nullptr)
