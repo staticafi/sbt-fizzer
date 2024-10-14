@@ -206,6 +206,10 @@ bool llvm_instrumenter::instrumentCond(Instruction *inst, bool const xor_like_br
         if (!used_in_br)
             return false;
         distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
+    } else if (auto* call = dyn_cast<CallInst>(inst)) {
+        if (call->getCalledFunction() == nullptr || call->getCalledFunction()->getName() != "__VERIFIER_nondet_bool")
+            return false;
+        distance = builder.CreateUIToFP(builder.CreateZExt(inst, Int32Ty), DoubleTy);
     } else {
         return false;
     }
