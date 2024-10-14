@@ -26,8 +26,8 @@ struct  message : public medium
 
     void clear() override;
     bool empty();
-    bool can_accept_bytes(size_t n) const override;
-    bool can_deliver_bytes(size_t n) const override;
+    bool can_accept_bytes(std::size_t n) const override;
+    bool can_deliver_bytes(std::size_t n) const override;
     void accept_bytes(const void* src, std::size_t n) override;
     void deliver_bytes(void* dest, std::size_t n) override;
 

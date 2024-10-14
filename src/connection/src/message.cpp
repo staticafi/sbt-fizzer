@@ -20,11 +20,11 @@ bool  message::empty() {
     return bytes.empty();
 }
 
-bool message::can_accept_bytes(size_t n) const {
+bool message::can_accept_bytes(std::size_t n) const {
     return true;
 }
 
-bool message::can_deliver_bytes(size_t n) const {
+bool message::can_deliver_bytes(std::size_t n) const {
     return cursor + n <= bytes.size();
 }
 

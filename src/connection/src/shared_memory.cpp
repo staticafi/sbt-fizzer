@@ -44,11 +44,11 @@ void shared_memory::remove() {
     bip::shared_memory_object::remove(segment_name);
 }
 
-bool shared_memory::can_accept_bytes(size_t const n) const {
+bool shared_memory::can_accept_bytes(std::size_t const n) const {
     return !(memory == nullptr || get_size() < *saved + n);
 }
 
-bool shared_memory::can_deliver_bytes(size_t const n) const {
+bool shared_memory::can_deliver_bytes(std::size_t const n) const {
     return !(memory == nullptr || *saved < cursor + n);
 }
 
