@@ -1232,6 +1232,7 @@ void  local_search_analysis::compute_random_shifts(
 
             at(shift, i) = sign * magnitude;
         }
+        insert_shift_if_valid_and_unique(resulting_shifts, used_origins, add_cp(center, shift), g, space_index);
         insert_shift_if_unique(resulting_shifts, used_origins, add_cp(center, shift), space_index);
     }
 }
