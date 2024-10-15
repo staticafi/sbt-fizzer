@@ -50,7 +50,7 @@ R  cast_float_value(T  value)
         return std::numeric_limits<R>::lowest();
     if ((float_64_bit)value >= (float_64_bit)std::numeric_limits<R>::max())
         return std::numeric_limits<R>::max();
-    return (T)value;
+    return (R)value;
 }
 
 
