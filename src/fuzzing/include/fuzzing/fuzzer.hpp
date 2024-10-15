@@ -64,7 +64,7 @@ struct  fuzzer final
     natural_32_bit  num_remaining_driver_executions() const { return termination_props.max_executions - get_performed_driver_executions(); }
     float_64_bit  num_remaining_seconds() const { return (float_64_bit)termination_props.max_seconds - get_elapsed_seconds(); }
 
-    natural_32_bit  get_performed_driver_executions() const { return num_driver_executions + get_input_flow_statistics().start_calls + get_input_flow_statistics().num_failures; }
+    natural_32_bit  get_performed_driver_executions() const { return (natural_32_bit)(num_driver_executions + get_input_flow_statistics().start_calls + get_input_flow_statistics().num_failures); }
     float_64_bit  get_elapsed_seconds() const { return std::chrono::duration<float_64_bit>(time_point_current - time_point_start).count(); }
 
     std::unordered_set<location_id> const&  get_covered_branchings() const { return covered_branchings; }

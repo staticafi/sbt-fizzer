@@ -2,6 +2,7 @@
 #   define INSTRUMENTATION_INSTRUMENTATION_TYPES_HPP_INCLUDED
 
 #   include <utility/basic_numeric_types.hpp>
+#   include <string>
 #   include <functional>
 #   include <iosfwd>
 
