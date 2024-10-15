@@ -32,7 +32,11 @@ add_library(${THIS_TARGET_NAME}
     ./src/benchmark_executor.cpp
     )
 
-target_compile_options(${THIS_TARGET_NAME} PUBLIC "-Wno-deprecated")
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options(${THIS_TARGET_NAME} PUBLIC "/wd4996")
+else()
+    target_compile_options(${THIS_TARGET_NAME} PUBLIC "-Wno-deprecated")
+endif()
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
