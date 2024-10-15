@@ -2,20 +2,22 @@
 
 #include <vector>
 
+/*
+    # Improvements
+    - Learning rate optimization(Adaptive learning rate)
+    - Feature scaling
+    - Momentum
+    - Mini-batch gradient descent
+*/
+
 class GradientDescent {
-    /*
-        # Improvements
-        - Learning rate optimization(Adaptive learning rate)
-        - Feature scaling
-        - Momentum
-        - Mini-batch gradient descent
-    */
 public:
-    GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
-                     const std::vector< float >& target_vector,
+    GradientDescent( std::vector< std::vector< float > >& coefficient_matrix,
+                     std::vector< float >& target_vector,
                      float learning_rate = 0.001f,
                      int max_iterations = 10000,
-                     float convergence_threshold = 1e-6 );
+                     float convergence_threshold = 1e-6,
+                     float momentum = 0.9f); 
 
     std::vector< float > optimize();
 
@@ -26,14 +28,16 @@ public:
     {
         _convergence_threshold = convergence_threshold;
     }
+    void set_momentum(float momentum) { _momentum = momentum; }
 
 private:
-    const std::vector< std::vector< float > >& _coefficient_matrix;
-    const std::vector< float >& _target_vector;
+    std::vector< std::vector< float > >& _coefficient_matrix;
+    std::vector< float >& _target_vector;
     float _learning_rate;
     int _max_iterations;
     float _convergence_threshold;
-    bool _debug = true;
+    float _momentum;
+    bool _debug = false;
 
     std::vector< float > compute_gradient( const std::vector< float >& current_solution );
     float compute_mean_squared_error( const std::vector< float >& current_solution );
@@ -41,4 +45,6 @@ private:
     static float dot_product( const std::vector< float >& a, const std::vector< float >& b );
     static void rescale( std::vector< float >& values, float min_value, float max_value );
     static void add_smallest_value( std::vector< float >& values );
+    void min_max_normalize(std::vector<std::vector<float>>& matrix);
+    void min_max_normalize_target(std::vector<float>& target);
 };

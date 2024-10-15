@@ -14,18 +14,21 @@
  * @param learning_rate The learning rate for gradient descent (default: 0.001).
  * @param max_iterations The maximum number of iterations (default: 10000).
  * @param convergence_threshold The threshold for convergence (default: 1e-6).
+ * @param momentum The momentum factor for gradient descent (default: 0.9).
  * @throws `std::invalid_argument` if input dimensions are invalid.
  */
-GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
-                                  const std::vector< float >& target_vector,
+GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficient_matrix,
+                                  std::vector< float >& target_vector,
                                   float learning_rate,
                                   int max_iterations,
-                                  float convergence_threshold )
+                                  float convergence_threshold,
+                                  float momentum )
     : _coefficient_matrix( coefficient_matrix )
     , _target_vector( target_vector )
     , _learning_rate( learning_rate )
     , _max_iterations( max_iterations )
     , _convergence_threshold( convergence_threshold )
+    , _momentum(momentum)
 {
     if ( coefficient_matrix.empty() || target_vector.empty() ||
          coefficient_matrix.size() != target_vector.size() ) {
@@ -34,12 +37,15 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
 }
 
 /**
- * @brief Performs gradient descent optimization.
+ * @brief Performs gradient descent optimization with momentum.
  *
  * @return std::vector<float> The optimized solution vector.
  */
 std::vector< float > GradientDescent::optimize()
 {
+    min_max_normalize(_coefficient_matrix);
+    min_max_normalize_target(_target_vector);
+
     if (_debug) {
         std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
         for (size_t i = 0; i < _coefficient_matrix.size(); ++i) {
@@ -51,15 +57,17 @@ std::vector< float > GradientDescent::optimize()
     }
 
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
+    std::vector< float > velocity(current_solution.size(), 0.0f); // Initialize velocity to 0
 
     float prev_cost = std::numeric_limits< float >::max();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
         std::vector< float > gradient = compute_gradient( current_solution );
 
-        // Update current_solution
+        // Update current_solution with momentum
         for ( size_t i = 0; i < current_solution.size(); ++i ) {
-            current_solution[ i ] -= _learning_rate * gradient[ i ];
+            velocity[i] = _momentum * velocity[i] - _learning_rate * gradient[i];
+            current_solution[i] += velocity[i];  // Update with velocity
         }
 
         // Check for convergence
@@ -83,10 +91,12 @@ std::vector< float > GradientDescent::optimize()
         prev_cost = current_cost;
     }
 
-    add_smallest_value( current_solution );
+    // add_smallest_value( current_solution );
     rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
+
+
 
 /**
  * @brief Computes the gradient for the current solution.
@@ -194,9 +204,13 @@ void GradientDescent::rescale( std::vector< float >& values, float min_value, fl
         } );
     }
 
+    std::cout << std::endl;
+
     for ( float& value : values ) {
         std::cout << value << std::endl;
     }
+    std::cout << std::endl;
+    std::cout << std::endl;
 }
 
 /**
@@ -216,5 +230,40 @@ void GradientDescent::add_smallest_value( std::vector< float >& values )
         std::transform( values.begin(), values.end(), values.begin(), [ & ]( float value ) {
             return value + std::abs( min_value );
         } );
+    }
+}
+
+void GradientDescent::min_max_normalize_target(std::vector<float>& target) {
+    float min_value = *std::min_element(target.begin(), target.end());
+    float max_value = *std::max_element(target.begin(), target.end());
+
+    for (size_t i = 0; i < target.size(); ++i) {
+        if (max_value - min_value != 0) {
+            target[i] = (target[i] - min_value) / (max_value - min_value);
+        } else {
+            target[i] = 0.0f;  // Handle case where all values are the same
+        }
+    }
+}
+
+void GradientDescent::min_max_normalize(std::vector<std::vector<float>>& matrix) {
+    for (size_t col = 0; col < matrix[0].size(); ++col) {
+        // Find the min and max for the column
+        float min_value = std::numeric_limits<float>::max();
+        float max_value = std::numeric_limits<float>::lowest();
+
+        for (size_t row = 0; row < matrix.size(); ++row) {
+            min_value = std::min(min_value, matrix[row][col]);
+            max_value = std::max(max_value, matrix[row][col]);
+        }
+
+        // Normalize the column values
+        for (size_t row = 0; row < matrix.size(); ++row) {
+            if (max_value - min_value != 0) {
+                matrix[row][col] = (matrix[row][col] - min_value) / (max_value - min_value);
+            } else {
+                matrix[row][col] = 0.0f;  // Handle case where all values are the same
+            }
+        }
     }
 }
