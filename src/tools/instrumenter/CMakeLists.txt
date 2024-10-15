@@ -14,17 +14,7 @@ add_executable(${THIS_TARGET_NAME}
     llvm_instrumenter.cpp
     )
 
-# This if-else statement is here to allow using LLVM
-# installed using Ubuntu's package manager. Sadly,
-# Linux user prefer this over intallation of LLVM
-# to VCPKG. (The similar issue is related to 'boost')
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-else()
-    include_directories(${LLVM_INCLUDE_DIRS})
-    # link_directories(${LLVM_LIBRARY_DIRS})
-    # add_definitions(${LLVM_DEFINITIONS})
-endif()
-
+include_directories(${LLVM_INCLUDE_DIRS})
 
 target_link_libraries(${THIS_TARGET_NAME}
     utility
