@@ -37,11 +37,12 @@ GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficie
 }
 
 /**
- * @brief Performs gradient descent optimization with momentum.
+ * @brief Performs mini-batch gradient descent optimization with momentum.
  *
+ * @param batch_size The size of each mini-batch.
  * @return std::vector<float> The optimized solution vector.
  */
-std::vector< float > GradientDescent::optimize()
+std::vector< float > GradientDescent::optimize(int batch_size)
 {
     min_max_normalize(_coefficient_matrix);
     min_max_normalize_target(_target_vector);
@@ -50,7 +51,7 @@ std::vector< float > GradientDescent::optimize()
         std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
         for (size_t i = 0; i < _coefficient_matrix.size(); ++i) {
             for (const auto& val : _coefficient_matrix[i]) {
-            std::cout << val << " ";
+                std::cout << val << " ";
             }
             std::cout << "| " << _target_vector[i] << std::endl;
         }
@@ -60,42 +61,107 @@ std::vector< float > GradientDescent::optimize()
     std::vector< float > velocity(current_solution.size(), 0.0f); // Initialize velocity to 0
 
     float prev_cost = std::numeric_limits< float >::max();
+    size_t num_samples = _coefficient_matrix.size();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
-        std::vector< float > gradient = compute_gradient( current_solution );
+        // Shuffle the dataset at the beginning of each epoch
+        shuffle_data();
 
-        // Update current_solution with momentum
-        for ( size_t i = 0; i < current_solution.size(); ++i ) {
-            velocity[i] = _momentum * velocity[i] - _learning_rate * gradient[i];
-            current_solution[i] += velocity[i];  // Update with velocity
+        // Mini-batch gradient descent loop
+        for (size_t batch_start = 0; batch_start < num_samples; batch_start += batch_size) {
+            size_t batch_end = std::min(batch_start + batch_size, num_samples);
+            std::vector<std::vector<float>> batch_coefficients = get_batch(_coefficient_matrix, batch_start, batch_end);
+            std::vector<float> batch_target = get_batch(_target_vector, batch_start, batch_end);
+
+            std::vector< float > gradient = compute_batch_gradient(current_solution, batch_coefficients, batch_target);
+
+            // Update current_solution with momentum
+            for ( size_t i = 0; i < current_solution.size(); ++i ) {
+                velocity[i] = _momentum * velocity[i] - _learning_rate * gradient[i];
+                current_solution[i] += velocity[i];  // Update with velocity
+            }
         }
 
         // Check for convergence
-        float current_cost = compute_mean_squared_error( current_solution );
+        float current_cost = compute_mean_squared_error(current_solution);
 
         // Debug output
         if ( _debug && iteration % 100 == 0 ) {
             std::cout << "Iteration " << iteration << ", Cost: " << current_cost << std::endl;
-            std::cout << "Gradient: [ ";
-            for ( const auto& val : gradient ) {
-                std::cout << val << " ";
-            }
-            std::cout << "]" << std::endl;
         }
 
         if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
             std::cout << "Converged after " << iteration << " iterations." << std::endl;
-            std::cout << "Number of equations: " << _coefficient_matrix.size() << std::endl;
             break;
         }
         prev_cost = current_cost;
     }
 
-    // add_smallest_value( current_solution );
     rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
 
+/**
+ * @brief Shuffles the dataset (coefficient matrix and target vector).
+ */
+void GradientDescent::shuffle_data()
+{
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    // Shuffle the coefficient matrix and target vector together
+    std::vector<size_t> indices(_coefficient_matrix.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::shuffle(indices.begin(), indices.end(), g);
+
+    std::vector<std::vector<float>> shuffled_matrix = _coefficient_matrix;
+    std::vector<float> shuffled_target = _target_vector;
+
+    for (size_t i = 0; i < indices.size(); ++i) {
+        shuffled_matrix[i] = _coefficient_matrix[indices[i]];
+        shuffled_target[i] = _target_vector[indices[i]];
+    }
+
+    _coefficient_matrix = shuffled_matrix;
+    _target_vector = shuffled_target;
+}
+
+/**
+ * @brief Retrieves a mini-batch from a matrix or vector.
+ */
+template<typename T>
+std::vector<T> GradientDescent::get_batch(const std::vector<T>& data, size_t start, size_t end)
+{
+    return std::vector<T>(data.begin() + start, data.begin() + end);
+}
+
+/**
+ * @brief Computes the gradient for a mini-batch.
+ *
+ * @param current_solution The current solution vector.
+ * @param batch_coefficients The coefficient matrix of the current batch.
+ * @param batch_target The target vector of the current batch.
+ * @return std::vector<float> The computed gradient vector.
+ */
+std::vector<float> GradientDescent::compute_batch_gradient(const std::vector<float>& current_solution, const std::vector<std::vector<float>>& batch_coefficients, const std::vector<float>& batch_target)
+{
+    std::vector< float > gradient( current_solution.size(), 0.0f );
+
+    for ( size_t i = 0; i < batch_coefficients.size(); ++i ) {
+        float predicted = dot_product( current_solution, batch_coefficients[ i ] );
+        float error = predicted - batch_target[ i ];
+
+        for ( size_t j = 0; j < current_solution.size(); ++j ) {
+            gradient[ j ] += 2 * error * batch_coefficients[ i ][ j ];
+        }
+    }
+
+    for ( float& grad : gradient ) {
+        grad /= batch_coefficients.size();
+    }
+
+    return gradient;
+}
 
 
 /**

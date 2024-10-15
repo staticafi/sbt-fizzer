@@ -19,7 +19,7 @@ public:
                      float convergence_threshold = 1e-6,
                      float momentum = 0.9f); 
 
-    std::vector< float > optimize();
+    std::vector< float > optimize(int batch_size = 32);  // Added batch_size parameter
 
     // Setters for easy modification of parameters
     void set_learning_rate( float learning_rate ) { _learning_rate = learning_rate; }
@@ -47,4 +47,10 @@ private:
     static void add_smallest_value( std::vector< float >& values );
     void min_max_normalize(std::vector<std::vector<float>>& matrix);
     void min_max_normalize_target(std::vector<float>& target);
+
+    // New methods for mini-batch gradient descent
+    void shuffle_data();
+    template<typename T>
+    std::vector<T> get_batch(const std::vector<T>& data, size_t start, size_t end);
+    std::vector<float> compute_batch_gradient(const std::vector<float>& current_solution, const std::vector<std::vector<float>>& batch_coefficients, const std::vector<float>& batch_target);
 };
