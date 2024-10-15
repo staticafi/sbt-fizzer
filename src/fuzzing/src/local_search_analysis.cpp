@@ -1016,7 +1016,7 @@ void  local_search_analysis::compute_mutations_shifts()
         p.push_back(0UL);
         for (std::size_t  i = 1UL; i < dim; ++i)
             if (std::fabs(at(B,i,var_idx)) > std::fabs(at(B,p.back(),var_idx)))
-                p.back() = i;
+                p.back() = (natural_32_bit)i;
     }
 
     vecf64  shift{ mkvecf64(dim) };
