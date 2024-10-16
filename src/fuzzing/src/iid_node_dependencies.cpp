@@ -251,7 +251,7 @@ void fuzzing::iid_node_dependence_props::add_equation( branching_node* path )
  * @return A map where the keys are node directions and the values are integers
  *         representing the path.
  */
-std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path() const
+std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
 {
     std::vector< float > weights = approximate_matrix();
 
@@ -266,36 +266,43 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
         }
     }
 
+    if ( true ) {
+        auto it = cov_values_to_props.begin();
+        std::cout << "Path Depth" << it->second.path_depth << std::endl;
+        std::cout << "Closest value to 0: " << it->first << std::endl;
+        for (const auto& [direction, stats] : it->second.direction_statistics) {
+            std::cout << "Direction: " << direction << ", Min: " << stats.min
+                      << ", Max: " << stats.max << ", Mean: " << stats.mean << std::endl;
+        }
+    }
+
     int computed_size = 0;
     std::map< fuzzing::node_direction, int > computed_path;
     for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
         const auto& node = *std::next( interesting_nodes.begin(), i );
+
         auto it = cov_values_to_props.begin();
         int x_1 = it->first;
         int y_1 = it->second.direction_statistics.at( node ).mean;
+
         ++it;
+
         int x_2 = it->first;
         int y_2 = it->second.direction_statistics.at( node ).mean;
 
         int interpolated_y = linear_interpolation( x_1, y_1, x_2, y_2, 0 );
         int computed_count = static_cast< int >( interpolated_y * weights[ i ] );
+        computed_count = interpolated_y;
         computed_count = std::max( 0, computed_count );
         computed_size += computed_count;
         computed_path[ node ] = computed_count;
     }
 
-    // for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
-    //     const auto& node = *std::next( interesting_nodes.begin(), i );
-    //     int max_count = all_cov_value_props.number_statistics.at( node ).max;
-    //     int computed_count = static_cast< int >( max_count * weights[ i ] );
-    //     computed_count = std::max( 0, computed_count);
-    //     computed_size += computed_count;
-    //     computed_path[ node ] = computed_count;
-    // }
-
     float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
     for ( auto& [ node, count ] : computed_path ) {
+        // std::cout << "Count before scaling: " << count << std::endl;
         count = static_cast< int >( count * scale );
+        // std::cout << "Count after scaling: " << count << std::endl;
     }
 
     path.insert( computed_path.begin(), computed_path.end() );
@@ -317,7 +324,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
         }
     }
 
-    if ( false ) {
+    if ( true ) {
         for ( const auto& [ location, decision ] : decisions ) {
             std::cout << location.id << decision << std::endl;
         }
@@ -342,12 +349,12 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
  *
  * @return A vector of floats representing the optimized weights.
  */
-std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() const
+std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix()
 {
     GradientDescent gd( matrix, best_values );
     std::vector< float > weights = gd.optimize();
 
-    if ( false ) {
+    if ( true ) {
         for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
             const auto& node = *std::next( interesting_nodes.begin(), i );
             std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.direction
@@ -356,27 +363,6 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix() co
     }
 
     return weights;
-}
-
-
-std::map< fuzzing::node_direction, int >
-fuzzing::iid_node_dependence_props::weights_to_path( std::vector< float > const& weights ) const
-{
-    int path_size = get_possible_depth();
-
-    if ( path_size == 0 || weights.empty() ) {
-        return {};
-    }
-
-    float weights_sum = std::accumulate( weights.begin(), weights.end(), 0.0f );
-    std::map< node_direction, int > path;
-
-    for ( int i = 0; i < weights.size(); ++i ) {
-        float value = static_cast< float >( path_size ) * weights[ i ] / weights_sum;
-        path[ *std::next( interesting_nodes.begin(), i ) ] = static_cast< int >( value );
-    }
-
-    return path;
 }
 
 
@@ -408,7 +394,12 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
     int second_depth = it->second.path_depth.min;
     float second_value = it->first;
 
-    return linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
+    int interpolated_depth =
+    linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
+    if ( true )
+        std::cout << "First Depth: " << first_depth << ", Second Depth: " << second_depth
+                  << ", Interpolated Depth: " << interpolated_depth << std::endl;
+    return interpolated_depth;
 }
 
 

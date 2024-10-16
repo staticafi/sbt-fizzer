@@ -1524,7 +1524,7 @@ void  fuzzer::select_next_state()
 }
 
 
-branching_node*  fuzzer::select_iid_coverage_target() const
+branching_node*  fuzzer::select_iid_coverage_target()
 {
     TMPROF_BLOCK();
 
@@ -1610,14 +1610,14 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     return winner;
 }
 
-branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
+branching_node* fuzzer::select_iid_coverage_target_from_dependencies()
 {
     instrumentation::location_id loc_id(7);
     if (!iid_dependences.id_to_equation_map.contains(loc_id)) {
         return nullptr;
     }
 
-    const iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
     std::map< location_id, fuzzing::path_decision > path = props.generate_path();
 
     branching_node* node = entry_branching;
@@ -1632,8 +1632,8 @@ branching_node* fuzzer::select_iid_coverage_target_from_dependencies() const
     }
     recorder().on_node_chosen(node, fuzzing::progress_recorder::DEPENDENCY_END);
 
-    // return nullptr;
-    return node;
+    return nullptr;
+    // return node;
 }
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)

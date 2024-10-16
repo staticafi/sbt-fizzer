@@ -13,7 +13,7 @@
 #include <fuzzing/sensitivity_analysis.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 
-struct FloatCompare {
+struct FloatComparator {
     bool operator()( const float& a, const float& b ) const
     {
         const float epsilon = 1e-6f;
@@ -22,20 +22,22 @@ struct FloatCompare {
 };
 
 
-struct Mean {
-public:
+struct Mean_counter {
     float value;
 
-    Mean()
+    Mean_counter()
         : value( 0 )
         , count( 0 )
     {}
 
     void add( float new_value ) { value = value + ( new_value - value ) / ++count; }
 
-    operator int() const { return static_cast<int>(value); }
-    
-    friend std::ostream& operator<<( std::ostream& os, Mean const& m ) { return os << m.value; }
+    operator int() const { return static_cast< int >( value ); }
+
+    friend std::ostream& operator<<( std::ostream& os, Mean_counter const& m )
+    {
+        return os << m.value;
+    }
 
 private:
     size_t count;
@@ -58,15 +60,13 @@ struct path_decision {
     {}
 
     path_decision()
-        : left_current( 0 )
-        , left_max( 0 )
-        , right_current( 0 )
-        , right_max( 0 )
+        : path_decision( 0, 0 )
     {}
 
     friend std::ostream& operator<<( std::ostream& os, path_decision const& pd )
     {
-        return os << " left: " << pd.left_current << "/" << pd.left_max << " right: " << pd.right_current << "/" << pd.right_max;
+        return os << " left: " << pd.left_current << "/" << pd.left_max
+                  << " right: " << pd.right_current << "/" << pd.right_max;
     }
 
     bool get_next_direction();
@@ -88,7 +88,7 @@ struct node_direction {
 struct number_statistics {
     int min;
     int max;
-    Mean mean;
+    Mean_counter mean;
 
     number_statistics()
         : min( std::numeric_limits< int >::max() )
@@ -121,17 +121,15 @@ struct iid_node_dependence_props {
     std::vector< float > best_values;
 
     coverage_value_props all_cov_value_props;
-    std::map< float, coverage_value_props, FloatCompare > cov_values_to_props;
+    std::map< float, coverage_value_props, FloatComparator > cov_values_to_props;
 
     bool update_interesting_nodes( branching_node* node );
     void recompute_matrix();
     void add_equation( branching_node* path );
-    std::map< location_id, path_decision > generate_path() const;
+    std::map< location_id, path_decision > generate_path();
 
 private:
-    std::vector< float > approximate_matrix() const;
-    std::map< fuzzing::node_direction, int > weights_to_path( std::vector< float > const& weights ) const;
-
+    std::vector< float > approximate_matrix();
     int get_possible_depth() const;
 };
 

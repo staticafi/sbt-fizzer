@@ -28,7 +28,7 @@ GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficie
     , _learning_rate( learning_rate )
     , _max_iterations( max_iterations )
     , _convergence_threshold( convergence_threshold )
-    , _momentum(momentum)
+    , _momentum( momentum )
 {
     if ( coefficient_matrix.empty() || target_vector.empty() ||
          coefficient_matrix.size() != target_vector.size() ) {
@@ -42,48 +42,48 @@ GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficie
  * @param batch_size The size of each mini-batch.
  * @return std::vector<float> The optimized solution vector.
  */
-std::vector< float > GradientDescent::optimize(int batch_size)
+std::vector< float > GradientDescent::optimize( int batch_size )
 {
-    min_max_normalize(_coefficient_matrix);
-    min_max_normalize_target(_target_vector);
+    // min_max_normalize( _coefficient_matrix );
+    // min_max_normalize_target( _target_vector );
 
-    if (_debug) {
+    if ( true ) {
         std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
-        for (size_t i = 0; i < _coefficient_matrix.size(); ++i) {
-            for (const auto& val : _coefficient_matrix[i]) {
+        for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+            for ( const auto& val : _coefficient_matrix[ i ] ) {
                 std::cout << val << " ";
             }
-            std::cout << "| " << _target_vector[i] << std::endl;
+            std::cout << "| " << _target_vector[ i ] << std::endl;
         }
     }
 
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
-    std::vector< float > velocity(current_solution.size(), 0.0f); // Initialize velocity to 0
+    std::vector< float > velocity( current_solution.size(), 0.0f );
 
     float prev_cost = std::numeric_limits< float >::max();
     size_t num_samples = _coefficient_matrix.size();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
-        // Shuffle the dataset at the beginning of each epoch
         shuffle_data();
 
-        // Mini-batch gradient descent loop
-        for (size_t batch_start = 0; batch_start < num_samples; batch_start += batch_size) {
-            size_t batch_end = std::min(batch_start + batch_size, num_samples);
-            std::vector<std::vector<float>> batch_coefficients = get_batch(_coefficient_matrix, batch_start, batch_end);
-            std::vector<float> batch_target = get_batch(_target_vector, batch_start, batch_end);
+        for ( size_t batch_start = 0; batch_start < num_samples; batch_start += batch_size ) {
+            size_t batch_end = std::min( batch_start + batch_size, num_samples );
+            std::vector< std::vector< float > > batch_coefficients =
+            get_batch( _coefficient_matrix, batch_start, batch_end );
+            std::vector< float > batch_target = get_batch( _target_vector, batch_start, batch_end );
 
-            std::vector< float > gradient = compute_batch_gradient(current_solution, batch_coefficients, batch_target);
+            std::vector< float > gradient =
+            compute_batch_gradient( current_solution, batch_coefficients, batch_target );
 
             // Update current_solution with momentum
             for ( size_t i = 0; i < current_solution.size(); ++i ) {
-                velocity[i] = _momentum * velocity[i] - _learning_rate * gradient[i];
-                current_solution[i] += velocity[i];  // Update with velocity
+                velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
+                current_solution[ i ] += velocity[ i ];
             }
         }
 
         // Check for convergence
-        float current_cost = compute_mean_squared_error(current_solution);
+        float current_cost = compute_mean_squared_error( current_solution );
 
         // Debug output
         if ( _debug && iteration % 100 == 0 ) {
@@ -107,19 +107,19 @@ std::vector< float > GradientDescent::optimize(int batch_size)
 void GradientDescent::shuffle_data()
 {
     std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g( rd() );
 
     // Shuffle the coefficient matrix and target vector together
-    std::vector<size_t> indices(_coefficient_matrix.size());
-    std::iota(indices.begin(), indices.end(), 0);
-    std::shuffle(indices.begin(), indices.end(), g);
+    std::vector< size_t > indices( _coefficient_matrix.size() );
+    std::iota( indices.begin(), indices.end(), 0 );
+    std::shuffle( indices.begin(), indices.end(), g );
 
-    std::vector<std::vector<float>> shuffled_matrix = _coefficient_matrix;
-    std::vector<float> shuffled_target = _target_vector;
+    std::vector< std::vector< float > > shuffled_matrix = _coefficient_matrix;
+    std::vector< float > shuffled_target = _target_vector;
 
-    for (size_t i = 0; i < indices.size(); ++i) {
-        shuffled_matrix[i] = _coefficient_matrix[indices[i]];
-        shuffled_target[i] = _target_vector[indices[i]];
+    for ( size_t i = 0; i < indices.size(); ++i ) {
+        shuffled_matrix[ i ] = _coefficient_matrix[ indices[ i ] ];
+        shuffled_target[ i ] = _target_vector[ indices[ i ] ];
     }
 
     _coefficient_matrix = shuffled_matrix;
@@ -129,10 +129,10 @@ void GradientDescent::shuffle_data()
 /**
  * @brief Retrieves a mini-batch from a matrix or vector.
  */
-template<typename T>
-std::vector<T> GradientDescent::get_batch(const std::vector<T>& data, size_t start, size_t end)
+template < typename T >
+std::vector< T > GradientDescent::get_batch( const std::vector< T >& data, size_t start, size_t end )
 {
-    return std::vector<T>(data.begin() + start, data.begin() + end);
+    return std::vector< T >( data.begin() + start, data.begin() + end );
 }
 
 /**
@@ -143,7 +143,10 @@ std::vector<T> GradientDescent::get_batch(const std::vector<T>& data, size_t sta
  * @param batch_target The target vector of the current batch.
  * @return std::vector<float> The computed gradient vector.
  */
-std::vector<float> GradientDescent::compute_batch_gradient(const std::vector<float>& current_solution, const std::vector<std::vector<float>>& batch_coefficients, const std::vector<float>& batch_target)
+std::vector< float >
+GradientDescent::compute_batch_gradient( const std::vector< float >& current_solution,
+                                         const std::vector< std::vector< float > >& batch_coefficients,
+                                         const std::vector< float >& batch_target )
 {
     std::vector< float > gradient( current_solution.size(), 0.0f );
 
@@ -253,10 +256,6 @@ std::vector< float > GradientDescent::generate_random_weights( size_t n )
  */
 void GradientDescent::rescale( std::vector< float >& values, float min_value, float max_value )
 {
-    for ( float& value : values ) {
-        std::cout << value << std::endl;
-    }
-
     if ( values.empty() ) {
         return;
     }
@@ -269,14 +268,6 @@ void GradientDescent::rescale( std::vector< float >& values, float min_value, fl
                    ( value - *min_elem ) * ( max_value - min_value ) / ( *max_elem - *min_elem );
         } );
     }
-
-    std::cout << std::endl;
-
-    for ( float& value : values ) {
-        std::cout << value << std::endl;
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
 }
 
 /**
@@ -299,36 +290,38 @@ void GradientDescent::add_smallest_value( std::vector< float >& values )
     }
 }
 
-void GradientDescent::min_max_normalize_target(std::vector<float>& target) {
-    float min_value = *std::min_element(target.begin(), target.end());
-    float max_value = *std::max_element(target.begin(), target.end());
+void GradientDescent::min_max_normalize_target( std::vector< float >& target )
+{
+    float min_value = *std::min_element( target.begin(), target.end() );
+    float max_value = *std::max_element( target.begin(), target.end() );
 
-    for (size_t i = 0; i < target.size(); ++i) {
-        if (max_value - min_value != 0) {
-            target[i] = (target[i] - min_value) / (max_value - min_value);
+    for ( size_t i = 0; i < target.size(); ++i ) {
+        if ( max_value - min_value != 0 ) {
+            target[ i ] = ( target[ i ] - min_value ) / ( max_value - min_value );
         } else {
-            target[i] = 0.0f;  // Handle case where all values are the same
+            target[ i ] = 0.0f; // Handle case where all values are the same
         }
     }
 }
 
-void GradientDescent::min_max_normalize(std::vector<std::vector<float>>& matrix) {
-    for (size_t col = 0; col < matrix[0].size(); ++col) {
+void GradientDescent::min_max_normalize( std::vector< std::vector< float > >& matrix )
+{
+    for ( size_t col = 0; col < matrix[ 0 ].size(); ++col ) {
         // Find the min and max for the column
-        float min_value = std::numeric_limits<float>::max();
-        float max_value = std::numeric_limits<float>::lowest();
+        float min_value = std::numeric_limits< float >::max();
+        float max_value = std::numeric_limits< float >::lowest();
 
-        for (size_t row = 0; row < matrix.size(); ++row) {
-            min_value = std::min(min_value, matrix[row][col]);
-            max_value = std::max(max_value, matrix[row][col]);
+        for ( size_t row = 0; row < matrix.size(); ++row ) {
+            min_value = std::min( min_value, matrix[ row ][ col ] );
+            max_value = std::max( max_value, matrix[ row ][ col ] );
         }
 
         // Normalize the column values
-        for (size_t row = 0; row < matrix.size(); ++row) {
-            if (max_value - min_value != 0) {
-                matrix[row][col] = (matrix[row][col] - min_value) / (max_value - min_value);
+        for ( size_t row = 0; row < matrix.size(); ++row ) {
+            if ( max_value - min_value != 0 ) {
+                matrix[ row ][ col ] = ( matrix[ row ][ col ] - min_value ) / ( max_value - min_value );
             } else {
-                matrix[row][col] = 0.0f;  // Handle case where all values are the same
+                matrix[ row ][ col ] = 0.0f; // Handle case where all values are the same
             }
         }
     }
