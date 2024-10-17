@@ -16,7 +16,10 @@ fuzz_target::fuzz_target():
     , br_instr_trace_length{0}
     , context_hashes{ 0U }
     , locations{}
-    
+    , config{}
+    , stdin_model{ nullptr }
+    , stdout_model{ nullptr }
+    , shared_memory{}
 {
     INVARIANT(context_hashes.size() == locations.size() + 1);
 }
@@ -118,14 +121,18 @@ void fuzz_target::on_write(natural_8_bit const*  ptr, type_of_input_bits const t
 }
 
 
+void fuzz_target::load_config() {
+    config.load_target_config(shared_memory);
+    stdin_model = get_stdin_models_map().at(config.stdin_model_name)(config.max_stdin_bytes);
+    stdout_model = get_stdout_models_map().at(config.stdout_model_name)();
+}
+
 void fuzz_target::load_stdin() {
     stdin_model->load(shared_memory);
 }
 
-void fuzz_target::load_config() {
-    config.load_target_config(shared_memory);
-    stdin_model = get_stdin_models_map().at(config.stdin_model_name)((config.max_stdin_bytes));
-    stdout_model = get_stdout_models_map().at(config.stdout_model_name)();
+void fuzz_target::load_stdout() {
+    stdout_model->load(shared_memory);
 }
 
 

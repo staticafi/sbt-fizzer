@@ -50,7 +50,7 @@ benchmark_executor_via_shared_memory::benchmark_executor_via_shared_memory(std::
     , executor{ nullptr }
 {
     executor = std::make_unique<target_executor>(path_to_target);
-    executor->timeout_ms = iomodels::iomanager::instance().get_config().max_exec_milliseconds;
+    executor->set_timeout(iomodels::iomanager::instance().get_config().max_exec_milliseconds);
     executor->init_shared_memory(iomodels::iomanager::instance().get_config().required_shared_memory_size());
 }
 

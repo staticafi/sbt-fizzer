@@ -27,20 +27,21 @@ int main(int argc, char* argv[]) {
         }
     #endif
 
-    sbt_fizzer_target->shared_memory.open_or_create();
-    sbt_fizzer_target->shared_memory.map_region();
+    sbt_fizzer_target->get_shared_memory().open_or_create();
+    sbt_fizzer_target->get_shared_memory().map_region();
 
     sbt_fizzer_target->load_config();
     sbt_fizzer_target->load_stdin();
+    sbt_fizzer_target->load_stdout();
 
-    sbt_fizzer_target->shared_memory.clear();
+    sbt_fizzer_target->get_shared_memory().clear();
 
     // Reserve the first two bytes for termination
-    sbt_fizzer_target->shared_memory << data_record_id::invalid << data_record_id::invalid;
+    sbt_fizzer_target->get_shared_memory() << (natural_16_bit)0;
 
     __sbt_fizzer_method_under_test();
 
-    sbt_fizzer_target->shared_memory.set_termination(target_termination::normal);
+    sbt_fizzer_target->get_shared_memory().set_termination(target_termination::normal);
 
     return 0;
 }

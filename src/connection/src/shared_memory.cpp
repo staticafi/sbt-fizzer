@@ -45,11 +45,11 @@ void shared_memory::remove() {
 }
 
 bool shared_memory::can_accept_bytes(std::size_t const n) const {
-    return !(memory == nullptr || get_size() < *saved + n);
+    return memory != nullptr && get_size() >= *saved + n;
 }
 
 bool shared_memory::can_deliver_bytes(std::size_t const n) const {
-    return !(memory == nullptr || *saved < cursor + n);
+    return memory != nullptr && *saved >= cursor + n;
 }
 
 void shared_memory::accept_bytes(const void* src, std::size_t n) {
@@ -78,7 +78,7 @@ shared_memory& shared_memory::operator>>(std::string& dest) {
 
 std::optional<target_termination> shared_memory::get_termination() const {
     data_record_id id = static_cast<data_record_id>(*memory);
-    if (id == data_record_id::invalid || id != data_record_id::termination) {
+    if (id != data_record_id::termination) {
         return std::nullopt;
     }
 

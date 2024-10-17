@@ -27,10 +27,16 @@ target_executor::target_executor(std::string target_invocation)
     , shm{}
 {}
 
-void target_executor::init_shared_memory(std::size_t size) {
+void target_executor::init_shared_memory(std::size_t const size) {
     get_shared_memory().open_or_create();
     get_shared_memory().set_size((natural_32_bit)size);
     get_shared_memory().map_region();
+}
+
+
+void target_executor::set_timeout(natural_16_bit const timeout_ms_)
+{
+    timeout_ms = timeout_ms_;
 }
 
 

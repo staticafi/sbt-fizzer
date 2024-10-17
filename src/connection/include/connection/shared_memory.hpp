@@ -72,11 +72,6 @@ public:
 };
 
 
-struct shared_memory_remover {
-    ~shared_memory_remover() { shared_memory::remove(); }
-};
-
-
 }
 
 

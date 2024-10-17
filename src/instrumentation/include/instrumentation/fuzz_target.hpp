@@ -21,12 +21,12 @@ class fuzz_target {
     natural_32_bit br_instr_trace_length;
     std::vector<natural_32_bit> context_hashes;
     std::unordered_set<natural_32_bit> locations;
-
-public:
     iomodels::configuration config;
     iomodels::stdin_base_ptr stdin_model;
     iomodels::stdout_base_ptr stdout_model;
     connection::shared_memory shared_memory;
+
+public:
 
     fuzz_target();
 
@@ -45,8 +45,11 @@ public:
     void on_read(natural_8_bit* ptr, type_of_input_bits type);
     void on_write(natural_8_bit const*  ptr, type_of_input_bits type);
 
-    void load_stdin();
+    connection::shared_memory& get_shared_memory() { return shared_memory; }
+
     void load_config();
+    void load_stdin();
+    void load_stdout();
 
 };
 

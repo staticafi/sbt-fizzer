@@ -33,7 +33,7 @@ void run() {
         .stdout_model_name = get_program_options()->value("stdout_model")
     });
 
-    client.executor.timeout_ms = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_milliseconds")));
+    client.executor.set_timeout((natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_milliseconds"))));
 
     vecu8 input_bytes;
     try {

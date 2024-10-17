@@ -75,8 +75,8 @@ void client::receive_input() {
     natural_16_bit max_exec_milliseconds;
     input >> max_exec_milliseconds;
 
-    executor.timeout_ms = max_exec_milliseconds;
     executor.init_shared_memory(shared_memory_size);
+    executor.set_timeout(max_exec_milliseconds);
 
     executor.get_shared_memory().accept_bytes(input);
 }

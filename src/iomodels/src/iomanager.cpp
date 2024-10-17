@@ -92,29 +92,32 @@ template bool iomanager::load_br_instr_trace_record(message&);
 template <typename Medium>
 void  iomanager::load_results(Medium& src) {
     TMPROF_BLOCK();
-    bool  invalid_record_reached{ false };
-    while (!invalid_record_reached && !src.exhausted()) {
+
+    ASSUMPTION(src.can_deliver_bytes(2UL));
+    data_record_id id;
+    src >> id;
+    ASSUMPTION(id == data_record_id::termination);
+    src >> termination;
+    ASSUMPTION(valid_termination(termination));
+
+    while (!src.exhausted()) {
         data_record_id id;
         src >> id;
         switch (id) {
             case data_record_id::condition: 
-                invalid_record_reached = !load_trace_record(src);
+                if (load_trace_record(src) == false)
+                    return; // Something went wrong => stop loading data.
                 break;
             case data_record_id::br_instr:
-                invalid_record_reached = !load_br_instr_trace_record(src);
+                if (load_br_instr_trace_record(src) == false)
+                    return; // Something went wrong => stop loading data.
                 break;
             case data_record_id::stdin_bytes:
-                invalid_record_reached = !get_stdin()->load_record(src);
+                if (get_stdin()->load_record(src) == false)
+                    return; // Something went wrong => stop loading data.
                 break;
-            case data_record_id::termination:
-                src >> termination;
-                ASSUMPTION(valid_termination(termination));
-                break;
-            case data_record_id::invalid:
             default:
-                INVARIANT(termination == target_termination::timeout);
-                invalid_record_reached = true;
-                break;
+                return; // Something went wrong => stop loading data.
         }
     }
 }
