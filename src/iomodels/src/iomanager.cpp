@@ -59,10 +59,10 @@ bool  iomanager::load_trace_record(Medium& src) {
     branching_coverage_info  info { invalid_location_id() };
     natural_8_bit uchr;
     src >> info.id;
-    src >> uchr; info.direction = uchr != 0U;
+    src >> uchr; info.direction = (uchr & 1U) != 0U;
     src >> info.value;
     src >> info.idx_to_br_instr;
-    src >> uchr; info.xor_like_branching_function = uchr != 0U;
+    src >> uchr; info.xor_like_branching_function = (uchr & 1U) != 0U;
     src >> uchr; info.predicate = (BRANCHING_PREDICATE)uchr;
     info.num_input_bytes = (natural_32_bit)get_stdin()->get_bytes().size();
     trace.push_back(info);
@@ -80,7 +80,7 @@ bool  iomanager::load_br_instr_trace_record(Medium& src) {
     br_instr_coverage_info  info { invalid_location_id() };
     natural_8_bit uchr;
     src >> info.br_instr_id;
-    src >> uchr; info.covered_branch = uchr != 0U;
+    src >> uchr; info.covered_branch = (uchr & 1U) != 0U;
     br_instr_trace.push_back(info);
     return true;
 }
