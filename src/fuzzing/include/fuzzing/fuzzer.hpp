@@ -16,6 +16,8 @@
 #   include <unordered_map>
 #   include <chrono>
 #   include <memory>
+#   include <thread>
+#   include <mutex>
 #   include <limits>
 
 namespace  fuzzing {
@@ -64,7 +66,7 @@ struct  fuzzer final
     natural_32_bit  num_remaining_driver_executions() const { return termination_props.max_executions - get_performed_driver_executions(); }
     float_64_bit  num_remaining_seconds() const { return (float_64_bit)termination_props.max_seconds - get_elapsed_seconds(); }
 
-    natural_32_bit  get_performed_driver_executions() const { return (natural_32_bit)(num_driver_executions + get_input_flow_statistics().start_calls + get_input_flow_statistics().num_failures); }
+    natural_32_bit  get_performed_driver_executions() const { return num_driver_executions; }
     float_64_bit  get_elapsed_seconds() const { return std::chrono::duration<float_64_bit>(time_point_current - time_point_start).count(); }
 
     std::unordered_set<location_id> const&  get_covered_branchings() const { return covered_branchings; }
@@ -75,7 +77,7 @@ struct  fuzzer final
     bool  round_begin(TERMINATION_REASON&  termination_reason);
     std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
-    input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow.get_statistics(); }
+    input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow_thread.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     local_search_analysis::performance_statistics const&  get_local_search_statistics() const { return local_search.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
@@ -85,9 +87,9 @@ private:
     enum STATE
     {
         STARTUP,
-        INPUT_FLOW,
         BITSHARE,
         LOCAL_SEARCH,
+        SEARCHING_FOR_NODE,
         FINISHED
     };
 
@@ -116,18 +118,87 @@ private:
         void  clear();
 
         void  do_cleanup();
-        branching_node*  get_best(natural_32_bit  max_input_width);
+        branching_node*  get_best_sensitive(natural_32_bit  max_input_width);
+        branching_node*  get_best_others(natural_32_bit  max_input_width);
 
     private:
-        branching_node*  get_best(std::unordered_map<branching_node*, bool>&  targets, natural_32_bit  max_input_width);
+        static void  update_counts(
+                std::unordered_map<location_id::id_type, natural_32_bit>&  counts,
+                std::unordered_map<branching_node*, bool> const&  data
+                );
+        branching_node*  get_best(
+                std::unordered_map<branching_node*, bool>&  targets,
+                std::unordered_map<location_id::id_type, natural_32_bit>&  counts,
+                natural_32_bit  max_input_width
+                );
 
-        std::unordered_set<branching_node*>  loop_heads;        // Priority #1 (the highest)
+        std::unordered_set<branching_node*>  loop_heads_sensitive;  // Priority #1 (the highest)
+        std::unordered_set<branching_node*>  loop_heads_others;     // Priority #1.1
         std::unordered_map<branching_node*, bool>  sensitive;   // Priority #2
         std::unordered_map<branching_node*, bool>  untouched;   // Priority #3
-        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins;   // Priority #4
+        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins_sensitive;    // Priority #4
+        std::unordered_map<location_id, std::pair<branching_node*, bool> >  iid_twins_others;       // Priority #4.1
+        std::unordered_map<location_id::id_type, natural_32_bit>  sensitive_counts;
+        std::unordered_map<location_id::id_type, natural_32_bit>  untouched_counts;
+        natural_32_bit  sensitive_start_index;
+        natural_32_bit  untouched_start_index;
         std::function<bool(location_id)>  is_covered;
         std::function<branching_node*(location_id)>  iid_pivot_with_lowest_abs_value;
         performance_statistics*  statistics;
+    };
+
+    struct  input_flow_analysis_thread
+    {
+        input_flow_analysis_thread(sala::Program const* sala_program_ptr);
+
+        bool  is_ready() const;
+        bool  is_busy() const;
+        bool  is_finished() const;
+        bool  is_terminated() const;
+
+        // The method below can be called only when: is_ready() == true 
+        void  start(branching_node*  node_ptr, natural_32_bit  execution_id, float_64_bit  remaining_seconds);
+
+        void  stop();
+
+        // Two methods below can be called only when: is_ready() == true 
+        branching_node*  get_node() const;
+        std::unordered_set<branching_node*> const&  get_changed_nodes();
+
+        // The method below can be called only when: is_finished() == true 
+        void  apply_results(branching_node*  entry_node);
+
+        // The method below can be called only when: is_terminated() == true || is_busy() == false
+        input_flow_analysis::performance_statistics const&  get_statistics() const;
+
+    private:
+
+        enum STATE
+        {
+            READY = 0,
+            STEADY = 1,
+            WORKING = 2,
+            FINISHED = 3,
+            TERMINATED = 4
+        };
+
+        struct computation_request
+        {
+            input_flow_analysis::computation_io_data  data{};
+            std::unordered_set<branching_node*>  changed_nodes{};
+            branching_node*  last_node{ nullptr };
+            natural_32_bit  execution_id{ 0U };
+        };
+
+        void worker_thread_procedure();
+
+        STATE  state;
+        input_flow_analysis::io_models_setup  io_setup;
+        computation_request  request;
+        input_flow_analysis  input_flow;
+        bool  worker_stop_flag;
+        mutable std::mutex  mutex;
+        std::thread  worker;
     };
 
     struct  hit_count_per_direction
@@ -290,6 +361,8 @@ private:
     void  select_next_state();
     branching_node*  select_iid_coverage_target() const;
 
+    bool  try_start_input_flow_analysis(branching_node*  winner);
+
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();
 
@@ -313,8 +386,9 @@ private:
 
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
+    input_flow_analysis_thread  input_flow_thread;
+
     STATE  state;
-    input_flow_analysis  input_flow;
     bitshare_analysis  bitshare;
     local_search_analysis  local_search;
 

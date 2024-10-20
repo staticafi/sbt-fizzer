@@ -144,5 +144,17 @@ stdout_base*  iomanager::get_stdout() const
 }
 
 
+stdin_base_ptr  iomanager::clone_stdin() const
+{
+    return get_stdin_models_map().at(config.stdin_model_name)(config.max_stdin_bytes);
+}
+
+
+
+stdout_base_ptr  iomanager::clone_stdout() const
+{
+    return get_stdout_models_map().at(config.stdout_model_name)();
+}
+
 
 }

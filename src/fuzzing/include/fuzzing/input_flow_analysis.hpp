@@ -3,60 +3,66 @@
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
+#   include <iomodels/stdin_base.hpp>
+#   include <iomodels/stdout_base.hpp>
+#   include <iomodels/configuration.hpp>
 #   include <sala/program.hpp>
 #   include <unordered_set>
 #   include <map>
 #   include <set>
+#   include <memory>
 
 namespace  fuzzing {
 
 
 struct  input_flow_analysis
 {
-    enum  STATE
+    struct  io_models_setup
     {
-        READY,
-        BUSY
+        iomodels::stdin_base_ptr  stdin_ptr{ nullptr };
+        iomodels::stdout_base_ptr  stdout_ptr{ nullptr };
+        iomodels::configuration  io_config{};
+    };
+
+    struct  computation_io_data
+    {
+        // Input
+        stdin_bits_and_types_pointer  input_ptr{ nullptr };
+        execution_trace_pointer  trace_ptr{ nullptr };
+        trace_index_type  trace_size{ 0U };
+        float_64_bit remaining_seconds{ 0.0 };
+
+        // Output
+        std::vector<std::unordered_set<stdin_bit_index> >  sensitive_bits{};
     };
 
     struct  performance_statistics
     {
-        std::size_t  start_calls{ 0 };
-        std::size_t  stop_calls{ 0 };
+        std::size_t  num_successes{ 0 };
         std::size_t  num_failures{ 0 };
         std::unordered_set<std::string>  errors{};
         std::unordered_set<std::string>  warnings{};
         std::map<std::pair<trace_index_type,natural_32_bit>, std::set<float_64_bit> >  complexity{};
     };
 
-    explicit input_flow_analysis(sala::Program const* sala_program_ptr);
+    explicit input_flow_analysis(sala::Program const* sala_program_ptr, io_models_setup const* io_setup_ptr_);
 
-    bool  is_ready() const { return state == READY; }
-    bool  is_busy() const { return state == BUSY; }
+    void  run(computation_io_data*  data_ptr_);
 
-    void  start(branching_node*  node_ptr, natural_32_bit  execution_id_);
-    void  stop();
-    void  compute_sensitive_bits(float_64_bit remaining_seconds);
+    computation_io_data const&  data() const { return *data_ptr; }
+    computation_io_data&  data() { return *data_ptr; }
 
-    branching_node*  get_node() const { return node; }
-    std::unordered_set<branching_node*> const&  get_changed_nodes() { return changed_nodes; }
-    branching_node*  get_last_visited_path_node() const { return last_visited_path_node; }
+    io_models_setup const&  io_setup() const { return *io_setup_ptr; }
 
     performance_statistics const&  get_statistics() const { return statistics; }
 
 private:
 
-    std::string  make_problem_message(std::string const&  content) const;
-
     struct input_flow;
 
-    STATE  state;
     sala::Program const* program_ptr;
-    execution_trace_pointer  trace;
-    branching_node*  node;
-    natural_32_bit  execution_id;
-    std::unordered_set<branching_node*>  changed_nodes;
-    branching_node*  last_visited_path_node;
+    io_models_setup const* io_setup_ptr;
+    computation_io_data*  data_ptr;
 
     performance_statistics  statistics;
 };

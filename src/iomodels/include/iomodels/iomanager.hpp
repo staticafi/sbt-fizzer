@@ -41,8 +41,10 @@ struct  iomanager
     void  clear_br_instr_trace();
 
     stdin_base*  get_stdin() const;
-
     stdout_base*  get_stdout() const;
+
+    stdin_base_ptr  clone_stdin() const;
+    stdout_base_ptr  clone_stdout() const;
 
 private:
     iomanager();

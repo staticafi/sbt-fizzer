@@ -117,8 +117,6 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         warnings.push_back("The number of created and destroyed leaf nodes differ.");
     if (results.fuzzer_statistics.nodes_created != results.fuzzer_statistics.nodes_destroyed)
         warnings.push_back("The number of created and destroyed nodes differ => Memory leak!");
-    if (results.input_flow_statistics.start_calls != results.input_flow_statistics.stop_calls)
-        warnings.push_back("The number of starts does not match to the number of stops in the input_flow analysis.");
     if (!warnings.empty())
     {
         ostr << shift << "\"WARNINGS\": [\n";
@@ -135,8 +133,7 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     ostr << shift << "\"num_executions\": " << results.num_executions << ",\n"
          << shift << "\"num_elapsed_seconds\": " << results.num_elapsed_seconds << ",\n"
          << shift << "\"input_flow_analysis\": {\n"
-         << shift << shift << "\"start_calls\": " << results.input_flow_statistics.start_calls << ",\n"
-         << shift << shift << "\"stop_calls\": " << results.input_flow_statistics.stop_calls << ",\n"
+         << shift << shift << "\"num_successes\": " << results.input_flow_statistics.num_successes << ",\n"
          << shift << shift << "\"num_failures\": " << results.input_flow_statistics.num_failures << ",\n"
          << shift << shift << "\"errors\": [";
     {
