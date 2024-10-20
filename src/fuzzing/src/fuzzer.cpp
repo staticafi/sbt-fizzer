@@ -156,7 +156,22 @@ void  fuzzer::primary_coverage_target_branchings::do_cleanup()
 }
 
 
-branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32_bit const  max_input_width)
+branching_node*  fuzzer::primary_coverage_target_branchings::get_best_untouched(natural_32_bit const  max_input_width)
+{
+    TMPROF_BLOCK();
+
+    branching_node* const  best_node{ get_best(untouched, max_input_width) };
+    if (best_node != nullptr)
+    {
+        ++statistics->strategy_primary_untouched;
+        recorder().on_strategy_turn_primary_untouched();
+        return best_node;
+    }
+    return nullptr;
+}
+
+
+branching_node*  fuzzer::primary_coverage_target_branchings::get_best_sensitive(natural_32_bit const  max_input_width)
 {
     TMPROF_BLOCK();
 
@@ -174,19 +189,9 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
     if (best_node != nullptr)
     {
         if (!loop_heads.empty())
-            return get_best(max_input_width);
+            return get_best_sensitive(max_input_width);
         ++statistics->strategy_primary_sensitive;
         recorder().on_strategy_turn_primary_sensitive();
-        return best_node;
-    }
-
-    best_node = get_best(untouched, max_input_width);
-    if (best_node != nullptr)
-    {
-        if (!loop_heads.empty())
-            return get_best(max_input_width);
-        ++statistics->strategy_primary_untouched;
-        recorder().on_strategy_turn_primary_untouched();
         return best_node;
     }
 
@@ -198,7 +203,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(natural_32
             collect_loop_heads_along_path_to_node(it->second.first);
             it->second.second = true;
             if (!loop_heads.empty())
-                return get_best(max_input_width);
+                return get_best_sensitive(max_input_width);
         }
         ++statistics->strategy_primary_iid_twins;
         recorder().on_strategy_turn_primary_iid_twins();
@@ -275,6 +280,143 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
 }
 
 
+fuzzer::input_flow_analysis_thread::input_flow_analysis_thread(sala::Program const* sala_program_ptr)
+    : input_flow{ sala_program_ptr }
+    , state{ READY }
+    , request{}
+    , worker{ std::thread(&input_flow_analysis_thread::worker_thread_procedure, this) }
+    , worker_stop_flag{ false }
+    , mutex{}
+{}
+
+
+bool  fuzzer::input_flow_analysis_thread::is_ready() const
+{
+    std::lock_guard<std::mutex> const lock(mutex);
+    return state == READY;
+}
+
+
+bool  fuzzer::input_flow_analysis_thread::is_busy() const
+{
+    std::lock_guard<std::mutex> const lock(mutex);
+    return state == STEADY || state == WORKING;
+}
+
+
+bool  fuzzer::input_flow_analysis_thread::is_finished() const
+{
+    std::lock_guard<std::mutex> const lock(mutex);
+    return state == FINISHED;
+}
+
+
+void  fuzzer::input_flow_analysis_thread::start(
+        branching_node* const  node_ptr, natural_32_bit const  execution_id, float_64_bit const  remaining_seconds
+        )
+{
+    ASSUMPTION(is_ready());
+
+    std::lock_guard<std::mutex> const lock(mutex);
+
+    request.node_ptr = node_ptr;
+    request.execution_id = execution_id;
+    request.remaining_seconds = remaining_seconds;
+
+    state = STEADY;
+}
+
+
+void  fuzzer::input_flow_analysis_thread::stop()
+{
+    {
+        std::lock_guard<std::mutex> const lock(mutex);
+        worker_stop_flag = true;
+    }
+    if (worker.joinable())
+        worker.join();
+}
+
+
+branching_node*  fuzzer::input_flow_analysis_thread::get_node() const
+{
+    ASSUMPTION(is_finished());
+    return input_flow.get_node();
+}
+
+
+std::unordered_set<branching_node*> const&  fuzzer::input_flow_analysis_thread::get_changed_nodes()
+{
+    ASSUMPTION(is_finished());
+    return input_flow.get_changed_nodes();
+}
+
+
+branching_node*  fuzzer::input_flow_analysis_thread::get_last_visited_path_node() const
+{
+    ASSUMPTION(is_finished());
+    return input_flow.get_last_visited_path_node();
+}
+
+void  fuzzer::input_flow_analysis_thread::clear()
+{
+    ASSUMPTION(is_finished());
+    std::lock_guard<std::mutex> const lock(mutex);
+    state = READY;
+}
+
+input_flow_analysis::performance_statistics const&  fuzzer::input_flow_analysis_thread::get_statistics() const
+{
+    ASSUMPTION(!is_busy());
+    return input_flow.get_statistics();
+}
+
+
+void fuzzer::input_flow_analysis_thread::worker_thread_procedure()
+{
+    computation_request  current_request{};
+    while (true)
+    {
+        computation_request const*  request_ptr{ nullptr };
+        {
+            std::lock_guard<std::mutex> const lock(mutex);
+            if (worker_stop_flag)
+                break;
+            if (state == STEADY)
+            {
+                current_request = request;
+                request_ptr = &current_request;
+
+                state = WORKING;
+            }
+        }
+        if (request_ptr == nullptr)
+        {
+            //std::this_thread::yield();
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(10ms);
+            continue;
+        }
+
+        ASSUMPTION(input_flow.is_ready());
+
+        input_flow.start(current_request.node_ptr, current_request.execution_id);
+
+        ASSUMPTION(input_flow.is_busy());
+
+        input_flow.compute_sensitive_bits(current_request.remaining_seconds);
+
+        ASSUMPTION(input_flow.is_ready());
+
+        {
+            std::lock_guard<std::mutex> const lock(mutex);
+            state = FINISHED;
+        }
+        current_request = {};
+    }
+}
+
+
 void  fuzzer::histogram_of_hit_counts_per_direction::merge(
         histogram_of_hit_counts_per_direction const*  histogram,
         histogram_of_hit_counts_per_direction const* const  end,
@@ -323,7 +465,6 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
 {
     static std::unordered_map<STATE, std::string> const  map {
         { STARTUP, "STARTUP" },
-        { INPUT_FLOW, "input_flow" },
         { BITSHARE, "bitshare_analysis" },
         { LOCAL_SEARCH, "local_search" },
         { FINISHED, "FINISHED" },
@@ -796,7 +937,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
-    , input_flow{ sala_program_ptr }
+    , input_flow_thread{ sala_program_ptr }
     , bitshare{}
     , local_search{}
 
@@ -829,7 +970,7 @@ void  fuzzer::terminate()
 
 void  fuzzer::stop_all_analyzes()
 {
-    input_flow.stop();
+    input_flow_thread.stop();
     bitshare.stop();
     local_search.stop();
 }
@@ -904,15 +1045,51 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             return false;
         }
 
+        if (input_flow_thread.is_finished())
+        {
+            for (branching_node*  node = input_flow_thread.get_node(); node != nullptr; node = node->get_predecessor())
+                if (!node->is_closed())
+                {
+                    update_close_flags_from(node);
+                    break;
+                }
+            collect_iid_pivots_from_sensitivity_results();
+            primary_coverage_targets.do_cleanup();
+
+            input_flow_thread.clear();
+        }
+        if (input_flow_thread.is_ready())
+        {
+            branching_node*  winner{ primary_coverage_targets.get_best_untouched(max_input_width) };
+            if (winner != nullptr)
+            {
+                INVARIANT(!winner->was_sensitivity_performed());
+                while (true)
+                {
+                    branching_node* const  left = winner->successor(false).pointer;
+                    branching_node* const  right = winner->successor(true).pointer;
+
+                    bool const  can_go_left = left != nullptr;
+                    bool const  can_go_right = right != nullptr;
+
+                    if (can_go_left && can_go_right)
+                        winner = left->get_max_successors_trace_index() >= right->get_max_successors_trace_index() ? left : right;
+                    else if (can_go_left)
+                        winner = left;
+                    else if (can_go_right)
+                        winner = right;
+                    else
+                        break;
+                }
+                input_flow_thread.start(winner, num_driver_executions, num_remaining_seconds());
+            }
+        }
+
         switch (state)
         {
             case STARTUP:
                 if (get_performed_driver_executions() == 0U)
                     return true;
-                break;
-
-            case INPUT_FLOW:
-                input_flow.compute_sensitive_bits(num_remaining_seconds());
                 break;
 
             case BITSHARE:
@@ -926,6 +1103,8 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 break;
 
             case FINISHED:
+                if (input_flow_thread.is_busy())
+                    break;
                 if (!apply_coverage_failures_with_hope())
                     return true;
                 break;
@@ -1175,12 +1354,12 @@ execution_record::execution_flags  fuzzer::process_execution_results()
     switch (state)
     {
         case STARTUP:
-            INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_ready());
+            INVARIANT(bitshare.is_ready() && local_search.is_ready());
             recorder().on_execution_results_available();
             break;
 
         case BITSHARE:
-            INVARIANT(input_flow.is_ready() && bitshare.is_busy() && local_search.is_ready());
+            INVARIANT(bitshare.is_busy() && local_search.is_ready());
             recorder().on_execution_results_available();
             bitshare.process_execution_results(trace);
             if (!bitshare.get_node()->has_unexplored_direction())
@@ -1188,7 +1367,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case LOCAL_SEARCH:
-            INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_busy());
+            INVARIANT(bitshare.is_ready() && local_search.is_busy());
             local_search.process_execution_results(trace, bits_and_types);
             if (!local_search.get_node()->has_unexplored_direction())
             {
@@ -1197,7 +1376,6 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             }
             break;
 
-        case INPUT_FLOW: // input_flow analysis does not produce any traces - it interprets sala program.
         default:
             UNREACHABLE();
             break;
@@ -1212,7 +1390,6 @@ void  fuzzer::do_cleanup()
     TMPROF_BLOCK();
 
     INVARIANT(
-        input_flow.is_ready() &&
         bitshare.is_ready() &&
         local_search.is_ready() &&
         (state != FINISHED || !primary_coverage_targets.empty())
@@ -1220,15 +1397,6 @@ void  fuzzer::do_cleanup()
 
     switch (state)
     {
-        case INPUT_FLOW:
-            for (branching_node*  node = input_flow.get_node(); node != nullptr; node = node->get_predecessor())
-                if (!node->is_closed())
-                {
-                    update_close_flags_from(node);
-                    break;
-                }
-            collect_iid_pivots_from_sensitivity_results();
-            break;
         case BITSHARE:
             update_close_flags_from(bitshare.get_node());
             break;
@@ -1271,10 +1439,10 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 {
     TMPROF_BLOCK();
 
-    ASSUMPTION(state == INPUT_FLOW && input_flow.get_node() != nullptr);
+    ASSUMPTION(input_flow_thread.get_node() != nullptr);
 
     std::vector<std::pair<branching_node*, iid_pivot_props*> >  pivots;
-    for (branching_node* node : input_flow.get_changed_nodes())
+    for (branching_node* node : input_flow_thread.get_changed_nodes())
         if (node->is_iid_branching() && !covered_branchings.contains(node->get_location_id()))
         {
             iid_location_props&  loc_props = iid_pivots[node->get_location_id()];
@@ -1293,7 +1461,7 @@ void  fuzzer::collect_iid_pivots_from_sensitivity_results()
 
     std::unordered_map<location_id, std::unordered_set<location_id> >  loop_heads_to_bodies;
     std::vector<loop_boundary_props>  loops;
-    detect_loops_along_path_to_node(input_flow.get_node(), loop_heads_to_bodies, &loops);
+    detect_loops_along_path_to_node(input_flow_thread.get_node(), loop_heads_to_bodies, &loops);
 
     std::vector<branching_node*>  loop_boundaries;
     compute_loop_boundaries(loops, loop_boundaries);
@@ -1422,10 +1590,10 @@ void  fuzzer::select_next_state()
 {
     TMPROF_BLOCK();
 
-    INVARIANT(input_flow.is_ready() && bitshare.is_ready() && local_search.is_ready());
+    INVARIANT(bitshare.is_ready() && local_search.is_ready());
 
     branching_node*  winner = nullptr;
-    winner = primary_coverage_targets.get_best(max_input_width);
+    winner = primary_coverage_targets.get_best_sensitive(max_input_width);
     if (winner == nullptr && !entry_branching->is_closed())
         winner = select_iid_coverage_target();
 
@@ -1435,31 +1603,9 @@ void  fuzzer::select_next_state()
         return;
     }
 
-    INVARIANT(winner->is_pending());
+    INVARIANT(winner->is_pending() && winner->was_sensitivity_performed());
 
-    if (!winner->was_sensitivity_performed())
-    {
-        while (true)
-        {
-            branching_node* const  left = winner->successor(false).pointer;
-            branching_node* const  right = winner->successor(true).pointer;
-
-            bool const  can_go_left = left != nullptr;
-            bool const  can_go_right = right != nullptr;
-
-            if (can_go_left && can_go_right)
-                winner = left->get_max_successors_trace_index() >= right->get_max_successors_trace_index() ? left : right;
-            else if (can_go_left)
-                winner = left;
-            else if (can_go_right)
-                winner = right;
-            else
-                break;
-        }
-        input_flow.start(winner, num_driver_executions);
-        state = INPUT_FLOW;
-    }
-    else if (!winner->was_bitshare_performed())
+    if (!winner->was_bitshare_performed())
     {
         INVARIANT(!winner->get_sensitive_stdin_bits().empty());
         bitshare.start(winner, num_driver_executions);
@@ -1559,7 +1705,6 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {
     TMPROF_BLOCK();
 
-    INVARIANT(input_flow.is_ready() || input_flow.get_node() != node);
     INVARIANT(bitshare.is_ready() || bitshare.get_node() != node);
     INVARIANT(local_search.is_ready() || local_search.get_node() != node);
 

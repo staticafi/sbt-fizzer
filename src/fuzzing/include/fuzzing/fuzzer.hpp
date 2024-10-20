@@ -16,6 +16,8 @@
 #   include <unordered_map>
 #   include <chrono>
 #   include <memory>
+#   include <thread>
+#   include <mutex>
 #   include <limits>
 
 namespace  fuzzing {
@@ -75,7 +77,7 @@ struct  fuzzer final
     bool  round_begin(TERMINATION_REASON&  termination_reason);
     std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
-    input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow.get_statistics(); }
+    input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow_thread.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     local_search_analysis::performance_statistics const&  get_local_search_statistics() const { return local_search.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
@@ -85,7 +87,6 @@ private:
     enum STATE
     {
         STARTUP,
-        INPUT_FLOW,
         BITSHARE,
         LOCAL_SEARCH,
         FINISHED
@@ -116,7 +117,8 @@ private:
         void  clear();
 
         void  do_cleanup();
-        branching_node*  get_best(natural_32_bit  max_input_width);
+        branching_node*  get_best_untouched(natural_32_bit  max_input_width);
+        branching_node*  get_best_sensitive(natural_32_bit  max_input_width);
 
     private:
         branching_node*  get_best(std::unordered_map<branching_node*, bool>&  targets, natural_32_bit  max_input_width);
@@ -128,6 +130,55 @@ private:
         std::function<bool(location_id)>  is_covered;
         std::function<branching_node*(location_id)>  iid_pivot_with_lowest_abs_value;
         performance_statistics*  statistics;
+    };
+
+    struct  input_flow_analysis_thread
+    {
+        explicit input_flow_analysis_thread(sala::Program const* sala_program_ptr);
+
+        bool  is_ready() const;
+        bool  is_busy() const;
+        bool  is_finished() const;
+
+        // The method below can be called only when: is_ready() == true 
+        void  start(branching_node*  node_ptr, natural_32_bit  execution_id, float_64_bit  remaining_seconds);
+
+        void  stop();
+
+        // Three methods below can be called only when: is_finished() == true 
+        branching_node*  get_node() const;
+        std::unordered_set<branching_node*> const&  get_changed_nodes();
+        branching_node*  get_last_visited_path_node() const;
+        void  clear();
+
+        // The method below can be called only when: is_busy() == false 
+        input_flow_analysis::performance_statistics const&  get_statistics() const;
+
+    private:
+
+        enum STATE
+        {
+            READY = 0,
+            STEADY = 1,
+            WORKING = 2,
+            FINISHED = 3
+        };
+
+        struct computation_request
+        {
+            branching_node*  node_ptr{ nullptr };
+            natural_32_bit  execution_id{ 0U };
+            float_64_bit  remaining_seconds{ 0.0 };
+        };
+
+        void worker_thread_procedure();
+
+        input_flow_analysis  input_flow;
+        STATE  state;
+        computation_request  request;
+        std::thread  worker;
+        bool  worker_stop_flag;
+        mutable std::mutex  mutex;
     };
 
     struct  hit_count_per_direction
@@ -313,8 +364,9 @@ private:
 
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
+    input_flow_analysis_thread  input_flow_thread;
+
     STATE  state;
-    input_flow_analysis  input_flow;
     bitshare_analysis  bitshare;
     local_search_analysis  local_search;
 
