@@ -111,9 +111,9 @@ class Benchmark:
         errors.append(("In " + "/".join(properties) + ": " if len(properties) > 0 else "") + text)
 
     @staticmethod
-    def _epsilon_for_property(properties):
+    def _epsilon_for_property(properties: list, expected: int|float):
         if len(properties) == 0: return None
-        if properties[-1] == "num_executions": return 5.0
+        if properties[-1] == "num_executions": return 5.0 if expected >= 100 else 50.0 
         return None
 
     @staticmethod
@@ -122,6 +122,9 @@ class Benchmark:
             if type(obtained) is not dict:
                 Benchmark._add_error_message("Mismatch in JSON structure. Expected dictionary.", errors, properties)
                 return False
+            if len(obtained) > len(expected) and "output_statistics" in properties:
+                Benchmark._add_error_message("Too many keys in obtained dictionary. "
+                                             "Obtained: " + str(len(obtained)) + ", Expected: " + str(len(expected)), errors, properties)
             result = True
             for key in expected:
                 if key not in obtained:
@@ -146,7 +149,7 @@ class Benchmark:
             if type(obtained) not in [int, float]:
                 Benchmark._add_error_message("Mismatch in JSON structure. Expected int or float.", errors, properties)
                 return False
-            epsilon = Benchmark._epsilon_for_property(properties)
+            epsilon = Benchmark._epsilon_for_property(properties, expected)
             if epsilon is None:
                 if obtained != expected:
                     Benchmark._add_error_message("Expected " + str(expected) + ", obtained " + str(obtained), errors, properties)

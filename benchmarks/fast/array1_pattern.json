@@ -25,15 +25,20 @@
         ],
         "output_statistics": {
             "local_search": {
-                "num_generated_tests": 4,
+                "num_generated_tests": 3,
                 "num_crashes": 1,
-                "num_boundary_violations": 2
+                "num_boundary_violations": 1
+            },
+            "bitflip_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 1
             },
             "STARTUP": {
                 "num_generated_tests": 1,
                 "num_crashes": 1,
                 "num_boundary_violations": 0
             }
-        }
+            }
     }
 }

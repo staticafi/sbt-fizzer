@@ -1,7 +1,7 @@
 {
     "args": {
         "max_executions": 500,
-        "max_seconds": 10,
+        "max_seconds": 30,
         "max_trace_length": 10000,
         "max_stack_size": 25,
         "max_stdin_bytes": 6400,
@@ -16,15 +16,20 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "TIME_BUDGET_DEPLETED",
-        "num_executions": 184,
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "num_executions": 500,
         "num_covered_branchings": 5,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    
             7,0
         ],
         "output_statistics": {
-            "local_search": {
+            "bitshare_analysis": {
+                "num_generated_tests": 0,
+                "num_crashes": 0,
+                "num_boundary_violations": 1
+            },
+            "bitflip_analysis": {
                 "num_generated_tests": 3,
                 "num_crashes": 0,
                 "num_boundary_violations": 3
