@@ -190,6 +190,7 @@ private:
             std::unordered_set<branching_node*>  changed_nodes{};
             branching_node*  last_node{ nullptr };
             natural_32_bit  execution_id{ 0U };
+            float_64_bit  remaining_seconds{ 0.0 };
         };
 
         void worker_thread_procedure();

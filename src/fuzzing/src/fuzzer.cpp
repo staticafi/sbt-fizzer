@@ -442,11 +442,11 @@ void  fuzzer::input_flow_analysis_thread::start(
     request.data.input_ptr = node_ptr->get_best_stdin();
     request.data.trace_ptr = node_ptr->get_best_trace();
     request.data.trace_size = node_ptr->get_trace_index() + 1U;
-    request.data.remaining_seconds = remaining_seconds;
     request.data.sensitive_bits.clear();
     request.changed_nodes.clear();
     request.last_node = nullptr;
     request.execution_id = execution_id;
+    request.remaining_seconds = remaining_seconds;
 
     state = STEADY;
 }
@@ -545,7 +545,26 @@ void fuzzer::input_flow_analysis_thread::worker_thread_procedure()
             continue;
         }
 
-        input_flow.run(data_ptr);
+        std::chrono::system_clock::time_point const  start_time = std::chrono::system_clock::now();
+        input_flow.run(data_ptr, [this, start_time](std::string& error_message) {
+            double const num_seconds = std::chrono::duration<double>(std::chrono::system_clock::now() - start_time).count();
+            if (num_seconds >= request.remaining_seconds)
+            {
+                error_message = "[TIME OUT] The time budget " + std::to_string(request.remaining_seconds) + "s for the execution was exhausted.";
+                return true;
+            }
+            bool do_stop;
+            {
+                std::lock_guard<std::mutex> const lock(mutex);
+                do_stop = worker_stop_flag;
+            }
+            if (do_stop)
+            {
+                error_message = "[FORCE STOP] The computation was stopped forcefully by the signalled flag.";
+                return true;
+            }
+            return false;
+        });
 
         {
             std::lock_guard<std::mutex> const lock(mutex);

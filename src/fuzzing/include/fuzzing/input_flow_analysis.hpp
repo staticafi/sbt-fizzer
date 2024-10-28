@@ -30,7 +30,6 @@ struct  input_flow_analysis
         stdin_bits_and_types_pointer  input_ptr{ nullptr };
         execution_trace_pointer  trace_ptr{ nullptr };
         trace_index_type  trace_size{ 0U };
-        float_64_bit remaining_seconds{ 0.0 };
 
         // Output
         std::vector<std::unordered_set<stdin_bit_index> >  sensitive_bits{};
@@ -47,7 +46,7 @@ struct  input_flow_analysis
 
     explicit input_flow_analysis(sala::Program const* sala_program_ptr, io_models_setup const* io_setup_ptr_);
 
-    void  run(computation_io_data*  data_ptr_);
+    void  run(computation_io_data*  data_ptr_, std::function<bool(std::string&)> const&  terminator);
 
     computation_io_data const&  data() const { return *data_ptr; }
     computation_io_data&  data() { return *data_ptr; }

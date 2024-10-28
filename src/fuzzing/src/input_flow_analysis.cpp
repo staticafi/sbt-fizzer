@@ -236,7 +236,7 @@ input_flow_analysis::input_flow_analysis(sala::Program const* const sala_program
 {}
 
 
-void  input_flow_analysis::run(computation_io_data* const  data_ptr_)
+void  input_flow_analysis::run(computation_io_data* const  data_ptr_, std::function<bool(std::string&)> const&  terminator)
 {
     ASSUMPTION(
         data_ptr_->input_ptr != nullptr &&
@@ -264,7 +264,7 @@ void  input_flow_analysis::run(computation_io_data* const  data_ptr_)
     extern_code  externals{ &state, &io_setup() };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
-    interpreter.run(data().remaining_seconds);
+    interpreter.run(terminator);
 
     INVARIANT(data().sensitive_bits.size() <= data().trace_size);
 
