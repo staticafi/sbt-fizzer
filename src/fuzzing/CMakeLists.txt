@@ -20,6 +20,9 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/local_search_analysis.hpp
     ./src/local_search_analysis.cpp
 
+    ./include/fuzzing/bitflip_analysis.hpp
+    ./src/bitflip_analysis.cpp
+
     ./include/fuzzing/execution_trace.hpp
     ./src/execution_trace.cpp
 

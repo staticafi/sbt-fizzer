@@ -605,6 +605,7 @@ std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
         { STARTUP, "STARTUP" },
         { BITSHARE, "bitshare_analysis" },
         { LOCAL_SEARCH, "local_search" },
+        { BITFLIP, "bitflip_analysis" },
         { FINISHED, "FINISHED" },
     };
     return map.at(state);
@@ -1078,6 +1079,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , input_flow_thread{ sala_program_ptr }
     , bitshare{}
     , local_search{}
+    , bitflip{}
 
     , max_input_width{ 0U }
 
@@ -1111,6 +1113,7 @@ void  fuzzer::stop_all_analyzes()
     input_flow_thread.stop();
     bitshare.stop();
     local_search.stop();
+    bitflip.stop();
 }
 
 
@@ -1196,7 +1199,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             if (input_flow_thread.get_node() != nullptr)
                 collect_iid_pivots_from_sensitivity_results();
             primary_coverage_targets.do_cleanup();
-            if (state == FINISHED)
+            if (state == BITFLIP)
             {
                 do_cleanup();
                 select_next_state();
@@ -1232,7 +1235,9 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                     return true;
                 break;
 
-            case SEARCHING_FOR_NODE:
+            case BITFLIP:
+                if (bitflip.generate_next_input(stdin_bits))
+                    return true;
                 break;
 
             case FINISHED:
@@ -1507,6 +1512,11 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             }
             break;
 
+        case BITFLIP:
+            INVARIANT(bitflip.is_busy() && bitshare.is_ready() && local_search.is_ready());
+            recorder().on_execution_results_available();
+            break;
+
         default:
             UNREACHABLE();
             break;
@@ -1737,7 +1747,14 @@ void  fuzzer::select_next_state()
 
     if (winner == nullptr)
     {
-        state = input_flow_thread.is_busy() || input_flow_thread.is_finished() ? SEARCHING_FOR_NODE : FINISHED;
+        if (!leaf_branchings.empty() && input_flow_thread.is_busy() || input_flow_thread.is_finished())
+        {
+            if (bitflip.is_ready())
+                bitflip.start(leaf_branchings);
+            state = BITFLIP;
+        }
+        else
+            state = FINISHED;
         return;
     }
 
