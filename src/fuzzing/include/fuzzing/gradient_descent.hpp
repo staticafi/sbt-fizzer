@@ -12,8 +12,8 @@
 
 class GradientDescent {
 public:
-    GradientDescent( std::vector< std::vector< float > >& coefficient_matrix,
-                     std::vector< float >& target_vector,
+    GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
+                     const std::vector< float >& target_vector,
                      float learning_rate = 0.001f,
                      int max_iterations = 10000,
                      float convergence_threshold = 1e-6,
@@ -31,8 +31,8 @@ public:
     void set_momentum(float momentum) { _momentum = momentum; }
 
 private:
-    std::vector< std::vector< float > >& _coefficient_matrix;
-    std::vector< float >& _target_vector;
+    std::vector< std::vector< float > > _coefficient_matrix;
+    std::vector< float > _target_vector;
     float _learning_rate;
     int _max_iterations;
     float _convergence_threshold;

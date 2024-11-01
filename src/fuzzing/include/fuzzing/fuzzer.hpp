@@ -226,12 +226,13 @@ private:
     static std::unordered_set<natural_32_bit> const&  get_input_width_classes_set();
     static natural_32_bit  get_input_width_class(natural_32_bit  num_input_bytes);
     static natural_32_bit  get_input_width_class_index(natural_32_bit  num_input_bytes);
-
+public:
     static void  detect_loops_along_path_to_node(
             branching_node* const  end_node,
             std::unordered_map<location_id, std::unordered_set<location_id> >&  loop_heads_to_bodies,
             std::vector<loop_boundary_props>*  loops
             );
+private:
     static void  compute_loop_boundaries(
             std::vector<loop_boundary_props> const&  loops,
             std::vector<branching_node*>&  loop_boundaries

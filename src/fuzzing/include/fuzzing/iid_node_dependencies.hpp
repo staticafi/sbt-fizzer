@@ -75,13 +75,13 @@ struct path_decision {
 
 struct node_direction {
     location_id node_id;
-    bool direction;
+    bool branching_direction;
 
     auto operator<=>( node_direction const& other ) const;
     bool operator==( node_direction const& other ) const;
     friend std::ostream& operator<<( std::ostream& os, node_direction const& nn )
     {
-        return os << nn.node_id.id << " " << ( nn.direction ? "right" : "left" );
+        return os << nn.node_id.id << " " << ( nn.branching_direction ? "right" : "left" );
     }
 };
 
@@ -120,6 +120,8 @@ struct iid_node_dependence_props {
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
 
+    std::unordered_map< location_id, std::set< node_direction > > dependencies_by_loops;
+
     coverage_value_props all_cov_value_props;
     std::map< float, coverage_value_props, FloatComparator > cov_values_to_props;
 
@@ -131,6 +133,9 @@ struct iid_node_dependence_props {
 private:
     std::vector< float > approximate_matrix();
     int get_possible_depth() const;
+    void dependencies_generation();
+    std::vector< std::vector< float > > get_matrix( std::set< node_direction > const& subset ) const;
+    std::vector< std::set< node_direction > > get_subsets( std::set< node_direction > const& all_leafs );
 };
 
 struct iid_dependencies {

@@ -17,8 +17,8 @@
  * @param momentum The momentum factor for gradient descent (default: 0.9).
  * @throws `std::invalid_argument` if input dimensions are invalid.
  */
-GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficient_matrix,
-                                  std::vector< float >& target_vector,
+GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
+                                  const std::vector< float >& target_vector,
                                   float learning_rate,
                                   int max_iterations,
                                   float convergence_threshold,
@@ -34,6 +34,10 @@ GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficie
          coefficient_matrix.size() != target_vector.size() ) {
         throw std::invalid_argument( "Invalid input dimensions" );
     }
+
+    for (auto& row : _coefficient_matrix) {
+        row.push_back(1.0f);
+    }
 }
 
 /**
@@ -44,10 +48,7 @@ GradientDescent::GradientDescent( std::vector< std::vector< float > >& coefficie
  */
 std::vector< float > GradientDescent::optimize( int batch_size )
 {
-    // min_max_normalize( _coefficient_matrix );
-    // min_max_normalize_target( _target_vector );
-
-    if ( true ) {
+    if ( false ) {
         std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
         for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
             for ( const auto& val : _coefficient_matrix[ i ] ) {
@@ -97,7 +98,7 @@ std::vector< float > GradientDescent::optimize( int batch_size )
         prev_cost = current_cost;
     }
 
-    rescale( current_solution, 0.0f, 1.0f );
+    // rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
 
