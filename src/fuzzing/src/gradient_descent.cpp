@@ -76,29 +76,27 @@ std::vector< float > GradientDescent::optimize( int batch_size )
             std::vector< float > gradient =
             compute_batch_gradient( current_solution, batch_coefficients, batch_target );
 
-            // Update current_solution with momentum
             for ( size_t i = 0; i < current_solution.size(); ++i ) {
                 velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
                 current_solution[ i ] += velocity[ i ];
             }
         }
 
-        // Check for convergence
         float current_cost = compute_mean_squared_error( current_solution );
 
-        // Debug output
         if ( _debug && iteration % 100 == 0 ) {
             std::cout << "Iteration " << iteration << ", Cost: " << current_cost << std::endl;
         }
 
         if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
-            std::cout << "Converged after " << iteration << " iterations." << std::endl;
+            if ( _debug ) {
+                std::cout << "Converged after " << iteration << " iterations." << std::endl;
+            }
             break;
         }
         prev_cost = current_cost;
     }
 
-    // rescale( current_solution, 0.0f, 1.0f );
     return current_solution;
 }
 

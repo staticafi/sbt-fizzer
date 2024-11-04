@@ -13,6 +13,9 @@
 #include <fuzzing/sensitivity_analysis.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 
+using loop_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
+using loading_loops_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
+
 struct FloatComparator {
     bool operator()( const float& a, const float& b ) const
     {
@@ -121,6 +124,7 @@ struct iid_node_dependence_props {
     std::vector< float > best_values;
 
     std::unordered_map< location_id, std::set< node_direction > > dependencies_by_loops;
+    std::unordered_map< location_id, std::set< node_direction > > dependencies_by_loading;
 
     coverage_value_props all_cov_value_props;
     std::map< float, coverage_value_props, FloatComparator > cov_values_to_props;
@@ -130,10 +134,16 @@ struct iid_node_dependence_props {
     void add_equation( branching_node* path );
     std::map< location_id, path_decision > generate_path();
 
+    void compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies,
+                                          branching_node* end_node );
+
 private:
     std::vector< float > approximate_matrix();
     int get_possible_depth() const;
     void dependencies_generation();
+    void print_dependencies();
+    void compute_dependencies_by_loading( loading_loops_t& loading_loops, branching_node* end_node );
+
     std::vector< std::vector< float > > get_matrix( std::set< node_direction > const& subset ) const;
     std::vector< std::set< node_direction > > get_subsets( std::set< node_direction > const& all_leafs );
 };

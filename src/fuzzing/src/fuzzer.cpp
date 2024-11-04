@@ -1612,10 +1612,12 @@ branching_node*  fuzzer::select_iid_coverage_target()
 
 branching_node* fuzzer::select_iid_coverage_target_from_dependencies()
 {
-    instrumentation::location_id loc_id(7);
-    if (!iid_dependences.id_to_equation_map.contains(loc_id)) {
+    if (iid_dependences.id_to_equation_map.empty()) {
         return nullptr;
     }
+    
+    instrumentation::location_id loc_id = iid_dependences.id_to_equation_map.begin()->first;
+
 
     iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
     std::map< location_id, fuzzing::path_decision > path = props.generate_path();

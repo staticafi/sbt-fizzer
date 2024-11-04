@@ -259,6 +259,12 @@ fuzzing::iid_node_dependence_props::get_subsets( std::set< node_direction > cons
         subsets.push_back( subset );
     }
 
+    std::sort( subsets.begin(),
+               subsets.end(),
+               []( const std::set< node_direction >& a, const std::set< node_direction >& b ) {
+                   return a.size() < b.size();
+               } );
+
     return subsets;
 }
 
@@ -280,16 +286,30 @@ fuzzing::iid_node_dependence_props::get_matrix( std::set< node_direction > const
     return sub_matrix;
 }
 
+
+void fuzzing::iid_node_dependence_props::print_dependencies()
+{
+    std::cout << "# Dependencies:" << std::endl;
+    std::cout << "## Dependencies by loops:" << std::endl;
+    for ( const auto& [ loop, nodes ] : dependencies_by_loops ) {
+        for ( const auto& body : nodes ) {
+            std::cout << "- " << "`(" << body << ") → " << loop.id << "`" << std::endl;
+        }
+    }
+
+    std::cout << "## Dependencies by sensitivity:" << std::endl;
+
+    std::cout << "## Dependencies by loading:" << std::endl;
+    for ( const auto& [ loading, nodes ] : dependencies_by_loading ) {
+        for ( const auto& body : nodes ) {
+            std::cout << "- " << "`(" << body << ") → " << loading.id << "`" << std::endl;
+        }
+    }
+}
+
 void fuzzing::iid_node_dependence_props::dependencies_generation()
 {
-    // std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
-    // for ( size_t i = 0; i < matrix.size(); ++i ) {
-    //     for ( const auto& val : matrix[ i ] ) {
-    //         std::cout << val << " ";
-    //     }
-    //     std::cout << "| " << best_values[ i ] << std::endl;
-    // }
-
+    print_dependencies();
     std::set< node_direction > all_leafs;
     for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
         all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
@@ -297,28 +317,29 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
 
     std::vector< std::set< node_direction > > subsets = get_subsets( all_leafs );
 
+    std::cout << "# Subsets:" << std::endl;
     for ( const auto& subset : subsets ) {
         std::vector< std::vector< float > > sub_matrix = get_matrix( subset );
         GradientDescent gd( sub_matrix, best_values );
         std::vector< float > weights = gd.optimize();
 
-        if ( true ) {
-            for ( const auto& leaf : subset ) {
-                std::cout << "{Node ID: " << leaf.node_id.id
-                          << ", Direction: " << leaf.branching_direction << "} ";
-            }
-            std::cout << std::endl;
-
-            for ( size_t i = 0; i < subset.size(); ++i ) {
-                const auto& node = *std::next( subset.begin(), i );
-                std::cout << "Node ID: " << node.node_id.id
-                          << ", Direction: " << node.branching_direction
-                          << ", Weight: " << weights[ i ] << std::endl;
-            }
-
-            std::cout << "Last Weight: " << weights.back() << std::endl;
+        std::cout << "## Subset of nodes: `{ ";
+        auto delimeter = "";
+        for ( const auto& leaf : subset ) {
+            std::cout << delimeter << "(" << leaf << ")";
+            delimeter = ", ";
         }
+        std::cout << " }`" << std::endl;
+
+        for ( size_t i = 0; i < subset.size(); ++i ) {
+            const auto& node = *std::next( subset.begin(), i );
+            std::cout << "- `(" << node << "): " << weights[ i ] << "`" << std::endl;
+        }
+
+        std::cout << "- `Increment: " << weights.back() << "`" << std::endl;
     }
+
+    std::cout << std::endl;
 }
 
 std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
@@ -498,6 +519,67 @@ void fuzzing::iid_dependencies::update_non_iid_nodes( sensitivity_analysis& sens
     }
 }
 
+void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( loading_loops_t& loading_loops,
+                                                                          branching_node* end_node )
+{
+    for ( const auto& bit_index : end_node->sensitive_stdin_bits ) {
+        for ( const auto& [ loop_head, values ] : loading_loops ) {
+            auto& [ min, max ] = values;
+
+            if ( bit_index >= min && bit_index <= max ) {
+                dependencies_by_loading[ loop_head ].insert( { end_node->get_location_id(), true } );
+                dependencies_by_loading[ loop_head ].insert( { end_node->get_location_id(), false } );
+            }
+        }
+    }
+}
+
+void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies,
+                                                                          branching_node* end_node )
+{
+    branching_node* node = end_node;
+    loading_loops_t loading_loops;
+
+    for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
+        loading_loops[ loop_head ] = { std::numeric_limits< natural_32_bit >::max(),
+                                       std::numeric_limits< natural_32_bit >::min() };
+    }
+
+    while ( node != nullptr ) {
+        for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
+            if (loop_head.id == node->get_location_id().id) {
+                natural_32_bit bits_count = node->get_num_stdin_bits();
+                
+                auto& [ min, max ] = loading_loops[ loop_head ];
+                min = std::min( min, bits_count );
+                max = std::max( max, bits_count );
+            }
+        }
+
+        node = node->predecessor;
+    }
+
+    node = end_node;
+
+    while ( node != nullptr ) {
+        for ( const auto& bit_index : node->sensitive_stdin_bits ) {
+            for ( const auto& [ loop_head, values ] : loading_loops ) {
+                auto& [ min, max ] = values;
+                if ( bit_index >= min && bit_index <= max ) {
+                    if ( interesting_nodes.contains( { node->get_location_id(), true } ) ) {
+                        dependencies_by_loading[ loop_head ].insert( { node->get_location_id(), true } );
+                    }
+
+                    if ( interesting_nodes.contains( { node->get_location_id(), false } ) ) {
+                        dependencies_by_loading[ loop_head ].insert( { node->get_location_id(), false } );
+                    }
+                }
+            }
+        }
+
+        node = node->predecessor;
+    }
+}
 
 /**
  * @brief Processes the dependence of a given branching node.
@@ -518,14 +600,25 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
         return;
 
     iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
+    std::vector< node_direction > path = get_path( node );
+    for ( const node_direction& nav : path ) {
+        props.interesting_nodes.insert( nav );
+    }
+    props.recompute_matrix();
 
     std::unordered_map< location_id, std::unordered_set< location_id > > loop_heads_to_bodies;
     fuzzing::fuzzer::detect_loops_along_path_to_node( node, loop_heads_to_bodies, nullptr );
+    props.compute_dependencies_by_loading( loop_heads_to_bodies, node );
 
     for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
         for ( const auto& body : loop_bodies ) {
-            props.dependencies_by_loops[ loop_head ].insert( { body, true } );
-            props.dependencies_by_loops[ loop_head ].insert( { body, false } );
+            if ( props.interesting_nodes.contains( { body, true } ) ) {
+                props.dependencies_by_loops[ loop_head ].insert( { body, true } );
+            }
+
+            if ( props.interesting_nodes.contains( { body, false } ) ) {
+                props.dependencies_by_loops[ loop_head ].insert( { body, false } );
+            }
         }
     }
 
@@ -533,11 +626,6 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
     props.all_cov_value_props.process_node( node );
     props.all_paths.push_back( node );
 
-    std::vector< node_direction > path = get_path( node );
-    for ( const node_direction& nav : path ) {
-        props.interesting_nodes.insert( nav );
-    }
-    props.recompute_matrix();
 
     // if ( props.update_interesting_nodes( node ) ) {
     //     props.recompute_matrix();

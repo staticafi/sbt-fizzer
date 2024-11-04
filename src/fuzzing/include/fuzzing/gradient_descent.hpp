@@ -19,9 +19,8 @@ public:
                      float convergence_threshold = 1e-6,
                      float momentum = 0.9f); 
 
-    std::vector< float > optimize(int batch_size = 32);  // Added batch_size parameter
+    std::vector< float > optimize(int batch_size = 32);  
 
-    // Setters for easy modification of parameters
     void set_learning_rate( float learning_rate ) { _learning_rate = learning_rate; }
     void set_max_iterations( int max_iterations ) { _max_iterations = max_iterations; }
     void set_convergence_threshold( float convergence_threshold )
