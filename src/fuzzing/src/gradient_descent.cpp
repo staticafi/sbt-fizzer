@@ -64,7 +64,7 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
  *
  * @return std::vector<float> The optimized solution vector.
  */
-std::vector< float > GradientDescent::optimize()
+std::tuple< std::vector< float >, bool > GradientDescent::optimize()
 {
     if ( false ) {
         std::cout << "### Coefficient Matrix and Target Vector:" << std::endl;
@@ -96,13 +96,19 @@ std::vector< float > GradientDescent::optimize()
     }
 
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
+    if (_debug) {
+        std::cout << "Current solution: ";
+        for (const auto& val : current_solution) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }
     std::vector< float > velocity( current_solution.size(), 0.0f );
+    bool converged = false;
 
     float prev_cost = std::numeric_limits< float >::max();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
-        shuffle_data();
-
         std::vector< float > gradient = compute_gradient( current_solution );
 
         for ( size_t i = 0; i < current_solution.size(); ++i ) {
@@ -112,7 +118,7 @@ std::vector< float > GradientDescent::optimize()
 
         float current_cost = compute_mean_squared_error( current_solution );
 
-        if ( _debug && iteration % 100 == 0 ) {
+        if ( _debug && iteration % 5 == 0 ) {
             std::cout << "Iteration " << iteration << ", Cost: " << current_cost << std::endl;
         }
 
@@ -120,12 +126,14 @@ std::vector< float > GradientDescent::optimize()
             if ( _debug ) {
                 std::cout << "Converged after " << iteration << " iterations." << std::endl;
             }
+
+            converged = std::abs( current_cost ) < _convergence_threshold * current_solution.size();
             break;
         }
         prev_cost = current_cost;
     }
 
-    return current_solution;
+    return { current_solution, converged };
 }
 
 /**
@@ -226,7 +234,7 @@ std::vector< float > GradientDescent::generate_random_weights( size_t n )
     std::vector< float > weights( n );
     std::random_device rd;
     std::mt19937 gen( rd() );
-    std::normal_distribution<> d( 0, 1.0 / std::sqrt( n ) );
+    std::uniform_real_distribution<> d( -0.01, 0.01 );
 
     std::generate( weights.begin(), weights.end(), [ & ]() { return d( gen ); } );
 

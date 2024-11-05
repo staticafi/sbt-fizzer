@@ -15,11 +15,11 @@ public:
     GradientDescent( const std::vector< std::vector< float > >& coefficient_matrix,
                      const std::vector< float >& target_vector,
                      float learning_rate = 0.01f,
-                     int max_iterations = 10000,
-                     float convergence_threshold = 1e-5,
-                     float momentum = 0.8f); 
+                     int max_iterations = 1000,
+                     float convergence_threshold = 1e-4,
+                     float momentum = 0.9f );
 
-    std::vector< float > optimize();  
+    std::tuple< std::vector< float >, bool > optimize();
 
     void set_learning_rate( float learning_rate ) { _learning_rate = learning_rate; }
     void set_max_iterations( int max_iterations ) { _max_iterations = max_iterations; }
@@ -27,7 +27,7 @@ public:
     {
         _convergence_threshold = convergence_threshold;
     }
-    void set_momentum(float momentum) { _momentum = momentum; }
+    void set_momentum( float momentum ) { _momentum = momentum; }
 
 private:
     std::vector< std::vector< float > > _coefficient_matrix;
@@ -44,8 +44,8 @@ private:
     static float dot_product( const std::vector< float >& a, const std::vector< float >& b );
     static void rescale( std::vector< float >& values, float min_value, float max_value );
     static void add_smallest_value( std::vector< float >& values );
-    void min_max_normalize(std::vector<std::vector<float>>& matrix);
-    void min_max_normalize_target(std::vector<float>& target);
+    void min_max_normalize( std::vector< std::vector< float > >& matrix );
+    void min_max_normalize_target( std::vector< float >& target );
 
     void shuffle_data();
 };

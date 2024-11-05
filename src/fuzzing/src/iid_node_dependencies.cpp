@@ -320,7 +320,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
     std::cout << "# Subsets:" << std::endl;
     for ( const auto& subset : subsets ) {
         std::vector< std::vector< float > > sub_matrix = get_matrix( subset );
-        
+
         std::cout << "## Subset of nodes: `{ ";
         auto delimeter = "";
         for ( const auto& leaf : subset ) {
@@ -330,7 +330,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
         std::cout << " }`" << std::endl;
 
         GradientDescent gd( sub_matrix, best_values );
-        std::vector< float > weights = gd.optimize();
+        auto [ weights, converged ] = gd.optimize();
 
         float dot_product =
         std::inner_product( weights.begin(), weights.end() - 1, weights.begin(), 0.0f );
@@ -340,6 +340,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
         }
 
         std::cout << "### Weights and Counts:" << std::endl;
+        std::cout << "- `Converged: " << ( converged ? "True" : "False" ) << "`" << std::endl;
         for ( size_t i = 0; i < subset.size(); ++i ) {
             const auto& node = *std::next( subset.begin(), i );
             std::cout << "- `(" << node << "): " << weights[ i ] << " ("
@@ -456,7 +457,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
 std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix()
 {
     GradientDescent gd( matrix, best_values );
-    std::vector< float > weights = gd.optimize();
+    auto [ weights, converged ] = gd.optimize();
 
     if ( false ) {
         for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
