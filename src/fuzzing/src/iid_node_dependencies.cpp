@@ -320,9 +320,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
     std::cout << "# Subsets:" << std::endl;
     for ( const auto& subset : subsets ) {
         std::vector< std::vector< float > > sub_matrix = get_matrix( subset );
-        GradientDescent gd( sub_matrix, best_values );
-        std::vector< float > weights = gd.optimize();
-
+        
         std::cout << "## Subset of nodes: `{ ";
         auto delimeter = "";
         for ( const auto& leaf : subset ) {
@@ -331,9 +329,21 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
         }
         std::cout << " }`" << std::endl;
 
+        GradientDescent gd( sub_matrix, best_values );
+        std::vector< float > weights = gd.optimize();
+
+        float dot_product =
+        std::inner_product( weights.begin(), weights.end() - 1, weights.begin(), 0.0f );
+        std::vector< float > node_counts;
+        for ( auto it = weights.begin(); it != weights.end() - 1; ++it ) {
+            node_counts.push_back( -weights.back() * ( *it ) / dot_product );
+        }
+
+        std::cout << "### Weights and Counts:" << std::endl;
         for ( size_t i = 0; i < subset.size(); ++i ) {
             const auto& node = *std::next( subset.begin(), i );
-            std::cout << "- `(" << node << "): " << weights[ i ] << "`" << std::endl;
+            std::cout << "- `(" << node << "): " << weights[ i ] << " ("
+                      << static_cast< int >( std::round( node_counts[ i ] ) ) << ")`" << std::endl;
         }
 
         std::cout << "- `Increment: " << weights.back() << "`" << std::endl;
@@ -547,9 +557,9 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( const 
 
     while ( node != nullptr ) {
         for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
-            if (loop_head.id == node->get_location_id().id) {
+            if ( loop_head.id == node->get_location_id().id ) {
                 natural_32_bit bits_count = node->get_num_stdin_bits();
-                
+
                 auto& [ min, max ] = loading_loops[ loop_head ];
                 min = std::min( min, bits_count );
                 max = std::max( max, bits_count );

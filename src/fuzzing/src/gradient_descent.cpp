@@ -4,7 +4,9 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <set>
 #include <stdexcept>
+#include <vector>
 
 /**
  * @brief Constructs a GradientDescent object.
@@ -30,26 +32,42 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
     , _convergence_threshold( convergence_threshold )
     , _momentum( momentum )
 {
-    if ( coefficient_matrix.empty() || target_vector.empty() ||
-         coefficient_matrix.size() != target_vector.size() ) {
+    std::set< std::vector< float > > unique_rows;
+    std::vector< float > new_target_vector;
+    std::vector< std::vector< float > > new_coefficient_matrix;
+
+    for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+        std::vector< float > row = _coefficient_matrix[ i ];
+        row.push_back( _target_vector[ i ] );
+
+        if ( unique_rows.insert( row ).second ) {
+            new_target_vector.push_back( _target_vector[ i ] );
+            new_coefficient_matrix.push_back( _coefficient_matrix[ i ] );
+        }
+    }
+
+    _coefficient_matrix = new_coefficient_matrix;
+    _target_vector = new_target_vector;
+
+    if ( _coefficient_matrix.empty() || _target_vector.empty() ||
+         _coefficient_matrix.size() != _target_vector.size() ) {
         throw std::invalid_argument( "Invalid input dimensions" );
     }
 
-    for (auto& row : _coefficient_matrix) {
-        row.push_back(1.0f);
+    for ( auto& row : _coefficient_matrix ) {
+        row.push_back( 1.0f );
     }
 }
 
 /**
- * @brief Performs mini-batch gradient descent optimization with momentum.
+ * @brief Performs gradient descent optimization with momentum.
  *
- * @param batch_size The size of each mini-batch.
  * @return std::vector<float> The optimized solution vector.
  */
-std::vector< float > GradientDescent::optimize( int batch_size )
+std::vector< float > GradientDescent::optimize()
 {
     if ( false ) {
-        std::cout << "Coefficient Matrix and Target Vector:" << std::endl;
+        std::cout << "### Coefficient Matrix and Target Vector:" << std::endl;
         for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
             for ( const auto& val : _coefficient_matrix[ i ] ) {
                 std::cout << val << " ";
@@ -58,28 +76,38 @@ std::vector< float > GradientDescent::optimize( int batch_size )
         }
     }
 
+    if ( true ) {
+        std::cout << "### Equation Matrix:" << std::endl;
+        std::cout << "$$\\begin{bmatrix}" << std::endl;
+        for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+            for ( size_t j = 0; j < _coefficient_matrix[ i ].size(); ++j ) {
+                std::cout << _coefficient_matrix[ i ][ j ];
+                if ( j < _coefficient_matrix[ i ].size() - 1 ) {
+                    std::cout << " & ";
+                }
+            }
+            std::cout << " & " << _target_vector[ i ];
+            if ( i < _coefficient_matrix.size() - 1 ) {
+                std::cout << " \\\\";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << "\\end{bmatrix}$$" << std::endl;
+    }
+
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
     std::vector< float > velocity( current_solution.size(), 0.0f );
 
     float prev_cost = std::numeric_limits< float >::max();
-    size_t num_samples = _coefficient_matrix.size();
 
     for ( int iteration = 0; iteration < _max_iterations; ++iteration ) {
         shuffle_data();
 
-        for ( size_t batch_start = 0; batch_start < num_samples; batch_start += batch_size ) {
-            size_t batch_end = std::min( batch_start + batch_size, num_samples );
-            std::vector< std::vector< float > > batch_coefficients =
-            get_batch( _coefficient_matrix, batch_start, batch_end );
-            std::vector< float > batch_target = get_batch( _target_vector, batch_start, batch_end );
+        std::vector< float > gradient = compute_gradient( current_solution );
 
-            std::vector< float > gradient =
-            compute_batch_gradient( current_solution, batch_coefficients, batch_target );
-
-            for ( size_t i = 0; i < current_solution.size(); ++i ) {
-                velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
-                current_solution[ i ] += velocity[ i ];
-            }
+        for ( size_t i = 0; i < current_solution.size(); ++i ) {
+            velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
+            current_solution[ i ] += velocity[ i ];
         }
 
         float current_cost = compute_mean_squared_error( current_solution );
@@ -124,47 +152,6 @@ void GradientDescent::shuffle_data()
     _coefficient_matrix = shuffled_matrix;
     _target_vector = shuffled_target;
 }
-
-/**
- * @brief Retrieves a mini-batch from a matrix or vector.
- */
-template < typename T >
-std::vector< T > GradientDescent::get_batch( const std::vector< T >& data, size_t start, size_t end )
-{
-    return std::vector< T >( data.begin() + start, data.begin() + end );
-}
-
-/**
- * @brief Computes the gradient for a mini-batch.
- *
- * @param current_solution The current solution vector.
- * @param batch_coefficients The coefficient matrix of the current batch.
- * @param batch_target The target vector of the current batch.
- * @return std::vector<float> The computed gradient vector.
- */
-std::vector< float >
-GradientDescent::compute_batch_gradient( const std::vector< float >& current_solution,
-                                         const std::vector< std::vector< float > >& batch_coefficients,
-                                         const std::vector< float >& batch_target )
-{
-    std::vector< float > gradient( current_solution.size(), 0.0f );
-
-    for ( size_t i = 0; i < batch_coefficients.size(); ++i ) {
-        float predicted = dot_product( current_solution, batch_coefficients[ i ] );
-        float error = predicted - batch_target[ i ];
-
-        for ( size_t j = 0; j < current_solution.size(); ++j ) {
-            gradient[ j ] += 2 * error * batch_coefficients[ i ][ j ];
-        }
-    }
-
-    for ( float& grad : gradient ) {
-        grad /= batch_coefficients.size();
-    }
-
-    return gradient;
-}
-
 
 /**
  * @brief Computes the gradient for the current solution.
