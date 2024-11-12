@@ -1229,6 +1229,7 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             branching_node*  winner{ primary_coverage_targets.get_best_others(max_input_width) };
             if (winner == nullptr && entry_branching != nullptr && !entry_branching->is_closed())
             {
+                do_cleanup_iid_pivots();
                 winner = select_iid_coverage_target();
                 if (winner != nullptr && winner->was_sensitivity_performed())
                     winner = nullptr;
@@ -1581,15 +1582,21 @@ void  fuzzer::do_cleanup()
 
     primary_coverage_targets.do_cleanup();
 
-    for (auto  it = iid_pivots.begin(); it != iid_pivots.end(); )
-        if (covered_branchings.contains(it->first))
-            it = iid_pivots.erase(it);
-        else
-            ++it;
+    do_cleanup_iid_pivots();
 
     for (auto  it = coverage_failures_with_hope.begin(); it != coverage_failures_with_hope.end(); )
         if (covered_branchings.contains((*it)->get_location_id()))
             it = coverage_failures_with_hope.erase(it);
+        else
+            ++it;
+}
+
+
+void  fuzzer::do_cleanup_iid_pivots()
+{
+    for (auto  it = iid_pivots.begin(); it != iid_pivots.end(); )
+        if (covered_branchings.contains(it->first))
+            it = iid_pivots.erase(it);
         else
             ++it;
 }

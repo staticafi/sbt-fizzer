@@ -360,6 +360,7 @@ private:
     execution_record::execution_flags  process_execution_results();
 
     void  do_cleanup();
+    void  do_cleanup_iid_pivots();
     void  collect_iid_pivots_from_sensitivity_results();
     void  select_next_state();
     branching_node*  select_iid_coverage_target() const;
