@@ -46,13 +46,13 @@ private:
 
     STATE  state;
     stdin_bits_and_types_pointer  bits_and_types;
-    execution_trace_pointer  trace;
     stdin_bit_index  mutated_bit_index;
     natural_32_bit  mutated_type_index;
     natural_32_bit  mutated_value_index;
     stdin_bit_index  probed_bit_start_index;
     stdin_bit_index  probed_bit_end_index;
-    std::unordered_set<execution_trace const*>  processed_traces;
+    std::unordered_set<stdin_bits_and_types const*>  processed_inputs;
+    natural_32_bit  current_leaf_index;
 
     performance_statistics  statistics;
 };

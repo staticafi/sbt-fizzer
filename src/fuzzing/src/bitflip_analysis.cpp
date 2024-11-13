@@ -10,13 +10,13 @@ namespace  fuzzing {
 bitflip_analysis::bitflip_analysis()
     : state{ READY }
     , bits_and_types{ nullptr }
-    , trace{ nullptr }
-    , mutated_bit_index{ 0 }
-    , mutated_type_index{ 0 }
-    , mutated_value_index{ 0 }
-    , probed_bit_start_index{ 0 }
-    , probed_bit_end_index{ 0 }
-    , processed_traces{}
+    , mutated_bit_index{ 0U }
+    , mutated_type_index{ 0U }
+    , mutated_value_index{ 0U }
+    , probed_bit_start_index{ 0U }
+    , probed_bit_end_index{ 0U }
+    , processed_inputs{ nullptr }
+    , current_leaf_index{ 0U }
     , statistics{}
 {}
 
@@ -39,33 +39,32 @@ void  bitflip_analysis::start(std::unordered_set<branching_node*> const&  leaf_b
     ASSUMPTION(is_ready());
     ASSUMPTION(!leaf_branchings.empty());
 
+    bits_and_types = nullptr;
+    current_leaf_index = (current_leaf_index + 1U) % leaf_branchings.size();
+    auto const  it_end = std::next(leaf_branchings.begin(), current_leaf_index);
+    auto  it = it_end;
+    do
+    {
+        for (auto const*  node{ *it }; node != nullptr; node = node->get_predecessor())
+            if (node->get_best_stdin() != nullptr && !node->get_best_stdin()->bits.empty()
+                    && !processed_inputs.contains(node->get_best_stdin().get()))
+            {
+                bits_and_types = node->get_best_stdin();
+                break;
+            }
+
+        ++it;
+        if (it == leaf_branchings.end())
+            it = leaf_branchings.begin();
+    }
+    while (it != it_end);
+    
+    if (bits_and_types == nullptr)
+        return;
+
     state = BUSY;
 
-    bits_and_types = nullptr;
-    trace = nullptr;
-    for (auto  node : leaf_branchings)
-    {
-        if (processed_traces.contains(node->get_best_trace().get()))
-            continue;
-        ASSUMPTION(!node->get_best_stdin()->bits.empty());
-        if (trace == nullptr)
-        {
-            bits_and_types = node->get_best_stdin();
-            trace = node->get_best_trace();
-            continue;
-        }
-        if (node->get_best_stdin()->bits.size() < bits_and_types->bits.size())
-        {
-            bits_and_types = node->get_best_stdin();
-            trace = node->get_best_trace();
-        }
-    }
-    if (trace == nullptr)
-    {
-        bits_and_types = (*leaf_branchings.begin())->get_best_stdin();
-        trace = (*leaf_branchings.begin())->get_best_trace();
-    }
-    processed_traces.insert(trace.get());
+    processed_inputs.insert(bits_and_types.get());
 
     mutated_bit_index = 0;
     mutated_type_index = 0;
