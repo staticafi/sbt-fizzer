@@ -1776,8 +1776,13 @@ void  fuzzer::select_next_state()
         if (sala_program_ptr == nullptr || (!leaf_branchings.empty() && !uncovered_branchings.empty()))
         {
             if (bitflip.is_ready())
+            {
                 bitflip.start(leaf_branchings);
-            state = BITFLIP;
+                if (bitflip.is_ready()) // The start has failed.
+                    state = FINISHED;
+            }
+            else
+                state = BITFLIP;
         }
         else
             state = FINISHED;
