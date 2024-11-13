@@ -1773,7 +1773,7 @@ void  fuzzer::select_next_state()
 
     if (winner == nullptr)
     {
-        if (sala_program_ptr == nullptr || (!leaf_branchings.empty() && input_flow_thread.is_busy() || input_flow_thread.is_finished()))
+        if (sala_program_ptr == nullptr || (!leaf_branchings.empty() && !uncovered_branchings.empty()))
         {
             if (bitflip.is_ready())
                 bitflip.start(leaf_branchings);
