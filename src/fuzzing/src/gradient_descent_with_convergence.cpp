@@ -48,6 +48,26 @@ GradientDescentNew::GradientDescentNew( const std::vector< std::vector< float > 
     }
 }
 
+void GradientDescentNew::print_input_matrix()
+{
+    std::cout << "### Equation Matrix:" << std::endl;
+    std::cout << "$$\\begin{bmatrix}" << std::endl;
+    for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+        for ( size_t j = 0; j < _coefficient_matrix[ i ].size(); ++j ) {
+            std::cout << _coefficient_matrix[ i ][ j ];
+            if ( j < _coefficient_matrix[ i ].size() - 1 ) {
+                std::cout << " & ";
+            }
+        }
+        std::cout << " & " << _target_vector[ i ];
+        if ( i < _coefficient_matrix.size() - 1 ) {
+            std::cout << " \\\\";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "\\end{bmatrix}$$" << std::endl;
+}
+
 GradientDescentResult GradientDescentNew::optimize()
 {
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
@@ -86,29 +106,26 @@ GradientDescentResult GradientDescentNew::optimize()
     converged =
     compute_convergence( counts_per_column, error_variance, error_mean, variance_threshold, count_threshold );
 
-    return GradientDescentResult{
-        .weights = current_solution,
-        .errors = prev_errors,
-        .column_count_weighted = counts_per_column,
-        .iterations = iterations,
-        .error_mean = error_mean,
-        .error_variance = error_variance,
-        .variance_threshold = variance_threshold,
-        .count_threshold = count_threshold,
-        .converged = converged
-    };
+    return GradientDescentResult{ .weights = current_solution,
+                                  .errors = prev_errors,
+                                  .column_count_weighted = counts_per_column,
+                                  .iterations = iterations,
+                                  .error_mean = error_mean,
+                                  .error_variance = error_variance,
+                                  .variance_threshold = variance_threshold,
+                                  .count_threshold = count_threshold,
+                                  .converged = converged };
 }
 
 std::vector< float > GradientDescentNew::compute_column_count( const std::vector< float >& current_solution )
 {
     std::vector< float > counts_per_column( current_solution.size(), 0.0f );
 
-    for ( size_t i = 0; i < current_solution.size(); ++i ) {
-        for ( size_t j = 0; j < current_solution.size(); ++j ) {
-            counts_per_column[ i ] += std::abs( current_solution[ i ] * _coefficient_matrix[ j ][ i ] );
+    for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+        for ( size_t j = 0; j < _coefficient_matrix[ i ].size(); ++j ) {
+            counts_per_column[ j ] += std::abs( _coefficient_matrix[ i ][ j ] * current_solution[ j ] );
         }
     }
-
 
     return counts_per_column;
 }
@@ -121,26 +138,16 @@ bool GradientDescentNew::compute_convergence( const std::vector< float >& counts
 {
     variance_threshold = error_mean * 10.0f;
 
-    if ( std::abs( error_variance ) > variance_threshold ) {
+    float column_count_sum = std::abs(
+    std::accumulate( counts_per_column.begin(), counts_per_column.end() - 1, 0.0f ) );
+    count_threshold = column_count_sum * 0.05f;
+
+    if ( error_variance > variance_threshold ) {
         return false;
     }
 
-    // float column_count_sum = std::accumulate( counts_per_column.begin(), counts_per_column.end(), 0.0f );
-    // float count_threshold = column_count_sum * 0.05f;
-
-    float mean_column_count = std::accumulate( counts_per_column.begin(), counts_per_column.end(), 0.0f ) /
-                              counts_per_column.size();
-
-    float stddev_column_count = 0.0f;
-    for ( const auto& count : counts_per_column ) {
-        stddev_column_count += ( count - mean_column_count ) * ( count - mean_column_count );
-    }
-    stddev_column_count = std::sqrt( stddev_column_count / counts_per_column.size() );
-
-    count_threshold = mean_column_count + 2 * stddev_column_count;
-
-    for ( const auto& count : counts_per_column ) {
-        if ( std::abs( count ) > count_threshold ) {
+    for ( size_t i = 0; i < counts_per_column.size() - 1; ++i ) {
+        if ( std::abs( counts_per_column[ i ] ) < count_threshold ) {
             return false;
         }
     }
@@ -161,9 +168,12 @@ std::vector< float > GradientDescentNew::compute_gradient( const std::vector< fl
         }
     }
 
+    for ( float& grad : gradient ) {
+        grad /= _coefficient_matrix.size();
+    }
+
     return gradient;
 }
-
 
 std::vector< float > GradientDescentNew::compute_errors( const std::vector< float >& current_solution )
 {

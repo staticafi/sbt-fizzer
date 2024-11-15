@@ -19,7 +19,7 @@ class GradientDescentNew {
 public:
     GradientDescentNew( const std::vector< std::vector< float > >& coefficient_matrix,
                         const std::vector< float >& target_vector,
-                        float learning_rate = 0.001f,
+                        float learning_rate = 0.01f,
                         int max_iterations = 1000,
                         float convergence_threshold = 1e-4,
                         float momentum = 0.9f );
@@ -47,4 +47,5 @@ private:
                                      float& variance_threshold,
                                      float& count_threshold );
     std::vector< float > compute_column_count( const std::vector< float >& current_solution );
+    void print_input_matrix();
 };
