@@ -24,13 +24,19 @@ GradientDescent::GradientDescent( const std::vector< std::vector< float > >& coe
                                   float learning_rate,
                                   int max_iterations,
                                   float convergence_threshold,
-                                  float momentum )
+                                  float momentum,
+                                  int stagnant_threshold,
+                                  float improvement_threshold,
+                                  float error_threshold )
     : _coefficient_matrix( coefficient_matrix )
     , _target_vector( target_vector )
     , _learning_rate( learning_rate )
     , _max_iterations( max_iterations )
     , _convergence_threshold( convergence_threshold )
     , _momentum( momentum )
+    , _stagnant_threshold( stagnant_threshold )
+    , _improvement_threshold( improvement_threshold )
+    , _error_threshold( error_threshold )
 {
     std::set< std::vector< float > > unique_rows;
     std::vector< float > new_target_vector;
@@ -96,15 +102,16 @@ std::tuple< std::vector< float >, bool > GradientDescent::optimize()
     }
 
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
-    if (_debug) {
+    if ( _debug ) {
         std::cout << "Current solution: ";
-        for (const auto& val : current_solution) {
+        for ( const auto& val : current_solution ) {
             std::cout << val << " ";
         }
         std::cout << std::endl;
     }
     std::vector< float > velocity( current_solution.size(), 0.0f );
     bool converged = false;
+    int stagnant_iterations = 0;
 
     float prev_cost = std::numeric_limits< float >::max();
 
@@ -118,8 +125,22 @@ std::tuple< std::vector< float >, bool > GradientDescent::optimize()
 
         float current_cost = compute_mean_squared_error( current_solution );
 
-        if ( _debug && iteration % 5 == 0 ) {
+        if ( _debug && iteration % 25 == 0 ) {
             std::cout << "Iteration " << iteration << ", Cost: " << current_cost << std::endl;
+        }
+
+        if ( std::abs( current_cost ) < std::abs( prev_cost ) &&
+             std::abs( current_cost - prev_cost ) < _improvement_threshold ) {
+            stagnant_iterations = 0;
+        } else if ( std::abs( current_cost - prev_cost ) < _improvement_threshold ) {
+            ++stagnant_iterations;
+            if ( stagnant_iterations >= _stagnant_threshold ) {
+                if ( true ) {
+                    std::cout << "Stopped early due to lack of significant improvement after "
+                              << iteration << " iterations." << std::endl;
+                }
+                break;
+            }
         }
 
         if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
@@ -127,7 +148,20 @@ std::tuple< std::vector< float >, bool > GradientDescent::optimize()
                 std::cout << "Converged after " << iteration << " iterations." << std::endl;
             }
 
-            converged = std::abs( current_cost ) < _convergence_threshold * current_solution.size();
+            bool high_error = false;
+            for ( size_t i = 0; i < _coefficient_matrix.size(); ++i ) {
+                float predicted = dot_product( current_solution, _coefficient_matrix[ i ] );
+                float error = predicted - _target_vector[ i ];
+                if ( std::abs( error ) > 0.1 ) {
+                    high_error = true;
+                    break;
+                }
+            }
+
+            if ( !high_error ) {
+                converged = true;
+            }
+
             break;
         }
         prev_cost = current_cost;
