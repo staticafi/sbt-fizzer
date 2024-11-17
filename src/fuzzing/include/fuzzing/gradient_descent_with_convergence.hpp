@@ -8,6 +8,8 @@ struct GradientDescentResult {
     std::vector< float > column_count_weighted;
     int iterations;
     float error_mean;
+    float error_square_of_mean;
+    float error_mean_of_squares;
     float error_variance;
     float variance_threshold;
     float count_threshold;
@@ -25,6 +27,7 @@ public:
                         float momentum = 0.9f );
 
     GradientDescentResult optimize();
+    void print_input_matrix();
 
 private:
     std::vector< std::vector< float > > _coefficient_matrix;
@@ -46,6 +49,6 @@ private:
                                      float error_mean,
                                      float& variance_threshold,
                                      float& count_threshold );
+    static float compute_mean( const std::vector< float >& errors );
     std::vector< float > compute_column_count( const std::vector< float >& current_solution );
-    void print_input_matrix();
 };

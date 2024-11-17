@@ -97,7 +97,7 @@ GradientDescentResult GradientDescentNew::optimize()
     }
 
     float error_variance = compute_variance( prev_errors );
-    float error_mean = std::accumulate( prev_errors.begin(), prev_errors.end(), 0.0f ) / prev_errors.size();
+    float error_mean = compute_mean( prev_errors );
     std::vector< float > counts_per_column = compute_column_count( current_solution );
 
     float variance_threshold = 0.0f;
@@ -111,6 +111,8 @@ GradientDescentResult GradientDescentNew::optimize()
                                   .column_count_weighted = counts_per_column,
                                   .iterations = iterations,
                                   .error_mean = error_mean,
+                                  .error_square_of_mean = float( std::pow( error_mean, 2 ) ),
+                                  .error_mean_of_squares = prev_cost,
                                   .error_variance = error_variance,
                                   .variance_threshold = variance_threshold,
                                   .count_threshold = count_threshold,
@@ -136,13 +138,15 @@ bool GradientDescentNew::compute_convergence( const std::vector< float >& counts
                                               float& variance_threshold,
                                               float& count_threshold )
 {
-    variance_threshold = error_mean * 10.0f;
+    constexpr float VARIANCE_SCALING_FACTOR = 10.0f;
+
+    variance_threshold = std::abs( error_mean * VARIANCE_SCALING_FACTOR );
 
     float column_count_sum = std::abs(
     std::accumulate( counts_per_column.begin(), counts_per_column.end() - 1, 0.0f ) );
-    count_threshold = column_count_sum * 0.05f;
+    count_threshold = column_count_sum * 0.01f;
 
-    if ( error_variance > variance_threshold ) {
+    if ( error_variance > variance_threshold  ) {
         return false;
     }
 
@@ -192,7 +196,7 @@ float GradientDescentNew::compute_mean_squared_error( const std::vector< float >
     float mse = 0.0f;
 
     for ( size_t i = 0; i < errors.size(); ++i ) {
-        mse += errors[ i ] * errors[ i ];
+        mse += std::pow( errors[ i ], 2 );
     }
 
     return mse / errors.size();
@@ -222,12 +226,17 @@ std::vector< float > GradientDescentNew::generate_random_weights( size_t n )
 
 float GradientDescentNew::compute_variance( const std::vector< float >& errors )
 {
-    float mean = std::accumulate( errors.begin(), errors.end(), 0.0f ) / errors.size();
+    float mean = compute_mean( errors );
     float error_variance = 0.0f;
 
     for ( const auto& error : errors ) {
-        error_variance += ( error - mean ) * ( error - mean );
+        error_variance += std::pow( error - mean, 2 );
     }
 
     return error_variance / errors.size();
+}
+
+float GradientDescentNew::compute_mean( const std::vector< float >& errors )
+{
+    return std::accumulate( errors.begin(), errors.end(), 0.0f ) / errors.size();
 }
