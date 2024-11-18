@@ -1095,6 +1095,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
+    , coverage_control{ get_elapsed_seconds(), 0U, BITFLIP }
     , input_flow_thread{ sala_program_ptr }
     , bitshare{}
     , local_search{}
@@ -1217,14 +1218,15 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 }
             if (input_flow_thread.get_node() != nullptr)
                 collect_iid_pivots_from_sensitivity_results();
-            primary_coverage_targets.do_cleanup();
-            if (state == BITFLIP)
+            if (state == BITFLIP && !coverage_control.is_analysis_interrupted())
             {
                 do_cleanup();
                 select_next_state();
             }
+            else
+                primary_coverage_targets.do_cleanup();
         }
-        if (input_flow_thread.is_ready())
+        if (input_flow_thread.is_ready() && primary_coverage_targets.num_sensitive_targets() < 5000ULL)
         {
             branching_node*  winner{ primary_coverage_targets.get_best_others(max_input_width) };
             if (winner == nullptr && entry_branching != nullptr && !entry_branching->is_closed())
@@ -1236,6 +1238,48 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             }
             if (winner != nullptr)
                 try_start_input_flow_analysis(winner);
+        }
+
+        if (coverage_control.is_analysis_interrupted())
+        {
+            INVARIANT(state == BITFLIP);
+            if (coverage_control.is_period_exceeded(get_elapsed_seconds()))
+            {
+                if (coverage_control.nothing_covered())
+                {
+                    coverage_control.interruption_exit(state);
+                    switch (state)
+                    {
+                        case BITSHARE:
+                            if (!bitshare.get_node()->has_unexplored_direction())
+                                bitshare.stop();
+                            break;
+                        case LOCAL_SEARCH:
+                            if (!local_search.get_node()->has_unexplored_direction())
+                                local_search.stop();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                coverage_control.reset_period(get_elapsed_seconds());
+            }
+        }
+        else if (state == BITFLIP)
+            coverage_control.reset_period(get_elapsed_seconds());
+        else
+        {
+            if (coverage_control.is_period_exceeded(get_elapsed_seconds()))
+            {
+                if (coverage_control.nothing_covered())
+                {
+                    if (bitflip.is_ready())
+                        bitflip.start(leaf_branchings);
+                    if (bitflip.is_busy())
+                        coverage_control.interruption_enter(state);
+                }
+                coverage_control.reset_period(get_elapsed_seconds());
+            }
         }
 
         switch (state)
@@ -1336,6 +1380,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     {
                         uncovered_branchings.insert({ info.id, !info.direction });
                         construction_props.any_location_discovered = true;
+
+                        ++coverage_control.num_covered_branchings;
                     }
 
                     construction_props.uncovered_locations[info.id].insert(construction_props.leaf);
@@ -1347,6 +1393,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
 
                     construction_props.uncovered_locations.erase(info.id);
                     construction_props.covered_locations.insert(info.id);
+
+                    ++coverage_control.num_covered_branchings;
                 }
             }
 
@@ -1533,7 +1581,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             break;
 
         case BITFLIP:
-            INVARIANT(bitflip.is_busy() && bitshare.is_ready() && local_search.is_ready());
+            INVARIANT(bitflip.is_busy());
             recorder().on_execution_results_available();
             break;
 
@@ -1775,14 +1823,13 @@ void  fuzzer::select_next_state()
     {
         if (sala_program_ptr == nullptr || (!leaf_branchings.empty() && !uncovered_branchings.empty()))
         {
+            state = BITFLIP;
             if (bitflip.is_ready())
             {
                 bitflip.start(leaf_branchings);
                 if (bitflip.is_ready()) // The start has failed.
                     state = FINISHED;
             }
-            else
-                state = BITFLIP;
         }
         else
             state = FINISHED;

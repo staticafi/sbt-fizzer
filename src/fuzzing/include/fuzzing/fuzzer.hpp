@@ -95,6 +95,20 @@ private:
         FINISHED
     };
 
+    struct  coverage_progress_control_props
+    {
+        bool  is_analysis_interrupted() const { return interrupted_state != BITFLIP; }
+        bool  is_period_exceeded(float_64_bit const  elapsed_time) const { return elapsed_time - phase_start_time >= TIME_PERIOD; }
+        bool  nothing_covered() const { return num_covered_branchings == 0U; }
+        void  reset_period(float_64_bit const  elapsed_time) { phase_start_time = elapsed_time; num_covered_branchings = 0U; }
+        void  interruption_enter(STATE&  state) { interrupted_state = state; state = BITFLIP; }
+        void  interruption_exit(STATE&  state) { state = interrupted_state; interrupted_state = BITFLIP; }
+        static float_64_bit constexpr TIME_PERIOD{ 10.0 };
+        float_64_bit  phase_start_time;
+        natural_32_bit  num_covered_branchings;
+        STATE  interrupted_state;
+    };
+
     struct  leaf_branching_construction_props
     {
         branching_node*  leaf{ nullptr };
@@ -122,6 +136,8 @@ private:
         void  do_cleanup();
         branching_node*  get_best_sensitive(natural_32_bit  max_input_width);
         branching_node*  get_best_others(natural_32_bit  max_input_width);
+
+        std::size_t  num_sensitive_targets() const { return loop_heads_sensitive.size() + sensitive.size(); }
 
     private:
         static void  update_counts(
@@ -393,6 +409,7 @@ private:
     input_flow_analysis_thread  input_flow_thread;
 
     STATE  state;
+    coverage_progress_control_props  coverage_control;
     bitshare_analysis  bitshare;
     local_search_analysis  local_search;
     bitflip_analysis  bitflip;
