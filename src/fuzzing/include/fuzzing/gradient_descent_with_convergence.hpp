@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+#include <optional>
 #include <vector>
 
 struct GradientDescentResult {
@@ -21,6 +23,7 @@ class GradientDescentNew {
 public:
     GradientDescentNew( const std::vector< std::vector< float > >& coefficient_matrix,
                         const std::vector< float >& target_vector,
+                        std::map< size_t, float > locked_columns = {},
                         float learning_rate = 0.01f,
                         int max_iterations = 1000,
                         float convergence_threshold = 1e-4,
@@ -32,6 +35,7 @@ public:
 private:
     std::vector< std::vector< float > > _coefficient_matrix;
     std::vector< float > _target_vector;
+    std::vector< std::optional< float > > _locked_columns;
     float _learning_rate;
     int _max_iterations;
     float _convergence_threshold;

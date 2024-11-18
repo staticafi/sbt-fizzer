@@ -10,6 +10,7 @@
 
 GradientDescentNew::GradientDescentNew( const std::vector< std::vector< float > >& coefficient_matrix,
                                         const std::vector< float >& target_vector,
+                                        std::map< size_t, float > locked_columns,
                                         float learning_rate,
                                         int max_iterations,
                                         float convergence_threshold,
@@ -46,6 +47,14 @@ GradientDescentNew::GradientDescentNew( const std::vector< std::vector< float > 
     for ( auto& row : _coefficient_matrix ) {
         row.push_back( 1.0f );
     }
+
+    for ( int i = 0; i < _coefficient_matrix[ 0 ].size(); ++i ) {
+        if ( locked_columns.find( i ) != locked_columns.end() ) {
+            _locked_columns.push_back( locked_columns.at( i ) );
+        } else {
+            _locked_columns.push_back( std::nullopt );
+        }
+    }
 }
 
 void GradientDescentNew::print_input_matrix()
@@ -81,8 +90,12 @@ GradientDescentResult GradientDescentNew::optimize()
         std::vector< float > gradient = compute_gradient( current_solution );
 
         for ( size_t i = 0; i < current_solution.size(); ++i ) {
-            velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
-            current_solution[ i ] += velocity[ i ];
+            if ( _locked_columns[ i ] ) {
+                current_solution[ i ] = _locked_columns[ i ].value();
+            } else {
+                velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
+                current_solution[ i ] += velocity[ i ];
+            }
         }
 
         std::vector< float > errors = compute_errors( current_solution );
@@ -146,7 +159,7 @@ bool GradientDescentNew::compute_convergence( const std::vector< float >& counts
     std::accumulate( counts_per_column.begin(), counts_per_column.end() - 1, 0.0f ) );
     count_threshold = column_count_sum * 0.01f;
 
-    if ( error_variance > variance_threshold  ) {
+    if ( error_variance > variance_threshold ) {
         return false;
     }
 
