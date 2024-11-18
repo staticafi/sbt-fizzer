@@ -1302,6 +1302,29 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
             case BITFLIP:
                 if (bitflip.generate_next_input(stdin_bits))
                     return true;
+                if (coverage_control.is_analysis_interrupted())
+                {
+                    if (bitflip.is_ready())
+                        bitflip.start(leaf_branchings);
+                    if (bitflip.is_ready())
+                    {
+                        coverage_control.interruption_exit(state);
+                        switch (state)
+                        {
+                            case BITSHARE:
+                                if (!bitshare.get_node()->has_unexplored_direction())
+                                    bitshare.stop();
+                                break;
+                            case LOCAL_SEARCH:
+                                if (!local_search.get_node()->has_unexplored_direction())
+                                    local_search.stop();
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    continue;
+                }
                 break;
 
             case FINISHED:
