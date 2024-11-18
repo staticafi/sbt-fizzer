@@ -17,7 +17,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
-        "num_executions": 1000,
+        "num_executions": 1050,
         "num_covered_branchings": 26,
         "covered_branchings": [
             1,0,    2,0,    3,0,    4,0,    
@@ -30,12 +30,12 @@
         ],
         "output_statistics": {
             "local_search": {
-                "num_generated_tests": 7,
+                "num_generated_tests": 11,
                 "num_crashes": 0,
-                "num_boundary_violations": 0
+                "num_boundary_violations": 1
             },
             "bitflip_analysis": {
-                "num_generated_tests": 3,
+                "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
