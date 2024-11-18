@@ -2016,6 +2016,11 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
             if (it_pivot != props.pivots.end())
             {
                 props.pivots.erase(it_pivot);
+                for (auto it = props.pivots.begin(); it != props.pivots.end();)
+                    if (it->first->get_best_trace() == nullptr)
+                        it = props.pivots.erase(it);
+                    else
+                        ++it;
                 if (props.pivots.empty())
                     iid_pivots.erase(it_iid_loc);
                 else if (node == props.pivot_with_lowest_abs_value)
