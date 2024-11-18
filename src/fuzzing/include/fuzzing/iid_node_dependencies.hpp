@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <fuzzing/branching_node.hpp>
+#include <fuzzing/gradient_descent_with_convergence.hpp>
 #include <fuzzing/sensitivity_analysis.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 
@@ -37,10 +38,7 @@ struct Mean_counter {
 
     operator int() const { return static_cast< int >( value ); }
 
-    friend std::ostream& operator<<( std::ostream& os, Mean_counter const& m )
-    {
-        return os << m.value;
-    }
+    friend std::ostream& operator<<( std::ostream& os, Mean_counter const& m ) { return os << m.value; }
 
 private:
     size_t count;
@@ -68,8 +66,8 @@ struct path_decision {
 
     friend std::ostream& operator<<( std::ostream& os, path_decision const& pd )
     {
-        return os << " left: " << pd.left_current << "/" << pd.left_max
-                  << " right: " << pd.right_current << "/" << pd.right_max;
+        return os << " left: " << pd.left_current << "/" << pd.left_max << " right: " << pd.right_current
+                  << "/" << pd.right_max;
     }
 
     bool get_next_direction();
@@ -134,14 +132,20 @@ struct iid_node_dependence_props {
     void add_equation( branching_node* path );
     std::map< location_id, path_decision > generate_path();
 
-    void compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies,
-                                          branching_node* end_node );
+    void compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies, branching_node* end_node );
 
 private:
     std::vector< float > approximate_matrix();
     int get_possible_depth() const;
     void dependencies_generation();
+    void get_best_subset( std::vector< std::vector< std::optional< float > > > const& table,
+                          std::vector< std::set< node_direction > > const& subsets );
     void print_dependencies();
+    void print_subsets( std::set< node_direction > const& subset,
+                        GradientDescentResult const& result,
+                        std::vector< float > const& node_counts );
+    void print_table( std::set< node_direction > const& all_leafs,
+                      std::vector< std::vector< std::optional< float > > > const& table );
     void compute_dependencies_by_loading( loading_loops_t& loading_loops, branching_node* end_node );
 
     std::vector< std::vector< float > > get_matrix( std::set< node_direction > const& subset ) const;

@@ -1,5 +1,5 @@
 #include <fuzzing/fuzzer.hpp>
-#include <fuzzing/gradient_descent.hpp>
+#include <fuzzing/gradient_descent_with_convergence.hpp>
 #include <fuzzing/iid_node_dependencies.hpp>
 #include <utility/timeprof.hpp>
 
@@ -305,6 +305,78 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
             std::cout << "- " << "`(" << body << ") → " << loading.id << "`" << std::endl;
         }
     }
+
+    std::cout << "# Subsets:" << std::endl;
+}
+
+void fuzzing::iid_node_dependence_props::print_subsets( std::set< node_direction > const& subset,
+                                                        GradientDescentResult const& result,
+                                                        std::vector< float > const& node_counts )
+{
+    std::cout << "## Subset of nodes: `{ ";
+    auto delimeter = "";
+    for ( const auto& leaf : subset ) {
+        std::cout << delimeter << "(" << leaf << ")";
+        delimeter = ", ";
+    }
+    std::cout << " }`" << std::endl;
+
+    std::cout << "### Weights and Counts:" << std::endl;
+    std::cout << "- `Iterations: " << result.iterations << "`" << std::endl;
+    std::cout << "- `Error variance: " << result.error_variance << "`" << std::endl;
+    std::cout << "- `Error mean: " << result.error_mean << "`" << std::endl;
+    std::cout << "- `Error square of mean: " << result.error_square_of_mean << "`" << std::endl;
+    std::cout << "- `Error mean of squares: " << result.error_mean_of_squares << "`" << std::endl;
+    std::cout << "- `Variance threshold: " << result.variance_threshold << "`" << std::endl;
+    std::cout << "- `Count threshold: " << result.count_threshold << "`" << std::endl;
+    std::cout << "- `Converged: " << ( result.converged ? "True" : "False" ) << "`" << std::endl;
+
+    for ( size_t i = 0; i < subset.size(); ++i ) {
+        const auto& node = *std::next( subset.begin(), i );
+        std::cout << "- `(" << node << "):`" << std::endl;
+        std::cout << "    - `Weight: " << result.weights[ i ] << "`" << std::endl;
+        std::cout << "    - `Count: " << static_cast< int >( std::round( node_counts[ i ] ) ) << "`" << std::endl;
+        std::cout << "    - `Column count weighted: " << result.column_count_weighted[ i ] << "`" << std::endl;
+    }
+
+    std::cout << "- `Increment:`\n    - `Weight: " << result.weights.back()
+              << "`\n    - `Column count weighted: " << result.column_count_weighted.back() << "`" << std::endl;
+}
+
+void fuzzing::iid_node_dependence_props::print_table( std::set< node_direction > const& all_leafs,
+                                                      std::vector< std::vector< std::optional< float > > > const& table )
+{
+    std::cout << "## Result table:" << std::endl;
+    std::cout << "| ";
+    for ( const auto& node : all_leafs ) {
+        std::cout << node << " | ";
+    }
+
+    std::cout << "Increment |" << " Error |" << " Converged |" << std::endl;
+
+    std::cout << "| ";
+    for ( size_t i = 0; i < all_leafs.size(); ++i ) {
+        std::cout << "--- | ";
+    }
+    std::cout << "--- |" << "--- |" << "--- |" << std::endl;
+
+    for ( const auto& row : table ) {
+        std::cout << "| ";
+        for ( size_t i = 0; i < row.size(); ++i ) {
+            const auto& value = row[ i ];
+            if ( value.has_value() ) {
+                if ( i == row.size() - 1 ) {
+                    std::cout << ( value.value() == 1 ? "True" : "False" );
+                } else {
+                    std::cout << value.value();
+                }
+            }
+            std::cout << " | ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
 }
 
 void fuzzing::iid_node_dependence_props::dependencies_generation()
@@ -317,40 +389,44 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
 
     std::vector< std::set< node_direction > > subsets = get_subsets( all_leafs );
 
-    std::cout << "# Subsets:" << std::endl;
+    std::vector< std::vector< std::optional< float > > > table;
+
     for ( const auto& subset : subsets ) {
         std::vector< std::vector< float > > sub_matrix = get_matrix( subset );
 
-        std::cout << "## Subset of nodes: `{ ";
-        auto delimeter = "";
-        for ( const auto& leaf : subset ) {
-            std::cout << delimeter << "(" << leaf << ")";
-            delimeter = ", ";
-        }
-        std::cout << " }`" << std::endl;
+        GradientDescentNew gd( sub_matrix, best_values );
+        auto result = gd.optimize();
 
-        GradientDescent gd( sub_matrix, best_values );
-        auto [ weights, converged ] = gd.optimize();
+        std::vector< float >& weights = result.weights;
 
-        float dot_product =
-        std::inner_product( weights.begin(), weights.end() - 1, weights.begin(), 0.0f );
+        float dot_product = std::inner_product( weights.begin(), weights.end() - 1, weights.begin(), 0.0f );
         std::vector< float > node_counts;
         for ( auto it = weights.begin(); it != weights.end() - 1; ++it ) {
             node_counts.push_back( -weights.back() * ( *it ) / dot_product );
         }
 
-        std::cout << "### Weights and Counts:" << std::endl;
-        std::cout << "- `Converged: " << ( converged ? "True" : "False" ) << "`" << std::endl;
-        for ( size_t i = 0; i < subset.size(); ++i ) {
-            const auto& node = *std::next( subset.begin(), i );
-            std::cout << "- `(" << node << "): " << weights[ i ] << " ("
-                      << static_cast< int >( std::round( node_counts[ i ] ) ) << ")`" << std::endl;
+
+        std::vector< std::optional< float > > row;
+        for ( const auto& node : all_leafs ) {
+            auto it = std::find( subset.begin(), subset.end(), node );
+            if ( it != subset.end() ) {
+                row.push_back( weights[ std::distance( subset.begin(), it ) ] );
+            } else {
+                row.push_back( std::nullopt );
+            }
         }
 
-        std::cout << "- `Increment: " << weights.back() << "`" << std::endl;
+        row.push_back( weights.back() );
+        row.push_back( result.error_mean );
+        row.push_back( result.converged );
+
+        table.push_back( row );
+
+        print_subsets( subset, result, node_counts );
+        // gd.print_input_matrix();
     }
 
-    std::cout << std::endl;
+    print_table( all_leafs, table );
 }
 
 std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
@@ -376,8 +452,8 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
         std::cout << "Path Depth" << it->second.path_depth << std::endl;
         std::cout << "Closest value to 0: " << it->first << std::endl;
         for ( const auto& [ direction, stats ] : it->second.direction_statistics ) {
-            std::cout << "Direction: " << direction << ", Min: " << stats.min
-                      << ", Max: " << stats.max << ", Mean: " << stats.mean << std::endl;
+            std::cout << "Direction: " << direction << ", Min: " << stats.min << ", Max: " << stats.max
+                      << ", Mean: " << stats.mean << std::endl;
         }
     }
 
@@ -456,18 +532,18 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
  */
 std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix()
 {
-    GradientDescent gd( matrix, best_values );
-    auto [ weights, converged ] = gd.optimize();
+    GradientDescentNew gd( matrix, best_values );
+    GradientDescentResult result = gd.optimize();
 
     if ( false ) {
         for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
             const auto& node = *std::next( interesting_nodes.begin(), i );
             std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.branching_direction
-                      << ", Weight: " << weights[ i ] << std::endl;
+                      << ", Weight: " << result.weights[ i ] << std::endl;
         }
     }
 
-    return weights;
+    return result.weights;
 }
 
 
@@ -499,8 +575,7 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
     int second_depth = it->second.path_depth.min;
     float second_value = it->first;
 
-    int interpolated_depth =
-    linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
+    int interpolated_depth = linear_interpolation( first_value, first_depth, second_value, second_depth, 0 );
 
     return interpolated_depth;
 }
@@ -665,8 +740,7 @@ std::vector< fuzzing::node_direction > fuzzing::get_path( branching_node* node )
     while ( current != nullptr ) {
         branching_node* predecessor = current->predecessor;
         if ( predecessor != nullptr ) {
-            node_direction nav = { predecessor->get_location_id(),
-                                   predecessor->successor_direction( current ) };
+            node_direction nav = { predecessor->get_location_id(), predecessor->successor_direction( current ) };
             path.push_back( nav );
         }
         current = predecessor;
