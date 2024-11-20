@@ -1,6 +1,6 @@
 #include <instrumentation/fuzz_target.hpp>
 #include <instrumentation/data_record_id.hpp>
-
+#include <sys/resource.h>
 #include <iostream>
 
 extern "C" {
@@ -19,6 +19,14 @@ using namespace instrumentation;
 #endif
 
 int main(int argc, char* argv[]) {
+    struct rlimit rl;
+    const rlim_t stack_size = 64L * 1024L * 1024L;
+    if (getrlimit(RLIMIT_STACK, &rl) == 0 && rl.rlim_cur < stack_size)
+    {
+        rl.rlim_cur = stack_size;
+        setrlimit(RLIMIT_STACK, &rl);
+    }
+
     /* disable core dumps as this significantly slows down the termination 
     in case of a crash */
     #if PLATFORM() == PLATFORM_LINUX()
