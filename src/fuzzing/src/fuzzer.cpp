@@ -7,6 +7,8 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <iterator>
+#include <fuzzing/gradient_descent.hpp>
 
 namespace  fuzzing {
 
@@ -273,7 +275,7 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
 
             if (node->max_successors_trace_index > other.node->max_successors_trace_index)
             {
-                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESOR_TRACE_INDEX);
+                recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESSOR_TRACE_INDEX);
                 return true;
             }
             return false;
@@ -813,6 +815,7 @@ fuzzer::fuzzer(termination_info const&  info)
             &statistics
             }
     , iid_pivots{}
+    , iid_dependences{}
 
     , coverage_failures_with_hope{}
 
@@ -971,7 +974,6 @@ void  fuzzer::generate_next_input(vecb&  stdin_bits)
     UNREACHABLE();
 }
 
-
 execution_record::execution_flags  fuzzer::process_execution_results()
 {
     TMPROF_BLOCK();
@@ -1008,6 +1010,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     trace->front().xor_like_branching_function
                     );
             construction_props.diverging_node = entry_branching;
+
+            iid_dependences.process_node_dependence(entry_branching);
 
             ++statistics.nodes_created;
         }
@@ -1074,9 +1078,7 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     node->set_closed(false);
 
                 branching_coverage_info const&  succ_info = trace->at(trace_index + 1);
-                construction_props.leaf->set_successor(info.direction, {
-                    branching_node::successor_pointer::VISITED,
-                    new branching_node(
+                auto new_node = new branching_node(
                         succ_info.id,
                         trace_index + 1,
                         succ_info.num_input_bytes,
@@ -1088,8 +1090,13 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value * succ_info.value,
                         num_driver_executions,
                         succ_info.xor_like_branching_function
-                        )
+                        );
+                construction_props.leaf->set_successor(info.direction, {
+                    branching_node::successor_pointer::VISITED,
+                    new_node
                 });
+
+                iid_dependences.process_node_dependence(new_node);
 
                 ++statistics.nodes_created;
 
@@ -1256,6 +1263,7 @@ void  fuzzer::do_cleanup()
                     update_close_flags_from(node);
                     break;
                 }
+            iid_dependences.update_non_iid_nodes(sensitivity);
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
@@ -1516,12 +1524,13 @@ void  fuzzer::select_next_state()
 }
 
 
-branching_node*  fuzzer::select_iid_coverage_target() const
+branching_node*  fuzzer::select_iid_coverage_target()
 {
     TMPROF_BLOCK();
 
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
+    
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),
@@ -1578,12 +1587,16 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     }
     else
     {
-        branching_node* const  start_node = select_start_node_for_monte_carlo_search(
+        branching_node* start_node = select_start_node_for_monte_carlo_search(
                 it_pivot->second.loop_boundaries,
                 it_pivot->second.generator_for_start_node_selection,
                 0.75f,
                 entry_branching
                 );
+
+        branching_node* possible_start = select_iid_coverage_target_from_dependencies();
+        if (possible_start != nullptr)
+            start_node = possible_start;
 
         recorder().on_node_chosen(start_node, fuzzing::progress_recorder::START_MONTE_CARLO);
         winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
@@ -1597,6 +1610,31 @@ branching_node*  fuzzer::select_iid_coverage_target() const
     return winner;
 }
 
+branching_node* fuzzer::select_iid_coverage_target_from_dependencies()
+{
+    instrumentation::location_id loc_id(7);
+    if (!iid_dependences.id_to_equation_map.contains(loc_id)) {
+        return nullptr;
+    }
+
+    iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
+    std::map< location_id, fuzzing::path_decision > path = props.generate_path();
+
+    branching_node* node = entry_branching;
+    while ( true ) {
+        bool direction = path[node->get_location_id()].get_next_direction();
+        branching_node* next_node = node->successor(direction).pointer;
+        if (next_node == nullptr) {
+            break;
+        }
+        recorder().on_node_chosen(next_node, fuzzing::progress_recorder::DEPENDENCY_STEP);
+        node = next_node;
+    }
+    recorder().on_node_chosen(node, fuzzing::progress_recorder::DEPENDENCY_END);
+
+    return nullptr;
+    // return node;
+}
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {

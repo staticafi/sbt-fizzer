@@ -4,6 +4,7 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/typed_minimization_analysis.hpp>
+#   include <fuzzing/iid_node_dependencies.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
@@ -17,6 +18,8 @@
 #   include <chrono>
 #   include <memory>
 #   include <limits>
+#   include <set>
+#   include <map>
 
 namespace  fuzzing {
 
@@ -290,7 +293,8 @@ private:
     void  do_cleanup();
     void  collect_iid_pivots_from_sensitivity_results();
     void  select_next_state();
-    branching_node*  select_iid_coverage_target() const;
+    branching_node*  select_iid_coverage_target();
+    branching_node*  select_iid_coverage_target_from_dependencies();
 
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();
@@ -310,8 +314,9 @@ private:
 
     primary_coverage_target_branchings  primary_coverage_targets;
     std::unordered_map<location_id, iid_location_props>  iid_pivots;
+    iid_dependencies  iid_dependences;
 
-    std::unordered_set<branching_node*>  coverage_failures_with_hope; // EXPLAIN
+    std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     STATE  state;
     sensitivity_analysis  sensitivity;
