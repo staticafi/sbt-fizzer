@@ -58,7 +58,7 @@ void terminator_medium::set_termination(instrumentation::target_termination  ter
 
 struct extern_code : public sala::ExternCodeCStd
 {
-    extern_code(sala::ExecState*  state, input_flow_analysis::io_models_setup const* io_setup_ptr_);
+    extern_code(sala::ExecState*  state, sala::Sanitizer* const sanitizer, input_flow_analysis::io_models_setup const* io_setup_ptr_);
     input_flow_analysis::io_models_setup const&  io_setup() const { return *io_setup_ptr; }
 private:
     void read(std::size_t count);
@@ -67,8 +67,8 @@ private:
 };
 
 
-extern_code::extern_code(sala::ExecState* const  state, input_flow_analysis::io_models_setup const* const io_setup_ptr_)
-    : sala::ExternCodeCStd{ state }
+extern_code::extern_code(sala::ExecState* const  state, sala::Sanitizer* const sanitizer, input_flow_analysis::io_models_setup const* const io_setup_ptr_)
+    : sala::ExternCodeCStd{ state, sanitizer }
     , medium_{ state }
     , io_setup_ptr{ io_setup_ptr_ }
 {
@@ -261,7 +261,7 @@ void  input_flow_analysis::run(computation_io_data* const  data_ptr_, std::funct
     sala::ExecState  state{ program_ptr, io_setup().io_config.max_exec_megabytes * 1024ULL * 1024ULL };
     sala::Sanitizer  sanitizer{ &state };
     input_flow  flow{ this, &state };
-    extern_code  externals{ &state, &io_setup() };
+    extern_code  externals{ &state, &sanitizer, &io_setup() };
     sala::Interpreter  interpreter{ &state, &externals, { &sanitizer, &flow } };
 
     interpreter.run(terminator);
