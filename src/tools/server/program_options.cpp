@@ -58,8 +58,20 @@ program_options::program_options(int argc, char* argv[])
     add_option("optimizer_max_trace_length", "Test suite optimizer option. Max number of branchings in a trace.", "1");
     add_value("optimizer_max_trace_length", std::to_string(optimizer_config.max_trace_length));
 
+    add_option("optimizer_max_br_instr_trace_length", "Max number of branchings in a trace.", "1");
+    add_value("optimizer_max_br_instr_trace_length", std::to_string(optimizer_config.max_br_instr_trace_length));
+
+    add_option("optimizer_max_stack_size", "Max number of stack records during benchmark execution.", "1");
+    add_value("optimizer_max_stack_size", std::to_string(optimizer_config.max_stack_size));
+
     add_option("optimizer_max_stdin_bytes", "Test suite optimizer option. Max number of stdin bits read during benchmark execution.", "1");
     add_value("optimizer_max_stdin_bytes", std::to_string(optimizer_config.max_stdin_bytes));
+
+    add_option("optimizer_max_exec_milliseconds", "Max number of milliseconds for benchmark execution.", "1");
+    add_value("optimizer_max_exec_milliseconds", std::to_string(optimizer_config.max_exec_milliseconds));
+
+    add_option("optimizer_max_exec_megabytes", "Max number of mega bytes which can be allocated during benchmark execution.", "1");
+    add_value("optimizer_max_exec_megabytes", std::to_string(optimizer_config.max_exec_megabytes));
 
     add_option(
         "path_to_client",

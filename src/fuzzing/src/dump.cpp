@@ -27,7 +27,7 @@ void  print_fuzzing_configuration(
          << shift << "\"max_seconds\": " << terminator.max_seconds << ",\n"
          << shift << "\"max_trace_length\": " << ioconfig.max_trace_length << ",\n"
          << shift << "\"max_br_instr_trace_length\": " << ioconfig.max_br_instr_trace_length << ",\n"
-         << shift << "\"max_stack_size\": " << (int)ioconfig.max_stack_size << ",\n"
+         << shift << "\"max_stack_size\": " << ioconfig.max_stack_size << ",\n"
          << shift << "\"max_stdin_bytes\": " << ioconfig.max_stdin_bytes << ",\n"
          << shift << "\"max_exec_milliseconds\": " << ioconfig.max_exec_milliseconds << ",\n"
          << shift << "\"max_exec_megabytes\": " << ioconfig.max_exec_megabytes << ",\n"
@@ -290,7 +290,11 @@ void  print_optimization_configuration(std::ostream&  ostr, optimizer::configura
     ostr << "{\n"
          << shift << "\"max_seconds\": " << config.max_seconds << ",\n"
          << shift << "\"max_trace_length\": " << config.max_trace_length << ",\n"
-         << shift << "\"max_stdin_bytes\": " << config.max_stdin_bytes << "\n"
+         << shift << "\"max_br_instr_trace_length\": " << config.max_br_instr_trace_length << ",\n"
+         << shift << "\"max_stack_size\": " << config.max_stack_size << ",\n"
+         << shift << "\"max_stdin_bytes\": " << config.max_stdin_bytes << ",\n"
+         << shift << "\"max_exec_milliseconds\": " << config.max_exec_milliseconds << ",\n"
+         << shift << "\"max_exec_megabytes\": " << config.max_exec_megabytes << "\n"
          << "}"
          ;
 }

@@ -19,9 +19,13 @@ struct  optimizer final
 {
     struct  configuration
     {
-        natural_32_bit  max_seconds{ 10 };
+        natural_32_bit  max_seconds{ 30 };
         natural_32_bit  max_trace_length{ 10000000 };
-        natural_32_bit  max_stdin_bytes{ 18000000 };
+        natural_32_bit  max_br_instr_trace_length{ 10000000 };
+        natural_16_bit  max_stack_size{ 1000 };
+        natural_32_bit  max_stdin_bytes{ 128U*1024U*1024U };
+        natural_16_bit  max_exec_milliseconds{ 3000 };
+        natural_16_bit  max_exec_megabytes{ 2048 };
     };
 
     enum struct TERMINATION_REASON

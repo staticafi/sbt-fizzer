@@ -128,7 +128,7 @@ void run(int argc, char* argv[])
             .max_exec_milliseconds = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_milliseconds"))),
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_trace_length"))),
             .max_br_instr_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("max_br_instr_trace_length"))),
-            .max_stack_size = (natural_8_bit)std::max(0, std::stoi(get_program_options()->value("max_stack_size"))),
+            .max_stack_size = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_stack_size"))),
             .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("max_stdin_bytes"))),
             .max_exec_megabytes = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("max_exec_megabytes"))),
             .stdin_model_name = get_program_options()->value("stdin_model"),
@@ -138,7 +138,11 @@ void run(int argc, char* argv[])
     fuzzing::optimizer::configuration  optimizer_config{
             .max_seconds = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_seconds"))),
             .max_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_trace_length"))),
-            .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes")))
+            .max_br_instr_trace_length = (natural_32_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_br_instr_trace_length"))),
+            .max_stack_size = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stack_size"))),
+            .max_stdin_bytes = (iomodels::stdin_base::byte_count_type)std::max(0, std::stoi(get_program_options()->value("optimizer_max_stdin_bytes"))),
+            .max_exec_milliseconds = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_exec_milliseconds"))),
+            .max_exec_megabytes = (natural_16_bit)std::max(0, std::stoi(get_program_options()->value("optimizer_max_exec_megabytes")))
             };
     if (optimizer_config.max_seconds > 0U && optimizer_config.max_trace_length <= iomodels::iomanager::instance().get_config().max_trace_length)
     {
@@ -295,7 +299,11 @@ void run(int argc, char* argv[])
         {
             iomodels::configuration  io_cfg = iomodels::iomanager::instance().get_config();
             io_cfg.max_trace_length = optimizer_config.max_trace_length;
+            io_cfg.max_br_instr_trace_length = optimizer_config.max_br_instr_trace_length;
+            io_cfg.max_stack_size = optimizer_config.max_stack_size;
             io_cfg.max_stdin_bytes = optimizer_config.max_stdin_bytes;
+            io_cfg.max_exec_milliseconds = optimizer_config.max_exec_milliseconds;
+            io_cfg.max_exec_megabytes = optimizer_config.max_exec_megabytes;
             iomodels::iomanager::instance().set_config(io_cfg);
             benchmark_executor->on_io_config_changed();
         }
