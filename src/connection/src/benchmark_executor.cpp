@@ -79,7 +79,9 @@ void benchmark_executor_via_shared_memory::operator()()
 
 void benchmark_executor_via_shared_memory::on_io_config_changed()
 {
+    executor->get_shared_memory().clear();
     executor->init_shared_memory(iomodels::iomanager::instance().get_config().required_shared_memory_size());
+    executor->set_timeout(iomodels::iomanager::instance().get_config().max_exec_milliseconds);
 }
 
 

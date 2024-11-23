@@ -19,6 +19,7 @@ void client::run_input_mode(vecu8 input_bytes) {
     iomodels::iomanager& iomanager = iomodels::iomanager::instance();
     
     executor.init_shared_memory(iomanager.get_config().required_shared_memory_size());
+    executor.set_timeout(iomanager.get_config().max_exec_milliseconds);
     iomanager.get_config().save_target_config(executor.get_shared_memory());
 
     executor.get_shared_memory() << (iomodels::stdin_base::byte_count_type) input_bytes.size();
