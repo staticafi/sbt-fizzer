@@ -78,6 +78,10 @@ struct  fuzzer final
     bool  round_begin(TERMINATION_REASON&  termination_reason);
     std::pair<execution_record::execution_flags, std::string const&>  round_end();
 
+    void  enable_renderer(bool state);
+    bool  is_renderer_enabled() const;
+    void  render() const;
+
     input_flow_analysis::performance_statistics const&  get_input_flow_statistics() const { return input_flow_thread.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     local_search_analysis::performance_statistics const&  get_local_search_statistics() const { return local_search.get_statistics(); }
@@ -138,6 +142,15 @@ private:
         branching_node*  get_best_others(natural_32_bit  max_input_width);
 
         std::size_t  num_sensitive_targets() const { return loop_heads_sensitive.size() + sensitive.size(); }
+
+        std::unordered_set<branching_node*> const&  get_loop_heads_sensitive() const { return loop_heads_sensitive; }
+        std::unordered_set<branching_node*> const&  get_loop_heads_others() const { return loop_heads_others; }
+        std::unordered_map<branching_node*, bool> const&  get_sensitive() const { return sensitive; }
+        std::unordered_map<branching_node*, bool> const&  get_untouched() const { return untouched; }
+        std::unordered_map<location_id, std::pair<branching_node*, bool> > const&  get_iid_twins_sensitive() const { return iid_twins_sensitive; }
+        std::unordered_map<location_id, std::pair<branching_node*, bool> > const&  get_iid_twins_others() const { return iid_twins_others; }
+        std::unordered_map<location_id::id_type, natural_32_bit> const&  get_sensitive_counts() const { return sensitive_counts; }
+        std::unordered_map<location_id::id_type, natural_32_bit> const&  get_untouched_counts() const { return untouched_counts; }
 
     private:
         static void  update_counts(
@@ -420,6 +433,14 @@ private:
     mutable random_generator_for_natural_32_bit  generator_for_iid_approach_selection;
     mutable random_generator_for_natural_32_bit  generator_for_generator_selection;
 
+    enum struct  RENDER_STATE
+    {
+        DISABLED = 0,
+        STARTED = 1,
+        WORKING = 2,
+        PAUSED = 3
+    };
+    mutable RENDER_STATE  render_state;
     mutable performance_statistics  statistics;
 };
 

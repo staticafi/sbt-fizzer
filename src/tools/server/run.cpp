@@ -269,7 +269,8 @@ void run(int argc, char* argv[])
                 if (optimizer_config.max_seconds > 0)
                     inputs_leading_to_boundary_violation.push_back(record.stdin_bytes);
                 },
-        terminator
+        terminator,
+        !get_program_options()->has("silent_mode") && get_program_options()->has("render")
         );
 
     if (!get_program_options()->has("silent_mode"))

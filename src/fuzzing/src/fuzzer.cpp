@@ -1107,6 +1107,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
     , generator_for_iid_approach_selection{ 1U }
     , generator_for_generator_selection{ 1U }
 
+    , render_state{ RENDER_STATE::DISABLED }
     , statistics{}
 {}
 

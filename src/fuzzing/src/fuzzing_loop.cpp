@@ -19,7 +19,8 @@ analysis_outcomes  run(
         sala::Program const* const sala_program_ptr,
         execution_record_writer&  save_execution_record,
         std::function<void(execution_record const&)> const&  collector_of_boundary_violations,
-        fuzzing::termination_info const&  info
+        fuzzing::termination_info const&  info,
+        bool const  render
         )
 {
     TMPROF_BLOCK();
@@ -40,6 +41,8 @@ analysis_outcomes  run(
     std::unordered_set<location_id::id_type>  exit_locations_of_boundary_violations;
 
     fuzzer f{ info, sala_program_ptr };
+    f.enable_renderer(render);
+    f.render();
 
     try
     {
@@ -58,6 +61,7 @@ analysis_outcomes  run(
 
             execution_record  record;
             std::tie(record.flags, record.analysis_name) = f.round_end();
+            f.render();
 
             if ((record.flags & (execution_record::BRANCH_DISCOVERED  |
                                  execution_record::BRANCH_COVERED     |

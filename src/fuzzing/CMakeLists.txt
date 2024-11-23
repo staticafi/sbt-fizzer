@@ -10,6 +10,7 @@ add_library(${THIS_TARGET_NAME}
     ./src/branching_node.cpp
     ./include/fuzzing/fuzzer.hpp
     ./src/fuzzer.cpp
+    ./src/renderer.cpp
 
     ./include/fuzzing/input_flow_analysis.hpp
     ./src/input_flow_analysis.cpp
