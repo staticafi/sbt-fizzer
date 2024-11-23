@@ -417,6 +417,7 @@ private:
     primary_coverage_target_branchings  primary_coverage_targets;
     std::unordered_map<location_id, iid_location_props>  iid_pivots;
 
+    std::unordered_set<branching_node*>  dead_nodes_buffer;
     std::unordered_set<branching_node*>  coverage_failures_with_hope;
 
     input_flow_analysis_thread  input_flow_thread;

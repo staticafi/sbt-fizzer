@@ -1092,6 +1092,7 @@ fuzzer::fuzzer(termination_info const&  info, sala::Program const* const sala_pr
             }
     , iid_pivots{}
 
+    , dead_nodes_buffer{}
     , coverage_failures_with_hope{}
 
     , state{ STARTUP }
@@ -1449,7 +1450,10 @@ execution_record::execution_flags  fuzzer::process_execution_results()
             }
 
             if (!construction_props.leaf->is_direction_unexplored(false) && !construction_props.leaf->is_direction_unexplored(true))
+            {
                 construction_props.leaf->release_best_data(false);
+                dead_nodes_buffer.insert(construction_props.leaf);
+            }
             else if (std::fabs(info.value) < std::fabs(construction_props.leaf->get_best_value()))
                 construction_props.leaf->update_best_data(bits_and_types, trace, br_instr_trace, num_driver_executions);
 
@@ -1661,16 +1665,27 @@ void  fuzzer::do_cleanup()
             it = coverage_failures_with_hope.erase(it);
         else
             ++it;
+
+    dead_nodes_buffer.clear();
 }
 
 
 void  fuzzer::do_cleanup_iid_pivots()
 {
+    TMPROF_BLOCK();
+
     for (auto  it = iid_pivots.begin(); it != iid_pivots.end(); )
         if (covered_branchings.contains(it->first))
             it = iid_pivots.erase(it);
         else
-            ++it;
+        {
+            for (auto dit = dead_nodes_buffer.begin(); dit != dead_nodes_buffer.end(); ++dit)
+                it->second.pivots.erase(*dit);
+            if (it->second.pivots.empty())
+                it = iid_pivots.erase(it);
+            else
+                ++it;
+        }
 }
 
 
@@ -2017,11 +2032,6 @@ void  fuzzer::remove_leaf_branching_node(branching_node*  node)
             if (it_pivot != props.pivots.end())
             {
                 props.pivots.erase(it_pivot);
-                for (auto it = props.pivots.begin(); it != props.pivots.end();)
-                    if (it->first->get_best_trace() == nullptr)
-                        it = props.pivots.erase(it);
-                    else
-                        ++it;
                 if (props.pivots.empty())
                     iid_pivots.erase(it_iid_loc);
                 else if (node == props.pivot_with_lowest_abs_value)
