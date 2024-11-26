@@ -16,6 +16,16 @@ struct GradientDescentResult {
     float variance_threshold;
     float count_threshold;
     bool converged;
+
+    bool operator==( const GradientDescentResult& other ) const
+    {
+        return weights == other.weights && errors == other.errors &&
+               column_count_weighted == other.column_count_weighted && iterations == other.iterations &&
+               error_mean == other.error_mean && error_square_of_mean == other.error_square_of_mean &&
+               error_mean_of_squares == other.error_mean_of_squares &&
+               error_variance == other.error_variance && variance_threshold == other.variance_threshold &&
+               count_threshold == other.count_threshold && converged == other.converged;
+    }
 };
 
 
@@ -25,7 +35,7 @@ public:
                         const std::vector< float >& target_vector,
                         std::map< size_t, float > locked_columns = {},
                         float learning_rate = 0.01f,
-                        int max_iterations = 1000,
+                        int max_iterations = 500,
                         float convergence_threshold = 1e-4,
                         float momentum = 0.9f );
 

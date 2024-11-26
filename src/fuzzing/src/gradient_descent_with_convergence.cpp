@@ -83,6 +83,7 @@ GradientDescentResult GradientDescentNew::optimize()
     std::vector< float > prev_errors = compute_errors( current_solution );
     std::vector< float > velocity( current_solution.size(), 0.0f );
     float prev_cost = std::numeric_limits< float >::max();
+
     bool converged = false;
     int iterations = 0;
 
@@ -101,16 +102,16 @@ GradientDescentResult GradientDescentNew::optimize()
         std::vector< float > errors = compute_errors( current_solution );
         float current_cost = compute_mean_squared_error( errors );
 
-        if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
-            break;
-        }
+        // if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
+        //     break;
+        // }
 
         prev_cost = current_cost;
         prev_errors = errors;
     }
 
     float error_variance = compute_variance( prev_errors );
-    float error_mean = compute_mean( prev_errors );
+    float error_mean = std::abs( compute_mean( prev_errors ) );
     std::vector< float > counts_per_column = compute_column_count( current_solution );
 
     float variance_threshold = 0.0f;

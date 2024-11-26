@@ -1,6 +1,7 @@
 #include <fuzzing/fuzzer.hpp>
 #include <fuzzing/gradient_descent_with_convergence.hpp>
 #include <fuzzing/iid_node_dependencies.hpp>
+#include <string>
 #include <utility/timeprof.hpp>
 
 bool fuzzing::path_decision::get_next_direction()
@@ -344,39 +345,152 @@ void fuzzing::iid_node_dependence_props::print_subsets( std::set< node_direction
 }
 
 void fuzzing::iid_node_dependence_props::print_table( std::set< node_direction > const& all_leafs,
-                                                      std::vector< std::vector< std::optional< float > > > const& table )
+                                                      std::vector< TableRow > const& table )
 {
-    std::cout << "## Result table:" << std::endl;
+    std::unordered_map< std::string, int > headers{
+        { "Error mean", 0 },
+        { "Error variance", 1 },
+        // {"Error square of mean", 2},
+        // {"Error mean of squares", 3},
+        // {"Variance threshold", 4},
+        { "Converged", 5 },
+        // { "Iterations", 6 },
+        // { "Variance threshold", 7 },
+        // { "Count threshold", 8 },
+    };
+
+    if ( std::pow( all_leafs.size(), 2 ) - 1 == table.size() ) {
+        std::cout << "# Result table:" << std::endl;
+    } else {
+        std::cout << "# Best result table:" << std::endl;
+    }
+
     std::cout << "| ";
     for ( const auto& node : all_leafs ) {
         std::cout << node << " | ";
     }
-
-    std::cout << "Increment |" << " Error |" << " Converged |" << std::endl;
+    std::cout << "Increment | ";
+    for ( const auto& header : headers ) {
+        std::cout << header.first << " | ";
+    }
+    std::cout << std::endl;
 
     std::cout << "| ";
-    for ( size_t i = 0; i < all_leafs.size(); ++i ) {
+    for ( size_t i = 0; i <= all_leafs.size() + headers.size(); ++i ) {
         std::cout << "--- | ";
     }
-    std::cout << "--- |" << "--- |" << "--- |" << std::endl;
+    std::cout << std::endl;
 
     for ( const auto& row : table ) {
         std::cout << "| ";
-        for ( size_t i = 0; i < row.size(); ++i ) {
-            const auto& value = row[ i ];
+        for ( size_t i = 0; i < row.weights.size(); ++i ) {
+            const auto& value = row.weights[ i ];
             if ( value.has_value() ) {
-                if ( i == row.size() - 1 ) {
-                    std::cout << ( value.value() == 1 ? "True" : "False" );
-                } else {
-                    std::cout << value.value();
-                }
+                std::cout << value.value();
             }
             std::cout << " | ";
         }
+
+        for ( const auto& header : headers ) {
+            int idx = header.second;
+            switch ( idx ) {
+                case 0: std::cout << row.result.error_mean; break;
+                case 1: std::cout << row.result.error_variance; break;
+                case 2: std::cout << row.result.error_square_of_mean; break;
+                case 3: std::cout << row.result.error_mean_of_squares; break;
+                case 4: std::cout << row.result.variance_threshold; break;
+                case 5: std::cout << ( row.result.converged ? "True" : "False" ); break;
+                case 6: std::cout << row.result.iterations; break;
+                case 7: std::cout << row.result.variance_threshold; break;
+                case 8: std::cout << row.result.count_threshold; break;
+            }
+            std::cout << " | ";
+        }
+
         std::cout << std::endl;
     }
 
     std::cout << std::endl;
+}
+
+void fuzzing::iid_node_dependence_props::get_best_subset( std::vector< TableRow > const& table,
+                                                          std::vector< std::set< node_direction > > const& subsets,
+                                                          std::set< node_direction > const& all_leafs )
+{
+    std::vector< TableRow > table_copy = table;
+
+    for ( const auto& row_locked : table_copy ) {
+        for ( int subset_idx = 0; subset_idx < subsets.size(); ++subset_idx ) {
+            auto& row_to_change = table_copy[ subset_idx ];
+
+            if ( row_locked == row_to_change ) {
+                continue;
+            }
+
+            bool can_be_locked = true;
+            for ( size_t i = 0; i < row_locked.weights.size() - 1; ++i ) {
+                if ( row_locked.weights[ i ].has_value() && !row_to_change.weights[ i ].has_value() ) {
+                    can_be_locked = false;
+                    break;
+                }
+            }
+
+            if ( !can_be_locked ) {
+                continue;
+            }
+
+            std::set< node_direction > subset = subsets[ subset_idx ];
+
+            std::map< size_t, float > locked_columns;
+            int column_idx = 0;
+            for ( size_t i = 0; i < row_locked.weights.size() - 1; ++i ) {
+                if ( row_locked.weights[ i ].has_value() ) {
+                    locked_columns[ column_idx ] = row_locked.weights[ i ].value();
+                }
+
+                if ( row_to_change.weights[ i ].has_value() ) {
+                    column_idx++;
+                }
+            }
+
+            GradientDescentNew gd( get_matrix( subset ), best_values, locked_columns );
+            auto result = gd.optimize();
+
+            if ( result.error_mean < row_to_change.result.error_mean && result.converged ) {
+                std::cout << "- Error was reduced from `" << row_to_change.result.error_mean << "` to `"
+                          << result.error_mean
+                          << "`, converged: " << ( result.converged ? "`True`" : "`False`" ) << std::endl;
+
+                for ( size_t i = 0; i < all_leafs.size(); ++i ) {
+                    const auto& node = *std::next( all_leafs.begin(), i );
+
+                    auto it = std::find( subset.begin(), subset.end(), node );
+                    if ( it != subset.end() ) {
+                        row_to_change.weights[ i ] = result.weights[ std::distance( subset.begin(), it ) ];
+                    } else {
+                        row_to_change.weights[ i ] = std::nullopt;
+                    }
+                }
+
+                row_to_change.result.error_mean = result.error_mean;
+                row_to_change.result.converged = row_to_change.result.converged || result.converged;
+            }
+        }
+    }
+
+    std::sort( table_copy.begin(), table_copy.end(), []( const TableRow& a, const TableRow& b ) {
+        if ( a.get_non_null_count() != b.get_non_null_count() ) {
+            return a.get_non_null_count() < b.get_non_null_count();
+        }
+
+        return a.result.error_mean < b.result.error_mean;
+    } );
+
+    std::erase_if( table_copy, [ & ]( const TableRow& row ) {
+        return !row.result.converged && row.get_non_null_count() != all_leafs.size() + 1;
+    } );
+
+    print_table( all_leafs, table_copy );
 }
 
 void fuzzing::iid_node_dependence_props::dependencies_generation()
@@ -389,7 +503,8 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
 
     std::vector< std::set< node_direction > > subsets = get_subsets( all_leafs );
 
-    std::vector< std::vector< std::optional< float > > > table;
+    std::vector< TableRow > table;
+
 
     for ( const auto& subset : subsets ) {
         std::vector< std::vector< float > > sub_matrix = get_matrix( subset );
@@ -397,7 +512,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
         GradientDescentNew gd( sub_matrix, best_values );
         auto result = gd.optimize();
 
-        std::vector< float >& weights = result.weights;
+        std::vector< float > const& weights = result.weights;
 
         float dot_product = std::inner_product( weights.begin(), weights.end() - 1, weights.begin(), 0.0f );
         std::vector< float > node_counts;
@@ -405,20 +520,18 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
             node_counts.push_back( -weights.back() * ( *it ) / dot_product );
         }
 
-
-        std::vector< std::optional< float > > row;
+        std::vector< std::optional< float > > weights_with_nulls;
         for ( const auto& node : all_leafs ) {
             auto it = std::find( subset.begin(), subset.end(), node );
             if ( it != subset.end() ) {
-                row.push_back( weights[ std::distance( subset.begin(), it ) ] );
+                weights_with_nulls.push_back( weights[ std::distance( subset.begin(), it ) ] );
             } else {
-                row.push_back( std::nullopt );
+                weights_with_nulls.push_back( std::nullopt );
             }
         }
 
-        row.push_back( weights.back() );
-        row.push_back( result.error_mean );
-        row.push_back( result.converged );
+        weights_with_nulls.push_back( weights.back() );
+        TableRow row( weights_with_nulls, result );
 
         table.push_back( row );
 
@@ -427,6 +540,7 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
     }
 
     print_table( all_leafs, table );
+    get_best_subset( table, subsets, all_leafs );
 }
 
 std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()

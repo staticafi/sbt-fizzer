@@ -17,6 +17,26 @@
 using loop_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loading_loops_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 
+struct TableRow {
+    TableRow( std::vector< std::optional< float > > weights, GradientDescentResult result )
+        : weights( std::move( weights ) )
+        , result( std::move( result ) )
+    {}
+
+    bool operator==( const TableRow& other ) const
+    {
+        return weights == other.weights && result == other.result;
+    }
+
+    int get_non_null_count() const
+    {
+        return std::count_if( weights.begin(), weights.end(), []( const auto& w ) { return w.has_value(); } );
+    }
+
+    std::vector< std::optional< float > > weights;
+    GradientDescentResult result;
+};
+
 struct FloatComparator {
     bool operator()( const float& a, const float& b ) const
     {
@@ -138,14 +158,14 @@ private:
     std::vector< float > approximate_matrix();
     int get_possible_depth() const;
     void dependencies_generation();
-    void get_best_subset( std::vector< std::vector< std::optional< float > > > const& table,
-                          std::vector< std::set< node_direction > > const& subsets );
+    void get_best_subset( std::vector< TableRow > const& table,
+                          std::vector< std::set< node_direction > > const& subsets,
+                          std::set< node_direction > const& all_leafs );
     void print_dependencies();
     void print_subsets( std::set< node_direction > const& subset,
                         GradientDescentResult const& result,
                         std::vector< float > const& node_counts );
-    void print_table( std::set< node_direction > const& all_leafs,
-                      std::vector< std::vector< std::optional< float > > > const& table );
+    void print_table( std::set< node_direction > const& all_leafs, std::vector< TableRow > const& table );
     void compute_dependencies_by_loading( loading_loops_t& loading_loops, branching_node* end_node );
 
     std::vector< std::vector< float > > get_matrix( std::set< node_direction > const& subset ) const;
