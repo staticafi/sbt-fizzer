@@ -536,17 +536,114 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
         table.push_back( row );
 
         print_subsets( subset, result, node_counts );
-        // gd.print_input_matrix();
+        gd.print_input_matrix();
     }
 
     print_table( all_leafs, table );
     get_best_subset( table, subsets, all_leafs );
 }
 
+void fuzzing::iid_node_dependence_props::vector_computation()
+{
+    std::set< node_direction > all_leafs;
+    for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
+        all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
+    }
+
+    std::vector< std::vector< float > > full_matrix = get_matrix( all_leafs );
+    std::set< std::vector< float > > unique_rows;
+    std::vector< float > new_best_values;
+    std::vector< std::vector< float > > matrix;
+
+    for ( size_t i = 0; i < full_matrix.size(); ++i ) {
+        std::vector< float > row = full_matrix[ i ];
+        row.push_back( best_values[ i ] );
+
+        if ( unique_rows.insert( row ).second ) {
+            new_best_values.push_back( best_values[ i ] );
+            matrix.push_back( full_matrix[ i ] );
+        }
+    }
+
+    std::set< DirectionVector > vectors;
+
+    for ( size_t i = 0; i < matrix.size(); ++i ) {
+        for ( size_t j = 0; j < matrix.size(); ++j ) {
+            if ( i == j ) {
+                continue;
+            }
+
+            std::vector< float > diff_vector;
+            std::transform( matrix[ i ].begin(),
+                            matrix[ i ].end(),
+                            matrix[ j ].begin(),
+                            std::back_inserter( diff_vector ),
+                            std::minus< float >() );
+
+            if ( std::any_of( diff_vector.begin(), diff_vector.end(), []( float val ) { return val < 0; } ) ) {
+                continue;
+            }
+
+            float best_value_diff = new_best_values[ i ] - new_best_values[ j ];
+            if ( best_value_diff == 0 ) {
+                continue;
+            }
+
+            vectors.insert( { diff_vector, best_value_diff } );
+        }
+    }
+
+    auto is_approximately_equal = []( const std::vector< float >& a, const std::vector< float >& b ) {
+        const float epsilon = 1e-6;
+
+        if ( a.size() != b.size() )
+            return false;
+        for ( size_t i = 0; i < a.size(); ++i ) {
+            if ( std::fabs( a[ i ] - b[ i ] ) > epsilon )
+                return false;
+        }
+        return true;
+    };
+
+    std::set< DirectionVector > vectors_with_hits;
+    for ( const auto& vec : vectors ) {
+        int compare_hits = 0;
+
+        for ( const auto& row : matrix ) {
+            std::vector< float > new_row;
+            for ( size_t i = 0; i < row.size(); ++i ) {
+                new_row.push_back( row[ i ] + vec.vector[ i ] );
+            }
+
+            for ( const auto& existing_row : matrix ) {
+                if ( is_approximately_equal( new_row, existing_row ) ) {
+                    compare_hits++;
+                }
+            }
+        }
+
+        vectors_with_hits.insert( { vec.vector, vec.value, compare_hits } );
+    }
+
+    std::cout << "Vectors:" << std::endl;
+    for ( const auto& vec : vectors_with_hits ) {
+        std::cout << "( ";
+        auto delimeter = "";
+        for ( const auto& val : vec.vector ) {
+            std::cout << delimeter << val;
+            delimeter = ", ";
+        }
+        std::cout << " ) -> " << vec.value << " (" << vec.compare_hits << ")" << std::endl;
+    }
+}
+
+
 std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
 {
-    dependencies_generation();
+    // dependencies_generation();
+    vector_computation();
     return {};
+
 
     std::vector< float > weights = approximate_matrix();
 
