@@ -2,6 +2,7 @@
 #include <fuzzing/gradient_descent_with_convergence.hpp>
 #include <fuzzing/iid_node_dependencies.hpp>
 #include <string>
+#include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
 
 bool fuzzing::path_decision::get_next_direction()
@@ -272,6 +273,12 @@ fuzzing::iid_node_dependence_props::get_subsets( std::set< node_direction > cons
 std::vector< std::vector< float > >
 fuzzing::iid_node_dependence_props::get_matrix( std::set< node_direction > const& subset ) const
 {
+    return get_matrix( std::vector< node_direction >( subset.begin(), subset.end() ) );
+}
+
+std::vector< std::vector< float > >
+fuzzing::iid_node_dependence_props::get_matrix( std::vector< node_direction > const& subset ) const
+{
     std::vector< std::vector< float > > sub_matrix;
     for ( const auto& row : matrix ) {
         std::vector< float > sub_row;
@@ -294,7 +301,7 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
     std::cout << "## Dependencies by loops:" << std::endl;
     for ( const auto& [ loop, nodes ] : dependencies_by_loops ) {
         for ( const auto& body : nodes ) {
-            std::cout << "- " << "`(" << body << ") → " << loop.id << "`" << std::endl;
+            std::cout << "- " << "`(" << body << ") → " << loop.first.id << "`" << std::endl;
         }
     }
 
@@ -543,20 +550,25 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
     get_best_subset( table, subsets, all_leafs );
 }
 
-void fuzzing::iid_node_dependence_props::vector_computation()
+std::vector< fuzzing::node_direction > fuzzing::iid_node_dependence_props::get_all_leafs()
 {
     std::set< node_direction > all_leafs;
     for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
         all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
     }
 
-    std::vector< std::vector< float > > full_matrix = get_matrix( all_leafs );
+    return std::vector< node_direction >( all_leafs.begin(), all_leafs.end() );
+}
+
+std::tuple< std::vector< std::vector< float > >, std::vector< float > >
+fuzzing::iid_node_dependence_props::get_unique_matrix_and_values( std::vector< std::vector< float > > const& full_matrix )
+{
     std::set< std::vector< float > > unique_rows;
     std::vector< float > new_best_values;
     std::vector< std::vector< float > > matrix;
 
     for ( size_t i = 0; i < full_matrix.size(); ++i ) {
-        std::vector< float > row = full_matrix[ i ];
+        auto row = full_matrix[ i ];
         row.push_back( best_values[ i ] );
 
         if ( unique_rows.insert( row ).second ) {
@@ -565,171 +577,275 @@ void fuzzing::iid_node_dependence_props::vector_computation()
         }
     }
 
-    std::set< DirectionVector > vectors;
+    return { matrix, new_best_values };
+}
+
+std::set< DirectionVector > fuzzing::iid_node_dependence_props::vector_computation()
+{
+    std::vector< fuzzing::node_direction > all_leafs = get_all_leafs();
+    std::vector< std::vector< float > > full_matrix = get_matrix( all_leafs );
+    auto [ matrix, new_best_values ] = get_unique_matrix_and_values( full_matrix );
+
+    std::set< DirectionVector > vectors_with_hits;
+
+    auto is_approximately_equal = []( const auto& a, const auto& b ) {
+        constexpr float epsilon = 1e-6;
+        return a.size() == b.size() && std::equal( a.begin(), a.end(), b.begin(), [ epsilon ]( float x, float y ) {
+                   return std::fabs( x - y ) <= epsilon;
+               } );
+    };
 
     for ( size_t i = 0; i < matrix.size(); ++i ) {
         for ( size_t j = 0; j < matrix.size(); ++j ) {
-            if ( i == j ) {
+            if ( i == j )
                 continue;
-            }
 
             std::vector< float > diff_vector;
             std::transform( matrix[ i ].begin(),
                             matrix[ i ].end(),
                             matrix[ j ].begin(),
                             std::back_inserter( diff_vector ),
-                            std::minus< float >() );
+                            std::minus<>() );
 
-            if ( std::any_of( diff_vector.begin(), diff_vector.end(), []( float val ) { return val < 0; } ) ) {
+            if ( std::any_of( diff_vector.begin(), diff_vector.end(), []( float val ) { return val < 0; } ) )
                 continue;
-            }
 
             float best_value_diff = new_best_values[ i ] - new_best_values[ j ];
-            if ( best_value_diff == 0 ) {
+            if ( best_value_diff != 0 ) {
+                int compare_hits = 0;
+
+                for ( const auto& row : matrix ) {
+                    std::vector< float > new_row( row.size() );
+                    std::transform( row.begin(), row.end(), diff_vector.begin(), new_row.begin(), std::plus<>() );
+
+                    if ( std::any_of( matrix.begin(), matrix.end(), [ & ]( const auto& existing_row ) {
+                             return is_approximately_equal( new_row, existing_row );
+                         } ) ) {
+                        compare_hits++;
+                    }
+                }
+
+                vectors_with_hits.insert( { diff_vector, best_value_diff, compare_hits } );
+            }
+        }
+    }
+
+    // std::cout << "Vectors:\n";
+    // for ( const auto& vec : vectors_with_hits ) {
+    //     std::cout << "( ";
+    //     for ( size_t i = 0; i < vec.vector.size(); ++i ) {
+    //         std::cout << ( i ? ", " : "" ) << vec.vector[ i ];
+    //     }
+    //     std::cout << " ) -> " << vec.value << " (" << vec.compare_hits << ")\n";
+    // }
+
+    return vectors_with_hits;
+}
+
+std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_props::generate_probabilities()
+{
+    // dependencies_generation();
+    std::vector< node_direction > all_leafs = get_all_leafs();
+    auto [ matrix, new_best_values ] = get_unique_matrix_and_values( get_matrix( all_leafs ) );
+    std::set< DirectionVector > vectors = vector_computation();
+
+    float epsilon = 1e-6;
+    int column_count = matrix[ 0 ].size();
+
+    std::set< std::vector< float > > paths;
+    // std::cout << "Path counts:" << std::endl;
+    for ( const auto& vec : vectors ) {
+
+        for ( int i = 0; i < matrix.size(); ++i ) {
+            std::vector< float > path_counts( column_count );
+
+            float curr_best_value = std::abs( new_best_values[ i ] );
+
+            float counts = curr_best_value / vec.value;
+            int counts_int = static_cast< int >( std::round( counts ) );
+            if ( std::abs( counts - counts_int ) > epsilon ) {
                 continue;
             }
 
-            vectors.insert( { diff_vector, best_value_diff } );
-        }
-    }
-
-    auto is_approximately_equal = []( const std::vector< float >& a, const std::vector< float >& b ) {
-        const float epsilon = 1e-6;
-
-        if ( a.size() != b.size() )
-            return false;
-        for ( size_t i = 0; i < a.size(); ++i ) {
-            if ( std::fabs( a[ i ] - b[ i ] ) > epsilon )
-                return false;
-        }
-        return true;
-    };
-
-    std::set< DirectionVector > vectors_with_hits;
-    for ( const auto& vec : vectors ) {
-        int compare_hits = 0;
-
-        for ( const auto& row : matrix ) {
-            std::vector< float > new_row;
-            for ( size_t i = 0; i < row.size(); ++i ) {
-                new_row.push_back( row[ i ] + vec.vector[ i ] );
+            for ( int j = 0; j < column_count; ++j ) {
+                path_counts[ j ] = matrix[ i ][ j ] + vec.vector[ j ] * counts_int;
             }
 
-            for ( const auto& existing_row : matrix ) {
-                if ( is_approximately_equal( new_row, existing_row ) ) {
-                    compare_hits++;
-                }
+            if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } ) ) {
+                continue;
             }
-        }
 
-        vectors_with_hits.insert( { vec.vector, vec.value, compare_hits } );
+            // std::cout << "( ";
+            // for ( size_t j = 0; j < column_count; ++j ) {
+            //     std::cout << ( j ? ", " : "" ) << path_counts[ j ];
+            // }
+            // std::cout << " ) " << std::endl;
+
+
+            paths.insert( path_counts );
+        }
     }
 
-    std::cout << "Vectors:" << std::endl;
-    for ( const auto& vec : vectors_with_hits ) {
-        std::cout << "( ";
-        auto delimeter = "";
-        for ( const auto& val : vec.vector ) {
-            std::cout << delimeter << val;
-            delimeter = ", ";
-        }
-        std::cout << " ) -> " << vec.value << " (" << vec.compare_hits << ")" << std::endl;
+    std::vector< std::vector< float > > sorted_paths( paths.begin(), paths.end() );
+    std::sort( sorted_paths.begin(),
+               sorted_paths.end(),
+               []( const std::vector< float >& a, const std::vector< float >& b ) {
+                   float a_length = std::inner_product( a.begin(), a.end(), a.begin(), 0.0f );
+                   float b_length = std::inner_product( b.begin(), b.end(), b.begin(), 0.0f );
+                   return a_length < b_length;
+               } );
+
+    // for ( const auto& path : sorted_paths ) {
+    //     std::cout << "( ";
+    //     for ( size_t i = 0; i < path.size(); ++i ) {
+    //         std::cout << ( i ? ", " : "" ) << path[ i ];
+    //     }
+    //     std::cout << " )" << std::endl;
+    // }
+
+    std::map< location_id::id_type, std::pair< float, float > > path_counts = compute_counts_from_leaf_counts( sorted_paths[ 0 ], all_leafs );
+    for (const auto& [id, counts] : path_counts) {
+        std::cout << "Location ID: " << id << ", Left Count: " << counts.first << ", Right Count: " << counts.second << std::endl;
     }
+
+    std::unordered_map< location_id::id_type, float > path_probabilities;
+    for ( int i = 0; i < path_counts.size(); i += 2 ) {}
+
+    // for ( int i = 0; i < all_leafs.size(); i += 2 ) {
+    //     int sum = sorted_paths[ 0 ][ i ] + sorted_paths[ 0 ][ i + 1 ];
+    //     location_id::id_type id = std::next( all_leafs.begin(), i )->node_id.id;
+    //     if ( sum > 0 )
+    //         path_probabilities[ id ] = sorted_paths[ 0 ][ i ] / sum;
+    // }
+
+    // for (const auto& [id, count] : path_probabilities) {
+    //     std::cout << "Location ID: " << id << ", Path Probability: " << count << std::endl;
+    // }
+
+    return path_probabilities;
+    return {};
+}
+
+std::map< location_id::id_type, std::pair< float, float > >
+fuzzing::iid_node_dependence_props::compute_counts_from_leaf_counts( std::vector< float > const& leaf_counts,
+                                                                     std::vector< node_direction > all_leafs )
+{
+    std::map< location_id::id_type, std::pair< float, float > > path_counts;
+    for ( int i = 0; i < all_leafs.size(); i += 2 ) {
+        float leaf_count = leaf_counts[ i ];
+        node_direction leaf = all_leafs[ i ];
+
+        auto& [ left_count, right_count ] = path_counts[ leaf.node_id.id ];
+        if ( leaf.branching_direction ) {
+            right_count = leaf_count;
+        } else {
+            left_count = leaf_count;
+        }
+    }
+
+    for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
+        float loop_count = 0;
+        for ( const auto& body : dependent_bodies ) {
+            auto& [ left_count, right_count ] = path_counts[ body.node_id.id ];
+            loop_count += right_count;
+            loop_count += left_count;
+        }
+
+        location_id head_id = loop_head.first;
+        bool end_direction = loop_head.second;
+
+        if ( end_direction ) {
+            path_counts[ head_id.id ] = { 1, loop_count };
+        } else {
+            path_counts[ head_id.id ] = { loop_count, 1 };
+        }
+    }
+
+    return path_counts;
 }
 
 
 std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
 {
-    // dependencies_generation();
-    vector_computation();
+    // // dependencies_generation();
+    // std::vector< node_direction > all_leafs = get_all_leafs();
+    // auto [ matrix, new_best_values ] = get_unique_matrix_and_values( get_matrix( all_leafs ) );
+    // std::set< DirectionVector > vectors = vector_computation();
+
+    // // auto min_value_it = std::min_element( best_values.begin(), best_values.end() );
+    // // int min_index = std::distance( best_values.begin(), min_value_it );
+    // // std::vector< float > min_row = matrix[ min_index ];
+
+    // float epsilon = 1e-6;
+    // int column_count = matrix[ 0 ].size();
+
+    // std::set< std::vector< float > > paths;
+    // std::cout << "Path counts:" << std::endl;
+    // for ( const auto& vec : vectors ) {
+
+    //     for ( int i = 0; i < matrix.size(); ++i ) {
+    //         std::vector< float > path_counts( column_count );
+
+    //         float curr_best_value = std::abs( new_best_values[ i ] );
+
+    //         float counts = curr_best_value / vec.value;
+    //         int counts_int = static_cast< int >( std::round( counts ) );
+    //         if ( std::abs( counts - counts_int ) > epsilon ) {
+    //             continue;
+    //         }
+
+    //         for ( int j = 0; j < column_count; ++j ) {
+    //             path_counts[ j ] = matrix[ i ][ j ] + vec.vector[ j ] * counts_int;
+    //         }
+
+    //         if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } ) ) {
+    //             continue;
+    //         }
+
+    //         // std::cout << "( ";
+    //         // for ( size_t j = 0; j < column_count; ++j ) {
+    //         //     std::cout << ( j ? ", " : "" ) << path_counts[ j ];
+    //         // }
+    //         // std::cout << " ) " << std::endl;
+
+
+    //         paths.insert( path_counts );
+    //     }
+    // }
+
+    // std::vector< std::vector< float > > sorted_paths( paths.begin(), paths.end() );
+    // std::sort( sorted_paths.begin(),
+    //            sorted_paths.end(),
+    //            []( const std::vector< float >& a, const std::vector< float >& b ) {
+    //                float a_length = std::inner_product( a.begin(), a.end(), a.begin(), 0.0f );
+    //                float b_length = std::inner_product( b.begin(), b.end(), b.begin(), 0.0f );
+    //                return a_length < b_length;
+    //            } );
+
+    // // for ( const auto& path : sorted_paths ) {
+    // //     std::cout << "( ";
+    // //     for ( size_t i = 0; i < path.size(); ++i ) {
+    // //         std::cout << ( i ? ", " : "" ) << path[ i ];
+    // //     }
+    // //     std::cout << " )" << std::endl;
+    // // }
+
+    // std::unordered_map< location_id::id_type, float > path_counts;
+    // INVARIANT( all_leafs.size() % 2 == 0 );
+
+    // for ( int i = 0; i < all_leafs.size(); i += 2 ) {
+    //     int sum = sorted_paths[ 0 ][ i ] + sorted_paths[ 0 ][ i + 1 ];
+    //     location_id::id_type id = std::next( all_leafs.begin(), i )->node_id.id;
+    //     if ( sum > 0 )
+    //         path_counts[ id ] = sorted_paths[ 0 ][ i ] / sum;
+    //     else
+    //         path_counts[ id ] = 0.5;
+    // }
+
+    // for ( const auto& [ id, count ] : path_counts ) {
+    //     std::cout << "Location ID: " << id << ", Path Count: " << count << std::endl;
+    // }
     return {};
-
-
-    std::vector< float > weights = approximate_matrix();
-
-    std::map< fuzzing::node_direction, int > path;
-    int path_size = 0;
-    int possible_depth = get_possible_depth();
-
-    for ( const auto& [ dir, stats ] : all_cov_value_props.direction_statistics ) {
-        if ( stats.min == stats.max ) {
-            path[ dir ] = stats.min;
-            path_size += stats.min;
-        }
-    }
-
-    if ( false ) {
-        auto it = cov_values_to_props.begin();
-        std::cout << "Path Depth" << it->second.path_depth << std::endl;
-        std::cout << "Closest value to 0: " << it->first << std::endl;
-        for ( const auto& [ direction, stats ] : it->second.direction_statistics ) {
-            std::cout << "Direction: " << direction << ", Min: " << stats.min << ", Max: " << stats.max
-                      << ", Mean: " << stats.mean << std::endl;
-        }
-    }
-
-    int computed_size = 0;
-    std::map< fuzzing::node_direction, int > computed_path;
-    for ( size_t i = 0; i < interesting_nodes.size(); ++i ) {
-        const auto& node = *std::next( interesting_nodes.begin(), i );
-
-        auto it = cov_values_to_props.begin();
-        int x_1 = it->first;
-        int y_1 = it->second.direction_statistics.at( node ).mean;
-
-        ++it;
-
-        int x_2 = it->first;
-        int y_2 = it->second.direction_statistics.at( node ).mean;
-
-        int interpolated_y = linear_interpolation( x_1, y_1, x_2, y_2, 0 );
-        int computed_count = static_cast< int >( interpolated_y * weights[ i ] );
-        computed_count = interpolated_y;
-        computed_count = std::max( 0, computed_count );
-        computed_size += computed_count;
-        computed_path[ node ] = computed_count;
-    }
-
-    float scale = static_cast< float >( possible_depth - path_size ) / computed_size;
-    for ( auto& [ node, count ] : computed_path ) {
-        // std::cout << "Count before scaling: " << count << std::endl;
-        count = static_cast< int >( count * scale );
-        // std::cout << "Count after scaling: " << count << std::endl;
-    }
-
-    path.insert( computed_path.begin(), computed_path.end() );
-
-    std::map< location_id, path_decision > decisions;
-    for ( int i = 1; i < path.size(); ++i ) {
-        auto first_p = std::next( path.begin(), i - 1 );
-        auto second_p = std::next( path.begin(), i );
-
-        if ( first_p->first.node_id == second_p->first.node_id ) {
-            decisions[ first_p->first.node_id ] = { first_p->second, second_p->second };
-            ++i;
-        } else {
-            if ( first_p->first.branching_direction ) {
-                decisions[ first_p->first.node_id ] = { 0, first_p->second };
-            } else {
-                decisions[ first_p->first.node_id ] = { first_p->second, 0 };
-            }
-        }
-    }
-
-    if ( false ) {
-        for ( const auto& [ location, decision ] : decisions ) {
-            std::cout << location.id << decision << std::endl;
-        }
-    }
-
-    if ( false ) {
-        for ( const auto& [ node, count ] : path ) {
-            std::cout << "Node ID: " << node.node_id.id << ", Direction: " << node.branching_direction
-                      << ", Count: " << count << std::endl;
-        }
-    }
-
-    return decisions;
 }
 
 
@@ -907,14 +1023,30 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
     fuzzing::fuzzer::detect_loops_along_path_to_node( node, loop_heads_to_bodies, nullptr );
     props.compute_dependencies_by_loading( loop_heads_to_bodies, node );
 
+    std::map< location_id, bool > loop_heads_ending;
+    branching_node* current = node;
+    while ( current != nullptr ) {
+        branching_node* predecessor = current->predecessor;
+        if ( predecessor != nullptr && loop_heads_to_bodies.contains( predecessor->get_location_id() ) &&
+             !loop_heads_ending.contains( predecessor->get_location_id() ) ) {
+            bool direction = predecessor->successor( true ).pointer->get_location_id() ==
+                             current->get_location_id();
+            loop_heads_ending[ predecessor->get_location_id() ] = direction;
+        }
+        current = predecessor;
+    }
+
     for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
+        INVARIANT( loop_heads_ending.contains( loop_head ) );
+        bool loop_head_direction = loop_heads_ending[ loop_head ];
+
         for ( const auto& body : loop_bodies ) {
             if ( props.interesting_nodes.contains( { body, true } ) ) {
-                props.dependencies_by_loops[ loop_head ].insert( { body, true } );
+                props.dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, true } );
             }
 
             if ( props.interesting_nodes.contains( { body, false } ) ) {
-                props.dependencies_by_loops[ loop_head ].insert( { body, false } );
+                props.dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, false } );
             }
         }
     }

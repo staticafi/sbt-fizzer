@@ -17,6 +17,41 @@
 using loop_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loading_loops_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 
+struct DirectionVector {
+    DirectionVector( std::vector< float > vector, float value )
+        : DirectionVector( std::move( vector ), value, 0 )
+    {}
+
+    DirectionVector( std::vector< float > vector, float value, int compare_hits )
+        : vector( std::move( vector ) )
+        , value( value )
+        , compare_hits( compare_hits )
+    {}
+
+    std::vector< float > vector;
+    float value;
+    int compare_hits;
+
+    bool operator<( const DirectionVector& other ) const
+    {
+        // if ( value != other.value ) {
+        //     return value < other.value;
+        // }
+
+        return get_vector_length() < other.get_vector_length();
+    }
+
+    bool operator==( const DirectionVector& other ) const
+    {
+        return std::tie( vector, value ) == std::tie( other.vector, other.value );
+    }
+
+    float get_vector_length() const
+    {
+        return std::sqrt( std::inner_product( vector.begin(), vector.end(), vector.begin(), 0.0f ) );
+    }
+};
+
 struct TableRow {
     TableRow( std::vector< std::optional< float > > weights, GradientDescentResult result )
         : weights( std::move( weights ) )
@@ -141,7 +176,7 @@ struct iid_node_dependence_props {
     std::vector< std::vector< float > > matrix;
     std::vector< float > best_values;
 
-    std::unordered_map< location_id, std::set< node_direction > > dependencies_by_loops;
+    std::unordered_map< std::pair< location_id, bool >, std::set< node_direction > > dependencies_by_loops;
     std::unordered_map< location_id, std::set< node_direction > > dependencies_by_loading;
 
     coverage_value_props all_cov_value_props;
@@ -151,6 +186,7 @@ struct iid_node_dependence_props {
     void recompute_matrix();
     void add_equation( branching_node* path );
     std::map< location_id, path_decision > generate_path();
+    std::unordered_map< location_id::id_type, float > generate_probabilities();
 
     void compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies, branching_node* end_node );
 
@@ -162,12 +198,20 @@ private:
                           std::vector< std::set< node_direction > > const& subsets,
                           std::set< node_direction > const& all_leafs );
     void print_dependencies();
+    std::vector< node_direction > get_all_leafs();
+    std::map< location_id::id_type, std::pair< float, float > >
+    compute_counts_from_leaf_counts( std::vector< float > const& leaf_counts,
+                                     std::vector< node_direction > all_leafs );
+    std::tuple< std::vector< std::vector< float > >, std::vector< float > >
+    get_unique_matrix_and_values( std::vector< std::vector< float > > const& full_matrix );
+    std::set< DirectionVector > vector_computation();
     void print_subsets( std::set< node_direction > const& subset,
                         GradientDescentResult const& result,
                         std::vector< float > const& node_counts );
     void print_table( std::set< node_direction > const& all_leafs, std::vector< TableRow > const& table );
     void compute_dependencies_by_loading( loading_loops_t& loading_loops, branching_node* end_node );
 
+    std::vector< std::vector< float > > get_matrix( std::vector< node_direction > const& subset ) const;
     std::vector< std::vector< float > > get_matrix( std::set< node_direction > const& subset ) const;
     std::vector< std::set< node_direction > > get_subsets( std::set< node_direction > const& all_leafs );
 };
