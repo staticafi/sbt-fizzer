@@ -13,14 +13,29 @@
 
 namespace fuzzing
 {
-struct direction_vector {};
+struct equation {
+    equation( std::vector< int > values, double best_value )
+        : values( std::move( values ) )
+        , best_value( best_value )
+    {}
+
+    std::vector< int > values;
+    double best_value;
+
+    equation operator+( const equation& other ) const;
+    equation operator-( const equation& other ) const;
+    auto operator<=>( const equation& other ) const = default;
+    bool operator==( const equation& other ) const = default;
+
+    bool is_any_negative() const;
+};
 
 struct node_direction {
     location_id node_id;
     bool branching_direction;
 
     auto operator<=>( node_direction const& other ) const;
-    bool operator==( node_direction const& other ) const;
+    bool operator==( node_direction const& other ) const = default;
     friend std::ostream& operator<<( std::ostream& os, const node_direction& nav )
     {
         return os << nav.node_id.id << " " << ( nav.branching_direction ? "right" : "left" );
@@ -32,29 +47,16 @@ using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 
-struct equation {
-    equation( std::vector< int > values, double best_value )
-        : values( std::move( values ) )
-        , best_value( best_value )
-    {}
-
-    std::vector< int > values;
-    double best_value;
-
-    bool operator==( const equation& other ) const
-    {
-        return values == other.values && best_value == other.best_value;
-    }
-};
-
-
 struct equation_matrix {
     equation_matrix get_submatrix( std::set< node_direction > const& subset, bool unique ) const;
     void process_node( branching_node* end_node );
     void add_equation( branching_node* end_node );
     bool contains( node_direction const& node ) const;
+    std::pair< std::size_t, std::size_t > get_dimensions() const;
+    std::map< equation, int > compute_vectors();
 
     void print_matrix();
+
 private:
     void recompute_matrix();
 
@@ -71,8 +73,9 @@ struct iid_node_dependence_props {
     void print_dependencies();
 
 private:
-    loop_endings get_loop_heads_ending( branching_node* end_node,
-                                        loop_head_to_bodies_t& loop_heads_to_bodies );
+    equation get_best_vector( const std::map< equation, int >& vectors_with_hits );
+    std::set< node_direction > get_leaf_subsets();
+    loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
     void compute_dependencies_by_loading( branching_node* end_node,
                                           const loop_head_to_bodies_t& loop_heads_to_bodies,
                                           const loop_endings& loop_heads_ending );
