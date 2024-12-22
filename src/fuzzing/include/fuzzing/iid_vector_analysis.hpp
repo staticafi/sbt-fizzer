@@ -10,11 +10,17 @@
 struct node_direction;
 using loop_ending_to_bodies = std::map< std::pair< location_id, bool >, std::set< node_direction > >;
 using loop_endings = std::map< location_id, bool >;
+using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
+using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 
 namespace fuzzing
 {
-struct node_direction {};
 struct direction_vector {};
+
+struct node_direction {
+    location_id node_id;
+    bool branching_direction;
+};
 
 
 struct equation {
@@ -37,9 +43,14 @@ struct iid_node_dependence_props {
     void process_node( branching_node* end_node );
 
 private:
-    loop_endings get_loop_heads_ending( branching_node* end_node ) const;
-    void compute_dependencies_by_loading( branching_node* end_node, const loop_endings& loop_heads_ending );
-    void compute_dependencies_by_loops( branching_node* end_node, const loop_endings& loop_heads_ending );
+    loop_endings get_loop_heads_ending( branching_node* end_node,
+                                        const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                        const std::vector< fuzzer::loop_boundary_props >& loops ) const;
+    void compute_dependencies_by_loading( branching_node* end_node,
+                                          const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                          const loop_endings& loop_heads_ending );
+    void compute_dependencies_by_loops( const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                        const loop_endings& loop_heads_ending );
 
     equation_matrix matrix;
     loop_ending_to_bodies dependencies_by_loops;
@@ -47,7 +58,7 @@ private:
 };
 
 struct iid_dependencies {
-    void update_non_iid_nodes( const sensitivity_analysis& sensitivity );
+    void update_non_iid_nodes( sensitivity_analysis& sensitivity );
     void process_node_dependence( branching_node* node );
 
 private:
