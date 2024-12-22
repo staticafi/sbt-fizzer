@@ -22,22 +22,116 @@ bool fuzzing::node_direction::operator==( node_direction const& other ) const
 }
 
 // ------------------------------------------------------------------------------------------------
-void fuzzing::equation_matrix::add_equation( branching_node* end_node )
+fuzzing::equation_matrix fuzzing::equation_matrix::get_submatrix( std::set< node_direction > const& subset, bool unique ) const
 {
-    std::vector< node_direction > path = get_path( end_node );
-    for ( const node_direction& nav : path ) {
-        nodes.insert( nav );
+    equation_matrix result;
+    result.nodes = subset;
+
+    for ( int i = 0; i < matrix.size(); ++i ) {
+        const equation& row = matrix[ i ];
+
+        std::vector< int > new_row_values;
+        for ( const node_direction& nav : subset ) {
+            auto it = std::find( nodes.begin(), nodes.end(), nav );
+            if ( it != nodes.end() ) {
+                new_row_values.push_back( row.values[ std::distance( nodes.begin(), it ) ] );
+            }
+        }
+
+        equation new_row = { new_row_values, row.best_value };
+
+        if ( unique ) {
+            if ( std::find( result.matrix.begin(), result.matrix.end(), new_row ) == result.matrix.end() ) {
+                result.matrix.push_back( new_row );
+                result.all_paths.push_back( all_paths[ i ] );
+            }
+        } else {
+            result.matrix.push_back( new_row );
+            result.all_paths.push_back( all_paths[ i ] );
+        }
     }
+
+    return result;
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::equation_matrix::process_node( branching_node* end_node )
+{
+    all_paths.push_back( end_node );
+
+    std::vector< node_direction > path = get_path( end_node );
+    bool new_node = false;
+    for ( const node_direction& nav : path ) {
+        auto [ it, inserted ] = nodes.insert( nav );
+        new_node |= inserted;
+    }
+
+    if ( new_node ) {
+        recompute_matrix();
+    } else {
+        add_equation( end_node );
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::equation_matrix::add_equation( branching_node* end_node ) 
+{
+    TMPROF_BLOCK();
+
+    std::map< node_direction, int > directions_in_path;
+    for ( const node_direction& navigation : nodes ) {
+        directions_in_path[ navigation ] = 0;
+    }
+
+    std::vector< node_direction > path_nodes = get_path( end_node );
+
+    for ( const node_direction& nav : path_nodes ) {
+        if ( nodes.contains( nav ) ) {
+            directions_in_path[ nav ]++;
+        }
+    }
+
+    std::vector< int > values_in_path;
+    for ( const auto& [ direction, count ] : directions_in_path ) {
+        values_in_path.push_back( count );
+    }
+
+    equation row = { values_in_path, end_node->best_coverage_value };
+    matrix.push_back( row );
 }
 
 // ------------------------------------------------------------------------------------------------
 bool fuzzing::equation_matrix::contains( node_direction const& node ) const { return nodes.contains( node ); }
 
+// ------------------------------------------------------------------------------------------------
+void fuzzing::equation_matrix::print_matrix()
+{
+    std::cout << "# Matrix:" << std::endl;
+    for ( size_t i = 0; i < matrix.size(); ++i ) {
+        for ( size_t j = 0; j < matrix[ i ].values.size(); ++j ) {
+            std::cout << ( j ? " " : "" ) << matrix[ i ].values[ j ];
+        }
+        std::cout << " -> | " << matrix[ i ].best_value << std::endl;
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::equation_matrix::recompute_matrix() 
+{
+    TMPROF_BLOCK();
+
+    matrix.clear();
+
+    for ( branching_node* path : all_paths ) {
+        add_equation( path );
+    }
+}
 
 // ------------------------------------------------------------------------------------------------
 std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_props::generate_probabilities()
 {
     print_dependencies();
+    matrix.print_matrix();
 
     return std::unordered_map< location_id::id_type, float >();
 }
@@ -51,7 +145,7 @@ void fuzzing::iid_node_dependence_props::process_node( branching_node* end_node 
     compute_dependencies_by_loading( end_node, loop_heads_to_bodies, loop_heads_ending );
     compute_dependencies_by_loops( loop_heads_to_bodies, loop_heads_ending );
 
-    matrix.add_equation( end_node );
+    matrix.process_node( end_node );
 }
 
 // ------------------------------------------------------------------------------------------------

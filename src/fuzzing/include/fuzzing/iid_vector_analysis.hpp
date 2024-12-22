@@ -33,18 +33,33 @@ using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_se
 using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 
 struct equation {
-    std::vector< float > values;
-    float best_value;
+    equation( std::vector< int > values, double best_value )
+        : values( std::move( values ) )
+        , best_value( best_value )
+    {}
+
+    std::vector< int > values;
+    double best_value;
+
+    bool operator==( const equation& other ) const
+    {
+        return values == other.values && best_value == other.best_value;
+    }
 };
 
 
 struct equation_matrix {
     equation_matrix get_submatrix( std::set< node_direction > const& subset, bool unique ) const;
+    void process_node( branching_node* end_node );
     void add_equation( branching_node* end_node );
     bool contains( node_direction const& node ) const;
 
+    void print_matrix();
 private:
+    void recompute_matrix();
+
     std::vector< equation > matrix;
+    std::vector< branching_node* > all_paths;
     std::set< node_direction > nodes;
 };
 
