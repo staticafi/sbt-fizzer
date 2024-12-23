@@ -14,6 +14,11 @@
 
 namespace fuzzing
 {
+struct node_counts {
+    int left_count;
+    int right_count;
+};
+
 struct equation {
     equation( std::vector< int > values, double best_value )
         : values( std::move( values ) )
@@ -57,6 +62,7 @@ using loop_ending_to_bodies = std::map< std::pair< location_id, bool >, std::set
 using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
+using nodes_to_counts = std::map< location_id::id_type, node_counts >;
 
 struct equation_matrix {
     equation_matrix get_submatrix( std::set< node_direction > const& subset, bool unique ) const;
@@ -86,6 +92,7 @@ struct iid_node_dependence_props {
     void print_dependencies();
 
 private:
+    nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
     equation get_best_vector( const std::map< equation, int >& vectors_with_hits, bool use_random );
     equation get_random_vector( const std::map< equation, int >& vectors_with_hits );
     std::set< node_direction > get_leaf_subsets();

@@ -272,8 +272,22 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
         return std::unordered_map< location_id::id_type, float >();
     }
 
+    nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
 
-    return std::unordered_map< location_id::id_type, float >();
+    {
+        std::cout << "# Path counts:" << std::endl;
+        for ( const auto& [ node_id, counts ] : path_counts ) {
+            std::cout << "- " << node_id << " → " << counts.left_count << ", " << counts.right_count << std::endl;
+        }
+    }
+
+    std::unordered_map< location_id::id_type, float_32_bit > probabilities;
+    for ( const auto& [ id, counts ] : path_counts ) {
+        float_32_bit total_count = counts.left_count + counts.right_count;
+        probabilities[ id ] = float_32_bit(counts.left_count) / total_count;
+    }
+
+    return probabilities;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -305,6 +319,61 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
             std::cout << "- " << "`(" << body << ") → " << loading.first.id << "`" << std::endl;
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+fuzzing::nodes_to_counts
+fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
+                                                         std::set< node_direction > const& all_leafs )
+{
+    nodes_to_counts path_counts;
+
+    std::vector< node_direction > leafs = std::vector< node_direction >( all_leafs.begin(), all_leafs.end() );
+
+    INVARIANT( leafs.size() == path.values.size() );
+
+    for ( int i = 0; i < leafs.size(); ++i ) {
+        auto& [ left_count, right_count ] = path_counts[ leafs[ i ].node_id.id ];
+        if ( leafs[ i ].branching_direction ) {
+            right_count = path.values[ i ];
+        } else {
+            left_count = path.values[ i ];
+        }
+    }
+
+    for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
+        int loop_count = 0;
+        for ( const auto& body : dependent_bodies ) {
+            auto& [ left_count, right_count ] = path_counts[ body.node_id.id ];
+            loop_count = std::max( loop_count, left_count + right_count );
+        }
+
+        if ( loop_head.second ) {
+            path_counts[ loop_head.first.id ] = { loop_count, 1 };
+        } else {
+            path_counts[ loop_head.first.id ] = { 1, loop_count };
+        }
+    }
+
+    for ( const auto& [ loading_head, loading_bodies ] : dependencies_by_loading ) {
+        int loop_count = 0;
+        for ( const auto& body : loading_bodies ) {
+            if ( !path_counts.contains( body.node_id.id ) ) {
+                continue;
+            }
+
+            auto& [ left_count, right_count ] = path_counts[ body.node_id.id ];
+            loop_count = std::max( loop_count, left_count + right_count );
+        }
+
+        if ( loading_head.second ) {
+            path_counts[ loading_head.first.id ] = { loop_count, 1 };
+        } else {
+            path_counts[ loading_head.first.id ] = { 1, loop_count };
+        }
+    }
+
+    return path_counts;
 }
 
 // ------------------------------------------------------------------------------------------------
