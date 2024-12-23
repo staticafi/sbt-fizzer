@@ -199,6 +199,10 @@ std::vector< fuzzing::equation >& fuzzing::equation_matrix::get_matrix() { retur
 void fuzzing::equation_matrix::print_matrix()
 {
     std::cout << "# Matrix:" << std::endl;
+    for ( const node_direction& nav : nodes ) {
+        std::cout << nav << " ";
+    }
+    std::cout << std::endl;
     for ( size_t i = 0; i < matrix.size(); ++i ) {
         for ( size_t j = 0; j < matrix[ i ].values.size(); ++j ) {
             std::cout << ( j ? " " : "" ) << matrix[ i ].values[ j ];
@@ -261,8 +265,12 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
     // matrix.print_matrix();
 
     std::set< node_direction > all_leafs = get_leaf_subsets();
+    
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
     std::map< equation, int > vectors = submatrix.compute_vectors();
+    if ( vectors.empty() ) {
+        return std::unordered_map< location_id::id_type, float >();
+    }
 
     equation best_vector = get_best_vector( vectors, false );
 
@@ -273,13 +281,6 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
     }
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
-
-    {
-        std::cout << "# Path counts:" << std::endl;
-        for ( const auto& [ node_id, counts ] : path_counts ) {
-            std::cout << "- " << node_id << " → " << counts.left_count << ", " << counts.right_count << std::endl;
-        }
-    }
 
     std::unordered_map< location_id::id_type, float_32_bit > probabilities;
     for ( const auto& [ id, counts ] : path_counts ) {
@@ -296,10 +297,11 @@ void fuzzing::iid_node_dependence_props::process_node( branching_node* end_node 
     loop_head_to_bodies_t loop_heads_to_bodies;
     loop_endings loop_heads_ending = get_loop_heads_ending( end_node, loop_heads_to_bodies );
 
+    matrix.process_node( end_node );
+
     compute_dependencies_by_loading( end_node, loop_heads_to_bodies, loop_heads_ending );
     compute_dependencies_by_loops( loop_heads_to_bodies, loop_heads_ending );
 
-    matrix.process_node( end_node );
 }
 
 // ------------------------------------------------------------------------------------------------
