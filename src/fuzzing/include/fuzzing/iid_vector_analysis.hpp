@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -24,10 +25,20 @@ struct equation {
 
     equation operator+( const equation& other ) const;
     equation operator-( const equation& other ) const;
+    equation operator*( int scalar ) const;
     auto operator<=>( const equation& other ) const = default;
     bool operator==( const equation& other ) const = default;
 
+    int get_vector_length() const;
     bool is_any_negative() const;
+
+    friend std::ostream& operator<<( std::ostream& os, const equation& eq )
+    {
+        for ( int i = 0; i < eq.values.size(); ++i ) {
+            os << ( i ? " " : "" ) << eq.values[ i ];
+        }
+        return os << " -> " << eq.best_value;
+    }
 };
 
 struct node_direction {
@@ -54,6 +65,8 @@ struct equation_matrix {
     bool contains( node_direction const& node ) const;
     std::pair< std::size_t, std::size_t > get_dimensions() const;
     std::map< equation, int > compute_vectors();
+    std::vector< equation >& get_matrix();
+    std::optional< equation > get_new_path_from_vector( const equation& vector );
 
     void print_matrix();
 
@@ -73,7 +86,8 @@ struct iid_node_dependence_props {
     void print_dependencies();
 
 private:
-    equation get_best_vector( const std::map< equation, int >& vectors_with_hits );
+    equation get_best_vector( const std::map< equation, int >& vectors_with_hits, bool use_random );
+    equation get_random_vector( const std::map< equation, int >& vectors_with_hits );
     std::set< node_direction > get_leaf_subsets();
     loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
     void compute_dependencies_by_loading( branching_node* end_node,

@@ -4,12 +4,17 @@
 #include <instrumentation/instrumentation_types.hpp>
 #include <iostream>
 #include <string>
+#include <utility/assumptions.hpp>
+#include <utility/invariants.hpp>
 #include <utility/timeprof.hpp>
+
 
 //                                          equation
 // ------------------------------------------------------------------------------------------------
 fuzzing::equation fuzzing::equation::operator+( const equation& other ) const
 {
+    INVARIANT( values.size() == other.values.size() );
+
     std::vector< int > new_values;
     for ( int i = 0; i < values.size(); ++i ) {
         new_values.push_back( values[ i ] + other.values[ i ] );
@@ -21,12 +26,31 @@ fuzzing::equation fuzzing::equation::operator+( const equation& other ) const
 // ------------------------------------------------------------------------------------------------
 fuzzing::equation fuzzing::equation::operator-( const equation& other ) const
 {
+    INVARIANT( values.size() == other.values.size() );
+
     std::vector< int > new_values;
     for ( int i = 0; i < values.size(); ++i ) {
         new_values.push_back( values[ i ] - other.values[ i ] );
     }
 
     return { new_values, best_value - other.best_value };
+}
+
+// ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::equation::operator*( int scalar ) const
+{
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        new_values.push_back( values[ i ] * scalar );
+    }
+
+    return { new_values, best_value * scalar };
+}
+
+// ------------------------------------------------------------------------------------------------
+int fuzzing::equation::get_vector_length() const
+{
+    return std::sqrt( std::inner_product( values.begin(), values.end(), values.begin(), 0 ) );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -169,6 +193,9 @@ std::map< fuzzing::equation, int > fuzzing::equation_matrix::compute_vectors()
 }
 
 // ------------------------------------------------------------------------------------------------
+std::vector< fuzzing::equation >& fuzzing::equation_matrix::get_matrix() { return matrix; }
+
+// ------------------------------------------------------------------------------------------------
 void fuzzing::equation_matrix::print_matrix()
 {
     std::cout << "# Matrix:" << std::endl;
@@ -178,6 +205,40 @@ void fuzzing::equation_matrix::print_matrix()
         }
         std::cout << " -> | " << matrix[ i ].best_value << std::endl;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+std::optional< fuzzing::equation > fuzzing::equation_matrix::get_new_path_from_vector( const equation& vector )
+{
+    INVARIANT( vector.values.size() == nodes.size() );
+
+    std::vector< equation > paths;
+    std::pair< std::size_t, std::size_t > dimensions = get_dimensions();
+
+    for ( const auto& row : matrix ) {
+        double counts = std::abs( row.best_value ) / vector.best_value;
+
+        if ( std::abs( counts - std::round( counts ) ) > 1e-6 ) {
+            continue;
+        }
+
+        equation new_path = vector * static_cast< int >( std::round( counts ) ) + row;
+        if ( new_path.is_any_negative() ) {
+            continue;
+        }
+
+        paths.push_back( new_path );
+    }
+
+    if ( paths.empty() ) {
+        return std::nullopt;
+    }
+
+    auto min_it = std::min_element( paths.begin(), paths.end(), []( const equation& a, const equation& b ) {
+        return a.get_vector_length() < b.get_vector_length();
+    } );
+
+    return *min_it;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -196,28 +257,21 @@ void fuzzing::equation_matrix::recompute_matrix()
 // ------------------------------------------------------------------------------------------------
 std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_props::generate_probabilities()
 {
-    print_dependencies();
+    // print_dependencies();
     // matrix.print_matrix();
 
     std::set< node_direction > all_leafs = get_leaf_subsets();
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
-
     std::map< equation, int > vectors = submatrix.compute_vectors();
 
-    for ( const auto& [ vec, hits ] : vectors ) {
-        std::cout << "Vector: ";
-        for ( int i = 0; i < vec.values.size(); ++i ) {
-            std::cout << ( i ? ", " : "" ) << vec.values[ i ];
-        }
-        std::cout << " -> " << vec.best_value << " (" << hits << ")" << std::endl;
+    equation best_vector = get_best_vector( vectors, false );
+
+    std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vector );
+
+    if ( !new_path.has_value() ) {
+        return std::unordered_map< location_id::id_type, float >();
     }
 
-    equation best_vector = get_best_vector( vectors );
-    std::cout << "Best vector: ";
-    for ( int i = 0; i < best_vector.values.size(); ++i ) {
-        std::cout << ( i ? ", " : "" ) << best_vector.values[ i ];
-    }
-    std::cout << " -> " << best_vector.best_value << std::endl;
 
     return std::unordered_map< location_id::id_type, float >();
 }
@@ -254,19 +308,27 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
 }
 
 // ------------------------------------------------------------------------------------------------
-fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std::map< equation, int >& vectors_with_hits )
+fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std::map< equation, int >& vectors_with_hits,
+                                                                       bool use_random )
 {
-    auto max_it = std::max_element(vectors_with_hits.begin(), vectors_with_hits.end(),
-                                   [](const auto& a, const auto& b) {
-                                       return a.second < b.second;
-                                   });
-
-    return max_it->first;
-    
     if ( vectors_with_hits.empty() ) {
         throw std::invalid_argument( "Input map is empty." );
     }
 
+    if ( use_random ) {
+        return get_random_vector( vectors_with_hits );
+    }
+
+    auto max_it = std::max_element( vectors_with_hits.begin(),
+                                    vectors_with_hits.end(),
+                                    []( const auto& a, const auto& b ) { return a.second < b.second; } );
+
+    return max_it->first;
+}
+
+// ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::iid_node_dependence_props::get_random_vector( const std::map< equation, int >& vectors_with_hits )
+{
     std::vector< equation > equations;
     std::vector< double > probabilities;
 
