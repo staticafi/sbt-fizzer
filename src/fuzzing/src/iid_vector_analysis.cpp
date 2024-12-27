@@ -273,6 +273,13 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
     }
 
     equation best_vector = get_best_vector( vectors, false );
+    {
+        // std::cout << "Best vector:" << std::endl;
+        // for ( int i = 0; i < best_vector.values.size(); ++i ) {
+        //     std::cout << best_vector.values[ i ] << " ";
+        // }
+        // std::cout << " -> | " << best_vector.best_value << std::endl;
+    }
 
     std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vector );
 
@@ -281,9 +288,19 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
     }
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
+    {
+        // std::cout << "Path counts:" << std::endl;
+        // for ( const auto& [ id, counts ] : path_counts ) {
+        //     std::cout << "ID: " << id << " Left: " << counts.left_count << " Right: " << counts.right_count << std::endl;
+        // }
+    }
 
     std::unordered_map< location_id::id_type, float_32_bit > probabilities;
     for ( const auto& [ id, counts ] : path_counts ) {
+        if ( counts.left_count == 0 && counts.right_count == 0 ) {
+            continue;
+        }
+        
         float_32_bit total_count = counts.left_count + counts.right_count;
         probabilities[ id ] = float_32_bit(counts.left_count) / total_count;
     }
