@@ -163,7 +163,7 @@ class Benchmark:
         except Exception as e:
             return "Unknown executions count"
         percentage = 100.0 * num_execution / max_num_execution
-        return "#" + ("%.2f" % (percentage - 100)) + "%" if max_num_execution >= 100 and percentage < 90 else ""
+        return "#" + ("%.2f" % (percentage - 100)) + "%" if max_num_execution >= 100 else ""
 
     def _fail_stats_message(self, config : dict, outcomes : dict) -> str:
         expected_termination_type = config["results"]["termination_type"]
@@ -328,7 +328,7 @@ class Benman:
                             pass
             return benchmarks
 
-        kinds = ["fast", "medium", "slow", "pending"]
+        kinds = ["fast", "iid_testing", "medium", "slow", "pending"]
         benchmarks = []
         if name == "all":
             for kind in kinds:
