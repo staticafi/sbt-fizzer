@@ -29,11 +29,12 @@ int main()
             ++i;
         }
 
-        if ( k == 10 ) // ID: 7
+        // if ( k % 2 == 0 ) // ID: 7
+        if ( k >= 6 ) // ID: 7
         {
-            if ( k > 13 ) // ID: 8
+            if ( k > 8 ) // ID: 8
             {
-                if ( k % 2 == 0 ) // ID: 9
+                if ( k == 11 ) // ID: 9
                     return 1;
             }
         }

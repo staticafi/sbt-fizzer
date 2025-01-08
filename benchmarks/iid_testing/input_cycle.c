@@ -6,6 +6,9 @@ extern short __VERIFIER_nondet_short();
 
 int main()
 {
+    short loop_count;
+    loop_count = __VERIFIER_nondet_short();
+
     char s[ 50 ];
     {
         short n;
@@ -20,21 +23,23 @@ int main()
             return -1;
     }
     {
+        if ( loop_count > 20 ) // ID: 5
+            return -1;
+
         int i = 0, k = 0;
-        while ( true ) {
-            if ( s[ i ] == '\0' ) // ID: 5
-                break;
-            if ( s[ i ] == 'A' ) // ID: 6
-                ++k;
-            ++i;
+
+        for ( short index = 0; index < loop_count; ++index ) { // ID: 6
+            i = 0;
+            while ( true ) {
+                if ( s[ i ] == '\0' ) // ID: 7
+                    break;
+                if ( s[ i ] == 'A' ) // ID: 8
+                    ++k;
+                ++i;
+            }
         }
-        if ( k == 8 ) // ID: 7
-            return 1;
 
-        if ( k == 10 ) // ID: 8
-            return 1;
-
-        if ( k == 11 ) // ID: 9
+        if ( k == 10 ) // ID: 9
             return 1;
 
         return 0;
