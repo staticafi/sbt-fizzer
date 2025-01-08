@@ -42,7 +42,7 @@ int main()
             ++i;
         }
 
-        if ( k == 10 ) // ID: 11
+        if ( k == 7 ) // ID: 11
             return 1;
         return 0;
     }

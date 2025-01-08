@@ -22,7 +22,7 @@ int main()
     {
         short loop_count;
         loop_count = __VERIFIER_nondet_short();
-        if ( loop_count > 50 ) // ID: 5
+        if ( loop_count > 20 ) // ID: 5
             return -1;
 
         int i = 0, k = 0;
