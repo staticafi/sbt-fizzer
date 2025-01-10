@@ -19,6 +19,48 @@ struct node_counts {
     int right_count;
 };
 
+
+struct path_node_props {
+    path_node_props( node_counts computed_counts, bool is_loop_head, bool loop_head_direction )
+        : computed_counts( computed_counts )
+        , taken_counts( { 0, 0 } )
+        , is_loop_head( is_loop_head )
+        , loop_head_direction( loop_head_direction )
+    {}
+
+    bool get_desired_direction() const;
+    bool can_go_direction( bool direction ) const;
+    void go_direction( bool direction );
+    bool can_take_next_direction() const;
+
+    float_32_bit get_false_direction_probability() const;
+
+private:
+    node_counts computed_counts;
+    node_counts taken_counts;
+    bool is_loop_head;
+    bool loop_head_direction;
+
+    bool get_preferred_direction_loop_head() const;
+};
+
+
+struct possible_path {
+    possible_path( std::map< location_id::id_type, path_node_props > path )
+        : path( std::move( path ) )
+    {}
+
+    possible_path() = default;
+
+    bool contains( location_id::id_type id ) const;
+    std::map< location_id::id_type, path_node_props > get_path() const;
+    path_node_props& get_props( location_id::id_type id ) { return path.at( id ); }
+
+private:
+    std::map< location_id::id_type, path_node_props > path;
+};
+
+
 struct equation {
     equation( std::vector< int > values, double best_value )
         : values( std::move( values ) )
@@ -58,7 +100,8 @@ struct node_direction {
     }
 };
 
-using loop_ending_to_bodies = std::map< std::pair< location_id, bool >, std::set< node_direction > >;
+using loop_head_end_direction = bool;
+using loop_ending_to_bodies = std::map< std::pair< location_id, loop_head_end_direction >, std::set< node_direction > >;
 using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
@@ -86,7 +129,7 @@ private:
 
 
 struct iid_node_dependence_props {
-    std::unordered_map< location_id::id_type, float > generate_probabilities();
+    possible_path generate_probabilities();
     void process_node( branching_node* end_node );
 
     void print_dependencies();
@@ -111,6 +154,7 @@ private:
 struct iid_dependencies {
     void update_non_iid_nodes( sensitivity_analysis& sensitivity );
     void process_node_dependence( branching_node* node );
+    void remove_node_dependence( location_id id );
     iid_node_dependence_props& get_props( location_id id );
     std::vector< location_id > get_iid_nodes();
 
