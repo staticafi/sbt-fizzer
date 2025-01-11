@@ -154,9 +154,10 @@ struct iid_node_dependence_props {
     possible_path generate_probabilities();
     void process_node( branching_node* end_node );
 
-    void print_dependencies();
+    void print_dependencies() const;
 
 private:
+    loop_ending_to_bodies get_dependencies_without_bodies_in_loop() const;
     nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
     equation get_best_vector( const std::map< equation, int >& vectors_with_hits,
                               bool use_random,

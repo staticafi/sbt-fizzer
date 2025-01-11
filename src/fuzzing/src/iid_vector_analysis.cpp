@@ -352,6 +352,7 @@ void fuzzing::equation_matrix::print_matrix()
     }
 }
 
+
 // ------------------------------------------------------------------------------------------------
 void fuzzing::equation_matrix::recompute_matrix()
 {
@@ -372,6 +373,11 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     // matrix.print_matrix();
 
     std::set< node_direction > all_leafs = get_leaf_subsets();
+    // std::cout << "All leafs:" << std::endl;
+    // for ( const auto& leaf : all_leafs ) {
+    //     std::cout << "Node ID: " << leaf.node_id.id
+    //               << ", Direction: " << ( leaf.branching_direction ? "Right" : "Left" ) << std::endl;
+    // }
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
     std::map< equation, int > vectors = submatrix.compute_vectors();
     if ( vectors.empty() ) {
@@ -387,7 +393,13 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     }
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
+    for ( const auto& [ node_id, counts ] : path_counts ) {
+        std::cout << "Node ID: " << node_id.id << ", Left Count: " << counts.left_count
+                  << ", Right Count: " << counts.right_count << std::endl;
+    }
     possible_path path = generate_path_from_node_counts( path_counts );
+
+    // std::cout << path << std::endl;
 
     return path;
 }
@@ -405,7 +417,7 @@ void fuzzing::iid_node_dependence_props::process_node( branching_node* end_node 
 }
 
 // ------------------------------------------------------------------------------------------------
-void fuzzing::iid_node_dependence_props::print_dependencies()
+void fuzzing::iid_node_dependence_props::print_dependencies() const
 {
     std::cout << "# Dependencies:" << std::endl;
     std::cout << "## Dependencies by loops:" << std::endl;
@@ -423,6 +435,48 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+fuzzing::loop_ending_to_bodies fuzzing::iid_node_dependence_props::get_dependencies_without_bodies_in_loop() const
+{
+    loop_ending_to_bodies result;
+    int result_size = dependencies_by_loops.size();
+    std::set< location_id > loop_heads;
+    std::set< location_id > already_added;
+
+    for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
+        loop_heads.insert( loop_head.first );
+    }
+
+    while ( result.size() < result_size ) {
+        for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
+            if ( result.contains( loop_head ) ) {
+                continue;
+            }
+
+            bool can_add = true;
+            for ( const auto& body : dependent_bodies ) {
+                if ( loop_heads.contains( body.node_id ) && !result.contains( { body.node_id, true } ) &&
+                     !result.contains( { body.node_id, false } ) ) {
+                    can_add = false;
+                    break;
+                }
+            }
+
+            if ( !can_add ) {
+                continue;
+            }
+
+            for ( const auto& body : dependent_bodies ) {
+                auto it = already_added.insert( body.node_id );
+                if ( it.second ) {
+                    result[ loop_head ].insert( body );
+                }
+            }
+        }
+    }
+
+    return result;
+}
 
 // ------------------------------------------------------------------------------------------------
 fuzzing::nodes_to_counts
@@ -444,19 +498,44 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
         }
     }
 
-    for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
-        int loop_count = 0;
-        for ( const auto& body : dependent_bodies ) {
-            auto& [ left_count, right_count ] = path_counts[ body.node_id ];
-            loop_count = std::max( loop_count, left_count + right_count );
-        }
+    loop_ending_to_bodies dependencies = get_dependencies_without_bodies_in_loop();
+    bool changed = true;
 
-        if ( loop_head.second ) {
-            path_counts[ loop_head.first ] = { loop_count, 1 };
-        } else {
-            path_counts[ loop_head.first ] = { 1, loop_count };
+    while ( changed ) {
+        changed = false;
+
+        for ( const auto& [ loop_head, dependent_bodies ] : dependencies ) {
+            if ( path_counts.contains( loop_head.first ) ) {
+                continue;
+            }
+
+            bool can_add = true;
+            for ( const auto& body : dependent_bodies ) {
+                if ( !path_counts.contains( body.node_id ) ) {
+                    can_add = false;
+                    break;
+                }
+            }
+
+            if ( !can_add ) {
+                continue;
+            }
+
+            changed = true;
+            int loop_count = 0;
+            for ( const auto& body : dependent_bodies ) {
+                auto& [ left_count, right_count ] = path_counts[ body.node_id ];
+                loop_count = std::max( loop_count, left_count + right_count );
+            }
+
+            if ( loop_head.second ) {
+                path_counts[ loop_head.first ] = { loop_count, 1 };
+            } else {
+                path_counts[ loop_head.first ] = { 1, loop_count };
+            }
         }
     }
+
 
 
     for ( const auto& [ loading_head, loading_bodies ] : dependencies_by_loading ) {
@@ -551,7 +630,13 @@ std::set< fuzzing::node_direction > fuzzing::iid_node_dependence_props::get_leaf
 {
     std::set< node_direction > all_leafs;
     for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
-        all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
+        for ( const auto& body : loop_bodies ) {
+            location_id body_id = body.node_id;
+            if ( !dependencies_by_loops.contains( { body_id, false } ) &&
+                 !dependencies_by_loops.contains( { body_id, true } ) ) {
+                all_leafs.insert( body );
+            }
+        }
     }
 
     return all_leafs;
