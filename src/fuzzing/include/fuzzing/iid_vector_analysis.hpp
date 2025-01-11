@@ -35,6 +35,16 @@ struct path_node_props {
 
     float_32_bit get_false_direction_probability() const;
 
+    friend std::ostream& operator<<( std::ostream& os, const path_node_props& eq )
+    {
+        os << "L: (" << eq.computed_counts.left_count << " | " << eq.taken_counts.left_count << ") ";
+        os << "R: (" << eq.computed_counts.right_count << " | " << eq.taken_counts.right_count << ") ";
+        if ( eq.is_loop_head ) {
+            os << "Loop head: " << ( eq.loop_head_direction ? "R" : "L" );
+        }
+        return os;
+    }
+
 private:
     node_counts computed_counts;
     node_counts taken_counts;
@@ -55,6 +65,16 @@ struct possible_path {
     bool contains( location_id::id_type id ) const;
     std::map< location_id::id_type, path_node_props > get_path() const;
     path_node_props& get_props( location_id::id_type id ) { return path.at( id ); }
+
+    friend std::ostream& operator<<( std::ostream& os, const possible_path& eq )
+    {
+        for ( const auto& [ id, props ] : eq.path ) {
+            os << id << ":" << std::endl;
+            os << props << std::endl;
+        }
+
+        return os;
+    }
 
 private:
     std::map< location_id::id_type, path_node_props > path;
@@ -101,11 +121,12 @@ struct node_direction {
 };
 
 using loop_head_end_direction = bool;
-using loop_ending_to_bodies = std::map< std::pair< location_id, loop_head_end_direction >, std::set< node_direction > >;
+using loop_ending_to_bodies =
+    std::map< std::pair< location_id, loop_head_end_direction >, std::set< node_direction > >;
 using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
 using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
-using nodes_to_counts = std::map< location_id::id_type, node_counts >;
+using nodes_to_counts = std::map< location_id, node_counts >;
 
 struct equation_matrix {
     equation_matrix get_submatrix( std::set< node_direction > const& subset, bool unique ) const;
@@ -116,6 +137,7 @@ struct equation_matrix {
     std::map< equation, int > compute_vectors();
     std::vector< equation >& get_matrix();
     std::optional< equation > get_new_path_from_vector( const equation& vector );
+    int get_desired_vector_direction() const;
 
     void print_matrix();
 
@@ -136,7 +158,9 @@ struct iid_node_dependence_props {
 
 private:
     nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
-    equation get_best_vector( const std::map< equation, int >& vectors_with_hits, bool use_random );
+    equation get_best_vector( const std::map< equation, int >& vectors_with_hits,
+                              bool use_random,
+                              int desired_direction );
     equation get_random_vector( const std::map< equation, int >& vectors_with_hits );
     std::set< node_direction > get_leaf_subsets();
     loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
@@ -145,6 +169,7 @@ private:
                                           const loop_endings& loop_heads_ending );
     void compute_dependencies_by_loops( const loop_head_to_bodies_t& loop_heads_to_bodies,
                                         const loop_endings& loop_heads_ending );
+    possible_path generate_path_from_node_counts( const nodes_to_counts& path_counts );
 
     equation_matrix matrix;
     loop_ending_to_bodies dependencies_by_loops;
