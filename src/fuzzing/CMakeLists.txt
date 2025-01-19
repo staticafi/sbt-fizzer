@@ -51,7 +51,7 @@ add_library(${THIS_TARGET_NAME}
 
     ./include/fuzzing/iid_vector_analysis.hpp
     ./src/iid_vector_analysis.cpp
-
+)
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
     RELEASE_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Release"
