@@ -278,8 +278,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best(
                 recorder().on_node_chosen(node, fuzzing::progress_recorder::PRIORITY_STEP_SUCCESSOR_TRACE_INDEX);
                 return true;
             }
-            return false;
-            // return node->max_successors_trace_index > other.node->max_successors_trace_index;
+            // return false;
+            return node->max_successors_trace_index > other.node->max_successors_trace_index;
         }
     private:
         branching_node*  node;
@@ -353,6 +353,20 @@ float_32_bit  fuzzer::probability_generator_all_then_all::next()
         samples_consumed[index] = 0U;
         direction = !direction;
     }
+}
+
+
+std::string const&  fuzzer::get_analysis_name_from_state(STATE state)
+{
+    static std::unordered_map<STATE, std::string> const  map {
+        { STARTUP, "STARTUP" },
+        { SENSITIVITY, "sensitivity_analysis" },
+        { TYPED_MINIMIZATION, "typed_minimization_analysis" },
+        { MINIMIZATION, "minimization_analysis" },
+        { BITSHARE, "bitshare_analysis" },
+        { FINISHED, "FINISHED" },
+    };
+    return map.at(state);
 }
 
 
@@ -907,9 +921,9 @@ fuzzer::fuzzer(termination_info const&  info)
 
     , max_input_width{ 0U }
 
-    , generator_for_iid_location_selection{}
-    , generator_for_iid_approach_selection{}
-    , generator_for_generator_selection{}
+    , generator_for_iid_location_selection{ 1U }
+    , generator_for_iid_approach_selection{ 1U }
+    , generator_for_generator_selection{ 1U }
 
     , statistics{}
 {}
@@ -945,35 +959,12 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 {
     TMPROF_BLOCK();
 
-    if (get_performed_driver_executions() > 0U)
-    {
-        if (uncovered_branchings.empty())
-        {
-            terminate();
-            termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
-            return false;
-        }
-    }
-
-    if (num_remaining_seconds() <= 0L)
-    {
-        terminate();
-        termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
-        return false;
-    }
-
-    if (num_remaining_driver_executions() <= 0L)
-    {
-        terminate();
-        termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
-        return false;
-    }
-
     iomodels::iomanager::instance().get_stdin()->clear();
     iomodels::iomanager::instance().get_stdout()->clear();
 
     vecb  stdin_bits;
-    generate_next_input(stdin_bits);
+    if (!generate_next_input(stdin_bits, termination_reason))
+        return false;
     if (!can_make_progress())
     {
         terminate();
@@ -990,55 +981,79 @@ bool  fuzzer::round_begin(TERMINATION_REASON&  termination_reason)
 }
 
 
-execution_record::execution_flags  fuzzer::round_end()
+std::pair<execution_record::execution_flags, std::string const&>  fuzzer::round_end()
 {
     TMPROF_BLOCK();
 
     execution_record::execution_flags const  flags = process_execution_results();
 
-    time_point_current = std::chrono::steady_clock::now();
     ++num_driver_executions;
 
-    return flags;
+    return { flags, get_analysis_name_from_state(state) };
 }
 
 
-void  fuzzer::generate_next_input(vecb&  stdin_bits)
+bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termination_reason)
 {
     TMPROF_BLOCK();
 
     while (true)
     {
+        if (get_performed_driver_executions() > 0U)
+        {
+            if (uncovered_branchings.empty())
+            {
+                terminate();
+                termination_reason = TERMINATION_REASON::ALL_REACHABLE_BRANCHINGS_COVERED;
+                return false;
+            }
+        }
+
+        time_point_current = std::chrono::steady_clock::now();
+        if (num_remaining_seconds() <= 0.0)
+        {
+            terminate();
+            termination_reason = TERMINATION_REASON::TIME_BUDGET_DEPLETED;
+            return false;
+        }
+
+        if (num_remaining_driver_executions() <= 0U)
+        {
+            terminate();
+            termination_reason = TERMINATION_REASON::EXECUTIONS_BUDGET_DEPLETED;
+            return false;
+        }
+
         switch (state)
         {
             case STARTUP:
                 if (get_performed_driver_executions() == 0U)
-                    return; // Fizzer input is empty
+                    return true;
                 break;
 
             case SENSITIVITY:
                 if (sensitivity.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case TYPED_MINIMIZATION:
                 if (typed_minimization.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case MINIMIZATION:
                 if (minimization.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case BITSHARE:
                 if (bitshare.generate_next_input(stdin_bits))
-                    return;
+                    return true;
                 break;
 
             case FINISHED:
                 if (!apply_coverage_failures_with_hope())
-                    return;
+                    return true;
                 break;
 
             default: { UNREACHABLE(); break; }
@@ -1087,7 +1102,8 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                     std::numeric_limits<branching_function_value_type>::max(),
                     std::numeric_limits<branching_function_value_type>::max(),
                     num_driver_executions,
-                    trace->front().xor_like_branching_function
+                    trace->front().xor_like_branching_function,
+                    trace->front().predicate
                     );
             construction_props.diverging_node = entry_branching;
 
@@ -1130,6 +1146,32 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                 }
             }
 
+            // Here we try to remove bad float (INF, NaN) from 'info.value'.
+            // It would be better, if fuzzer and analyses could deal with bad floats, but that is complicated. 
+            if (!std::isfinite(info.value) || std::isnan(info.value))
+            {
+                branching_function_value_type&  value_ref{ const_cast<branching_function_value_type&>(info.value) };
+                switch (info.predicate)
+                {
+                    case BP_EQUAL:
+                        value_ref = info.direction ? 0.0 : std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                    case BP_UNEQUAL:
+                        value_ref = info.direction ? std::numeric_limits<branching_function_value_type>::max() : 0.0;
+                        break;
+                    case BP_LESS_EQUAL:
+                    case BP_LESS:
+                        value_ref = (info.direction ? -1.0 : 1.0) * std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                        break;
+                    case BP_GREATER:
+                    case BP_GREATER_EQUAL:
+                        value_ref = (info.direction ? 1.0 : -1.0) * std::numeric_limits<branching_function_value_type>::max();
+                        break;
+                    default: UNREACHABLE(); break;
+                }
+            }
+
             summary_value += info.value * info.value;
             bool const  value_ok = std::isfinite(summary_value);
             if (construction_props.leaf->best_stdin == nullptr || (value_ok && construction_props.leaf->best_summary_value > summary_value))
@@ -1169,11 +1211,9 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         succ_info.value,
                         succ_info.value * succ_info.value,
                         num_driver_executions,
-                        succ_info.xor_like_branching_function
-                        );
-                construction_props.leaf->set_successor(info.direction, {
-                    branching_node::successor_pointer::VISITED,
-                    new_node
+                        succ_info.xor_like_branching_function,
+                        succ_info.predicate
+                        )
                 });
 
                 iid_dependences.process_node_dependence(new_node);
@@ -1613,7 +1653,6 @@ branching_node*  fuzzer::select_iid_coverage_target()
 
     if (iid_pivots.empty() || entry_branching->is_closed())
         return nullptr;
-    
 
     auto const  it_loc = std::next(
             iid_pivots.begin(),

@@ -62,7 +62,7 @@ struct  minimization_analysis
         , descent{}
         , computed_input_stdin{}
         , hashes_of_generated_bits{}
-        , random_generator{}
+        , random_generator{ 1U }
         , stopped_early{ false }
         , statistics{}
     {}

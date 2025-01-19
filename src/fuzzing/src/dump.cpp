@@ -33,7 +33,7 @@ void  print_fuzzing_configuration(
          << shift << "\"max_exec_megabytes\": " << ioconfig.max_exec_megabytes << ",\n"
          << shift << "\"stdin_model\": \"" << ioconfig.stdin_model_name << "\",\n"
          << shift << "\"stdout_model\": \"" << ioconfig.stdout_model_name << "\"\n"
-         << "}\n"
+         << "}"
          ;
 }
 
@@ -113,9 +113,9 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
         ostr << shift << "\"error_message\": \"" << results.error_message << "\",\n";
 
     std::vector<std::string>  warnings;
-    if (results.statistics.leaf_nodes_created != results.statistics.leaf_nodes_destroyed)
+    if (results.fuzzer_statistics.leaf_nodes_created != results.fuzzer_statistics.leaf_nodes_destroyed)
         warnings.push_back("The number of created and destroyed leaf nodes differ.");
-    if (results.statistics.nodes_created != results.statistics.nodes_destroyed)
+    if (results.fuzzer_statistics.nodes_created != results.fuzzer_statistics.nodes_destroyed)
         warnings.push_back("The number of created and destroyed nodes differ => Memory leak!");
     if (results.sensitivity_statistics.start_calls != results.sensitivity_statistics.stop_calls_regular + results.sensitivity_statistics.stop_calls_early)
         warnings.push_back("The number of starts does not match to the number of stops in the sensitivity analysis.");
@@ -177,22 +177,22 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
          << shift << shift << "\"num_deletions\": " << results.bitshare_statistics.num_deletions << "\n"
          << shift << "},\n"
          << shift << "\"fuzzer\": {\n"
-         << shift << shift << "\"leaf_nodes_created\": " << results.statistics.leaf_nodes_created << ",\n"
-         << shift << shift << "\"leaf_nodes_destroyed\": " << results.statistics.leaf_nodes_destroyed << ",\n"
-         << shift << shift << "\"nodes_created\": " << results.statistics.nodes_created << ",\n"
-         << shift << shift << "\"nodes_destroyed\": " << results.statistics.nodes_destroyed << ",\n"
-         << shift << shift << "\"max_leaf_nodes\": " << results.statistics.max_leaf_nodes << ",\n"
-         << shift << shift << "\"max_input_width\": " << results.statistics.max_input_width << ",\n"
-         << shift << shift << "\"longest_branch\": " << results.statistics.longest_branch << ",\n"
-         << shift << shift << "\"traces_to_crash\": " << results.statistics.traces_to_crash << ",\n"
-         << shift << shift << "\"traces_to_boundary_violation\": " << results.statistics.traces_to_boundary_violation << ",\n"
-         << shift << shift << "\"traces_to_medium_overflow\": " << results.statistics.traces_to_medium_overflow << ",\n"
-         << shift << shift << "\"strategy_primary_loop_head\": " << results.statistics.strategy_primary_loop_head << ",\n"
-         << shift << shift << "\"strategy_primary_sensitive\": " << results.statistics.strategy_primary_sensitive << ",\n"
-         << shift << shift << "\"strategy_primary_untouched\": " << results.statistics.strategy_primary_untouched << ",\n"
-         << shift << shift << "\"strategy_primary_iid_twins\": " << results.statistics.strategy_primary_iid_twins << ",\n"
-         << shift << shift << "\"strategy_monte_carlo\": " << results.statistics.strategy_monte_carlo << ",\n"
-         << shift << shift << "\"coverage_failure_resets\": " << results.statistics.coverage_failure_resets << "\n"
+         << shift << shift << "\"leaf_nodes_created\": " << results.fuzzer_statistics.leaf_nodes_created << ",\n"
+         << shift << shift << "\"leaf_nodes_destroyed\": " << results.fuzzer_statistics.leaf_nodes_destroyed << ",\n"
+         << shift << shift << "\"nodes_created\": " << results.fuzzer_statistics.nodes_created << ",\n"
+         << shift << shift << "\"nodes_destroyed\": " << results.fuzzer_statistics.nodes_destroyed << ",\n"
+         << shift << shift << "\"max_leaf_nodes\": " << results.fuzzer_statistics.max_leaf_nodes << ",\n"
+         << shift << shift << "\"max_input_width\": " << results.fuzzer_statistics.max_input_width << ",\n"
+         << shift << shift << "\"longest_branch\": " << results.fuzzer_statistics.longest_branch << ",\n"
+         << shift << shift << "\"traces_to_crash\": " << results.fuzzer_statistics.traces_to_crash << ",\n"
+         << shift << shift << "\"traces_to_boundary_violation\": " << results.fuzzer_statistics.traces_to_boundary_violation << ",\n"
+         << shift << shift << "\"traces_to_medium_overflow\": " << results.fuzzer_statistics.traces_to_medium_overflow << ",\n"
+         << shift << shift << "\"strategy_primary_loop_head\": " << results.fuzzer_statistics.strategy_primary_loop_head << ",\n"
+         << shift << shift << "\"strategy_primary_sensitive\": " << results.fuzzer_statistics.strategy_primary_sensitive << ",\n"
+         << shift << shift << "\"strategy_primary_untouched\": " << results.fuzzer_statistics.strategy_primary_untouched << ",\n"
+         << shift << shift << "\"strategy_primary_iid_twins\": " << results.fuzzer_statistics.strategy_primary_iid_twins << ",\n"
+         << shift << shift << "\"strategy_monte_carlo\": " << results.fuzzer_statistics.strategy_monte_carlo << ",\n"
+         << shift << shift << "\"coverage_failure_resets\": " << results.fuzzer_statistics.coverage_failure_resets << "\n"
          << shift << "},\n"
          ;
 
@@ -221,11 +221,18 @@ void  print_analysis_outcomes(std::ostream&  ostr, analysis_outcomes const&  res
     }
     ostr << '\n' << shift << "],\n";
 
-    ostr << shift << "\"num_generated_tests\": " << results.num_generated_tests << ",\n";
-    ostr << shift << "\"num_crashes\": " << results.num_crashes << ",\n";
-    ostr << shift << "\"num_boundary_violations\": " << results.num_boundary_violations << "\n";
+    ostr << shift << "\"output_statistics\": {\n";
+    for (auto  it = results.output_statistics.begin(); it != results.output_statistics.end(); ++it)
+    {
+        ostr << shift << shift << '\"' << it->first << "\": {\n";
+        ostr << shift << shift << shift << "\"num_generated_tests\": " << it->second.num_generated_tests << ",\n";
+        ostr << shift << shift << shift << "\"num_crashes\": " << it->second.num_crashes << ",\n";
+        ostr << shift << shift << shift << "\"num_boundary_violations\": " << it->second.num_boundary_violations << "\n";
+        ostr << shift << shift << '}' << (std::next(it) != results.output_statistics.end() ? "," : "") << '\n';
+    }
+    ostr << shift << "}\n";
 
-    ostr << "}\n";
+    ostr << "}";
 }
 
 
@@ -256,7 +263,7 @@ void  print_optimization_configuration(std::ostream&  ostr, optimizer::configura
          << shift << "\"max_seconds\": " << config.max_seconds << ",\n"
          << shift << "\"max_trace_length\": " << config.max_trace_length << ",\n"
          << shift << "\"max_stdin_bytes\": " << config.max_stdin_bytes << "\n"
-         << "}\n"
+         << "}"
          ;
 }
 
@@ -354,7 +361,7 @@ void  print_optimization_outcomes(std::ostream&  ostr, optimization_outcomes con
     }
     ostr << '\n' << shift << "]\n";
 
-    ostr << "}\n";
+    ostr << "}";
 }
 
 

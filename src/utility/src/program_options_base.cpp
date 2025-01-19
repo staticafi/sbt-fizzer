@@ -227,6 +227,4 @@ program_options_default::program_options_default(int argc, char* argv[])
 {
     add_option("help", "Produces this help message.", "0");
     add_option("version", "Prints the version string.", "0");
-    add_option("data", "A root directory under which program's data are stored.", "1");
-    add_value("data", "../data");
 }

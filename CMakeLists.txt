@@ -1,4 +1,4 @@
-project(fizz)
+project(fizzer)
 
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
@@ -70,12 +70,13 @@ find_package(Threads REQUIRED)
 
 # find and add Boost
 message("Searching for Boost library ...")
-find_package(Boost 1.69 REQUIRED COMPONENTS filesystem)
+set(Boost_USE_STATIC_LIBS   ON)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 message("Boost STATUS:
     Includes ${Boost_INCLUDE_DIRS}
-    Libs ${Boost_LIBRARIES}
-")
+    Libs ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
+set(BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH "${Boost_LIBRARIES}")
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
 find_package(LLVM REQUIRED CONFIG)
@@ -92,8 +93,7 @@ message("LLVM STATUS:
     Definitions ${LLVM_DEFINITIONS}
     Includes    ${LLVM_INCLUDE_DIRS}
     Libraries   ${LLVM_LIBRARY_DIRS}
-    Targets     ${LLVM_TARGETS_TO_BUILD}"
-)
+    Targets     ${LLVM_TARGETS_TO_BUILD}")
 
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -113,7 +113,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # Add project specific sources
 add_subdirectory(./src)
 
-install(DIRECTORY ./benchmarks DESTINATION .)
-install(FILES ./LICENSE.txt DESTINATION .)
+if(FIZZ_BUILD_LIBS_32_BIT STREQUAL "No")
+    install(DIRECTORY ./benchmarks DESTINATION .)
+    install(FILES ./LICENSE.txt DESTINATION .)
+endif()
 
 message("Generating build files ...")

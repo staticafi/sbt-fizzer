@@ -17,7 +17,7 @@ target_link_libraries(${THIS_TARGET_NAME}
     instrumentation
     iomodels
     utility
-    ${Boost_LIBRARIES}
+    ${BOOST_LIST_OF_LIBRARIES_TO_LINK_WITH}
     Threads::Threads
     )
 

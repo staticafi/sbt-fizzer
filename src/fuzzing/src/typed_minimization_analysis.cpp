@@ -43,8 +43,8 @@ typed_minimization_analysis::typed_minimization_analysis()
     , hashes_of_generated_bits{}
     , num_fast_and_genuine_executions{ 0U }
     , stopped_early{ false }
-    , random_generator32{}
-    , random_generator64{}
+    , random_generator32{ 1U }
+    , random_generator64{ 1U }
     , statistics{}
 {}
 

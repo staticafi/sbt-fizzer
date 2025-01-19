@@ -7,11 +7,12 @@
         "max_stdin_bytes": 6400,
         "max_exec_milliseconds": 250,
         "max_exec_megabytes": 1024,
-        "stdin_model": "stdin_replay_bytes_then_repeat_85",
+        "stdin_model": "stdin_replay_bytes_then_repeat_zero",
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": false
     },
     "results": {
         "termination_type": "NORMAL",
@@ -22,8 +23,17 @@
             1,2654435899,    1,2654435962,    3,0,    4,0,    
             5,0,    6,0,    7,0,    8,0
         ],
-        "num_generated_tests": 7,
-        "num_crashes": 0,
-        "num_boundary_violations": 2
+        "output_statistics": {
+            "sensitivity_analysis": {
+                "num_generated_tests": 4,
+                "num_crashes": 1,
+                "num_boundary_violations": 2
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 1,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }

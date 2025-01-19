@@ -165,10 +165,10 @@ optimization_outcomes  optimizer::run(
         std::sort(outcomes.uncovered_branchings.begin(),outcomes.uncovered_branchings.end());
     }
 
-    outcomes.statistics = statistics;
-
     time_point_current = std::chrono::steady_clock::now();
     statistics.num_seconds = get_elapsed_seconds();
+
+    outcomes.statistics = statistics;
 
     return outcomes;
 }

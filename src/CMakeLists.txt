@@ -20,13 +20,15 @@ add_subdirectory(./iomodels)
     message("  iomodels")
 add_subdirectory(./connection)
     message("  connection")
-
+    
 if(FIZZ_BUILD_ALSO_TOOLS STREQUAL "Yes")
-    include_directories(
-        "${PROJECT_SOURCE_DIR}/src/fuzzing/include"
-        "${PROJECT_SOURCE_DIR}/src/tools"
-        )
-    add_subdirectory(./fuzzing)
-        message("  fuzzing")
-    add_subdirectory(./tools)
+    if(FIZZ_BUILD_LIBS_32_BIT STREQUAL "No")
+        include_directories(
+            "${PROJECT_SOURCE_DIR}/src/fuzzing/include"
+            "${PROJECT_SOURCE_DIR}/src/tools"
+            )
+        add_subdirectory(./fuzzing)
+            message("  fuzzing")
+        add_subdirectory(./tools)
+    endif()
 endif()

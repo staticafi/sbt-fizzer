@@ -106,99 +106,69 @@ class Benchmark:
         self._execute(cmdline, os.path.dirname(desired_output) if work_dir is None else work_dir)
         ASSUMPTION(os.path.isfile(desired_output), "_execute_and_check_output(): the output is missing: " + desired_output)
 
-    def _check_outcomes(self, config : dict, outcomes : dict):
-        checked_properties_and_comparators = {
-            "termination_type": "EQ",
-            "termination_reason": "EQ",
-            "num_executions": "LE",
-            "num_covered_branchings": "GE",
-            "covered_branchings": None,
-            "num_generated_tests": "GE",
-            "num_crashes": "GE",
-            "num_boundary_violations": "LE"
-        }
+    @staticmethod
+    def _add_error_message(text: str, errors: list, properties: list):
+        errors.append(("In " + "/".join(properties) + ": " if len(properties) > 0 else "") + text)
 
-        def is_valid(obtained, expected, op : str) -> bool:
-            if op == "EQ": return obtained == expected
-            if op == "NE": return obtained != expected
-            if op == "LT": return obtained < expected
-            if op == "LE": return obtained <= expected
-            if op == "GT": return obtained > expected
-            if op == "GE": return obtained >= expected
-            raise Exception("Invalid comparison operator '" + op + "'.")
+    @staticmethod
+    def _epsilon_for_property(properties):
+        if len(properties) == 0: return None
+        if properties[-1] == "num_executions": return 5.0
+        return None
 
-        for property, expected_value in config["results"].items():
-            ASSUMPTION(
-                property in checked_properties_and_comparators,
-                "Unsupported key '" + property + "' in the 'results' section of benchmark's config JSON file."
-                )
-            ASSUMPTION(
-                property in outcomes,
-                "The valid key '" + property + "' was not found in the 'outcomes' JSON file."
-                )
-            if type(expected_value) in [int, float, str]:
-                if not is_valid(outcomes[property], expected_value, checked_properties_and_comparators[property]):
+    @staticmethod
+    def _check_outcomes(obtained, expected, errors: list, properties = []) -> bool:
+        if type(expected) is dict:
+            if type(obtained) is not dict:
+                Benchmark._add_error_message("Mismatch in JSON structure. Expected dictionary.", errors, properties)
+                return False
+            result = True
+            for key in expected:
+                if key not in obtained:
+                    Benchmark._add_error_message("Missing property: " + key, errors, properties)
+                    return False
+                r = Benchmark._check_outcomes(obtained[key], expected[key], errors, properties + [key])
+                result = result and r
+            return result
+        elif type(expected) is list:
+            if type(obtained) is not list:
+                Benchmark._add_error_message("Mismatch in JSON structure. Expected list.", errors, properties)
+                return False
+            if len(obtained) != len(expected):
+                Benchmark._add_error_message("Different list size.", errors, properties)
+                return False
+            result = True
+            for i in range(min(len(obtained), len(expected))):
+                r = Benchmark._check_outcomes(obtained[i], expected[i], errors, properties)
+                result = result and r
+            return result
+        elif type(expected) in [int, float]:
+            if type(obtained) not in [int, float]:
+                Benchmark._add_error_message("Mismatch in JSON structure. Expected int or float.", errors, properties)
+                return False
+            epsilon = Benchmark._epsilon_for_property(properties)
+            if epsilon is None:
+                if obtained != expected:
+                    Benchmark._add_error_message("Expected " + str(expected) + ", obtained " + str(obtained), errors, properties)
                     return False
             else:
-                ASSUMPTION(property == "covered_branchings", "Only 'covered_branchings' can be a 'list' property to check.")
-                ASSUMPTION(len(expected_value) % 2 == 0, "Expected covered branchings list must have even number of elements.")
-                ASSUMPTION(len(outcomes[property]) % 2 == 0, "Obtained covered branchings list must have even number of elements.")
-                def get_branchings(seq : list) -> set:
-                    result = set()
-                    if len(seq) > 0:
-                        for i in range(0, len(seq)-1, 2):
-                            result.add((seq[i], seq[i+1]))
-                    return result
-                expected_branchings = get_branchings(expected_value)
-                obtained_branchings = get_branchings(outcomes[property])
-                for x in expected_branchings:
-                    if x not in obtained_branchings:
-                        return False
-        return True
-
-    def _ok_stats_message(self, config : dict, outcomes : dict) -> str:
-        max_num_execution = config["results"]["num_executions"]
-        try:
-            num_execution = outcomes["num_executions"]
-        except Exception as e:
-            return "Unknown executions count"
-        percentage = 100.0 * num_execution / max_num_execution
-        return "#" + ("%.2f" % (percentage - 100)) + "%" if max_num_execution >= 100 else ""
-
-    def _fail_stats_message(self, config : dict, outcomes : dict) -> str:
-        expected_termination_type = config["results"]["termination_type"]
-        try:
-            termination_type = outcomes["termination_type"]
-        except Exception as e:
-            return "Unknown termination type"
-        if termination_type != expected_termination_type:
-            return termination_type
-        
-        result = ""
-
-        expected_termination_reason = config["results"]["termination_reason"]
-        try:
-            termination_reason = outcomes["termination_reason"]
-        except Exception as e:
-            return "Unknown termination reason"
-        if termination_reason != expected_termination_reason:
-            result += termination_reason
-
-        max_num_execution = config["results"]["num_executions"]
-        try:
-            num_execution = outcomes["num_executions"]
-        except Exception as e:
-            return result + ("" if len(result) == 0 else ", ") + "unknown executions count"
-        if len(result) == 0 and num_execution > max_num_execution:
-            percentage = 100.0 * num_execution / max_num_execution
-            result += ("" if len(result) == 0 else ", ") + "#" + ("+%.2f" % (percentage - 100)) + "%"
-
-        return result
-
-    def _embrace_stats_message(self, msg : str) -> str:
-        if len(msg) == 0:
-            return msg
-        return "[" + msg + "]"
+                percentage = (100.0 * obtained) / expected if expected > 0 else 100.0 * obtained + 100.0
+                error = percentage - 100.0
+                if abs(error) > epsilon:
+                    Benchmark._add_error_message("Expected " + str(expected) + ", obtained " + str(obtained) + " [error: " + ("%.2f" % error) + "%]", errors, properties)
+                    return False
+            return True
+        elif type(expected) is str:
+            if type(obtained) is not str:
+                Benchmark._add_error_message("Mismatch in JSON structure. Expected string.", errors, properties)
+                return False
+            if obtained != expected:
+                Benchmark._add_error_message("Expected " + expected + ", obtained " + obtained, errors, properties)
+                return False
+            return True
+        else:
+            Benchmark._add_error_message("Unexpected JSON content [type: " + str(type(expected)) + "].", errors, properties)
+            return False
 
     def build(self, benchmarks_root_dir : str, output_root_dir : str) -> None:
         self.log("===")
@@ -216,7 +186,7 @@ class Benchmark:
                 "--skip_fuzzing",
                 "--input_file", self.src_file,
                 "--output_dir",  self.work_dir,
-                "--silent_build",
+                "--silent_mode",
                 "--save_mapping"
             ] + (["--m32"] if "m32" in self.config["args"] and self.config["args"]["m32"] is True else []),
             self.fuzz_target_file,
@@ -263,19 +233,20 @@ class Benchmark:
             output_dir
             )
 
+        errors = []
         try:
             outcomes_pathname = os.path.join(output_dir, self.name + "_outcomes.json")
             with open(outcomes_pathname, "rb") as fp:
                 outcomes = json.load(fp)
-            if self._check_outcomes(self.config, outcomes) is True:
-                stats_msg = self._embrace_stats_message(self._ok_stats_message(self.config, outcomes))
-                self.log("The outcomes are as expected => the test has PASSED. [Details: " + stats_msg + "]", "ok " + stats_msg + "\n")
+            if self._check_outcomes(outcomes, self.config["results"], errors) is True:
+                ASSUMPTION(len(errors) == 0)
+                self.log("The outcomes are as expected => the test has PASSED.", "ok\n")
                 return True
         except Exception as e:
             self.log("FAILURE due to an EXCEPTION: " + str(e), "EXCEPTION[" + str(e) + "]\n")
             return False
-        stats_msg = self._embrace_stats_message(self._fail_stats_message(self.config, outcomes))
-        self.log("The outcomes are NOT as expected => the test has FAILED. Details: " + stats_msg, "FAILED " + stats_msg + "\n")
+        error_messages = "\n    " + "\n    ".join(errors)
+        self.log("The outcomes are NOT as expected => the test has FAILED. Details:" + error_messages, "FAILED " + error_messages + "\n")
         return False
 
     def clear(self, benchmarks_root_dir : str, output_root_dir : str) -> None:

@@ -19,7 +19,7 @@ struct stdin_replay_bytes_then_repeat_byte : public stdin_base
     bool  load_record(connection::message&  src) override;
     bool  load_record(connection::shared_memory&  src) override;
     std::size_t min_flattened_size() const override;
-    void  read(natural_8_bit*  ptr, type_of_input_bits  type, connection::shared_memory& dest) override;
+    bool  read_bytes(natural_8_bit*  ptr, type_of_input_bits  type, connection::medium&  dest) override;
 
     vecu8 const&  get_bytes() const override { return bytes; }
     input_types_vector const&  get_types() const override { return types; }

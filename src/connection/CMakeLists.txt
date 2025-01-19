@@ -7,6 +7,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/client.hpp
     ./src/client.cpp
 
+    ./include/connection/medium.hpp
+
     ./include/connection/shared_memory.hpp
     ./src/shared_memory.cpp
 
@@ -29,6 +31,8 @@ add_library(${THIS_TARGET_NAME}
     ./include/connection/benchmark_executor.hpp
     ./src/benchmark_executor.cpp
     )
+
+target_compile_options(${THIS_TARGET_NAME} PUBLIC "-Wno-deprecated")
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
