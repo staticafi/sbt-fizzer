@@ -16,8 +16,11 @@ public:
                      const std::vector< float >& target_vector,
                      float learning_rate = 0.01f,
                      int max_iterations = 1000,
-                     float convergence_threshold = 1e-4,
-                     float momentum = 0.9f );
+                     float convergence_threshold = 1e-5,
+                     float momentum = 0.9f,
+                     int stagnant_threshold = 15,
+                     float improvement_threshold = 1e-6,
+                     float error_threshold = 0.1 );
 
     std::tuple< std::vector< float >, bool > optimize();
 
@@ -36,6 +39,9 @@ private:
     int _max_iterations;
     float _convergence_threshold;
     float _momentum;
+    int _stagnant_threshold;
+    float _improvement_threshold;
+    float _error_threshold;
     bool _debug = false;
 
     std::vector< float > compute_gradient( const std::vector< float >& current_solution );

@@ -1,6 +1,5 @@
-project(fizz)
-
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+project(fizz)
 
 macro(append_compiler_flags FLAGS)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS}")
@@ -78,7 +77,7 @@ message("Boost STATUS:
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS "yes")
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM 14.0.0 REQUIRED CONFIG)
 llvm_map_components_to_libnames(LLVM_LIST_OF_LIBRARIES_TO_LINK_WITH Core Passes)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

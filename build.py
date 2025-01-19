@@ -49,8 +49,8 @@ def init(build_dir, build_config, vcpkg_toolchain_file):
             "--no-warn-unused-cli",
             "-G Ninja",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
-            "-DCMAKE_C_COMPILER:FILEPATH=clang",
-            "-DCMAKE_CXX_COMPILER:FILEPATH=clang++",
+            "-DCMAKE_C_COMPILER:FILEPATH=clang-18",
+            "-DCMAKE_CXX_COMPILER:FILEPATH=clang++-18",
             "-DCMAKE_BUILD_TYPE:STRING=" + build_config ] +
             ([] if vcpkg_toolchain_file is None else ["-DCMAKE_TOOLCHAIN_FILE:STRING=" + vcpkg_toolchain_file])
         )
@@ -65,8 +65,8 @@ def build(build_dir, build_config, vcpkg_toolchain_file, use_m32):
             "-G Ninja",
             "-DFIZZ_BUILD_LIBS_32_BIT=" + ("No" if use_m32 is False else "Yes"),
             "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
-            "-DCMAKE_C_COMPILER:FILEPATH=clang",
-            "-DCMAKE_CXX_COMPILER:FILEPATH=clang++",
+            "-DCMAKE_C_COMPILER:FILEPATH=clang-18",
+            "-DCMAKE_CXX_COMPILER:FILEPATH=clang++-18",
             "-DCMAKE_BUILD_TYPE:STRING=" + build_config ] +
             ([] if vcpkg_toolchain_file is None else ["-DCMAKE_TOOLCHAIN_FILE:STRING=" + vcpkg_toolchain_file])
         )

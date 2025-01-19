@@ -36,7 +36,7 @@ bool fuzzing::path_decision::get_next_direction()
  * @param other The other node_direction object to compare with.
  * @return std::strong_ordering Result of the comparison.
  */
-auto fuzzing::node_direction::operator<=>( node_direction const& other ) const
+auto fuzzing::node_direction_old::operator<=>( node_direction_old const& other ) const
 {
     if ( auto const cmp = node_id.id <=> other.node_id.id; cmp != 0 )
         return cmp;
@@ -53,7 +53,7 @@ auto fuzzing::node_direction::operator<=>( node_direction const& other ) const
  * @param other The other node_direction object to compare with.
  * @return true if both node_id and direction are equal, false otherwise.
  */
-bool fuzzing::node_direction::operator==( node_direction const& other ) const
+bool fuzzing::node_direction_old::operator==( node_direction_old const& other ) const
 {
     return node_id.id == other.node_id.id && branching_direction == other.branching_direction;
 }
@@ -116,10 +116,10 @@ void fuzzing::coverage_value_props::update_mean_depth( branching_node* node )
  */
 void fuzzing::coverage_value_props::update_direction_counts( branching_node* node )
 {
-    std::vector< node_direction > path = get_path( node );
+    std::vector< node_direction_old > path = get_path_old( node );
 
-    std::map< node_direction, int > direction_counts;
-    for ( const node_direction& nav : path ) {
+    std::map< node_direction_old, int > direction_counts;
+    for ( const node_direction_old& nav : path ) {
         direction_counts[ nav ]++;
     }
 
@@ -140,13 +140,13 @@ void fuzzing::coverage_value_props::update_direction_counts( branching_node* nod
  * @param node A pointer to the branching node from which to start the path traversal.
  * @return true if the set of interesting nodes was updated, false otherwise.
  */
-bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_node* node )
+bool fuzzing::iid_node_dependence_props_old::update_interesting_nodes( branching_node* node )
 {
     TMPROF_BLOCK();
 
     bool set_changed = false;
 
-    auto add_to_interesting = [ this, &set_changed ]( std::vector< node_direction >& nodes, int i ) {
+    auto add_to_interesting = [ this, &set_changed ]( std::vector< node_direction_old >& nodes, int i ) {
         for ( ; i >= 0; --i ) {
             number_statistics& stats = all_cov_value_props.direction_statistics[ nodes[ i ] ];
             if ( stats.min == stats.max )
@@ -160,8 +160,8 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
     };
 
     for ( const auto& end_node : all_paths ) {
-        std::vector< node_direction > path_1 = get_path( node );
-        std::vector< node_direction > path_2 = get_path( end_node );
+        std::vector< node_direction_old > path_1 = get_path_old( node );
+        std::vector< node_direction_old > path_2 = get_path_old( end_node );
 
         if ( path_1.empty() || path_2.empty() )
             continue;
@@ -193,7 +193,7 @@ bool fuzzing::iid_node_dependence_props::update_interesting_nodes( branching_nod
  *
  * @note The matrix clearing could be optimized in the future.
  */
-void fuzzing::iid_node_dependence_props::recompute_matrix()
+void fuzzing::iid_node_dependence_props_old::recompute_matrix()
 {
     TMPROF_BLOCK();
 
@@ -217,18 +217,18 @@ void fuzzing::iid_node_dependence_props::recompute_matrix()
  *
  * @param path A pointer to the branching_node representing the path to be processed.
  */
-void fuzzing::iid_node_dependence_props::add_equation( branching_node* path )
+void fuzzing::iid_node_dependence_props_old::add_equation( branching_node* path )
 {
     TMPROF_BLOCK();
 
-    std::map< node_direction, int > directions_in_path;
-    for ( const node_direction& navigation : interesting_nodes ) {
+    std::map< node_direction_old, int > directions_in_path;
+    for ( const node_direction_old& navigation : interesting_nodes ) {
         directions_in_path[ navigation ] = 0;
     }
 
-    std::vector< node_direction > path_nodes = get_path( path );
+    std::vector< node_direction_old > path_nodes = get_path_old( path );
 
-    for ( const node_direction& nav : path_nodes ) {
+    for ( const node_direction_old& nav : path_nodes ) {
         if ( interesting_nodes.contains( nav ) ) {
             directions_in_path[ nav ]++;
         }
@@ -244,15 +244,15 @@ void fuzzing::iid_node_dependence_props::add_equation( branching_node* path )
 }
 
 
-std::vector< std::set< fuzzing::node_direction > >
-fuzzing::iid_node_dependence_props::get_subsets( std::set< node_direction > const& all_leafs )
+std::vector< std::set< fuzzing::node_direction_old > >
+fuzzing::iid_node_dependence_props_old::get_subsets( std::set< node_direction_old > const& all_leafs )
 {
-    std::vector< std::set< node_direction > > subsets;
-    std::vector< node_direction > leafs_vector( all_leafs.begin(), all_leafs.end() );
+    std::vector< std::set< node_direction_old > > subsets;
+    std::vector< node_direction_old > leafs_vector( all_leafs.begin(), all_leafs.end() );
     int n = leafs_vector.size();
 
     for ( int i = 1; i < ( 1 << n ); ++i ) {
-        std::set< node_direction > subset;
+        std::set< node_direction_old > subset;
         for ( int j = 0; j < n; ++j ) {
             if ( i & ( 1 << j ) ) {
                 subset.insert( leafs_vector[ j ] );
@@ -263,7 +263,7 @@ fuzzing::iid_node_dependence_props::get_subsets( std::set< node_direction > cons
 
     std::sort( subsets.begin(),
                subsets.end(),
-               []( const std::set< node_direction >& a, const std::set< node_direction >& b ) {
+               []( const std::set< node_direction_old >& a, const std::set< node_direction_old >& b ) {
                    return a.size() < b.size();
                } );
 
@@ -271,13 +271,13 @@ fuzzing::iid_node_dependence_props::get_subsets( std::set< node_direction > cons
 }
 
 std::vector< std::vector< float > >
-fuzzing::iid_node_dependence_props::get_matrix( std::set< node_direction > const& subset ) const
+fuzzing::iid_node_dependence_props_old::get_matrix( std::set< node_direction_old > const& subset ) const
 {
-    return get_matrix( std::vector< node_direction >( subset.begin(), subset.end() ) );
+    return get_matrix( std::vector< node_direction_old >( subset.begin(), subset.end() ) );
 }
 
 std::vector< std::vector< float > >
-fuzzing::iid_node_dependence_props::get_matrix( std::vector< node_direction > const& subset ) const
+fuzzing::iid_node_dependence_props_old::get_matrix( std::vector< node_direction_old > const& subset ) const
 {
     std::vector< std::vector< float > > sub_matrix;
     for ( const auto& row : matrix ) {
@@ -295,7 +295,7 @@ fuzzing::iid_node_dependence_props::get_matrix( std::vector< node_direction > co
 }
 
 
-void fuzzing::iid_node_dependence_props::print_dependencies()
+void fuzzing::iid_node_dependence_props_old::print_dependencies()
 {
     std::cout << "# Dependencies:" << std::endl;
     std::cout << "## Dependencies by loops:" << std::endl;
@@ -310,14 +310,14 @@ void fuzzing::iid_node_dependence_props::print_dependencies()
     std::cout << "## Dependencies by loading:" << std::endl;
     for ( const auto& [ loading, nodes ] : dependencies_by_loading ) {
         for ( const auto& body : nodes ) {
-            std::cout << "- " << "`(" << body << ") → " << loading.id << "`" << std::endl;
+            std::cout << "- " << "`(" << body << ") → " << loading.first.id << "`" << std::endl;
         }
     }
 
     std::cout << "# Subsets:" << std::endl;
 }
 
-void fuzzing::iid_node_dependence_props::print_subsets( std::set< node_direction > const& subset,
+void fuzzing::iid_node_dependence_props_old::print_subsets( std::set< node_direction_old > const& subset,
                                                         GradientDescentResult const& result,
                                                         std::vector< float > const& node_counts )
 {
@@ -351,7 +351,7 @@ void fuzzing::iid_node_dependence_props::print_subsets( std::set< node_direction
               << "`\n    - `Column count weighted: " << result.column_count_weighted.back() << "`" << std::endl;
 }
 
-void fuzzing::iid_node_dependence_props::print_table( std::set< node_direction > const& all_leafs,
+void fuzzing::iid_node_dependence_props_old::print_table( std::set< node_direction_old > const& all_leafs,
                                                       std::vector< TableRow > const& table )
 {
     std::unordered_map< std::string, int > headers{
@@ -420,9 +420,9 @@ void fuzzing::iid_node_dependence_props::print_table( std::set< node_direction >
     std::cout << std::endl;
 }
 
-void fuzzing::iid_node_dependence_props::get_best_subset( std::vector< TableRow > const& table,
-                                                          std::vector< std::set< node_direction > > const& subsets,
-                                                          std::set< node_direction > const& all_leafs )
+void fuzzing::iid_node_dependence_props_old::get_best_subset( std::vector< TableRow > const& table,
+                                                          std::vector< std::set< node_direction_old > > const& subsets,
+                                                          std::set< node_direction_old > const& all_leafs )
 {
     std::vector< TableRow > table_copy = table;
 
@@ -446,7 +446,7 @@ void fuzzing::iid_node_dependence_props::get_best_subset( std::vector< TableRow 
                 continue;
             }
 
-            std::set< node_direction > subset = subsets[ subset_idx ];
+            std::set< node_direction_old > subset = subsets[ subset_idx ];
 
             std::map< size_t, float > locked_columns;
             int column_idx = 0;
@@ -500,15 +500,15 @@ void fuzzing::iid_node_dependence_props::get_best_subset( std::vector< TableRow 
     print_table( all_leafs, table_copy );
 }
 
-void fuzzing::iid_node_dependence_props::dependencies_generation()
+void fuzzing::iid_node_dependence_props_old::dependencies_generation()
 {
     print_dependencies();
-    std::set< node_direction > all_leafs;
+    std::set< node_direction_old > all_leafs;
     for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
         all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
     }
 
-    std::vector< std::set< node_direction > > subsets = get_subsets( all_leafs );
+    std::vector< std::set< node_direction_old > > subsets = get_subsets( all_leafs );
 
     std::vector< TableRow > table;
 
@@ -550,18 +550,18 @@ void fuzzing::iid_node_dependence_props::dependencies_generation()
     get_best_subset( table, subsets, all_leafs );
 }
 
-std::vector< fuzzing::node_direction > fuzzing::iid_node_dependence_props::get_all_leafs()
+std::vector< fuzzing::node_direction_old > fuzzing::iid_node_dependence_props_old::get_all_leafs()
 {
-    std::set< node_direction > all_leafs;
+    std::set< node_direction_old > all_leafs;
     for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
         all_leafs.insert( loop_bodies.begin(), loop_bodies.end() );
     }
 
-    return std::vector< node_direction >( all_leafs.begin(), all_leafs.end() );
+    return std::vector< node_direction_old >( all_leafs.begin(), all_leafs.end() );
 }
 
 std::tuple< std::vector< std::vector< float > >, std::vector< float > >
-fuzzing::iid_node_dependence_props::get_unique_matrix_and_values( std::vector< std::vector< float > > const& full_matrix )
+fuzzing::iid_node_dependence_props_old::get_unique_matrix_and_values( std::vector< std::vector< float > > const& full_matrix )
 {
     std::set< std::vector< float > > unique_rows;
     std::vector< float > new_best_values;
@@ -580,9 +580,9 @@ fuzzing::iid_node_dependence_props::get_unique_matrix_and_values( std::vector< s
     return { matrix, new_best_values };
 }
 
-std::set< DirectionVector > fuzzing::iid_node_dependence_props::vector_computation()
+std::set< DirectionVector > fuzzing::iid_node_dependence_props_old::vector_computation()
 {
-    std::vector< fuzzing::node_direction > all_leafs = get_all_leafs();
+    std::vector< fuzzing::node_direction_old > all_leafs = get_all_leafs();
     std::vector< std::vector< float > > full_matrix = get_matrix( all_leafs );
     auto [ matrix, new_best_values ] = get_unique_matrix_and_values( full_matrix );
 
@@ -630,22 +630,22 @@ std::set< DirectionVector > fuzzing::iid_node_dependence_props::vector_computati
         }
     }
 
-    // std::cout << "Vectors:\n";
-    // for ( const auto& vec : vectors_with_hits ) {
-    //     std::cout << "( ";
-    //     for ( size_t i = 0; i < vec.vector.size(); ++i ) {
-    //         std::cout << ( i ? ", " : "" ) << vec.vector[ i ];
-    //     }
-    //     std::cout << " ) -> " << vec.value << " (" << vec.compare_hits << ")\n";
-    // }
+    std::cout << "Vectors:\n";
+    for ( const auto& vec : vectors_with_hits ) {
+        std::cout << "( ";
+        for ( size_t i = 0; i < vec.vector.size(); ++i ) {
+            std::cout << ( i ? ", " : "" ) << vec.vector[ i ];
+        }
+        std::cout << " ) -> " << vec.value << " (" << vec.compare_hits << ")\n";
+    }
 
     return vectors_with_hits;
 }
 
-std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_props::generate_probabilities()
+std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_props_old::generate_probabilities()
 {
     // dependencies_generation();
-    std::vector< node_direction > all_leafs = get_all_leafs();
+    std::vector< node_direction_old > all_leafs = get_all_leafs();
     auto [ matrix, new_best_values ] = get_unique_matrix_and_values( get_matrix( all_leafs ) );
     std::set< DirectionVector > vectors = vector_computation();
 
@@ -667,24 +667,27 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
                 continue;
             }
 
-            for ( int j = 0; j < column_count; ++j ) {
-                path_counts[ j ] = matrix[ i ][ j ] + vec.vector[ j ] * counts_int;
-            }
+            // for ( int inc = 1; inc <= counts_int; ++inc ) {
+                for ( int j = 0; j < column_count; ++j ) {
+                    path_counts[ j ] = matrix[ i ][ j ] + vec.vector[ j ] * counts_int;
+                }
 
-            if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } ) ) {
-                continue;
-            }
+                if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } ) ) {
+                    continue;
+                }
 
-            // std::cout << "( ";
-            // for ( size_t j = 0; j < column_count; ++j ) {
-            //     std::cout << ( j ? ", " : "" ) << path_counts[ j ];
+                // std::cout << "( ";
+                // for ( size_t j = 0; j < column_count; ++j ) {
+                //     std::cout << ( j ? ", " : "" ) << path_counts[ j ];
+                // }
+                // std::cout << " ) " << std::endl;
+
+
+                paths.insert( path_counts );
             // }
-            // std::cout << " ) " << std::endl;
-
-
-            paths.insert( path_counts );
         }
     }
+
 
     std::vector< std::vector< float > > sorted_paths( paths.begin(), paths.end() );
     std::sort( sorted_paths.begin(),
@@ -703,37 +706,40 @@ std::unordered_map< location_id::id_type, float > fuzzing::iid_node_dependence_p
     //     std::cout << " )" << std::endl;
     // }
 
-    std::map< location_id::id_type, std::pair< float, float > > path_counts = compute_counts_from_leaf_counts( sorted_paths[ 0 ], all_leafs );
-    for (const auto& [id, counts] : path_counts) {
-        std::cout << "Location ID: " << id << ", Left Count: " << counts.first << ", Right Count: " << counts.second << std::endl;
+    // std::cout << "Best vector" << std::endl;
+    // for ( size_t i = 0; i < all_leafs.size(); ++i ) {
+    //     std::cout << all_leafs[ i ] << ": " << sorted_paths[ 0 ][ i ] << std::endl;
+    // }
+
+    std::map< location_id::id_type, std::pair< float, float > > path_counts =
+    compute_counts_from_leaf_counts( sorted_paths[ 0 ], all_leafs );
+    for ( const auto& [ id, counts ] : path_counts ) {
+        std::cout << "Location ID: " << id << ", Left Count: " << counts.first
+                  << ", Right Count: " << counts.second << std::endl;
     }
 
     std::unordered_map< location_id::id_type, float > path_probabilities;
-    for ( int i = 0; i < path_counts.size(); i += 2 ) {}
+    for ( const auto& [ id, counts ] : path_counts ) {
+        float total_count = counts.first + counts.second;
+        path_probabilities[ id ] = counts.first / total_count;
+    }
 
-    // for ( int i = 0; i < all_leafs.size(); i += 2 ) {
-    //     int sum = sorted_paths[ 0 ][ i ] + sorted_paths[ 0 ][ i + 1 ];
-    //     location_id::id_type id = std::next( all_leafs.begin(), i )->node_id.id;
-    //     if ( sum > 0 )
-    //         path_probabilities[ id ] = sorted_paths[ 0 ][ i ] / sum;
-    // }
-
+    // std::cout << "Path probabilities:" << std::endl;
     // for (const auto& [id, count] : path_probabilities) {
     //     std::cout << "Location ID: " << id << ", Path Probability: " << count << std::endl;
     // }
 
     return path_probabilities;
-    return {};
 }
 
 std::map< location_id::id_type, std::pair< float, float > >
-fuzzing::iid_node_dependence_props::compute_counts_from_leaf_counts( std::vector< float > const& leaf_counts,
-                                                                     std::vector< node_direction > all_leafs )
+fuzzing::iid_node_dependence_props_old::compute_counts_from_leaf_counts( std::vector< float > const& leaf_counts,
+                                                                     std::vector< node_direction_old > all_leafs )
 {
     std::map< location_id::id_type, std::pair< float, float > > path_counts;
-    for ( int i = 0; i < all_leafs.size(); i += 2 ) {
+    for ( int i = 0; i < all_leafs.size(); i++ ) {
         float leaf_count = leaf_counts[ i ];
-        node_direction leaf = all_leafs[ i ];
+        node_direction_old leaf = all_leafs[ i ];
 
         auto& [ left_count, right_count ] = path_counts[ leaf.node_id.id ];
         if ( leaf.branching_direction ) {
@@ -747,17 +753,38 @@ fuzzing::iid_node_dependence_props::compute_counts_from_leaf_counts( std::vector
         float loop_count = 0;
         for ( const auto& body : dependent_bodies ) {
             auto& [ left_count, right_count ] = path_counts[ body.node_id.id ];
-            loop_count += right_count;
-            loop_count += left_count;
+            loop_count = std::max( loop_count, left_count + right_count );
         }
 
         location_id head_id = loop_head.first;
         bool end_direction = loop_head.second;
 
         if ( end_direction ) {
-            path_counts[ head_id.id ] = { 1, loop_count };
-        } else {
             path_counts[ head_id.id ] = { loop_count, 1 };
+        } else {
+            path_counts[ head_id.id ] = { 1, loop_count };
+        }
+    }
+
+
+    for ( const auto& [ loading_head, loading_bodies ] : dependencies_by_loading ) {
+        float loop_count = 0;
+        for ( const auto& body : loading_bodies ) {
+            if ( !path_counts.contains( body.node_id.id ) ) {
+                continue;
+            }
+
+            auto& [ left_count, right_count ] = path_counts[ body.node_id.id ];
+            loop_count = std::max( loop_count, left_count + right_count );
+        }
+
+        location_id head_id = loading_head.first;
+        bool end_direction = loading_head.second;
+
+        if ( end_direction ) {
+            path_counts[ head_id.id ] = { loop_count, 1 };
+        } else {
+            path_counts[ head_id.id ] = { 1, loop_count };
         }
     }
 
@@ -765,7 +792,7 @@ fuzzing::iid_node_dependence_props::compute_counts_from_leaf_counts( std::vector
 }
 
 
-std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props::generate_path()
+std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_props_old::generate_path()
 {
     // // dependencies_generation();
     // std::vector< node_direction > all_leafs = get_all_leafs();
@@ -798,7 +825,8 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
     //             path_counts[ j ] = matrix[ i ][ j ] + vec.vector[ j ] * counts_int;
     //         }
 
-    //         if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } ) ) {
+    //         if ( std::any_of( path_counts.begin(), path_counts.end(), []( float val ) { return val < 0; } )
+    //         ) {
     //             continue;
     //         }
 
@@ -857,7 +885,7 @@ std::map< location_id, fuzzing::path_decision > fuzzing::iid_node_dependence_pro
  *
  * @return A vector of floats representing the optimized weights.
  */
-std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix()
+std::vector< float > fuzzing::iid_node_dependence_props_old::approximate_matrix()
 {
     GradientDescentNew gd( matrix, best_values );
     GradientDescentResult result = gd.optimize();
@@ -884,7 +912,7 @@ std::vector< float > fuzzing::iid_node_dependence_props::approximate_matrix()
  *
  * @return The computed possible depth.
  */
-int fuzzing::iid_node_dependence_props::get_possible_depth() const
+int fuzzing::iid_node_dependence_props_old::get_possible_depth() const
 {
     if ( cov_values_to_props.empty() ) {
         return 0;
@@ -920,7 +948,7 @@ int fuzzing::iid_node_dependence_props::get_possible_depth() const
  * @param sensitivity A reference to the sensitivity analysis object that
  *                    provides the changed nodes.
  */
-void fuzzing::iid_dependencies::update_non_iid_nodes( sensitivity_analysis& sensitivity )
+void fuzzing::iid_dependencies_old::update_non_iid_nodes( sensitivity_analysis& sensitivity )
 {
     for ( branching_node* node : sensitivity.get_changed_nodes() ) {
         if ( node->is_did_branching() ) {
@@ -932,23 +960,10 @@ void fuzzing::iid_dependencies::update_non_iid_nodes( sensitivity_analysis& sens
     }
 }
 
-void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( loading_loops_t& loading_loops,
-                                                                          branching_node* end_node )
-{
-    for ( const auto& bit_index : end_node->sensitive_stdin_bits ) {
-        for ( const auto& [ loop_head, values ] : loading_loops ) {
-            auto& [ min, max ] = values;
-
-            if ( bit_index >= min && bit_index <= max ) {
-                dependencies_by_loading[ loop_head ].insert( { end_node->get_location_id(), true } );
-                dependencies_by_loading[ loop_head ].insert( { end_node->get_location_id(), false } );
-            }
-        }
-    }
-}
-
-void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( const loop_to_bodies_t& loop_heads_to_bodies,
-                                                                          branching_node* end_node )
+void fuzzing::iid_node_dependence_props_old::compute_dependencies_by_loading(
+const loop_to_bodies_t& loop_heads_to_bodies,
+branching_node* end_node,
+const std::map< location_id, bool >& loop_heads_ending )
 {
     branching_node* node = end_node;
     loading_loops_t loading_loops;
@@ -977,20 +992,51 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( const 
     while ( node != nullptr ) {
         for ( const auto& bit_index : node->sensitive_stdin_bits ) {
             for ( const auto& [ loop_head, values ] : loading_loops ) {
+                if ( !loop_heads_ending.contains( loop_head ) ) {
+                    continue;
+                }
+
+                bool loop_head_direction = loop_heads_ending.at( loop_head );
+
                 auto& [ min, max ] = values;
                 if ( bit_index >= min && bit_index <= max ) {
                     if ( interesting_nodes.contains( { node->get_location_id(), true } ) ) {
-                        dependencies_by_loading[ loop_head ].insert( { node->get_location_id(), true } );
+                        dependencies_by_loading[ { loop_head, loop_head_direction } ].insert(
+                        { node->get_location_id(), true } );
                     }
 
                     if ( interesting_nodes.contains( { node->get_location_id(), false } ) ) {
-                        dependencies_by_loading[ loop_head ].insert( { node->get_location_id(), false } );
+                        dependencies_by_loading[ { loop_head, loop_head_direction } ].insert(
+                        { node->get_location_id(), false } );
                     }
                 }
             }
         }
 
         node = node->predecessor;
+    }
+}
+
+void fuzzing::iid_node_dependence_props_old::compute_dependencies_by_loops(
+const loop_to_bodies_t& loop_heads_to_bodies,
+const std::map< location_id, bool >& loop_heads_ending )
+{
+    for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
+        if ( !loop_heads_ending.contains( loop_head ) ) {
+            continue;
+        }
+
+        bool loop_head_direction = loop_heads_ending.at( loop_head );
+
+        for ( const auto& body : loop_bodies ) {
+            if ( interesting_nodes.contains( { body, true } ) ) {
+                dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, true } );
+            }
+
+            if ( interesting_nodes.contains( { body, false } ) ) {
+                dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, false } );
+            }
+        }
     }
 }
 
@@ -1005,51 +1051,45 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( const 
  *
  * @param node A pointer to the branching node to be processed.
  */
-void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
+void fuzzing::iid_dependencies_old::process_node_dependence( branching_node* node )
 {
     TMPROF_BLOCK();
 
     if ( non_iid_nodes.contains( node->get_location_id() ) )
         return;
 
-    iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
-    std::vector< node_direction > path = get_path( node );
-    for ( const node_direction& nav : path ) {
+    iid_node_dependence_props_old& props = id_to_equation_map[ node->get_location_id() ];
+    std::vector< node_direction_old > path = get_path_old( node );
+    for ( const node_direction_old& nav : path ) {
         props.interesting_nodes.insert( nav );
     }
     props.recompute_matrix();
 
     std::unordered_map< location_id, std::unordered_set< location_id > > loop_heads_to_bodies;
-    fuzzing::fuzzer::detect_loops_along_path_to_node( node, loop_heads_to_bodies, nullptr );
-    props.compute_dependencies_by_loading( loop_heads_to_bodies, node );
+    std::vector< fuzzer::loop_boundary_props > loops;
+    fuzzing::fuzzer::detect_loops_along_path_to_node( node, loop_heads_to_bodies, &loops );
 
     std::map< location_id, bool > loop_heads_ending;
-    branching_node* current = node;
-    while ( current != nullptr ) {
-        branching_node* predecessor = current->predecessor;
-        if ( predecessor != nullptr && loop_heads_to_bodies.contains( predecessor->get_location_id() ) &&
-             !loop_heads_ending.contains( predecessor->get_location_id() ) ) {
-            bool direction = predecessor->successor( true ).pointer->get_location_id() ==
-                             current->get_location_id();
-            loop_heads_ending[ predecessor->get_location_id() ] = direction;
-        }
-        current = predecessor;
-    }
+    for ( int i = 0; i < loops.size(); ++i ) {
+        const auto& loop = loops[ i ];
+        location_id loop_head_id = loop.exit->get_location_id();
+        const auto& loop_bodies = loop_heads_to_bodies[ loop_head_id ];
 
-    for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
-        INVARIANT( loop_heads_ending.contains( loop_head ) );
-        bool loop_head_direction = loop_heads_ending[ loop_head ];
+        branching_node* loop_end_node = loop.exit;
+        branching_node* left_successor = loop_end_node->successor( false ).pointer;
+        branching_node* right_successor = loop_end_node->successor( true ).pointer;
 
-        for ( const auto& body : loop_bodies ) {
-            if ( props.interesting_nodes.contains( { body, true } ) ) {
-                props.dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, true } );
-            }
-
-            if ( props.interesting_nodes.contains( { body, false } ) ) {
-                props.dependencies_by_loops[ { loop_head, loop_head_direction } ].insert( { body, false } );
-            }
+        if ( left_successor != nullptr && left_successor->get_location_id() != loop_head_id &&
+             !loop_bodies.contains( left_successor->get_location_id() ) ) {
+            loop_heads_ending[ loop_end_node->get_location_id() ] = false;
+        } else if ( right_successor != nullptr && right_successor->get_location_id() != loop_head_id &&
+                    !loop_bodies.contains( right_successor->get_location_id() ) ) {
+            loop_heads_ending[ loop_end_node->get_location_id() ] = true;
         }
     }
+
+    props.compute_dependencies_by_loading( loop_heads_to_bodies, node, loop_heads_ending );
+    props.compute_dependencies_by_loops( loop_heads_to_bodies, loop_heads_ending );
 
     props.cov_values_to_props[ node->best_coverage_value ].process_node( node );
     props.all_cov_value_props.process_node( node );
@@ -1075,15 +1115,15 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
  * @return A vector of `node_direction` objects representing the path from the given node to the
  * root.
  */
-std::vector< fuzzing::node_direction > fuzzing::get_path( branching_node* node )
+std::vector< fuzzing::node_direction_old > fuzzing::get_path_old( branching_node* node )
 {
-    std::vector< node_direction > path;
+    std::vector< node_direction_old > path;
 
     branching_node* current = node;
     while ( current != nullptr ) {
         branching_node* predecessor = current->predecessor;
         if ( predecessor != nullptr ) {
-            node_direction nav = { predecessor->get_location_id(), predecessor->successor_direction( current ) };
+            node_direction_old nav = { predecessor->get_location_id(), predecessor->successor_direction( current ) };
             path.push_back( nav );
         }
         current = predecessor;

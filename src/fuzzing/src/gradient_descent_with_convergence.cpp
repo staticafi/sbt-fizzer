@@ -80,6 +80,8 @@ void GradientDescentNew::print_input_matrix()
 GradientDescentResult GradientDescentNew::optimize()
 {
     std::vector< float > current_solution = generate_random_weights( _coefficient_matrix[ 0 ].size() );
+    // current_solution = { 0.0f, 1.0f, 1.0f, 0.0f, -10.0f };
+
     std::vector< float > prev_errors = compute_errors( current_solution );
     std::vector< float > velocity( current_solution.size(), 0.0f );
     float prev_cost = std::numeric_limits< float >::max();
@@ -96,15 +98,19 @@ GradientDescentResult GradientDescentNew::optimize()
             } else {
                 velocity[ i ] = _momentum * velocity[ i ] - _learning_rate * gradient[ i ];
                 current_solution[ i ] += velocity[ i ];
+
+                // if (i < current_solution.size() - 1) {
+                //     current_solution[ i ] = std::max(0.0f, current_solution[ i ]) + 1e-7;
+                // }
             }
         }
 
         std::vector< float > errors = compute_errors( current_solution );
         float current_cost = compute_mean_squared_error( errors );
 
-        // if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
-        //     break;
-        // }
+        if ( std::abs( current_cost - prev_cost ) < _convergence_threshold ) {
+            break;
+        }
 
         prev_cost = current_cost;
         prev_errors = errors;

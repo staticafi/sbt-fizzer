@@ -49,13 +49,23 @@ add_library(${THIS_TARGET_NAME}
     ./include/fuzzing/execution_record_writer.hpp
     ./src/execution_record_writer.cpp
 
+    ./include/fuzzing/gradient_descent.hpp
+    ./src/gradient_descent.cpp
+
+    ./include/fuzzing/gradient_descent_with_convergence.hpp
+    ./src/gradient_descent_with_convergence.cpp
+
+    ./include/fuzzing/iid_node_dependencies.hpp
+    ./src/iid_node_dependencies.cpp
+
     ./include/fuzzing/iid_vector_analysis.hpp
     ./src/iid_vector_analysis.cpp
+)
 
 set_target_properties(${THIS_TARGET_NAME} PROPERTIES
     DEBUG_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Debug"
     RELEASE_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_Release"
     RELWITHDEBINFO_OUTPUT_NAME "${THIS_TARGET_NAME}_${CMAKE_SYSTEM_NAME}_RelWithDebInfo"
-    )
+)
 
 # install(TARGETS ${THIS_TARGET_NAME} DESTINATION "lib")
