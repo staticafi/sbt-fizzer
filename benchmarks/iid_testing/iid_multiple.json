@@ -53,8 +53,27 @@
             16,
             0
         ],
-        "num_generated_tests": 16,
-        "num_crashes": 0,
-        "num_boundary_violations": 0
+        "output_statistics": {
+            "bitshare_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "sensitivity_analysis": {
+                "num_generated_tests": 4,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "typed_minimization_analysis": {
+                "num_generated_tests": 10,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }

@@ -11,7 +11,8 @@
         "stdout_model": "stdout_void",
         "optimizer_max_seconds": 10,
         "optimizer_max_trace_length": 1000000,
-        "optimizer_max_stdin_bytes": 1000000
+        "optimizer_max_stdin_bytes": 1000000,
+        "m32": false
     },
     "num_executions_original": 6044,
     "results": {
@@ -35,8 +36,27 @@
             7,
             0
         ],
-        "num_generated_tests": 7,
-        "num_crashes": 0,
-        "num_boundary_violations": 0
+        "output_statistics": {
+            "bitshare_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "sensitivity_analysis": {
+                "num_generated_tests": 4,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "typed_minimization_analysis": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            },
+            "STARTUP": {
+                "num_generated_tests": 1,
+                "num_crashes": 0,
+                "num_boundary_violations": 0
+            }
+        }
     }
 }
