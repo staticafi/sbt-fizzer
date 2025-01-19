@@ -617,6 +617,26 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
     }
 }
 
+branching_node* fuzzer::select_start_node_for_monte_carlo_search_with_vector(
+    const possible_path& path,
+    std::vector< branching_node* > const& loop_boundaries,
+    branching_node* fallback_node )
+{
+    std::vector< branching_node* > sorted_loop_boundaries = loop_boundaries;
+    std::sort( sorted_loop_boundaries.begin(),
+               sorted_loop_boundaries.end(),
+               []( branching_node* left, branching_node* right ) {
+                   return left->get_location_id().id < right->get_location_id().id;
+               } );
+
+    for ( const auto& node : sorted_loop_boundaries ) {
+        if ( path.contains( node->get_location_id().id ) && !node->is_closed() ) {
+            return node;
+        }
+    }
+
+    return fallback_node;
+}
 
 branching_node*  fuzzer::select_start_node_for_monte_carlo_search(
         std::vector<branching_node*> const&  loop_boundaries,
@@ -695,7 +715,8 @@ branching_node*  fuzzer::monte_carlo_search(
         branching_node* const  start_node,
         histogram_of_false_direction_probabilities const&  histogram,
         probability_generators_for_locations const&  generators,
-        probability_generator_random_uniform&  location_miss_generator
+        probability_generator_random_uniform&  location_miss_generator,
+        possible_path&  path
         )
 {
     TMPROF_BLOCK();
@@ -705,7 +726,8 @@ branching_node*  fuzzer::monte_carlo_search(
     branching_node*  pivot = start_node;
     while (true)
     {
-        branching_node* const  successor{ monte_carlo_step(pivot, histogram, generators, location_miss_generator) };
+        // branching_node* const  successor{ monte_carlo_step(pivot, histogram, generators, location_miss_generator) };
+        branching_node* const  successor{ monte_carlo_step_with_path(pivot, histogram, generators, location_miss_generator, path) };
         if (successor == nullptr)
             break;
         pivot = successor;
@@ -748,6 +770,64 @@ std::pair<branching_node*, bool>  fuzzer::monte_carlo_backward_search(
     return { pivot->predecessor, !pivot->predecessor->successor_direction(pivot) };
 }
 
+branching_node*
+fuzzing::fuzzer::monte_carlo_step_with_path( branching_node* const pivot,
+                                             histogram_of_false_direction_probabilities const& histogram,
+                                             probability_generators_for_locations const& generators,
+                                             probability_generator_random_uniform& location_miss_generator,
+                                             possible_path& path )
+{
+    INVARIANT( pivot != nullptr && !pivot->is_closed() );
+
+    branching_node* successor = nullptr;
+
+    branching_node* left = pivot->successor( false ).pointer;
+    branching_node* right = pivot->successor( true ).pointer;
+
+    bool const can_go_left = left != nullptr && !left->is_closed();
+    bool const can_go_right = right != nullptr && !right->is_closed();
+
+    bool desired_direction;
+    {
+        float_32_bit false_direction_probability;
+        {
+            auto const it = histogram.find( pivot->get_location_id().id );
+            false_direction_probability = it != histogram.end() ? it->second : 0.5f;
+        }
+        float_32_bit probability;
+        {
+            auto const it = generators.find( pivot->get_location_id().id );
+            probability = it != generators.end() ? it->second->next() : location_miss_generator.next();
+        }
+        desired_direction = probability <= false_direction_probability ? false : true;
+    }
+
+    location_id::id_type pivot_id = pivot->get_location_id().id;
+    if ( path.contains( pivot_id ) ) {
+        path_node_props& props = path.get_props( pivot_id );
+        if ( props.can_take_next_direction() ) {
+            desired_direction = props.get_desired_direction();
+        }
+    }
+
+    bool const can_go_desired_direction = ( desired_direction == false && can_go_left ) ||
+                                          ( desired_direction == true && can_go_right );
+
+    if ( path.contains( pivot_id ) && can_go_desired_direction ) {
+        path_node_props& props = path.get_props( pivot_id );
+        if ( props.can_take_next_direction() ) {
+            props.go_direction( desired_direction );
+        }
+    }
+
+    if ( can_go_desired_direction )
+        successor = desired_direction == false ? left : right;
+    else if ( !pivot->is_open_branching() )
+        successor = can_go_left ? left : right;
+
+    // std::cout << path << std::endl;
+    return successor;
+}
 
 branching_node*  fuzzer::monte_carlo_step(
         branching_node* const  pivot,
@@ -1297,7 +1377,10 @@ void  fuzzer::do_cleanup()
 
     for (auto  it = iid_pivots.begin(); it != iid_pivots.end(); )
         if (covered_branchings.contains(it->first))
+        {
+            iid_dependences.remove_node_dependence(it->first);
             it = iid_pivots.erase(it);
+        }
         else
             ++it;
 
@@ -1554,6 +1637,31 @@ branching_node*  fuzzer::select_iid_coverage_target()
     histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
     it_pivot->second.histogram_ptr->merge(hit_counts);
 
+
+    std::vector< location_id > iid_locations = iid_dependences.get_iid_nodes();
+    {
+        // std::cout << "IID Locations:" << std::endl;
+        // for (const auto& loc : iid_locations) {
+        //     std::cout << loc.id << std::endl;
+        // }
+    }
+
+    possible_path path;
+    
+    if ( !iid_locations.empty() ) {
+        iid_node_dependence_props& node_props = iid_dependences.get_props( iid_locations[0] );
+        // std::cout << "IID Location: " << iid_locations[0].id << std::endl;
+        path = node_props.generate_probabilities();
+
+        for ( const auto& path_props : path.get_path() ) {
+            auto it = histogram.find( path_props.first );
+            if ( it != histogram.end() ) {
+                it->second = path_props.second.get_false_direction_probability();
+                // std::cout << "IID Location: " << path_props.first << " Probability: " << it->second << std::endl;
+            }
+        }
+    }
+
     probability_generators_for_locations  generators;
     auto const  random_uniform_generator = compute_probability_generators_for_locations(
             histogram,
@@ -1568,22 +1676,22 @@ branching_node*  fuzzer::select_iid_coverage_target()
     if (false)  // original code: if (get_random_natural_32_bit_in_range(1, 100, generator_for_iid_approach_selection) <= 50)
                 // Currently diabled, because it performs worse for some yet unknown reason.
     {
-        auto const  node_and_direction = monte_carlo_backward_search(
-                it_pivot->first,
-                entry_branching,
-                histogram,
-                generators,
-                *random_uniform_generator
-                );
-        branching_node* const  successor = node_and_direction.first->successor(node_and_direction.second).pointer;
-        if (successor != nullptr)
-            winner = monte_carlo_search(successor, histogram, generators, *random_uniform_generator);
-        else if (!node_and_direction.first->is_open_branching())
-            winner = monte_carlo_search(node_and_direction.first, histogram, generators, *random_uniform_generator);
-        else
-            winner = node_and_direction.first;
+        // auto const  node_and_direction = monte_carlo_backward_search(
+        //         it_pivot->first,
+        //         entry_branching,
+        //         histogram,
+        //         generators,
+        //         *random_uniform_generator
+        //         );
+        // branching_node* const  successor = node_and_direction.first->successor(node_and_direction.second).pointer;
+        // if (successor != nullptr)
+        //     winner = monte_carlo_search(successor, histogram, generators, *random_uniform_generator);
+        // else if (!node_and_direction.first->is_open_branching())
+        //     winner = monte_carlo_search(node_and_direction.first, histogram, generators, *random_uniform_generator);
+        // else
+        //     winner = node_and_direction.first;
 
-        recorder().on_strategy_turn_monte_carlo_backward(winner);
+        // recorder().on_strategy_turn_monte_carlo_backward(winner);
     }
     else
     {
@@ -1593,13 +1701,17 @@ branching_node*  fuzzer::select_iid_coverage_target()
                 0.75f,
                 entry_branching
                 );
-
-        branching_node* possible_start = select_iid_coverage_target_from_dependencies();
-        if (possible_start != nullptr)
-            start_node = possible_start;
+        
+        if ( !path.get_path().empty() ) {
+            start_node = select_start_node_for_monte_carlo_search_with_vector(
+                path,
+                it_pivot->second.loop_boundaries,
+                entry_branching
+            );
+        } 
 
         recorder().on_node_chosen(start_node, fuzzing::progress_recorder::START_MONTE_CARLO);
-        winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator);
+        winner = monte_carlo_search(start_node, histogram, generators, *random_uniform_generator, path);
 
         ++statistics.strategy_monte_carlo;
         recorder().on_strategy_turn_monte_carlo(winner);
@@ -1610,33 +1722,6 @@ branching_node*  fuzzer::select_iid_coverage_target()
     return winner;
 }
 
-branching_node* fuzzer::select_iid_coverage_target_from_dependencies()
-{
-    if (iid_dependences.id_to_equation_map.empty()) {
-        return nullptr;
-    }
-    
-    instrumentation::location_id loc_id = iid_dependences.id_to_equation_map.begin()->first;
-
-
-    iid_node_dependence_props& props = iid_dependences.id_to_equation_map.at(loc_id);
-    std::map< location_id, fuzzing::path_decision > path = props.generate_path();
-
-    branching_node* node = entry_branching;
-    while ( true ) {
-        bool direction = path[node->get_location_id()].get_next_direction();
-        branching_node* next_node = node->successor(direction).pointer;
-        if (next_node == nullptr) {
-            break;
-        }
-        recorder().on_node_chosen(next_node, fuzzing::progress_recorder::DEPENDENCY_STEP);
-        node = next_node;
-    }
-    recorder().on_node_chosen(node, fuzzing::progress_recorder::DEPENDENCY_END);
-
-    return nullptr;
-    // return node;
-}
 
 void  fuzzer::remove_leaf_branching_node(branching_node*  node)
 {

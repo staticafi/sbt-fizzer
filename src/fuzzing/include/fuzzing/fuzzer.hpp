@@ -4,7 +4,7 @@
 #   include <fuzzing/termination_info.hpp>
 #   include <fuzzing/sensitivity_analysis.hpp>
 #   include <fuzzing/typed_minimization_analysis.hpp>
-#   include <fuzzing/iid_node_dependencies.hpp>
+#   include <fuzzing/iid_vector_analysis.hpp>
 #   include <fuzzing/minimization_analysis.hpp>
 #   include <fuzzing/bitshare_analysis.hpp>
 #   include <fuzzing/execution_record.hpp>
@@ -197,13 +197,15 @@ private:
     using  histogram_of_false_direction_probabilities = std::unordered_map<location_id::id_type, float_32_bit>;
     using  probability_generators_for_locations = std::unordered_map<location_id::id_type, std::shared_ptr<probability_generator> >;
 
+public:
     struct  loop_boundary_props
     {
         branching_node*  entry;
         branching_node*  exit;
         // branching_node*  successor;
     };
-
+    
+private:
     struct  iid_pivot_props
     {
         std::vector<branching_node*>  loop_boundaries;
@@ -252,6 +254,11 @@ private:
             histogram_of_false_direction_probabilities&  histogram
             );
 
+    static branching_node*  select_start_node_for_monte_carlo_search_with_vector(
+            possible_path const&  path,
+            std::vector<branching_node*> const&  loop_boundaries,
+            branching_node*  fallback_node
+            );
     static branching_node*  select_start_node_for_monte_carlo_search(
             std::vector<branching_node*> const&  loop_boundaries,
             random_generator_for_natural_32_bit&  random_generator,
@@ -272,7 +279,8 @@ private:
             branching_node*  root,
             histogram_of_false_direction_probabilities const&  histogram,
             probability_generators_for_locations const&  generators,
-            probability_generator_random_uniform&  location_miss_generator
+            probability_generator_random_uniform&  location_miss_generator,
+            possible_path&  path
             );
     static std::pair<branching_node*, bool>  monte_carlo_backward_search(
             branching_node* const  start_node,
@@ -287,6 +295,13 @@ private:
             probability_generators_for_locations const&  generators,
             probability_generator_random_uniform&  location_miss_generator
             );
+    static branching_node*  monte_carlo_step_with_path(
+            branching_node* const  pivot,
+            histogram_of_false_direction_probabilities const&  histogram,
+            probability_generators_for_locations const&  generators,
+            probability_generator_random_uniform&  location_miss_generator,
+            possible_path&  path
+            );
 
     void  generate_next_input(vecb&  stdin_bits);
     execution_record::execution_flags  process_execution_results();
@@ -295,7 +310,6 @@ private:
     void  collect_iid_pivots_from_sensitivity_results();
     void  select_next_state();
     branching_node*  select_iid_coverage_target();
-    branching_node*  select_iid_coverage_target_from_dependencies();
 
     void  remove_leaf_branching_node(branching_node*  node);
     bool  apply_coverage_failures_with_hope();

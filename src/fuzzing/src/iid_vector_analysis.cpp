@@ -3,6 +3,7 @@
 #include <fuzzing/iid_vector_analysis.hpp>
 #include <instrumentation/instrumentation_types.hpp>
 #include <iostream>
+#include <ranges>
 #include <string>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
@@ -140,6 +141,24 @@ fuzzing::equation fuzzing::equation::operator*( int scalar ) const
 }
 
 // ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::equation::operator/( const equation& other ) const
+{
+    INVARIANT( values.size() == other.values.size() );
+
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        if ( other.values[ i ] == 0 ) {
+            new_values.push_back( 0 );
+        } else {
+            new_values.push_back( values[ i ] / other.values[ i ] );
+        }
+    }
+
+
+    return { new_values, best_value / other.best_value };
+}
+
+// ------------------------------------------------------------------------------------------------
 int fuzzing::equation::get_vector_length() const
 {
     return std::sqrt( std::inner_product( values.begin(), values.end(), values.begin(), 0 ) );
@@ -149,6 +168,18 @@ int fuzzing::equation::get_vector_length() const
 bool fuzzing::equation::is_any_negative() const
 {
     return std::any_of( values.begin(), values.end(), []( int val ) { return val < 0; } );
+}
+
+// ------------------------------------------------------------------------------------------------
+bool fuzzing::equation::same_values() const
+{
+    for ( int i = 0; i < values.size(); ++i ) {
+        if ( values[ i ] != best_value ) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 //                                     node_direction
@@ -303,26 +334,51 @@ int fuzzing::equation_matrix::get_desired_vector_direction() const
 }
 
 // ------------------------------------------------------------------------------------------------
+float fuzzing::equation_matrix::get_biggest_branching_value() const
+{
+    float biggest_value = 0.0f;
+
+    for ( const equation& row : matrix ) {
+        if ( std::abs( row.best_value ) > biggest_value ) {
+            biggest_value = std::abs( row.best_value );
+        }
+    }
+
+    return biggest_value;
+}
+
+// ------------------------------------------------------------------------------------------------
 std::optional< fuzzing::equation > fuzzing::equation_matrix::get_new_path_from_vector( const equation& vector )
 {
     INVARIANT( vector.values.size() == nodes.size() );
 
     std::vector< equation > paths;
     std::pair< std::size_t, std::size_t > dimensions = get_dimensions();
+    bool get_precise = true;
+
+    auto add_if_positive = [ &paths ]( const equation& new_path ) {
+        if ( !new_path.is_any_negative() ) {
+            paths.push_back( new_path );
+        }
+    };
 
     for ( const auto& row : matrix ) {
         double counts = std::abs( row.best_value ) / vector.best_value;
+        int rounded_counts = static_cast< int >( std::round( counts ) );
 
-        if ( std::abs( counts - std::round( counts ) ) > 1e-6 ) {
-            continue;
+        if ( get_precise ) {
+            if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 ) {
+                continue;
+            }
+
+            equation new_path = vector * rounded_counts + row;
+            add_if_positive( new_path );
+        } else {
+            for ( int vector_increment = 1; vector_increment <= rounded_counts; ++vector_increment ) {
+                equation new_path = ( vector * vector_increment ) + row;
+                add_if_positive( new_path );
+            }
         }
-
-        equation new_path = vector * static_cast< int >( std::round( counts ) ) + row;
-        if ( new_path.is_any_negative() ) {
-            continue;
-        }
-
-        paths.push_back( new_path );
     }
 
     if ( paths.empty() ) {
@@ -330,7 +386,10 @@ std::optional< fuzzing::equation > fuzzing::equation_matrix::get_new_path_from_v
     }
 
     auto min_it = std::min_element( paths.begin(), paths.end(), []( const equation& a, const equation& b ) {
-        return a.get_vector_length() < b.get_vector_length();
+        if ( std::abs( a.best_value ) == std::abs( b.best_value ) ) {
+            return a.get_vector_length() < b.get_vector_length();
+        }
+        return std::abs( a.best_value ) < std::abs( b.best_value );
     } );
 
     return *min_it;
@@ -373,34 +432,49 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     // matrix.print_matrix();
 
     std::set< node_direction > all_leafs = get_leaf_subsets();
-    // std::cout << "All leafs:" << std::endl;
-    // for ( const auto& leaf : all_leafs ) {
-    //     std::cout << "Node ID: " << leaf.node_id.id
-    //               << ", Direction: " << ( leaf.branching_direction ? "Right" : "Left" ) << std::endl;
-    // }
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
     std::map< equation, int > vectors = submatrix.compute_vectors();
     if ( vectors.empty() ) {
+        // std::cout << "No vectors found." << std::endl;
         return {};
     }
 
     int desired_vector_direction = submatrix.get_desired_vector_direction();
-    equation best_vector = get_best_vector( vectors, false, desired_vector_direction );
+    float biggest_branching_value = submatrix.get_biggest_branching_value();
+    equation best_vector = get_best_vector( vectors, false, desired_vector_direction, biggest_branching_value );
 
     std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vector );
     if ( !new_path.has_value() ) {
+        // std::cout << "Desired vector direction: " << desired_vector_direction << std::endl;
+        // std::cout << "Biggest branching value: " << biggest_branching_value << std::endl;
+        // std::cout << "Vectors:" << std::endl;
+        // for ( const auto& [ vector, hits ] : vectors ) {
+        //     std::cout << "Vector: ";
+        //     for ( const auto& value : vector.values ) {
+        //         std::cout << value << " ";
+        //     }
+        //     std::cout << "-> " << vector.best_value << " ";
+        //     std::cout << "Hits: " << hits << std::endl;
+        // }
+        // std::cout << "Best vector: ";
+        // for ( const auto& value : best_vector.values ) {
+        //     std::cout << value << " ";
+        // }
+        // std::cout << "-> " << best_vector.best_value << " ";
+        // std::cout << "Hits: " << vectors[ best_vector ] << std::endl;
         return {};
     }
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
-    for ( const auto& [ node_id, counts ] : path_counts ) {
-        std::cout << "Node ID: " << node_id.id << ", Left Count: " << counts.left_count
-                  << ", Right Count: " << counts.right_count << std::endl;
-    }
     possible_path path = generate_path_from_node_counts( path_counts );
 
-    // std::cout << path << std::endl;
-
+    // std::cout << "Best vector: ";
+    // for ( const auto& value : best_vector.values ) {
+    //     std::cout << value << " ";
+    // }
+    // std::cout << "-> " << best_vector.best_value << " ";
+    // std::cout << "Hits: " << vectors[ best_vector ] << std::endl;
+    // std::cout << "Generated path:" << std::endl << path << std::endl;
     return path;
 }
 
@@ -421,61 +495,51 @@ void fuzzing::iid_node_dependence_props::print_dependencies() const
 {
     std::cout << "# Dependencies:" << std::endl;
     std::cout << "## Dependencies by loops:" << std::endl;
-    for ( const auto& [ loop, nodes ] : dependencies_by_loops ) {
-        for ( const auto& body : nodes ) {
-            std::cout << "- " << "`(" << body << ") → " << loop.first.id << "`" << std::endl;
+    for ( const auto& [ loop_head, props ] : dependencies_by_loops ) {
+        for ( const auto& body : props.bodies ) {
+            std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`" << std::endl;
         }
     }
 
     std::cout << "## Dependencies by loading:" << std::endl;
-    for ( const auto& [ loading, nodes ] : dependencies_by_loading ) {
-        for ( const auto& body : nodes ) {
-            std::cout << "- " << "`(" << body << ") → " << loading.first.id << "`" << std::endl;
+    for ( const auto& [ loop_head, props ] : dependencies_by_loading ) {
+        for ( const auto& body : props.bodies ) {
+            std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`" << std::endl;
         }
     }
 }
 
 // ------------------------------------------------------------------------------------------------
-fuzzing::loop_ending_to_bodies fuzzing::iid_node_dependence_props::get_dependencies_without_bodies_in_loop() const
+int fuzzing::iid_node_dependence_props::compute_path_counts_for_nested_loops( std::map< location_id, int >& counts, int minimum_count )
 {
-    loop_ending_to_bodies result;
-    int result_size = dependencies_by_loops.size();
-    std::set< location_id > loop_heads;
-    std::set< location_id > already_added;
+    int previous_count = 1;
 
-    for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
-        loop_heads.insert( loop_head.first );
-    }
+    int max_count = std::max_element( counts.begin(), counts.end(), []( const auto& a, const auto& b ) {
+                        return a.second < b.second;
+                    } )->second;
 
-    while ( result.size() < result_size ) {
-        for ( const auto& [ loop_head, dependent_bodies ] : dependencies_by_loops ) {
-            if ( result.contains( loop_head ) ) {
-                continue;
+    int highest_count = 1;
+    for ( int i = minimum_count; i <= max_count; ++i ) {
+
+        bool is_good = true;
+        for ( const auto& [ node_id, count ] : counts ) {
+            if ( count % i != 0 ) {
+                is_good = false;
+                break;
             }
+        }
 
-            bool can_add = true;
-            for ( const auto& body : dependent_bodies ) {
-                if ( loop_heads.contains( body.node_id ) && !result.contains( { body.node_id, true } ) &&
-                     !result.contains( { body.node_id, false } ) ) {
-                    can_add = false;
-                    break;
-                }
-            }
-
-            if ( !can_add ) {
-                continue;
-            }
-
-            for ( const auto& body : dependent_bodies ) {
-                auto it = already_added.insert( body.node_id );
-                if ( it.second ) {
-                    result[ loop_head ].insert( body );
-                }
-            }
+        if ( is_good ) {
+            highest_count = i;
+            break;
         }
     }
 
-    return result;
+    for ( auto& [ node_id, count ] : counts ) {
+        count /= highest_count;
+    }
+
+    return highest_count;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -486,6 +550,7 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
     nodes_to_counts path_counts;
 
     std::vector< node_direction > leafs = std::vector< node_direction >( all_leafs.begin(), all_leafs.end() );
+    std::set< location_id > loop_heads = get_loop_heads( false );
 
     INVARIANT( leafs.size() == path.values.size() );
 
@@ -498,61 +563,86 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
         }
     }
 
-    loop_ending_to_bodies dependencies = get_dependencies_without_bodies_in_loop();
-    bool changed = true;
+    // First
+    for ( int i = 0; i < dependencies_by_loops.size(); ++i ) {
+        for ( const auto& [ loop_head, props ] : dependencies_by_loops ) {
+            int loop_count = 0;
+            for ( const auto& body : props.bodies ) {
+                auto& [ left_count, right_count ] = path_counts[ body.node_id ];
 
-    while ( changed ) {
-        changed = false;
-
-        for ( const auto& [ loop_head, dependent_bodies ] : dependencies ) {
-            if ( path_counts.contains( loop_head.first ) ) {
-                continue;
-            }
-
-            bool can_add = true;
-            for ( const auto& body : dependent_bodies ) {
-                if ( !path_counts.contains( body.node_id ) ) {
-                    can_add = false;
-                    break;
+                if ( loop_heads.contains( body.node_id ) ) {
+                    loop_count = std::max( loop_count, 1 );
+                } else {
+                    loop_count = std::max( loop_count, left_count + right_count );
                 }
             }
 
-            if ( !can_add ) {
-                continue;
-            }
-
-            changed = true;
-            int loop_count = 0;
-            for ( const auto& body : dependent_bodies ) {
-                auto& [ left_count, right_count ] = path_counts[ body.node_id ];
-                loop_count = std::max( loop_count, left_count + right_count );
-            }
-
-            if ( loop_head.second ) {
-                path_counts[ loop_head.first ] = { loop_count, 1 };
+            if ( props.end_direction ) {
+                path_counts[ loop_head ] = { loop_count, 1 };
             } else {
-                path_counts[ loop_head.first ] = { 1, loop_count };
+                path_counts[ loop_head ] = { 1, loop_count };
             }
         }
     }
 
+    // Second
+    for ( const auto& [ loop_head, props ] : std::ranges::views::reverse( dependencies_by_loops ) ) {
+        int non_loop_child_max_count = 1;
+        std::map< location_id, int > counts;
 
-
-    for ( const auto& [ loading_head, loading_bodies ] : dependencies_by_loading ) {
-        int loop_count = 0;
-        for ( const auto& body : loading_bodies ) {
-            if ( !path_counts.contains( body.node_id ) ) {
-                continue;
-            }
-
+        for ( const auto& body : props.bodies ) {
             auto& [ left_count, right_count ] = path_counts[ body.node_id ];
-            loop_count = std::max( loop_count, left_count + right_count );
+
+            if ( !loop_heads.contains( body.node_id ) ) {
+                non_loop_child_max_count = std::max( non_loop_child_max_count, left_count + right_count );
+            } else {
+                counts[ body.node_id ] = std::max( left_count, right_count );
+            }
         }
 
-        if ( loading_head.second ) {
-            path_counts[ loading_head.first ] = { loop_count, 1 };
+        int new_count = compute_path_counts_for_nested_loops( counts, non_loop_child_max_count );
+        if ( props.end_direction ) {
+            path_counts[ loop_head ] = { new_count, 1 };
         } else {
-            path_counts[ loading_head.first ] = { 1, loop_count };
+            path_counts[ loop_head ] = { 1, new_count };
+        }
+
+        for ( const auto& [ node_id, count ] : counts ) {
+            const loop_dependencies_props& o_props = dependencies_by_loops.at( node_id );
+            if ( o_props.end_direction ) {
+                path_counts[ node_id ] = { count, 1 };
+            } else {
+                path_counts[ node_id ] = { 1, count };
+            }
+        }
+    }
+
+    for ( int i = 0; i < dependencies_by_loading.size(); ++i ) {
+        for ( const auto& [ loading_head, props ] : dependencies_by_loading ) {
+            int loop_count = 0;
+            for ( const auto& body : props.bodies ) {
+                if ( !path_counts.contains( body.node_id ) ) {
+                    continue;
+                }
+
+                auto& [ left_count, right_count ] = path_counts[ body.node_id ];
+                loop_count = std::max( loop_count, left_count + right_count );
+            }
+
+            if ( props.end_direction ) {
+                path_counts[ loading_head ] = { loop_count, 1 };
+            } else {
+                path_counts[ loading_head ] = { 1, loop_count };
+            }
+        }
+    }
+
+    for ( auto* map : { &dependencies_by_loops, &dependencies_by_loading } ) {
+        for ( auto& [ loop_head, props ] : *map ) {
+            auto it = path_counts.find( loop_head );
+            if ( it != path_counts.end() ) {
+                props.previous_counts.push_back( it->second );
+            }
         }
     }
 
@@ -562,7 +652,8 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
 // ------------------------------------------------------------------------------------------------
 fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std::map< equation, int >& vectors_with_hits,
                                                                        bool use_random,
-                                                                       int desired_direction )
+                                                                       int desired_direction,
+                                                                       float biggest_branching_value )
 {
     if ( vectors_with_hits.empty() ) {
         throw std::invalid_argument( "Input map is empty." );
@@ -583,6 +674,11 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std
         filtered_vectors_with_hits = vectors_with_hits;
     }
 
+    biggest_branching_value = std::abs( biggest_branching_value );
+    std::erase_if( filtered_vectors_with_hits, [ biggest_branching_value ]( const auto& pair ) {
+        return std::abs( pair.first.best_value ) > biggest_branching_value;
+    } );
+
     if ( filtered_vectors_with_hits.empty() ) {
         throw std::invalid_argument( "No vectors match the desired direction." );
     }
@@ -593,9 +689,47 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std
 
     auto max_it = std::max_element( filtered_vectors_with_hits.begin(),
                                     filtered_vectors_with_hits.end(),
-                                    []( const auto& a, const auto& b ) { return a.second < b.second; } );
+                                    []( const auto& a, const auto& b ) {
+                                        if ( a.second == b.second ) {
+                                            return std::abs( a.first.best_value ) > std::abs( b.first.best_value );
+                                        }
+                                        return a.second < b.second;
+                                    } );
 
-    return max_it->first;
+    equation best_vector = max_it->first;
+
+    // std::map< equation, int > dependent_vectors_with_hits =
+    //     get_linear_dependent_vector( filtered_vectors_with_hits, best_vector );
+
+    // if ( !dependent_vectors_with_hits.empty() ) {
+    //     auto min_it = std::min_element( dependent_vectors_with_hits.begin(),
+    //                                     dependent_vectors_with_hits.end(),
+    //                                     []( const auto& a, const auto& b ) {
+    //                                         return a.first.get_vector_length() <
+    //                                         b.first.get_vector_length();
+    //                                     } );
+
+    //     best_vector = min_it->first;
+    // }
+
+    return best_vector;
+}
+
+// ------------------------------------------------------------------------------------------------
+std::map< fuzzing::equation, int > fuzzing::iid_node_dependence_props::get_linear_dependent_vector(
+    const std::map< equation, int >& vectors_with_hits,
+    equation& best_vector )
+{
+    std::map< equation, int > dependent_vectors_with_hits;
+
+    for ( const auto& [ vector, hits ] : vectors_with_hits ) {
+        equation quotient = best_vector / vector;
+        if ( quotient.same_values() ) {
+            dependent_vectors_with_hits[ vector ] = hits;
+        }
+    }
+
+    return dependent_vectors_with_hits;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -629,11 +763,10 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_random_vector( const s
 std::set< fuzzing::node_direction > fuzzing::iid_node_dependence_props::get_leaf_subsets()
 {
     std::set< node_direction > all_leafs;
-    for ( const auto& [ _, loop_bodies ] : dependencies_by_loops ) {
-        for ( const auto& body : loop_bodies ) {
+    for ( const auto& [ _, props ] : dependencies_by_loops ) {
+        for ( const auto& body : props.bodies ) {
             location_id body_id = body.node_id;
-            if ( !dependencies_by_loops.contains( { body_id, false } ) &&
-                 !dependencies_by_loops.contains( { body_id, true } ) ) {
+            if ( !dependencies_by_loops.contains( body_id ) ) {
                 all_leafs.insert( body );
             }
         }
@@ -728,7 +861,7 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( branch
                     node_direction node_id_direction = { node_id, direction };
 
                     if ( matrix.contains( node_id_direction ) ) {
-                        dependencies_by_loading[ { loop_head, loop_head_direction } ].insert( node_id_direction );
+                        dependencies_by_loading[ loop_head ].bodies.insert( node_id_direction );
                     }
                 }
             }
@@ -754,7 +887,7 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loops( const lo
                 node_direction node_id_direction = { body, direction };
 
                 if ( matrix.contains( node_id_direction ) )
-                    dependencies_by_loops[ { loop_head, loop_head_end_direction } ].insert( node_id_direction );
+                    dependencies_by_loops[ loop_head ].bodies.insert( node_id_direction );
             }
         }
     }
@@ -773,13 +906,12 @@ fuzzing::iid_node_dependence_props::generate_path_from_node_counts( const nodes_
         bool loop_head_direction = false;
         bool is_loop_head = false;
 
-        for ( bool direction : { false, true } ) {
-            for ( const auto& map : { dependencies_by_loops, dependencies_by_loading } ) {
-                if ( map.contains( std::make_pair( id, direction ) ) ) {
-                    is_loop_head = true;
-                    loop_head_direction = direction;
-                    break;
-                }
+        for ( const auto& map : { dependencies_by_loops, dependencies_by_loading } ) {
+            auto it = map.find( id );
+            if ( it != map.end() ) {
+                is_loop_head = true;
+                loop_head_direction = it->second.end_direction;
+                break;
             }
         }
 
@@ -788,6 +920,23 @@ fuzzing::iid_node_dependence_props::generate_path_from_node_counts( const nodes_
     }
 
     return possible_path( path );
+}
+
+// ------------------------------------------------------------------------------------------------
+std::set< location_id > fuzzing::iid_node_dependence_props::get_loop_heads( bool include_loading_loops )
+{
+    std::set< location_id > loop_heads;
+    for ( const auto& [ loop_head, _ ] : dependencies_by_loops ) {
+        loop_heads.insert( loop_head );
+    }
+
+    if ( include_loading_loops ) {
+        for ( const auto& [ loading_head, _ ] : dependencies_by_loading ) {
+            loop_heads.insert( loading_head );
+        }
+    }
+
+    return loop_heads;
 }
 
 //                                 iid_dependencies
