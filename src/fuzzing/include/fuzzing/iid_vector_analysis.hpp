@@ -148,6 +148,7 @@ struct equation_matrix {
 
     void print_matrix();
 
+    BRANCHING_PREDICATE get_branching_predicate();
 private:
     void recompute_matrix();
 

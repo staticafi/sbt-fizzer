@@ -736,7 +736,7 @@ branching_node*  fuzzer::monte_carlo_search(
     TMPROF_BLOCK();
 
     ASSUMPTION(start_node != nullptr && !start_node->is_closed());
-
+ 
     branching_node*  pivot = start_node;
     while (true)
     {
@@ -1213,7 +1213,11 @@ execution_record::execution_flags  fuzzer::process_execution_results()
                         num_driver_executions,
                         succ_info.xor_like_branching_function,
                         succ_info.predicate
-                        )
+                );
+
+                construction_props.leaf->set_successor(info.direction, {
+                    branching_node::successor_pointer::VISITED,
+                    new_node
                 });
 
                 iid_dependences.process_node_dependence(new_node);
@@ -1740,7 +1744,7 @@ branching_node*  fuzzer::select_iid_coverage_target()
                 0.75f,
                 entry_branching
                 );
-        
+
         if ( !path.get_path().empty() ) {
             start_node = select_start_node_for_monte_carlo_search_with_vector(
                 path,

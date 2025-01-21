@@ -413,6 +413,13 @@ void fuzzing::equation_matrix::print_matrix()
 
 
 // ------------------------------------------------------------------------------------------------
+BRANCHING_PREDICATE fuzzing::equation_matrix::get_branching_predicate() 
+{
+    ASSUMPTION( all_paths.size() > 0 );
+    return all_paths[ 0 ]->branching_predicate;
+}
+
+// ------------------------------------------------------------------------------------------------
 void fuzzing::equation_matrix::recompute_matrix()
 {
     TMPROF_BLOCK();
@@ -435,7 +442,6 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
     std::map< equation, int > vectors = submatrix.compute_vectors();
     if ( vectors.empty() ) {
-        // std::cout << "No vectors found." << std::endl;
         return {};
     }
 
@@ -445,36 +451,12 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
 
     std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vector );
     if ( !new_path.has_value() ) {
-        // std::cout << "Desired vector direction: " << desired_vector_direction << std::endl;
-        // std::cout << "Biggest branching value: " << biggest_branching_value << std::endl;
-        // std::cout << "Vectors:" << std::endl;
-        // for ( const auto& [ vector, hits ] : vectors ) {
-        //     std::cout << "Vector: ";
-        //     for ( const auto& value : vector.values ) {
-        //         std::cout << value << " ";
-        //     }
-        //     std::cout << "-> " << vector.best_value << " ";
-        //     std::cout << "Hits: " << hits << std::endl;
-        // }
-        // std::cout << "Best vector: ";
-        // for ( const auto& value : best_vector.values ) {
-        //     std::cout << value << " ";
-        // }
-        // std::cout << "-> " << best_vector.best_value << " ";
-        // std::cout << "Hits: " << vectors[ best_vector ] << std::endl;
         return {};
     }
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
     possible_path path = generate_path_from_node_counts( path_counts );
 
-    // std::cout << "Best vector: ";
-    // for ( const auto& value : best_vector.values ) {
-    //     std::cout << value << " ";
-    // }
-    // std::cout << "-> " << best_vector.best_value << " ";
-    // std::cout << "Hits: " << vectors[ best_vector ] << std::endl;
-    // std::cout << "Generated path:" << std::endl << path << std::endl;
     return path;
 }
 
@@ -586,36 +568,36 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
     }
 
     // Second
-    for ( const auto& [ loop_head, props ] : std::ranges::views::reverse( dependencies_by_loops ) ) {
-        int non_loop_child_max_count = 1;
-        std::map< location_id, int > counts;
+    // for ( const auto& [ loop_head, props ] : std::ranges::views::reverse( dependencies_by_loops ) ) {
+    //     int non_loop_child_max_count = 1;
+    //     std::map< location_id, int > counts;
 
-        for ( const auto& body : props.bodies ) {
-            auto& [ left_count, right_count ] = path_counts[ body.node_id ];
+    //     for ( const auto& body : props.bodies ) {
+    //         auto& [ left_count, right_count ] = path_counts[ body.node_id ];
 
-            if ( !loop_heads.contains( body.node_id ) ) {
-                non_loop_child_max_count = std::max( non_loop_child_max_count, left_count + right_count );
-            } else {
-                counts[ body.node_id ] = std::max( left_count, right_count );
-            }
-        }
+    //         if ( !loop_heads.contains( body.node_id ) ) {
+    //             non_loop_child_max_count = std::max( non_loop_child_max_count, left_count + right_count );
+    //         } else {
+    //             counts[ body.node_id ] = std::max( left_count, right_count );
+    //         }
+    //     }
 
-        int new_count = compute_path_counts_for_nested_loops( counts, non_loop_child_max_count );
-        if ( props.end_direction ) {
-            path_counts[ loop_head ] = { new_count, 1 };
-        } else {
-            path_counts[ loop_head ] = { 1, new_count };
-        }
+    //     int new_count = compute_path_counts_for_nested_loops( counts, non_loop_child_max_count );
+    //     if ( props.end_direction ) {
+    //         path_counts[ loop_head ] = { new_count, 1 };
+    //     } else {
+    //         path_counts[ loop_head ] = { 1, new_count };
+    //     }
 
-        for ( const auto& [ node_id, count ] : counts ) {
-            const loop_dependencies_props& o_props = dependencies_by_loops.at( node_id );
-            if ( o_props.end_direction ) {
-                path_counts[ node_id ] = { count, 1 };
-            } else {
-                path_counts[ node_id ] = { 1, count };
-            }
-        }
-    }
+    //     for ( const auto& [ node_id, count ] : counts ) {
+    //         const loop_dependencies_props& o_props = dependencies_by_loops.at( node_id );
+    //         if ( o_props.end_direction ) {
+    //             path_counts[ node_id ] = { count, 1 };
+    //         } else {
+    //             path_counts[ node_id ] = { 1, count };
+    //         }
+    //     }
+    // }
 
     for ( int i = 0; i < dependencies_by_loading.size(); ++i ) {
         for ( const auto& [ loading_head, props ] : dependencies_by_loading ) {
@@ -637,14 +619,14 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
         }
     }
 
-    for ( auto* map : { &dependencies_by_loops, &dependencies_by_loading } ) {
-        for ( auto& [ loop_head, props ] : *map ) {
-            auto it = path_counts.find( loop_head );
-            if ( it != path_counts.end() ) {
-                props.previous_counts.push_back( it->second );
-            }
-        }
-    }
+    // for ( auto* map : { &dependencies_by_loops, &dependencies_by_loading } ) {
+    //     for ( auto& [ loop_head, props ] : *map ) {
+    //         auto it = path_counts.find( loop_head );
+    //         if ( it != path_counts.end() ) {
+    //             props.previous_counts.push_back( it->second );
+    //         }
+    //     }
+    // }
 
     return path_counts;
 }
@@ -862,6 +844,7 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loading( branch
 
                     if ( matrix.contains( node_id_direction ) ) {
                         dependencies_by_loading[ loop_head ].bodies.insert( node_id_direction );
+                        dependencies_by_loading[ loop_head ].end_direction = loop_head_direction;
                     }
                 }
             }
@@ -888,6 +871,7 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loops( const lo
 
                 if ( matrix.contains( node_id_direction ) )
                     dependencies_by_loops[ loop_head ].bodies.insert( node_id_direction );
+                    dependencies_by_loops[ loop_head ].end_direction = loop_head_end_direction;
             }
         }
     }
