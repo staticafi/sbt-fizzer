@@ -43,7 +43,7 @@
         ],
         "output_statistics": {
             "bitshare_analysis": {
-                "num_generated_tests": 1,
+                "num_generated_tests": 2,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
