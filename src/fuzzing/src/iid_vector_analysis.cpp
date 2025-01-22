@@ -141,6 +141,17 @@ fuzzing::equation fuzzing::equation::operator*( int scalar ) const
 }
 
 // ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::equation::operator*( double scalar ) const
+{
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        new_values.push_back( values[ i ] * scalar );
+    }
+
+    return { new_values, best_value * scalar };
+}
+
+// ------------------------------------------------------------------------------------------------
 fuzzing::equation fuzzing::equation::operator/( const equation& other ) const
 {
     INVARIANT( values.size() == other.values.size() );
@@ -348,13 +359,18 @@ float fuzzing::equation_matrix::get_biggest_branching_value() const
 }
 
 // ------------------------------------------------------------------------------------------------
-std::optional< fuzzing::equation > fuzzing::equation_matrix::get_new_path_from_vector( const equation& vector )
+std::optional< fuzzing::equation >
+fuzzing::equation_matrix::get_new_path_from_vector( const std::vector< equation >& vectors )
 {
-    INVARIANT( vector.values.size() == nodes.size() );
+    INVARIANT( !vectors.empty() );
+    INVARIANT( vectors[ 0 ].values.size() == nodes.size() );
+
 
     std::vector< equation > paths;
     std::pair< std::size_t, std::size_t > dimensions = get_dimensions();
+
     bool get_precise = true;
+    bool is_equal_sign = get_branching_predicate() == BRANCHING_PREDICATE::BP_EQUAL;
 
     auto add_if_positive = [ &paths ]( const equation& new_path ) {
         if ( !new_path.is_any_negative() ) {
@@ -362,21 +378,28 @@ std::optional< fuzzing::equation > fuzzing::equation_matrix::get_new_path_from_v
         }
     };
 
-    for ( const auto& row : matrix ) {
-        double counts = std::abs( row.best_value ) / vector.best_value;
-        int rounded_counts = static_cast< int >( std::round( counts ) );
+    for ( const auto& vector : vectors ) {
+        for ( const auto& row : matrix ) {
+            double counts = std::abs( row.best_value ) / std::abs( vector.best_value );
+            int rounded_counts = static_cast< int >( std::round( counts ) );
 
-        if ( get_precise ) {
-            if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 ) {
-                continue;
-            }
+            if ( get_precise ) {
+                if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 ) {
+                    continue;
+                }
 
-            equation new_path = vector * rounded_counts + row;
-            add_if_positive( new_path );
-        } else {
-            for ( int vector_increment = 1; vector_increment <= rounded_counts; ++vector_increment ) {
-                equation new_path = ( vector * vector_increment ) + row;
+                equation new_path = vector * rounded_counts + row;
+                if ( !is_equal_sign ) {
+                    new_path = new_path * 1.25;
+                }
+
+
                 add_if_positive( new_path );
+            } else {
+                for ( int vector_increment = 1; vector_increment <= rounded_counts; ++vector_increment ) {
+                    equation new_path = ( vector * vector_increment ) + row;
+                    add_if_positive( new_path );
+                }
             }
         }
     }
@@ -413,7 +436,7 @@ void fuzzing::equation_matrix::print_matrix()
 
 
 // ------------------------------------------------------------------------------------------------
-BRANCHING_PREDICATE fuzzing::equation_matrix::get_branching_predicate() 
+BRANCHING_PREDICATE fuzzing::equation_matrix::get_branching_predicate()
 {
     ASSUMPTION( all_paths.size() > 0 );
     return all_paths[ 0 ]->branching_predicate;
@@ -447,12 +470,26 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
 
     int desired_vector_direction = submatrix.get_desired_vector_direction();
     float biggest_branching_value = submatrix.get_biggest_branching_value();
-    equation best_vector = get_best_vector( vectors, false, desired_vector_direction, biggest_branching_value );
+    std::vector< equation > best_vectors =
+        get_best_vectors( vectors, 1, false, desired_vector_direction, biggest_branching_value );
 
-    std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vector );
+    // std::cout << "Best vectors: " << std::endl;
+    // for (const auto& vector : best_vectors) {
+    //     for (const auto& value : vector.values) {
+    //         std::cout << value << " ";
+    //     }
+    //     std::cout << "-> | " << vector.best_value << std::endl;
+    // }
+    std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vectors );
     if ( !new_path.has_value() ) {
         return {};
     }
+
+    // std::cout << "New path: ";
+    // for (const auto& value : new_path->values) {
+    //     std::cout << value << " ";
+    // }
+    // std::cout << "-> | " << new_path->best_value << std::endl;
 
     nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
     possible_path path = generate_path_from_node_counts( path_counts );
@@ -492,7 +529,8 @@ void fuzzing::iid_node_dependence_props::print_dependencies() const
 }
 
 // ------------------------------------------------------------------------------------------------
-int fuzzing::iid_node_dependence_props::compute_path_counts_for_nested_loops( std::map< location_id, int >& counts, int minimum_count )
+int fuzzing::iid_node_dependence_props::compute_path_counts_for_nested_loops( std::map< location_id, int >& counts,
+                                                                              int minimum_count )
 {
     int previous_count = 1;
 
@@ -632,10 +670,12 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
 }
 
 // ------------------------------------------------------------------------------------------------
-fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std::map< equation, int >& vectors_with_hits,
-                                                                       bool use_random,
-                                                                       int desired_direction,
-                                                                       float biggest_branching_value )
+std::vector< fuzzing::equation >
+fuzzing::iid_node_dependence_props::get_best_vectors( const std::map< equation, int >& vectors_with_hits,
+                                                      int number_of_vectors,
+                                                      bool use_random,
+                                                      int desired_direction,
+                                                      float biggest_branching_value )
 {
     if ( vectors_with_hits.empty() ) {
         throw std::invalid_argument( "Input map is empty." );
@@ -666,19 +706,24 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std
     }
 
     if ( use_random ) {
-        return get_random_vector( filtered_vectors_with_hits );
+        return get_random_vector( filtered_vectors_with_hits, number_of_vectors );
     }
 
-    auto max_it = std::max_element( filtered_vectors_with_hits.begin(),
-                                    filtered_vectors_with_hits.end(),
-                                    []( const auto& a, const auto& b ) {
-                                        if ( a.second == b.second ) {
-                                            return std::abs( a.first.best_value ) > std::abs( b.first.best_value );
-                                        }
-                                        return a.second < b.second;
-                                    } );
+    std::vector< std::pair< equation, int > > sorted_vectors( filtered_vectors_with_hits.begin(),
+                                                              filtered_vectors_with_hits.end() );
 
-    equation best_vector = max_it->first;
+    std::sort( sorted_vectors.begin(), sorted_vectors.end(), []( const auto& a, const auto& b ) {
+        if ( a.second == b.second ) {
+            return std::abs( a.first.best_value ) > std::abs( b.first.best_value );
+        }
+        return a.second > b.second;
+    } );
+
+    std::vector< equation > best_vectors;
+    for ( int i = 0; i < number_of_vectors && i < sorted_vectors.size(); ++i ) {
+        best_vectors.push_back( sorted_vectors[ i ].first );
+    }
+
 
     // std::map< equation, int > dependent_vectors_with_hits =
     //     get_linear_dependent_vector( filtered_vectors_with_hits, best_vector );
@@ -694,7 +739,7 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_best_vector( const std
     //     best_vector = min_it->first;
     // }
 
-    return best_vector;
+    return best_vectors;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -715,7 +760,9 @@ std::map< fuzzing::equation, int > fuzzing::iid_node_dependence_props::get_linea
 }
 
 // ------------------------------------------------------------------------------------------------
-fuzzing::equation fuzzing::iid_node_dependence_props::get_random_vector( const std::map< equation, int >& vectors_with_hits )
+std::vector< fuzzing::equation >
+fuzzing::iid_node_dependence_props::get_random_vector( const std::map< equation, int >& vectors_with_hits,
+                                                       int number_of_vectors )
 {
     std::vector< equation > equations;
     std::vector< double > probabilities;
@@ -738,7 +785,12 @@ fuzzing::equation fuzzing::iid_node_dependence_props::get_random_vector( const s
     std::mt19937 gen( rd() );
     std::discrete_distribution<> dist( probabilities.begin(), probabilities.end() );
 
-    return equations[ dist( gen ) ];
+    std::vector< equation > selected_equations;
+    for ( int i = 0; i < number_of_vectors; ++i ) {
+        selected_equations.push_back( equations[ dist( gen ) ] );
+    }
+
+    return selected_equations;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -871,7 +923,7 @@ void fuzzing::iid_node_dependence_props::compute_dependencies_by_loops( const lo
 
                 if ( matrix.contains( node_id_direction ) )
                     dependencies_by_loops[ loop_head ].bodies.insert( node_id_direction );
-                    dependencies_by_loops[ loop_head ].end_direction = loop_head_end_direction;
+                dependencies_by_loops[ loop_head ].end_direction = loop_head_end_direction;
             }
         }
     }

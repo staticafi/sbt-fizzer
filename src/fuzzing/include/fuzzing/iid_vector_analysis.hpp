@@ -93,6 +93,7 @@ struct equation {
     equation operator+( const equation& other ) const;
     equation operator-( const equation& other ) const;
     equation operator*( int scalar ) const;
+    equation operator*( double scalar ) const;
     equation operator/( const equation& other ) const;
     auto operator<=>( const equation& other ) const = default;
     bool operator==( const equation& other ) const = default;
@@ -128,6 +129,7 @@ struct loop_dependencies_props {
     std::vector< node_counts > previous_counts;
 };
 
+
 using loop_ending_to_bodies = std::map< location_id, loop_dependencies_props >;
 using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
@@ -142,13 +144,14 @@ struct equation_matrix {
     std::pair< std::size_t, std::size_t > get_dimensions() const;
     std::map< equation, int > compute_vectors();
     std::vector< equation >& get_matrix();
-    std::optional< equation > get_new_path_from_vector( const equation& vector );
+    std::optional< equation > get_new_path_from_vector( const std::vector< equation >& vector );
     int get_desired_vector_direction() const;
     float get_biggest_branching_value() const;
 
     void print_matrix();
 
     BRANCHING_PREDICATE get_branching_predicate();
+
 private:
     void recompute_matrix();
 
@@ -167,13 +170,15 @@ struct iid_node_dependence_props {
 private:
     int compute_path_counts_for_nested_loops( std::map< location_id, int >& counts, int minimum_count );
     nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
-    equation get_best_vector( const std::map< equation, int >& vectors_with_hits,
-                              bool use_random,
-                              int desired_direction,
-                              float biggest_branching_value );
+    std::vector< equation > get_best_vectors( const std::map< equation, int >& vectors_with_hits,
+                                              int number_of_vectors,
+                                              bool use_random,
+                                              int desired_direction,
+                                              float biggest_branching_value );
     std::map< equation, int > get_linear_dependent_vector( const std::map< equation, int >& vectors_with_hits,
                                                            equation& best_vector );
-    equation get_random_vector( const std::map< equation, int >& vectors_with_hits );
+    std::vector< equation > get_random_vector( const std::map< equation, int >& vectors_with_hits,
+                                               int number_of_vectors );
     std::set< node_direction > get_leaf_subsets();
     loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
     void compute_dependencies_by_loading( branching_node* end_node,
