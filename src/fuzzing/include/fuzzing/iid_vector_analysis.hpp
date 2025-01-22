@@ -143,9 +143,9 @@ struct equation_matrix {
     void add_equation( branching_node* end_node );
     bool contains( node_direction const& node ) const;
     std::pair< std::size_t, std::size_t > get_dimensions() const;
-    std::map< equation, int > compute_vectors();
+    std::map< equation, int > compute_vectors_with_hits();
     std::vector< equation >& get_matrix();
-    std::optional< equation > get_new_path_from_vector( const std::vector< equation >& vector );
+    std::optional< equation > get_new_leaf_counts_from_vectors( const std::vector< equation >& vector );
     int get_desired_vector_direction() const;
     float get_biggest_branching_value() const;
 
@@ -171,11 +171,11 @@ struct iid_node_dependence_props {
 private:
     int compute_path_counts_for_nested_loops( std::map< location_id, int >& counts, int minimum_count );
     nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
-    std::vector< equation > get_best_vectors( const std::map< equation, int >& vectors_with_hits,
-                                              int number_of_vectors,
-                                              bool use_random,
-                                              int desired_direction,
-                                              float biggest_branching_value );
+    std::vector< equation > compute_best_vectors( const std::map< equation, int >& vectors_with_hits,
+                                                  int number_of_vectors,
+                                                  bool use_random,
+                                                  int desired_direction,
+                                                  float biggest_branching_value );
     std::map< equation, int > get_linear_dependent_vector( const std::map< equation, int >& vectors_with_hits,
                                                            equation& best_vector );
     std::vector< equation > get_random_vector( const std::map< equation, int >& vectors_with_hits,

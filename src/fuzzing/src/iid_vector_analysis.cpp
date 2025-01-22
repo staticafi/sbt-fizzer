@@ -302,7 +302,7 @@ std::pair< std::size_t, std::size_t > fuzzing::equation_matrix::get_dimensions()
 }
 
 // ------------------------------------------------------------------------------------------------
-std::map< fuzzing::equation, int > fuzzing::equation_matrix::compute_vectors()
+std::map< fuzzing::equation, int > fuzzing::equation_matrix::compute_vectors_with_hits()
 {
     std::map< equation, int > vectors_with_hits;
 
@@ -367,7 +367,7 @@ float fuzzing::equation_matrix::get_biggest_branching_value() const
 
 // ------------------------------------------------------------------------------------------------
 std::optional< fuzzing::equation >
-fuzzing::equation_matrix::get_new_path_from_vector( const std::vector< equation >& vectors )
+fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< equation >& vectors )
 {
     INVARIANT( !vectors.empty() );
     INVARIANT( vectors[ 0 ].values.size() == nodes.size() );
@@ -474,7 +474,7 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
 
     std::set< node_direction > all_leafs = get_leaf_subsets();
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
-    std::map< equation, int > vectors = submatrix.compute_vectors();
+    std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
     if ( vectors.empty() ) {
         return {};
     }
@@ -482,7 +482,7 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     int desired_vector_direction = submatrix.get_desired_vector_direction();
     float biggest_branching_value = submatrix.get_biggest_branching_value();
     std::vector< equation > best_vectors =
-        get_best_vectors( vectors, 1, false, desired_vector_direction, biggest_branching_value );
+        compute_best_vectors( vectors, 1, false, desired_vector_direction, biggest_branching_value );
 
     // std::cout << "Best vectors: " << std::endl;
     // for (const auto& vector : best_vectors) {
@@ -491,19 +491,23 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     //     }
     //     std::cout << "-> | " << vector.best_value << std::endl;
     // }
-    std::optional< equation > new_path = submatrix.get_new_path_from_vector( best_vectors );
-    if ( !new_path.has_value() ) {
+
+    std::optional< equation > new_leaf_counts = submatrix.get_new_leaf_counts_from_vectors( best_vectors );
+    if ( !new_leaf_counts.has_value() ) {
         return {};
     }
 
     // std::cout << "New path: ";
-    // for (const auto& value : new_path->values) {
+    // for (const auto& value : new_leaf_counts->values) {
     //     std::cout << value << " ";
     // }
-    // std::cout << "-> | " << new_path->best_value << std::endl;
+    // std::cout << "-> | " << new_leaf_counts->best_value << std::endl;
 
-    nodes_to_counts path_counts = compute_path_counts( new_path.value(), all_leafs );
-    possible_path path = generate_path_from_node_counts( path_counts );
+    nodes_to_counts node_counts = compute_path_counts( new_leaf_counts.value(), all_leafs );
+    possible_path path = generate_path_from_node_counts( node_counts );
+
+    // std::cout << "New path: " << std::endl;
+    // std::cout << path << std::endl;
 
     return path;
 }
@@ -682,11 +686,11 @@ fuzzing::iid_node_dependence_props::compute_path_counts( const equation& path,
 
 // ------------------------------------------------------------------------------------------------
 std::vector< fuzzing::equation >
-fuzzing::iid_node_dependence_props::get_best_vectors( const std::map< equation, int >& vectors_with_hits,
-                                                      int number_of_vectors,
-                                                      bool use_random,
-                                                      int desired_direction,
-                                                      float biggest_branching_value )
+fuzzing::iid_node_dependence_props::compute_best_vectors( const std::map< equation, int >& vectors_with_hits,
+                                                          int number_of_vectors,
+                                                          bool use_random,
+                                                          int desired_direction,
+                                                          float biggest_branching_value )
 {
     if ( vectors_with_hits.empty() ) {
         throw std::invalid_argument( "Input map is empty." );
