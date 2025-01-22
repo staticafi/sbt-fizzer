@@ -21,11 +21,11 @@ struct node_counts {
 
 
 struct path_node_props {
-    path_node_props( node_counts computed_counts, bool is_loop_head, bool loop_head_direction )
+    path_node_props( node_counts computed_counts, bool is_loop_head, bool loop_head_end_direction )
         : computed_counts( computed_counts )
         , taken_counts( { 0, 0 } )
         , is_loop_head( is_loop_head )
-        , loop_head_direction( loop_head_direction )
+        , loop_head_end_direction( loop_head_end_direction )
     {}
 
     bool get_desired_direction() const;
@@ -40,7 +40,7 @@ struct path_node_props {
         os << "L: (" << eq.computed_counts.left_count << " | " << eq.taken_counts.left_count << ") ";
         os << "R: (" << eq.computed_counts.right_count << " | " << eq.taken_counts.right_count << ") ";
         if ( eq.is_loop_head ) {
-            os << "Loop head: " << ( eq.loop_head_direction ? "R" : "L" );
+            os << "Loop head: " << ( eq.loop_head_end_direction ? "R" : "L" );
         }
         return os;
     }
@@ -49,7 +49,7 @@ private:
     node_counts computed_counts;
     node_counts taken_counts;
     bool is_loop_head;
-    bool loop_head_direction;
+    bool loop_head_end_direction;
 
     bool get_preferred_direction_loop_head() const;
 };
@@ -98,7 +98,8 @@ struct equation {
     auto operator<=>( const equation& other ) const = default;
     bool operator==( const equation& other ) const = default;
 
-    int get_vector_length() const;
+    int get_vector_size() const;
+    int get_one_way_branching_count() const;
     bool is_any_negative() const;
     bool same_values() const;
 
