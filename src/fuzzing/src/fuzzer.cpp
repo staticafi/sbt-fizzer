@@ -10,6 +10,9 @@
 #include <iterator>
 #include <fuzzing/gradient_descent.hpp>
 
+constexpr bool use_vector_analysis = true;
+constexpr bool use_only_probabilities = false;
+
 namespace  fuzzing {
 
 
@@ -738,10 +741,14 @@ branching_node*  fuzzer::monte_carlo_search(
     ASSUMPTION(start_node != nullptr && !start_node->is_closed());
  
     branching_node*  pivot = start_node;
+    branching_node* successor;
     while (true)
     {
-        // branching_node* const  successor{ monte_carlo_step(pivot, histogram, generators, location_miss_generator) };
-        branching_node* const  successor{ monte_carlo_step_with_path(pivot, histogram, generators, location_miss_generator, path) };
+        if ( use_vector_analysis && !use_only_probabilities ) {
+            successor = monte_carlo_step_with_path( pivot, histogram, generators, location_miss_generator, path );
+        } else {
+            successor = monte_carlo_step( pivot, histogram, generators, location_miss_generator );
+        }
         if (successor == nullptr)
             break;
         pivot = successor;
@@ -1691,7 +1698,7 @@ branching_node*  fuzzer::select_iid_coverage_target()
 
     possible_path path;
     
-    if ( !iid_locations.empty() ) {
+    if ( use_vector_analysis && !iid_locations.empty() ) {
         iid_node_dependence_props& node_props = iid_dependences.get_props( iid_locations[0] );
         // std::cout << "IID Location: " << iid_locations[0].id << std::endl;
         path = node_props.generate_probabilities();
@@ -1745,7 +1752,7 @@ branching_node*  fuzzer::select_iid_coverage_target()
                 entry_branching
                 );
 
-        if ( !path.get_path().empty() ) {
+        if ( use_vector_analysis && !use_only_probabilities && !path.get_path().empty() ) {
             start_node = select_start_node_for_monte_carlo_search_with_vector(
                 path,
                 it_pivot->second.loop_boundaries,

@@ -17,6 +17,8 @@ namespace fuzzing
 struct node_counts {
     int left_count;
     int right_count;
+
+    int get_max_count() const;
 };
 
 
@@ -37,11 +39,11 @@ struct path_node_props {
 
     friend std::ostream& operator<<( std::ostream& os, const path_node_props& eq )
     {
-        os << "L: (" << eq.computed_counts.left_count << " | " << eq.taken_counts.left_count << ") ";
-        os << "R: (" << eq.computed_counts.right_count << " | " << eq.taken_counts.right_count << ") ";
+        os << "L-" << eq.computed_counts.left_count << " R-" << eq.computed_counts.right_count;
         if ( eq.is_loop_head ) {
-            os << "Loop head: " << ( eq.loop_head_end_direction ? "R" : "L" );
+            os << " " << ( eq.loop_head_end_direction ? "R" : "L" );
         }
+
         return os;
     }
 
@@ -69,8 +71,7 @@ struct possible_path {
     friend std::ostream& operator<<( std::ostream& os, const possible_path& eq )
     {
         for ( const auto& [ id, props ] : eq.path ) {
-            os << id << ":" << std::endl;
-            os << props << std::endl;
+            os << id << ": " << props << std::endl;
         }
 
         return os;
@@ -169,7 +170,17 @@ struct iid_node_dependence_props {
     void print_dependencies() const;
 
 private:
-    int compute_path_counts_for_nested_loops( std::map< location_id, int >& counts, int minimum_count );
+    void compute_path_counts_for_nested_loops( nodes_to_counts& path_counts,
+                                               std::map< location_id, int >& child_loop_counts,
+                                               location_id loop_head_id,
+                                               int minimum_count,
+                                               bool use_random = false );
+    void compute_path_counts_loading( nodes_to_counts& path_counts,
+                                      const equation& path,
+                                      const std::set< location_id >& loop_heads );
+    void compute_path_counts_loops( nodes_to_counts& path_counts,
+                                    const equation& path,
+                                    const std::set< location_id >& loop_heads );
     nodes_to_counts compute_path_counts( const equation& path, std::set< node_direction > const& all_leafs );
     std::vector< equation > compute_best_vectors( const std::map< equation, int >& vectors_with_hits,
                                                   int number_of_vectors,
