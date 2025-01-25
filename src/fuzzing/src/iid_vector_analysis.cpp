@@ -123,6 +123,17 @@ fuzzing::equation fuzzing::equation::operator+( const equation& other ) const
 }
 
 // ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::equation::operator+( int scalar ) const
+{
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        new_values.push_back( values[ i ] + scalar );
+    }
+
+    return { new_values, best_value };
+}
+
+// ------------------------------------------------------------------------------------------------
 fuzzing::equation fuzzing::equation::operator-( const equation& other ) const
 {
     INVARIANT( values.size() == other.values.size() );
@@ -176,6 +187,21 @@ fuzzing::equation fuzzing::equation::operator/( const equation& other ) const
 }
 
 // ------------------------------------------------------------------------------------------------
+fuzzing::equation fuzzing::equation::add_to_positive( int value ) const
+{
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        if ( values[ i ] != 0 ) {
+            new_values.push_back( values[ i ] + value );
+        } else {
+            new_values.push_back( values[ i ] );
+        }
+    }
+
+    return { new_values, best_value };
+}
+
+// ------------------------------------------------------------------------------------------------
 int fuzzing::equation::get_vector_size() const
 {
     return std::accumulate( values.begin(), values.end(), 0, []( int sum, int val ) { return sum + val; } );
@@ -186,6 +212,9 @@ int fuzzing::equation::get_one_way_branching_count() const
 {
     return std::count_if( values.begin(), values.end(), []( int val ) { return val == 0; } );
 }
+
+// ------------------------------------------------------------------------------------------------
+int fuzzing::equation::get_biggest_value() const { return *std::max_element( values.begin(), values.end() ); }
 
 // ------------------------------------------------------------------------------------------------
 bool fuzzing::equation::is_any_negative() const
@@ -371,7 +400,8 @@ float fuzzing::equation_matrix::get_biggest_branching_value() const
 
 // ------------------------------------------------------------------------------------------------
 std::optional< fuzzing::equation >
-fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< equation >& vectors )
+fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< equation >& vectors,
+                                                            int generation_count_after_covered )
 {
     INVARIANT( !vectors.empty() );
     INVARIANT( vectors[ 0 ].values.size() == nodes.size() );
@@ -399,9 +429,10 @@ fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< e
 
                 equation new_path = vector * rounded_counts + row;
                 if ( !is_equal_sign ) {
-                    new_path = new_path * 1.25;
+                    int limit = new_path.get_biggest_value() / 2;
+                    limit = 1;
+                    new_path = new_path.add_to_positive( 1 + rand() % limit );
                 }
-
 
                 add_if_positive( new_path );
             } else {
@@ -473,9 +504,11 @@ void fuzzing::equation_matrix::recompute_matrix()
 // ------------------------------------------------------------------------------------------------
 fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilities()
 {
+    print_stats();
     // print_dependencies();
     // matrix.print_matrix();
 
+    stats.generation_starts++;
     std::set< node_direction > all_leafs = get_leaf_subsets();
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
 
@@ -483,7 +516,7 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
 
     std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
     if ( vectors.empty() ) {
-        return {};
+        return return_empty_path();
     }
 
     int desired_vector_direction = submatrix.get_desired_vector_direction();
@@ -492,7 +525,7 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
         compute_best_vectors( vectors, 1, false, desired_vector_direction, biggest_branching_value );
 
     if ( best_vectors.empty() ) {
-        return {};
+        return return_empty_path();
     }
 
     // std::cout << "Best vectors: " << std::endl;
@@ -503,9 +536,10 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     //     std::cout << "-> | " << vector.best_value << std::endl;
     // }
 
-    std::optional< equation > new_leaf_counts = submatrix.get_new_leaf_counts_from_vectors( best_vectors );
+    std::optional< equation > new_leaf_counts =
+        submatrix.get_new_leaf_counts_from_vectors( best_vectors, stats.generated_after_covered );
     if ( !new_leaf_counts.has_value() ) {
-        return {};
+        return return_empty_path();
     }
 
     // std::cout << "New path: ";
@@ -520,7 +554,7 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
     // std::cout << "New path: " << std::endl;
     // std::cout << path << std::endl;
 
-    return path;
+    return return_path( path );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -535,6 +569,12 @@ void fuzzing::iid_node_dependence_props::process_node( branching_node* end_node 
     compute_dependencies_by_loops( loop_heads_to_bodies, loop_heads_ending );
 }
 
+// ------------------------------------------------------------------------------------------------
+bool fuzzing::iid_node_dependence_props::should_generate() const
+{
+    return stats.state == generation_state::NOT_COVERED || stats.state == generation_state::GENERATION_MORE ||
+           stats.state == generation_state::GENERATION_DATA_FOR_NEXT_NODE;
+}
 // ------------------------------------------------------------------------------------------------
 void fuzzing::iid_node_dependence_props::print_dependencies() const
 {
@@ -552,6 +592,53 @@ void fuzzing::iid_node_dependence_props::print_dependencies() const
             std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`" << std::endl;
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::iid_node_dependence_props::print_stats() const
+{
+    switch ( stats.state ) {
+        case generation_state::NOT_COVERED:
+            std::cout << "Status: NOT_COVERED" << std::endl;
+            std::cout << "Failed generations/Total generations: " << stats.failed_generations << "/"
+                      << stats.generation_starts << std::endl;
+            std::cout << "Failed generations in row: " << stats.failed_generations_in_row << std::endl;
+            break;
+        case generation_state::GENERATION_MORE:
+            std::cout << "Status GENERATION_MORE" << std::endl;
+            std::cout << "Generated after covered: " << stats.generated_after_covered << "/"
+                      << stats.generated_after_covered_max << std::endl;
+            break;
+        case generation_state::COVERED: std::cout << "COVERED" << std::endl; break;
+        case generation_state::GENERATION_DATA_FOR_NEXT_NODE:
+            std::cout << "GENERATION_DATA_FOR_NEXT_NODE" << std::endl;
+            break;
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+fuzzing::possible_path fuzzing::iid_node_dependence_props::return_empty_path()
+{
+    stats.failed_generations++;
+    stats.failed_generations_in_row++;
+    return possible_path();
+}
+
+// ------------------------------------------------------------------------------------------------
+fuzzing::possible_path fuzzing::iid_node_dependence_props::return_path( const possible_path& path )
+{
+    stats.failed_generations_in_row = 0;
+    stats.successful_generations++;
+
+    if ( stats.state == generation_state::GENERATION_MORE ) {
+        stats.generated_after_covered++;
+
+        if ( stats.generated_after_covered > stats.generated_after_covered_max ) {
+            stats.state = generation_state::COVERED;
+        }
+    }
+
+    return path;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1060,9 +1147,17 @@ void fuzzing::iid_dependencies::process_node_dependence( branching_node* node )
 // ------------------------------------------------------------------------------------------------
 void fuzzing::iid_dependencies::remove_node_dependence( location_id id )
 {
-    if ( id_to_equation_map.contains( id ) ) {
-        id_to_equation_map.erase( id );
-        non_iid_nodes.insert( id );
+    auto it = id_to_equation_map.find( id );
+    if ( it != id_to_equation_map.end() ) {
+        iid_node_generations_stats& stats = it->second.get_generations_stats();
+        stats.state = generation_state::COVERED;
+
+        if ( generate_more_data_after_coverage ) {
+            stats.state = generation_state::GENERATION_MORE;
+            int max_generation_after_covered = std::max( minimal_max_generation_after_covered,
+                                                         stats.successful_generations / 2 );
+            stats.generated_after_covered_max = max_generation_after_covered;
+        }
     }
 }
 
@@ -1082,6 +1177,47 @@ std::vector< location_id > fuzzing::iid_dependencies::get_iid_nodes()
 
     std::sort( result.begin(), result.end() );
     return result;
+}
+
+// ------------------------------------------------------------------------------------------------
+std::optional< location_id > fuzzing::iid_dependencies::get_next_iid_node()
+{
+    std::optional< location_id > best_id = std::nullopt;
+
+    for ( const auto& [ id, props ] : id_to_equation_map ) {
+        if ( props.should_generate() ) {
+            return id;
+        }
+    }
+
+    return best_id;
+
+
+    // bool previous_failed = false;
+
+    // for ( auto it = id_to_equation_map.rbegin(); it != id_to_equation_map.rend(); ++it ) {
+    //     if ( previous_failed ) {
+    //         previous_failed = false;
+    //         current_failed_generations++;
+    //         return it->first;
+    //     }
+
+    //     if ( it->second.get_number_of_failed_generations() >= max_failed_generations ) {
+    //         if ( current_failed_generations >= max_failed_generations ) {
+    //             it->second.get_number_of_failed_generations() = 0;
+    //             current_failed_generations = 0;
+    //         } else {
+    //             previous_failed = true;
+    //             continue;
+    //         }
+    //     }
+
+    //     if ( it->second.get_generation_count_after_covered() >= max_generation_count_after_covered ) {
+    //         continue;
+    //     }
+
+    //     best_id = it->first;
+    // }
 }
 
 //                               non member functions

@@ -92,6 +92,7 @@ struct equation {
     double best_value;
 
     equation operator+( const equation& other ) const;
+    equation operator+( int scalar ) const;
     equation operator-( const equation& other ) const;
     equation operator*( int scalar ) const;
     equation operator*( double scalar ) const;
@@ -99,8 +100,10 @@ struct equation {
     auto operator<=>( const equation& other ) const = default;
     bool operator==( const equation& other ) const = default;
 
+    equation add_to_positive( int value ) const;
     int get_vector_size() const;
     int get_one_way_branching_count() const;
+    int get_biggest_value() const;
     bool is_any_negative() const;
     bool same_values() const;
 
@@ -146,7 +149,8 @@ struct equation_matrix {
     std::pair< std::size_t, std::size_t > get_dimensions() const;
     std::map< equation, int > compute_vectors_with_hits();
     std::vector< equation >& get_matrix();
-    std::optional< equation > get_new_leaf_counts_from_vectors( const std::vector< equation >& vector );
+    std::optional< equation > get_new_leaf_counts_from_vectors( const std::vector< equation >& vector,
+                                                                int generated_after_covered );
     int get_desired_vector_direction() const;
     float get_biggest_branching_value() const;
 
@@ -162,14 +166,38 @@ private:
     std::set< node_direction > nodes;
 };
 
+enum generation_state {
+    NOT_COVERED,
+    GENERATION_MORE,
+    COVERED,
+    GENERATION_DATA_FOR_NEXT_NODE
+};
+
+struct iid_node_generations_stats {
+    int generation_starts = 0;
+    int successful_generations = 0;
+    int failed_generations = 0;
+    
+    int failed_generations_in_row = 0;
+
+    int generated_after_covered_max = 0;
+    int generated_after_covered = 0;
+
+    generation_state state = generation_state::NOT_COVERED;
+};
 
 struct iid_node_dependence_props {
     possible_path generate_probabilities();
     void process_node( branching_node* end_node );
+    iid_node_generations_stats& get_generations_stats() { return stats; }
+    bool should_generate() const;
 
     void print_dependencies() const;
+    void print_stats() const;
 
 private:
+    possible_path return_empty_path();
+    possible_path return_path( const possible_path& path );
     void compute_path_counts_for_nested_loops( nodes_to_counts& path_counts,
                                                std::map< location_id, int >& child_loop_counts,
                                                location_id loop_head_id,
@@ -204,6 +232,8 @@ private:
     equation_matrix matrix;
     loop_ending_to_bodies dependencies_by_loops;
     loop_ending_to_bodies dependencies_by_loading;
+
+    iid_node_generations_stats stats;
 };
 
 struct iid_dependencies {
@@ -212,10 +242,18 @@ struct iid_dependencies {
     void remove_node_dependence( location_id id );
     iid_node_dependence_props& get_props( location_id id );
     std::vector< location_id > get_iid_nodes();
+    std::optional< location_id > get_next_iid_node();
 
 private:
-    std::unordered_map< location_id, iid_node_dependence_props > id_to_equation_map;
+    std::map< location_id, iid_node_dependence_props > id_to_equation_map;
     std::set< location_id > non_iid_nodes;
+
+    int max_failed_generations = 10;
+    int current_failed_generations = 0;
+
+    // Settings
+    bool generate_more_data_after_coverage = true;
+    int minimal_max_generation_after_covered = 10;
 };
 
 std::vector< node_direction > get_path( branching_node* node );

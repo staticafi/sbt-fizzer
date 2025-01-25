@@ -1687,27 +1687,18 @@ branching_node*  fuzzer::select_iid_coverage_target()
     histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
     it_pivot->second.histogram_ptr->merge(hit_counts);
 
-
-    std::vector< location_id > iid_locations = iid_dependences.get_iid_nodes();
-    {
-        // std::cout << "IID Locations:" << std::endl;
-        // for (const auto& loc : iid_locations) {
-        //     std::cout << loc.id << std::endl;
-        // }
-    }
-
     possible_path path;
-    
-    if ( use_vector_analysis && !iid_locations.empty() ) {
-        iid_node_dependence_props& node_props = iid_dependences.get_props( iid_locations[0] );
-        // std::cout << "IID Location: " << iid_locations[0].id << std::endl;
+    std::optional< location_id > iid_location = iid_dependences.get_next_iid_node();
+
+    if ( use_vector_analysis && iid_location.has_value() ) {
+        iid_node_dependence_props& node_props = iid_dependences.get_props( *iid_location );
+        std::cout << "Computing probabilities for location " << ( *iid_location ).id << std::endl;
         path = node_props.generate_probabilities();
 
         for ( const auto& path_props : path.get_path() ) {
             auto it = histogram.find( path_props.first );
             if ( it != histogram.end() ) {
                 it->second = path_props.second.get_false_direction_probability();
-                // std::cout << "IID Location: " << path_props.first << " Probability: " << it->second << std::endl;
             }
         }
     }
