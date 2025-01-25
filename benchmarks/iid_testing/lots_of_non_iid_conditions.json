@@ -13,7 +13,6 @@
         "optimizer_max_trace_length": 1000000,
         "optimizer_max_stdin_bytes": 1000000
     },
-    "num_executions_original": 410,
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
