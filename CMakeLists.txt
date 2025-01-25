@@ -1,6 +1,6 @@
-project(fizzer)
-
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+
+project(fizzer)
 
 macro(append_compiler_flags FLAGS)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS}")
