@@ -1692,7 +1692,7 @@ branching_node*  fuzzer::select_iid_coverage_target()
 
     if ( use_vector_analysis && iid_location.has_value() ) {
         iid_node_dependence_props& node_props = iid_dependences.get_props( *iid_location );
-        std::cout << "Computing probabilities for location " << ( *iid_location ).id << std::endl;
+        // std::cout << "Computing probabilities for location " << ( *iid_location ).id << std::endl;
         path = node_props.generate_probabilities();
 
         for ( const auto& path_props : path.get_path() ) {

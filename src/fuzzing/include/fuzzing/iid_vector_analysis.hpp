@@ -156,7 +156,7 @@ struct equation_matrix {
 
     void print_matrix();
 
-    BRANCHING_PREDICATE get_branching_predicate();
+    BRANCHING_PREDICATE get_branching_predicate() const;
 
 private:
     void recompute_matrix();
@@ -166,22 +166,20 @@ private:
     std::set< node_direction > nodes;
 };
 
-enum generation_state {
-    NOT_COVERED,
-    GENERATION_MORE,
-    COVERED,
-    GENERATION_DATA_FOR_NEXT_NODE
-};
+enum generation_state { NOT_COVERED, GENERATION_MORE, COVERED, GENERATION_DATA_FOR_NEXT_NODE };
 
 struct iid_node_generations_stats {
     int generation_starts = 0;
     int successful_generations = 0;
     int failed_generations = 0;
-    
+
     int failed_generations_in_row = 0;
 
     int generated_after_covered_max = 0;
     int generated_after_covered = 0;
+
+    int generated_for_other_node = 0;
+    int generated_for_other_node_max = 0;
 
     generation_state state = generation_state::NOT_COVERED;
 };
@@ -190,10 +188,15 @@ struct iid_node_dependence_props {
     possible_path generate_probabilities();
     void process_node( branching_node* end_node );
     iid_node_generations_stats& get_generations_stats() { return stats; }
+
     bool should_generate() const;
+    bool needs_data_from_other_node( int max_failed_generations_in_row ) const;
+    void set_as_generating_for_other_node( int minimal_max_generation_for_other_node );
+    bool is_equal_branching_predicate() const;
 
     void print_dependencies() const;
     void print_stats() const;
+
 
 private:
     possible_path return_empty_path();
@@ -248,12 +251,11 @@ private:
     std::map< location_id, iid_node_dependence_props > id_to_equation_map;
     std::set< location_id > non_iid_nodes;
 
-    int max_failed_generations = 10;
-    int current_failed_generations = 0;
-
     // Settings
     bool generate_more_data_after_coverage = true;
     int minimal_max_generation_after_covered = 10;
+    int max_failed_generations_in_row = 10;
+    int minimal_max_generation_for_other_node = 10;
 };
 
 std::vector< node_direction > get_path( branching_node* node );
