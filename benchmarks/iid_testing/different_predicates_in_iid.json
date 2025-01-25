@@ -61,12 +61,12 @@
         ],
         "output_statistics": {
             "bitshare_analysis": {
-                "num_generated_tests": 5,
+                "num_generated_tests": 3,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
             "sensitivity_analysis": {
-                "num_generated_tests": 4,
+                "num_generated_tests": 6,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },

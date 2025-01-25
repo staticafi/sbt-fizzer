@@ -43,12 +43,12 @@
         ],
         "output_statistics": {
             "sensitivity_analysis": {
-                "num_generated_tests": 7,
+                "num_generated_tests": 6,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
             "typed_minimization_analysis": {
-                "num_generated_tests": 2,
+                "num_generated_tests": 3,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
             },
