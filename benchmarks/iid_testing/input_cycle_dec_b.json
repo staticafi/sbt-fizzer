@@ -16,7 +16,7 @@
     "results": {
         "termination_type": "NORMAL",
         "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 1802,
+        "num_executions": 1470,
         "num_covered_branchings": 10,
         "covered_branchings": [
             1,
