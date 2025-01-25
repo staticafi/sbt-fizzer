@@ -38,9 +38,7 @@ bool fuzzing::path_node_props::get_desired_direction() const
         return true;
     }
 
-    std::cout << "Error: get_desired_direction() called without any possible direction" << std::endl;
-    std::cout << *this << std::endl;
-    return false;
+    throw std::runtime_error( "Error: get_desired_direction() called without any possible direction" );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -226,12 +224,46 @@ bool fuzzing::equation::is_any_negative() const
 bool fuzzing::equation::same_values() const
 {
     for ( int i = 0; i < values.size(); ++i ) {
-        if ( values[ i ] != best_value ) {
+        if ( values[ i ] != best_value && values[ i ] != 0 ) {
             return false;
         }
     }
 
     return true;
+}
+
+// ------------------------------------------------------------------------------------------------
+bool fuzzing::equation::is_linear_dependent( const equation& other ) const 
+{
+    INVARIANT( values.size() == other.values.size() );
+
+    double ratio = std::numeric_limits<double>::quiet_NaN();
+    for ( int i = 0; i < values.size(); ++i ) {
+        if ( values[ i ] == 0 && other.values[ i ] == 0 ) {
+            continue;
+        }
+
+        if ( values[ i ] == 0 || other.values[ i ] == 0 ) {
+            return false;
+        }
+
+        double current_ratio = double( values[ i ] ) / other.values[ i ];
+        if ( std::isnan( ratio ) ) {
+            ratio = current_ratio;
+        } else if ( std::abs( ratio - current_ratio ) > 1e-9 ) {
+            return false;
+        }
+    }
+
+    if ( best_value == 0 && other.best_value == 0 ) {
+        return true;
+    }
+
+    if ( best_value == 0 || other.best_value == 0 ) {
+        return false;
+    }
+
+    return std::abs( best_value / other.best_value - ratio ) < 1e-9;
 }
 
 //                                     node_direction
@@ -410,12 +442,6 @@ fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< e
 
     bool is_equal_sign = get_branching_predicate() == BRANCHING_PREDICATE::BP_EQUAL;
 
-    auto add_if_positive = [ &paths ]( const equation& new_path ) {
-        if ( !new_path.is_any_negative() ) {
-            paths.push_back( new_path );
-        }
-    };
-
     for ( const auto& vector : vectors ) {
         for ( const auto& row : matrix ) {
             double counts = std::abs( row.best_value ) / std::abs( vector.best_value );
@@ -432,7 +458,9 @@ fuzzing::equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< e
                 // new_path = new_path.add_to_positive( 1 + limit );
             }
 
-            add_if_positive( new_path );
+            if ( !new_path.is_any_negative() ) {
+                paths.push_back( new_path );
+            }
         }
     }
 
@@ -496,15 +524,18 @@ void fuzzing::equation_matrix::recompute_matrix()
 // ------------------------------------------------------------------------------------------------
 fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilities()
 {
-    // print_stats();
-    // print_dependencies();
-    // matrix.print_matrix();
+    TMPROF_BLOCK();
 
     stats.generation_starts++;
     std::set< node_direction > all_leafs = get_leaf_subsets();
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
 
-    // submatrix.print_matrix();
+    {
+        // print_stats();
+        // print_dependencies();
+        // matrix.print_matrix();
+        // submatrix.print_matrix();
+    }
 
     std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
     if ( vectors.empty() ) {
@@ -520,31 +551,14 @@ fuzzing::possible_path fuzzing::iid_node_dependence_props::generate_probabilitie
         return return_empty_path();
     }
 
-    // std::cout << "Best vectors: " << std::endl;
-    // for (const auto& vector : best_vectors) {
-    //     for (const auto& value : vector.values) {
-    //         std::cout << value << " ";
-    //     }
-    //     std::cout << "-> | " << vector.best_value << std::endl;
-    // }
-
     std::optional< equation > new_leaf_counts =
         submatrix.get_new_leaf_counts_from_vectors( best_vectors, stats.generated_after_covered );
     if ( !new_leaf_counts.has_value() ) {
         return return_empty_path();
     }
 
-    // std::cout << "New path: ";
-    // for (const auto& value : new_leaf_counts->values) {
-    //     std::cout << value << " ";
-    // }
-    // std::cout << "-> | " << new_leaf_counts->best_value << std::endl;
-
     nodes_to_counts node_counts = compute_path_counts( new_leaf_counts.value(), all_leafs );
     possible_path path = generate_path_from_node_counts( node_counts );
-
-    // std::cout << "New path: " << std::endl;
-    // std::cout << path << std::endl;
 
     return return_path( path );
 }
@@ -708,7 +722,6 @@ void fuzzing::iid_node_dependence_props::compute_path_counts_for_nested_loops( n
             possible_counts.insert( i );
         }
     }
-
 
     if ( possible_counts.empty() ) {
         path_counts[ loop_head_id ] = { 1, 1 };
@@ -878,7 +891,6 @@ fuzzing::iid_node_dependence_props::compute_best_vectors( const std::map< equati
 
     if ( filtered_vectors_with_hits.empty() ) {
         return {};
-        // throw std::invalid_argument( "No vectors match the desired direction." );
     }
 
     if ( use_random ) {
@@ -895,24 +907,25 @@ fuzzing::iid_node_dependence_props::compute_best_vectors( const std::map< equati
         return a.second > b.second;
     } );
 
+    bool use_linear_dependency = true;
     std::vector< equation > best_vectors;
     for ( int i = 0; i < number_of_vectors && i < sorted_vectors.size(); ++i ) {
-        best_vectors.push_back( sorted_vectors[ i ].first );
+        if ( use_linear_dependency ) {
+            std::map< equation, int > dependent_vectors_with_hits =
+                get_linear_dependent_vector( filtered_vectors_with_hits, sorted_vectors[ i ].first );
+
+            auto it = std::min_element( dependent_vectors_with_hits.begin(),
+                                        dependent_vectors_with_hits.end(),
+                                        []( const auto& a, const auto& b ) {
+                                            return a.first.get_vector_size() < b.first.get_vector_size();
+                                        } );
+            best_vectors.push_back( it->first );
+            // std::cout << "Chosen vector  : " << it->first << std::endl;
+            // std::cout << "Original vector: " << sorted_vectors[ i ].first << std::endl;
+        } else {
+            best_vectors.push_back( sorted_vectors[ i ].first );
+        }
     }
-
-    // std::map< equation, int > dependent_vectors_with_hits =
-    //     get_linear_dependent_vector( filtered_vectors_with_hits, best_vector );
-
-    // if ( !dependent_vectors_with_hits.empty() ) {
-    //     auto min_it = std::min_element( dependent_vectors_with_hits.begin(),
-    //                                     dependent_vectors_with_hits.end(),
-    //                                     []( const auto& a, const auto& b ) {
-    //                                         return a.first.get_vector_length() <
-    //                                         b.first.get_vector_length();
-    //                                     } );
-
-    //     best_vector = min_it->first;
-    // }
 
     return best_vectors;
 }
@@ -925,12 +938,12 @@ std::map< fuzzing::equation, int > fuzzing::iid_node_dependence_props::get_linea
     std::map< equation, int > dependent_vectors_with_hits;
 
     for ( const auto& [ vector, hits ] : vectors_with_hits ) {
-        equation quotient = best_vector / vector;
-        if ( quotient.same_values() ) {
+        if ( best_vector.is_linear_dependent( vector ) ) {
             dependent_vectors_with_hits[ vector ] = hits;
         }
     }
 
+    INVARIANT( !dependent_vectors_with_hits.empty() );
     return dependent_vectors_with_hits;
 }
 
@@ -1230,7 +1243,6 @@ std::optional< location_id > fuzzing::iid_dependencies::get_next_iid_node()
         }
     }
 
-
     std::optional< location_id > best_id = std::nullopt;
 
     for ( const auto& [ id, props ] : id_to_equation_map ) {
@@ -1240,33 +1252,6 @@ std::optional< location_id > fuzzing::iid_dependencies::get_next_iid_node()
     }
 
     return best_id;
-
-
-    // bool previous_failed = false;
-
-    // for ( auto it = id_to_equation_map.rbegin(); it != id_to_equation_map.rend(); ++it ) {
-    //     if ( previous_failed ) {
-    //         previous_failed = false;
-    //         current_failed_generations++;
-    //         return it->first;
-    //     }
-
-    //     if ( it->second.get_number_of_failed_generations() >= max_failed_generations_in_row ) {
-    //         if ( current_failed_generations >= max_failed_generations_in_row ) {
-    //             it->second.get_number_of_failed_generations() = 0;
-    //             current_failed_generations = 0;
-    //         } else {
-    //             previous_failed = true;
-    //             continue;
-    //         }
-    //     }
-
-    //     if ( it->second.get_generation_count_after_covered() >= max_generation_count_after_covered ) {
-    //         continue;
-    //     }
-
-    //     best_id = it->first;
-    // }
 }
 
 //                               non member functions

@@ -106,6 +106,7 @@ struct equation {
     int get_biggest_value() const;
     bool is_any_negative() const;
     bool same_values() const;
+    bool is_linear_dependent( const equation& other ) const;
 
     friend std::ostream& operator<<( std::ostream& os, const equation& eq )
     {
@@ -254,7 +255,7 @@ private:
     // Settings
     bool generate_more_data_after_coverage = true;
     int minimal_max_generation_after_covered = 10;
-    int max_failed_generations_in_row = 10;
+    int max_failed_generations_in_row = 3;
     int minimal_max_generation_for_other_node = 10;
 };
 
