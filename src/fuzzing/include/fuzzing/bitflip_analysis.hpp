@@ -28,6 +28,8 @@ struct  bitflip_analysis
     bool  is_ready() const { return state == READY; }
     bool  is_busy() const { return state == BUSY; }
 
+    branching_node*  get_node() const { return node_ptr; }
+
     void  start(std::unordered_set<branching_node*> const&  leaf_branchings);
     void  stop();
 
@@ -45,6 +47,7 @@ private:
     bool  write_bits(vecb&  bits_ref, T const  (&values)[N]);
 
     STATE  state;
+    branching_node*  node_ptr;
     stdin_bits_and_types_pointer  bits_and_types;
     stdin_bit_index  mutated_bit_index;
     natural_32_bit  mutated_type_index;

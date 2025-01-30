@@ -43,7 +43,7 @@ void  bitshare_analysis::start(branching_node*  node_ptr, natural_32_bit const  
 
     ++statistics.start_calls;
 
-    recorder().on_bitshare_start(processed_node);
+    recorder().on_bitshare_start(processed_node, progress_recorder::START::REGULAR);
 }
 
 
@@ -54,17 +54,17 @@ void  bitshare_analysis::stop()
 
     if (samples_ptr == nullptr)
     {
-        recorder().on_bitshare_stop(progress_recorder::INSTANT);
+        recorder().on_bitshare_stop(progress_recorder::STOP::INSTANT);
         ++statistics.stop_calls_instant;
     }
     else if (sample_index <= samples_ptr->size())
     {
-        recorder().on_bitshare_stop(progress_recorder::EARLY);
+        recorder().on_bitshare_stop(progress_recorder::STOP::EARLY);
         ++statistics.stop_calls_early;
     }
     else
     {
-        recorder().on_bitshare_stop(progress_recorder::REGULAR);
+        recorder().on_bitshare_stop(progress_recorder::STOP::REGULAR);
         ++statistics.stop_calls_regular;
     }
 

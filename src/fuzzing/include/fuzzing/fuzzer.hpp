@@ -101,13 +101,19 @@ private:
 
     struct  coverage_progress_control_props
     {
+        explicit  coverage_progress_control_props(fuzzer* fuzzer_ptr_);
         bool  is_analysis_interrupted() const { return interrupted_state != BITFLIP; }
-        bool  is_period_exceeded(float_64_bit const  elapsed_time) const { return elapsed_time - phase_start_time >= TIME_PERIOD; }
+        bool  is_period_exceeded() const { return fuzzer_ptr->get_elapsed_seconds() - phase_start_time >= TIME_PERIOD; }
         bool  nothing_covered() const { return num_covered_branchings == 0U; }
-        void  reset_period(float_64_bit const  elapsed_time) { phase_start_time = elapsed_time; num_covered_branchings = 0U; }
-        void  interruption_enter(STATE&  state) { interrupted_state = state; state = BITFLIP; }
-        void  interruption_exit(STATE&  state) { state = interrupted_state; interrupted_state = BITFLIP; }
+        void  reset_period() { phase_start_time = fuzzer_ptr->get_elapsed_seconds(); num_covered_branchings = 0U; }
+        float_64_bit  get_phase_start_time() const { return phase_start_time; }
+        natural_32_bit  get_num_covered_branchings() const { return num_covered_branchings; }
+        void  increment_num_covered_branchings() { ++num_covered_branchings; }
+        void  interruption_enter();
+        void  interruption_exit();
+    private:
         static float_64_bit constexpr TIME_PERIOD{ 10.0 };
+        fuzzer*  fuzzer_ptr;
         float_64_bit  phase_start_time;
         natural_32_bit  num_covered_branchings;
         STATE  interrupted_state;

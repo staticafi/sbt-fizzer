@@ -1,4 +1,5 @@
 #include <fuzzing/local_search_analysis.hpp>
+#include <fuzzing/progress_recorder.hpp>
 #include <utility/assumptions.hpp>
 #include <utility/invariants.hpp>
 #include <utility/development.hpp>
@@ -206,6 +207,8 @@ void  local_search_analysis::start(branching_node* const  node_ptr, natural_32_b
     insert_first_local_space();
 
     ++statistics.start_calls;
+
+    recorder().on_local_search_start(node_ptr, progress_recorder::START::REGULAR);
 }
 
 
@@ -219,9 +222,15 @@ void  local_search_analysis::stop()
         stopped_early = true;
 
         ++statistics.stop_calls_early;
+
+        recorder().on_local_search_stop(progress_recorder::STOP::EARLY);
     }
     else
+    {
         ++statistics.stop_calls_regular;
+
+        recorder().on_local_search_stop(progress_recorder::STOP::REGULAR);
+    }
 
     node->set_local_search_performed(execution_id);
 

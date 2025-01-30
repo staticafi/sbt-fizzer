@@ -9,6 +9,7 @@ namespace  fuzzing {
 
 bitflip_analysis::bitflip_analysis()
     : state{ READY }
+    , node_ptr{ nullptr }
     , bits_and_types{ nullptr }
     , mutated_bit_index{ 0U }
     , mutated_type_index{ 0U }
@@ -39,17 +40,19 @@ void  bitflip_analysis::start(std::unordered_set<branching_node*> const&  leaf_b
     ASSUMPTION(is_ready());
     ASSUMPTION(!leaf_branchings.empty());
 
+    node_ptr = nullptr;
     bits_and_types = nullptr;
     current_leaf_index = (current_leaf_index + 1U) % leaf_branchings.size();
     auto const  it_end = std::next(leaf_branchings.begin(), current_leaf_index);
     auto  it = it_end;
     do
     {
-        for (auto const*  node{ *it }; node != nullptr; node = node->get_predecessor())
+        for (auto*  node{ *it }; node != nullptr; node = node->get_predecessor())
             if (node->get_best_stdin() != nullptr && !node->get_best_stdin()->bits.empty()
                     && !processed_inputs.contains(node->get_best_stdin().get()))
             {
                 bits_and_types = node->get_best_stdin();
+                node_ptr = node;
                 break;
             }
 
@@ -57,7 +60,7 @@ void  bitflip_analysis::start(std::unordered_set<branching_node*> const&  leaf_b
         if (it == leaf_branchings.end())
             it = leaf_branchings.begin();
     }
-    while (it != it_end);
+    while (bits_and_types == nullptr && it != it_end);
     
     if (bits_and_types == nullptr)
         return;
@@ -72,6 +75,8 @@ void  bitflip_analysis::start(std::unordered_set<branching_node*> const&  leaf_b
 
     ++statistics.start_calls;
     statistics.max_bits = std::max(statistics.max_bits, bits_and_types->bits.size());
+
+    recorder().on_bitflip_start(node_ptr, progress_recorder::START::REGULAR);
 }
 
 
@@ -81,6 +86,8 @@ void  bitflip_analysis::stop()
         return;
 
     state = READY;
+
+    recorder().on_bitflip_stop(progress_recorder::STOP::REGULAR);
 }
 
 

@@ -50,9 +50,10 @@ progress_recorder::progress_recorder()
     , output_dir{}
     , program_name{}
 
-    , analysis{ NONE }
-    , input_flow{}
+    , analysis{ ANALYSIS::NONE }
     , bitshare{}
+    , local_search{}
+    , bitflip{}
     , counter_analysis{ 1 }
     , counter_results{ 0 }
 
@@ -86,9 +87,10 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
 
     started = true;
 
-    analysis = NONE;
-    input_flow = {};
+    analysis = ANALYSIS::NONE;
     bitshare = {};
+    local_search = {};
+    bitflip = {};
     counter_analysis = 1;
     counter_results = 0;
 
@@ -125,9 +127,10 @@ void  progress_recorder::stop()
     output_dir.clear();
     program_name.clear();
  
-    analysis = NONE;
-    input_flow = {};
+    analysis = ANALYSIS::NONE;
     bitshare = {};
+    local_search = {};
+    bitflip = {};
     counter_analysis = 1;
     counter_results = 0;
 
@@ -138,48 +141,79 @@ void  progress_recorder::stop()
 }
 
 
-void  progress_recorder::on_input_flow_start(branching_node* const  node_ptr)
+void  progress_recorder::on_bitshare_start(branching_node const* const  node_ptr, START const  attribute)
 {
     if (!is_started())
         return;
 
-    on_analysis_start(INPUT_FLOW, input_flow, node_ptr);
+    bitshare.start_type = attribute;
+    on_analysis_start(ANALYSIS::BITSHARE, bitshare, node_ptr);
 }
 
 
-void  progress_recorder::on_input_flow_stop(STOP_ATTRIBUTE const  attribute)
+void  progress_recorder::on_bitshare_stop(STOP const  attribute)
 {
     if (!is_started())
         return;
-
-    //save_sensitive_bits();
-    input_flow.stop_attribute = attribute;
-    input_flow.save();
-    on_analysis_stop();
-}
-
-
-void  progress_recorder::on_bitshare_start(branching_node* const  node_ptr)
-{
-    if (!is_started())
+    if (bitshare.start_type == START::NONE)
         return;
+    ASSUMPTION(analysis == ANALYSIS::BITSHARE);
 
-    on_analysis_start(BITSHARE, bitshare, node_ptr);
-}
-
-
-void  progress_recorder::on_bitshare_stop(STOP_ATTRIBUTE const  attribute)
-{
-    if (!is_started())
-        return;
-
-    bitshare.stop_attribute = attribute;
+    bitshare.stop_type = attribute;
     bitshare.save();
     on_analysis_stop();
 }
 
 
-void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_info&  info, branching_node* const  node_ptr)
+void  progress_recorder::on_local_search_start(branching_node const* const  node_ptr, START const  attribute)
+{
+    if (!is_started())
+        return;
+
+    local_search.start_type = attribute;
+    on_analysis_start(ANALYSIS::LOCAL_SEARCH, local_search, node_ptr);
+}
+
+
+void  progress_recorder::on_local_search_stop(STOP const  attribute)
+{
+    if (!is_started())
+        return;
+    if (local_search.start_type == START::NONE)
+        return;
+    ASSUMPTION(analysis == ANALYSIS::LOCAL_SEARCH);
+
+    local_search.stop_type = attribute;
+    local_search.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_bitflip_start(branching_node const* const  node_ptr, START const  attribute)
+{
+    if (!is_started())
+        return;
+
+    bitflip.start_type = attribute;
+    on_analysis_start(ANALYSIS::BITFLIP, bitflip, node_ptr);
+}
+
+
+void  progress_recorder::on_bitflip_stop(STOP const  attribute)
+{
+    if (!is_started())
+        return;
+    if (bitflip.start_type == START::NONE)
+        return;
+    ASSUMPTION(analysis == ANALYSIS::BITFLIP);
+
+    bitflip.stop_type = attribute;
+    bitflip.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_analysis_start(ANALYSIS const  analysis_, analysis_common_info&  info, branching_node const* const  node_ptr)
 {
     if (!is_started())
         return;
@@ -188,7 +222,7 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_in
 
     ASSUMPTION(node_ptr != nullptr);
 
-    analysis = a;
+    analysis = analysis_;
     if (counter_results != 0)
         ++counter_analysis;
     counter_results = 0;
@@ -198,6 +232,9 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_in
 
     info.node = node_ptr;
     info.analysis_dir = output_dir / (std::to_string(counter_analysis) + '_' + analysis_name(analysis));
+    std::filesystem::create_directories(info.analysis_dir);
+    if (!std::filesystem::is_directory(info.analysis_dir))
+        throw std::runtime_error("Cannot create directory: " + info.analysis_dir.string());
 
     post_data.set_output_dir(info.analysis_dir);
 }
@@ -205,12 +242,13 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  a, analysis_common_in
 
 void  progress_recorder::on_analysis_stop()
 {
-    if (!is_started() || analysis == NONE)
+    if (!is_started() || analysis == ANALYSIS::NONE)
         return;
 
-    analysis = NONE;
-    input_flow = {};
+    analysis = ANALYSIS::NONE;
     bitshare = {};
+    local_search = {};
+    bitflip = {};
 }
 
 
@@ -222,7 +260,7 @@ void  progress_recorder::on_input_generated()
 }
 
 
-void  progress_recorder::on_trace_mapped_to_tree(branching_node* const  leaf_)
+void  progress_recorder::on_trace_mapped_to_tree(branching_node const* const  leaf_)
 {
     if (!is_started())
         return;
@@ -279,7 +317,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
     execution_trace const&  trace = iomodels::iomanager::instance().get_trace();
 
     std::vector<branching_node::guid_type>  node_guids;
-    for (branching_node* n = leaf; n != nullptr; n = n->get_predecessor())
+    for (branching_node const* n = leaf; n != nullptr; n = n->get_predecessor())
         node_guids.push_back(n->guid());
     std::reverse(node_guids.begin(), node_guids.end());
 
@@ -322,7 +360,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
 std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
 {
-    static std::string const  names[] { "NONE","input_flow","TYPED_MINIMIZATION","MINIMIZATION","BITSHARE" };
+    static std::string const  names[] { "NONE","BITSHARE","LOCAL_SEARCH","BITFLIP" };
     ASSUMPTION((int)a < sizeof(names)/sizeof(names[0]));
     return names[(int)a];
 }
@@ -333,7 +371,7 @@ void  progress_recorder::analysis_common_info::save() const
     TMPROF_BLOCK();
 
     if (!std::filesystem::is_directory(analysis_dir))
-        return; // No input was generated => the analysis did nothing => no need to save any data.
+        throw std::runtime_error("Analysis directory does not exist: " + analysis_dir.string());
 
     std::filesystem::path const  pathname = analysis_dir / "info.json";
     std::ofstream  ostr(pathname.c_str(), std::ios::binary);
@@ -352,12 +390,20 @@ void  progress_recorder::analysis_common_info::save() const
 
     ostr << "\"node_guid\": " << node->guid() << ",\n";
 
-    ostr << "\"stop_attribute\": ";
-    switch (stop_attribute)
+    ostr << "\"start_attribute\": ";
+    switch (start_type)
     {
-        case INSTANT: ostr << "\"INSTANT\""; break;
-        case EARLY: ostr << "\"EARLY\""; break;
-        case REGULAR: ostr << "\"REGULAR\""; break;
+        case START::REGULAR: ostr << "\"REGULAR\""; break;
+        case START::RESUMED: ostr << "\"RESUMED\""; break;
+        default: UNREACHABLE(); break;
+    }
+    ostr << ",\n\"stop_attribute\": ";
+    switch (stop_type)
+    {
+        case STOP::INSTANT: ostr << "\"INSTANT\""; break;
+        case STOP::EARLY: ostr << "\"EARLY\""; break;
+        case STOP::REGULAR: ostr << "\"REGULAR\""; break;
+        case STOP::INTERRUPTED: ostr << "\"INTERRUPTED\""; break;
         default: UNREACHABLE(); break;
     }
     ostr << ",\n\"num_coverage_failure_resets\": " << get_num_coverage_failure_resets() << '\n';
@@ -366,48 +412,17 @@ void  progress_recorder::analysis_common_info::save() const
 }
 
 
-natural_32_bit  progress_recorder::input_flow_progress_info::get_num_coverage_failure_resets() const
-{
-    natural_32_bit  max_num_coverage_failure_resets{ 0U };
-    for (branching_node*  n = node; n != nullptr; n = n->get_predecessor())
-        if (max_num_coverage_failure_resets < n->get_num_coverage_failure_resets())
-            max_num_coverage_failure_resets = n->get_num_coverage_failure_resets();
-    return max_num_coverage_failure_resets;
-}
-
-
-void  progress_recorder::input_flow_progress_info::save_info(std::ostream&  ostr) const
-{
-    TMPROF_BLOCK();
-
-    std::vector<branching_node*>  nodes;
-    for (branching_node*  n = node; n != nullptr; n = n->get_predecessor())
-        nodes.push_back(n);
-    std::reverse(nodes.begin(), nodes.end());
-
-    ostr << "\"sensitive_bits\": [\n";
-    for (natural_32_bit  i = 0U, end = (natural_32_bit)nodes.size(); i < end; ++i)
-    {
-        branching_node* const  n = nodes.at(i);
-        ostr << '[';
-        bool first = true;
-        std::vector<natural_32_bit>  indices(n->get_sensitive_stdin_bits().begin(), n->get_sensitive_stdin_bits().end());
-        std::sort(indices.begin(), indices.end());
-        for (natural_32_bit idx : indices)
-        {
-            if (!first) ostr << ',';
-            ostr << idx;
-            first = false;
-        }
-        ostr << ']';
-        if (i + 1 < end) ostr << ',';
-        ostr << '\n';
-    }
-    ostr << "]";
-}
-
-
 void  progress_recorder::bitshare_progress_info::save_info(std::ostream&  ostr) const
+{
+}
+
+
+void  progress_recorder::local_search_progress_info::save_info(std::ostream&  ostr) const
+{
+}
+
+
+void  progress_recorder::bitflip_progress_info::save_info(std::ostream&  ostr) const
 {
 }
 
@@ -416,7 +431,7 @@ void  progress_recorder::on_strategy_turn_primary_loop_head()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::PRIMARY_LOOP_HEAD);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_LOOP_HEAD);
 }
 
 
@@ -424,7 +439,7 @@ void  progress_recorder::on_strategy_turn_primary_sensitive()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::PRIMARY_SENSITIVE);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_SENSITIVE);
 }
 
 
@@ -432,7 +447,7 @@ void  progress_recorder::on_strategy_turn_primary_untouched()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::PRIMARY_UNTOUCHED);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_UNTOUCHED);
 }
 
 
@@ -440,7 +455,7 @@ void  progress_recorder::on_strategy_turn_primary_iid_twins()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::PRIMARY_IID_TWINS);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_IID_TWINS);
 }
 
 
@@ -448,7 +463,7 @@ void  progress_recorder::on_strategy_turn_monte_carlo()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::MONTE_CARLO);
 }
 
 
@@ -456,11 +471,11 @@ void  progress_recorder::on_strategy_turn_monte_carlo_backward()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::MONTE_CARLO_BACKWARD);
+    post_data.on_strategy_changed(post_analysis_data::STRATEGY::MONTE_CARLO_BACKWARD);
 }
 
 
-void  progress_recorder::on_post_node_closed(branching_node* const  node)
+void  progress_recorder::on_post_node_closed(branching_node const* const  node)
 {
     if (!is_started())
         return;
@@ -480,7 +495,7 @@ void  progress_recorder::flush_post_data()
 
 progress_recorder::post_analysis_data::post_analysis_data()
     : output_dir{}
-    , strategy{ NONE }
+    , strategy{ STRATEGY::NONE }
     , closed_node_guids{}
 {}
 
@@ -491,7 +506,7 @@ void  progress_recorder::post_analysis_data::on_strategy_changed(STRATEGY const 
 }
 
 
-void  progress_recorder::post_analysis_data::on_node_closed(branching_node* const  node)
+void  progress_recorder::post_analysis_data::on_node_closed(branching_node const* const  node)
 {
    closed_node_guids.insert(node->guid()); 
 }
@@ -506,14 +521,14 @@ void  progress_recorder::post_analysis_data::set_output_dir(std::filesystem::pat
 void  progress_recorder::post_analysis_data::clear()
 {
     output_dir.clear();
-    strategy = NONE;
+    strategy = STRATEGY::NONE;
     closed_node_guids.clear();
 }
 
 
 bool  progress_recorder::post_analysis_data::empty() const
 {
-    return strategy == NONE && closed_node_guids.empty();
+    return strategy == STRATEGY::NONE && closed_node_guids.empty();
 }
 
 
@@ -530,13 +545,13 @@ void  progress_recorder::post_analysis_data::save() const
     ostr << "\"strategy\": \"";
     switch (strategy)
     {
-        case NONE: ostr << "NONE"; break;
-        case PRIMARY_LOOP_HEAD: ostr << "PRIMARY_LOOP_HEAD"; break;
-        case PRIMARY_SENSITIVE: ostr << "PRIMARY_SENSITIVE"; break;
-        case PRIMARY_UNTOUCHED: ostr << "PRIMARY_UNTOUCHED"; break;
-        case PRIMARY_IID_TWINS: ostr << "PRIMARY_IID_TWINS"; break;
-        case MONTE_CARLO: ostr << "MONTE_CARLO"; break;
-        case MONTE_CARLO_BACKWARD: ostr << "MONTE_CARLO_BACKWARD"; break;
+        case STRATEGY::NONE: ostr << "NONE"; break;
+        case STRATEGY::PRIMARY_LOOP_HEAD: ostr << "PRIMARY_LOOP_HEAD"; break;
+        case STRATEGY::PRIMARY_SENSITIVE: ostr << "PRIMARY_SENSITIVE"; break;
+        case STRATEGY::PRIMARY_UNTOUCHED: ostr << "PRIMARY_UNTOUCHED"; break;
+        case STRATEGY::PRIMARY_IID_TWINS: ostr << "PRIMARY_IID_TWINS"; break;
+        case STRATEGY::MONTE_CARLO: ostr << "MONTE_CARLO"; break;
+        case STRATEGY::MONTE_CARLO_BACKWARD: ostr << "MONTE_CARLO_BACKWARD"; break;
         default: UNREACHABLE(); break;
     }
     ostr << "\",\n\"closed_node_guids\": [\n";

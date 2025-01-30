@@ -79,8 +79,8 @@ void fuzzer::render() const
     RENDER("    \"state\": \"" << get_analysis_name_from_state(state) << "\",");
     RENDER("    \"coverage_control\": {");
     RENDER("        \"interrupted\": " << coverage_control.is_analysis_interrupted() << ",");
-    RENDER("        \"time\": " << get_elapsed_seconds() - coverage_control.phase_start_time << ",");
-    RENDER("        \"covered\": " << coverage_control.num_covered_branchings);
+    RENDER("        \"time\": " << get_elapsed_seconds() - coverage_control.get_phase_start_time() << ",");
+    RENDER("        \"covered\": " << coverage_control.get_num_covered_branchings());
     RENDER("    },");
     RENDER("    \"bitshare_analysis\": " << get_bitshare_statistics().generated_inputs << ",");
     RENDER("    \"local_search_analysis\": " << get_local_search_statistics().generated_inputs << ",");
