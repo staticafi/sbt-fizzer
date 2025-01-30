@@ -16,13 +16,7 @@
                 "--input",
                     // "all"
                     "fast"
-                    // "medium"
-                    // "slow"
                     // "pending"
-
-                    // "fast/c_string_count_chars.c"
-                    // "fast/c_string_parse_two_ints.c"
-
                 // , ">", "./dist/benchmarks/benman_output.txt"
             ]
         },
