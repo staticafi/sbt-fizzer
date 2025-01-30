@@ -16,19 +16,14 @@
     },
     "results": {
         "termination_type": "NORMAL",
-        "termination_reason": "ALL_REACHABLE_BRANCHINGS_COVERED",
-        "num_executions": 303,
-        "num_covered_branchings": 2,
+        "termination_reason": "EXECUTIONS_BUDGET_DEPLETED",
+        "num_executions": 500,
+        "num_covered_branchings": 1,
         "covered_branchings": [
-            1,0,    2,0
+            1,0
         ],
         "output_statistics": {
-            "chain_minimization_analysis": {
-                "num_generated_tests": 1,
-                "num_crashes": 0,
-                "num_boundary_violations": 0
-            },
-            "sensitivity_analysis": {
+            "local_search": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0

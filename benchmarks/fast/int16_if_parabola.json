@@ -23,7 +23,7 @@
             1,0
         ],
         "output_statistics": {
-            "local_search": {
+            "bitflip_analysis": {
                 "num_generated_tests": 1,
                 "num_crashes": 0,
                 "num_boundary_violations": 0
