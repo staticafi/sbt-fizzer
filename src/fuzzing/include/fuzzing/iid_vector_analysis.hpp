@@ -14,6 +14,14 @@
 
 namespace fuzzing
 {
+template < typename T >
+struct mean_counter {
+    T mean;
+    int count;
+
+    void add( T value );
+};
+
 struct node_counts {
     int left_count;
     int right_count;
@@ -129,17 +137,33 @@ struct node_direction {
     }
 };
 
+struct loaded_bits_props {
+    natural_32_bit min;
+    natural_32_bit max;
+    int loop_count;
+};
+
+struct loading_body_props {
+    mean_counter< float > average_bit_size;
+    natural_32_bit minimal_bit_offset = std::numeric_limits< natural_32_bit >::max();
+};
+
 struct loop_dependencies_props {
     bool end_direction;
     std::set< node_direction > bodies;
     std::vector< node_counts > previous_counts;
 };
 
+struct loading_loops_props : loop_dependencies_props {
+    mean_counter< float > average_bits_per_loop;
+    std::map< location_id, loading_body_props > bit_values;
+};
 
+
+using loop_head_to_loaded_bits_props = std::unordered_map< location_id, loaded_bits_props >;
 using loop_ending_to_bodies = std::map< location_id, loop_dependencies_props >;
 using loop_endings = std::map< location_id, bool >;
 using loop_head_to_bodies_t = std::unordered_map< location_id, std::unordered_set< location_id > >;
-using loop_head_to_loaded_bits_t = std::unordered_map< location_id, std::tuple< natural_32_bit, natural_32_bit > >;
 using nodes_to_counts = std::map< location_id, node_counts >;
 
 struct equation_matrix {
@@ -207,6 +231,10 @@ private:
                                                location_id loop_head_id,
                                                int minimum_count,
                                                bool use_random = false );
+    int compute_loop_count_loading( nodes_to_counts& path_counts,
+                                    location_id id,
+                                    const std::set< location_id >& loop_heads,
+                                    const loading_loops_props& props );
     void compute_path_counts_loading( nodes_to_counts& path_counts,
                                       const equation& path,
                                       const std::set< location_id >& loop_heads );
@@ -225,6 +253,9 @@ private:
                                                int number_of_vectors );
     std::set< node_direction > get_leaf_subsets();
     loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
+    void compute_loading_loops( branching_node* end_node,
+                                const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                loop_head_to_loaded_bits_props& loading_loops );
     void compute_dependencies_by_loading( branching_node* end_node,
                                           const loop_head_to_bodies_t& loop_heads_to_bodies,
                                           const loop_endings& loop_heads_ending );
@@ -236,6 +267,7 @@ private:
     equation_matrix matrix;
     loop_ending_to_bodies dependencies_by_loops;
     loop_ending_to_bodies dependencies_by_loading;
+    std::map< location_id, loading_loops_props > new_dependencies_by_loading;
 
     iid_node_generations_stats stats;
 };

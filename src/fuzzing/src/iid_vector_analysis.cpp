@@ -12,6 +12,15 @@
 namespace fuzzing
 {
 
+//                                        mean_counter
+// ------------------------------------------------------------------------------------------------
+template < typename T >
+inline void fuzzing::mean_counter< T >::add( T value )
+{
+    mean = ( mean * count + value ) / ( count + 1 );
+    count++;
+}
+
 
 //                                        node_counts
 // ------------------------------------------------------------------------------------------------
@@ -559,6 +568,8 @@ possible_path iid_node_dependence_props::generate_probabilities()
     nodes_to_counts node_counts = compute_path_counts( new_leaf_counts.value(), all_leafs );
     possible_path path = generate_path_from_node_counts( node_counts );
 
+    // std::cout << "Generated path: " << std::endl << path << std::endl;
+
     return return_path( path );
 }
 
@@ -626,6 +637,18 @@ void iid_node_dependence_props::print_dependencies() const
     for ( const auto& [ loop_head, props ] : dependencies_by_loading ) {
         for ( const auto& body : props.bodies ) {
             std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`" << std::endl;
+        }
+    }
+
+    std::cout << "## Dependencies by loading:" << std::endl;
+    for ( const auto& [ loop_head, props ] : new_dependencies_by_loading ) {
+        std::cout << "Loop ID: " << loop_head.id << std::endl;
+        std::cout << "Loaded bits per loop: " << props.average_bits_per_loop.mean << std::endl;
+        for ( const auto& body : props.bodies ) {
+            const auto& bit_props = props.bit_values.at( body.node_id );
+            std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`"
+                      << ", Bits: " << bit_props.average_bit_size.mean
+                      << ", offset: " << bit_props.minimal_bit_offset << std::endl;
         }
     }
 }
@@ -748,21 +771,57 @@ void iid_node_dependence_props::compute_path_counts_for_nested_loops( nodes_to_c
 }
 
 // ------------------------------------------------------------------------------------------------
+int fuzzing::iid_node_dependence_props::compute_loop_count_loading( nodes_to_counts& path_counts,
+                                                                    location_id id,
+                                                                    const std::set< location_id >& loop_heads,
+                                                                    const loading_loops_props& props )
+{
+    float loaded_per_loop = props.average_bits_per_loop.mean;
+
+    float average_bits = props.bit_values.at( id ).average_bit_size.mean;
+    natural_32_bit offset = props.bit_values.at( id ).minimal_bit_offset;
+
+    bool is_loop_head = true;
+    if ( !loop_heads.contains( id ) ) {
+        for ( const auto& [ head_id, props ] : dependencies_by_loops ) {
+            for ( const auto& body : props.bodies ) {
+                if ( body.node_id == id ) {
+                    id = head_id;
+                    is_loop_head = false;
+                }
+            }
+        }
+    }
+
+    int total_count = -1;
+    if ( is_loop_head ) {
+        total_count = path_counts[ id ].left_count + path_counts[ id ].right_count;
+    } else {
+        total_count = path_counts[ id ].get_max_count();
+    }
+
+    INVARIANT( total_count > 0 );
+    float bits_needed = average_bits * total_count + offset;
+
+    return std::ceil( bits_needed / loaded_per_loop );
+}
+
+// ------------------------------------------------------------------------------------------------
 void iid_node_dependence_props::compute_path_counts_loading( nodes_to_counts& path_counts,
                                                              const equation& path,
                                                              const std::set< location_id >& loop_heads )
 {
-    // TODO
-    for ( const auto& [ loading_head, props ] : dependencies_by_loading ) {
+    for ( const auto& [ loading_head, props ] : new_dependencies_by_loading ) {
         int loop_count = 0;
 
         for ( const auto& body : props.bodies ) {
-            if ( !path_counts.contains( body.node_id ) || !loop_heads.contains( body.node_id ) ) {
+            if ( !path_counts.contains( body.node_id ) ) {
                 continue;
             }
 
-            auto& [ left_count, right_count ] = path_counts[ body.node_id ];
-            loop_count = std::max( loop_count, left_count + right_count );
+            int minimal_count = compute_loop_count_loading( path_counts, body.node_id, loop_heads, props );
+            // std::cout << "Minimal count: " << minimal_count << ", for ID: " << body.node_id.id << std::endl;
+            loop_count = std::max( loop_count, minimal_count );
         }
 
         if ( props.end_direction ) {
@@ -1028,11 +1087,10 @@ std::map< location_id, bool > iid_node_dependence_props::get_loop_heads_ending( 
 }
 
 // ------------------------------------------------------------------------------------------------
-void iid_node_dependence_props::compute_dependencies_by_loading( branching_node* end_node,
-                                                                 const loop_head_to_bodies_t& loop_heads_to_bodies,
-                                                                 const loop_endings& loop_heads_ending )
+void fuzzing::iid_node_dependence_props::compute_loading_loops( branching_node* end_node,
+                                                                const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                                                loop_head_to_loaded_bits_props& loading_loops )
 {
-    loop_head_to_loaded_bits_t loading_loops;
     for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
         loading_loops[ loop_head ] = { std::numeric_limits< natural_32_bit >::max(),
                                        std::numeric_limits< natural_32_bit >::min() };
@@ -1044,33 +1102,59 @@ void iid_node_dependence_props::compute_dependencies_by_loading( branching_node*
             if ( loop_head.id == node->get_location_id().id ) {
                 natural_32_bit bits_count = node->get_num_stdin_bits();
 
-                auto& [ min, max ] = loading_loops[ loop_head ];
-                min = std::min( min, bits_count );
-                max = std::max( max, bits_count );
+                auto& props = loading_loops[ loop_head ];
+                props.min = std::min( props.min, bits_count );
+                props.max = std::max( props.max, bits_count );
+                props.loop_count++;
             }
         }
 
         node = node->predecessor;
     }
 
-    node = end_node;
+    // Remove all loops that did not load any data inside
+    for ( auto it = loading_loops.begin(); it != loading_loops.end(); ) {
+        if ( it->second.min == it->second.max ) {
+            it = loading_loops.erase( it );
+        } else {
+            ++it;
+        }
+    }
+
+    // Remove one loop count for branching that ends the loop
+    for ( auto& [ id, props ] : loading_loops ) {
+        if ( props.loop_count != 0 )
+            props.loop_count--;
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+void iid_node_dependence_props::compute_dependencies_by_loading( branching_node* end_node,
+                                                                 const loop_head_to_bodies_t& loop_heads_to_bodies,
+                                                                 const loop_endings& loop_heads_ending )
+{
+    loop_head_to_loaded_bits_props loading_loops;
+    compute_loading_loops( end_node, loop_heads_to_bodies, loading_loops );
+
+    branching_node* node = end_node;
 
     while ( node != nullptr ) {
         auto node_id = node->get_location_id();
 
-        for ( const auto& [ loop_head, values ] : loading_loops ) {
+        for ( const auto& [ loop_head, props ] : loading_loops ) {
             if ( !loop_heads_ending.contains( loop_head ) ) {
                 continue;
             }
 
             bool loop_head_end_direction = loop_heads_ending.at( loop_head );
 
-            const auto& [ min, max ] = values;
+            auto min = props.min;
+            auto max = props.max;
 
             auto it = std::find_if( node->sensitive_stdin_bits.begin(),
                                     node->sensitive_stdin_bits.end(),
                                     [ & ]( natural_32_bit bit_index ) {
-                                        return bit_index >= min && bit_index <= max;
+                                        return bit_index >= min && bit_index < max;
                                     } );
 
             if ( it != node->sensitive_stdin_bits.end() ) {
@@ -1086,6 +1170,111 @@ void iid_node_dependence_props::compute_dependencies_by_loading( branching_node*
         }
 
         node = node->predecessor;
+    }
+
+
+    struct loading_body_props_tmp {
+        natural_32_bit min = std::numeric_limits< natural_32_bit >::max();
+        natural_32_bit max = std::numeric_limits< natural_32_bit >::min();
+        std::vector< natural_32_bit > sensitive_stdin_bit_counts;
+    };
+    std::map< location_id, std::map< location_id, loading_body_props_tmp > > loop_to_props;
+
+    node = end_node;
+
+    while ( node != nullptr ) {
+        auto node_id = node->get_location_id();
+
+        for ( const auto& [ loop_head, props ] : loading_loops ) {
+            if ( !loop_heads_ending.contains( loop_head ) ) {
+                continue;
+            }
+
+            auto min = props.min;
+            auto max = props.max;
+
+            auto it = std::find_if( node->sensitive_stdin_bits.begin(),
+                                    node->sensitive_stdin_bits.end(),
+                                    [ & ]( natural_32_bit bit_index ) {
+                                        return bit_index >= min && bit_index < max;
+                                    } );
+            if ( it == node->sensitive_stdin_bits.end() )
+                continue;
+
+            loading_body_props_tmp& loop_props = loop_to_props[ loop_head.id ][ node_id ];
+
+            auto min_it = std::min_element( node->sensitive_stdin_bits.begin(), node->sensitive_stdin_bits.end() );
+            if ( min_it != node->sensitive_stdin_bits.end() ) {
+                loop_props.min = std::min( loop_props.min, *min_it );
+            }
+
+            auto max_it = std::max_element( node->sensitive_stdin_bits.begin(), node->sensitive_stdin_bits.end() );
+            if ( max_it != node->sensitive_stdin_bits.end() ) {
+                loop_props.max = std::max( loop_props.max, *max_it );
+            }
+
+            loop_props.sensitive_stdin_bit_counts.push_back( node->sensitive_stdin_bits.size() );
+        }
+
+        node = node->predecessor;
+    }
+
+    for ( const auto& [ loop_head_id, body ] : loop_to_props ) {
+        auto loading_props = loading_loops.at( loop_head_id );
+        auto& dependencies = new_dependencies_by_loading[ loop_head_id ];
+
+        natural_32_bit loaded_bits = loading_props.max - loading_props.min;
+        double per_loop = double( loaded_bits ) / double( loading_props.loop_count );
+        dependencies.average_bits_per_loop.add( per_loop );
+
+        bool loop_head_end_direction = loop_heads_ending.at( loop_head_id );
+
+        for ( const auto& [ body_id, props ] : body ) {
+            auto& body_props = dependencies.bit_values[ body_id ];
+            natural_32_bit minimal_offset = props.min - loading_props.min;
+            INVARIANT( minimal_offset >= 0 );
+            body_props.minimal_bit_offset = std::min( body_props.minimal_bit_offset, minimal_offset );
+
+            for ( const auto& count : props.sensitive_stdin_bit_counts ) {
+                body_props.average_bit_size.add( count );
+            }
+
+            for ( bool direction : { true, false } ) {
+                node_direction node_id_direction = { body_id, direction };
+
+                if ( matrix.contains( node_id_direction ) ) {
+                    dependencies.bodies.insert( node_id_direction );
+                    dependencies.end_direction = loop_head_end_direction;
+                }
+            }
+        }
+    }
+
+
+    {
+        return;
+        for ( const auto& [ loop_head_id, body ] : loop_to_props ) {
+            auto loading_props = loading_loops.at( loop_head_id );
+            natural_32_bit loaded_bits = loading_props.max - loading_props.min;
+            double per_loop = double( loaded_bits ) / double( loading_props.loop_count );
+
+            std::cout << "------------------------------" << std::endl;
+            std::cout << "Loop with id: " << loop_head_id.id << std::endl;
+            std::cout << "Loaded " << loaded_bits << " bits" << std::endl;
+            std::cout << "Min: " << loading_props.min << ", Max: " << loading_props.max << std::endl;
+            std::cout << "Loop count: " << loading_props.loop_count << ", bits per loop: " << per_loop
+                      << std::endl;
+
+            for ( const auto& [ id, props ] : body ) {
+                std::cout << "Body ID: " << id.id << std::endl;
+                std::cout << "Min: " << props.min << ", Max: " << props.max << std::endl;
+                std::cout << "Sensitive stdin bit counts: ";
+                for ( const auto& count : props.sensitive_stdin_bit_counts ) {
+                    std::cout << count << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
     }
 }
 
@@ -1125,13 +1314,16 @@ possible_path iid_node_dependence_props::generate_path_from_node_counts( const n
         bool loop_head_end_direction = false;
         bool is_loop_head = false;
 
-        for ( const auto& map : { dependencies_by_loops, dependencies_by_loading } ) {
-            auto it = map.find( id );
-            if ( it != map.end() ) {
-                is_loop_head = true;
-                loop_head_end_direction = it->second.end_direction;
-                break;
-            }
+        auto it_loops = dependencies_by_loops.find( id );
+        if ( it_loops != dependencies_by_loops.end() ) {
+            is_loop_head = true;
+            loop_head_end_direction = it_loops->second.end_direction;
+        }
+
+        auto it_loading = new_dependencies_by_loading.find( id );
+        if ( it_loading != new_dependencies_by_loading.end() ) {
+            is_loop_head = true;
+            loop_head_end_direction = it_loading->second.end_direction;
         }
 
         path_node_props props = { counts, is_loop_head, loop_head_end_direction };
@@ -1150,7 +1342,7 @@ std::set< location_id > iid_node_dependence_props::get_loop_heads( bool include_
     }
 
     if ( include_loading_loops ) {
-        for ( const auto& [ loading_head, _ ] : dependencies_by_loading ) {
+        for ( const auto& [ loading_head, _ ] : new_dependencies_by_loading ) {
             loop_heads.insert( loading_head );
         }
     }
