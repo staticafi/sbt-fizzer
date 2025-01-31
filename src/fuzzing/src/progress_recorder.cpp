@@ -54,6 +54,8 @@ progress_recorder::progress_recorder()
     , bitshare{}
     , local_search{}
     , bitflip{}
+    , taint_request{}
+    , taint_response{}
     , counter_analysis{ 1 }
     , counter_results{ 0 }
 
@@ -91,6 +93,8 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     bitshare = {};
     local_search = {};
     bitflip = {};
+    taint_request = {};
+    taint_response = {};
     counter_analysis = 1;
     counter_results = 0;
 
@@ -131,6 +135,8 @@ void  progress_recorder::stop()
     bitshare = {};
     local_search = {};
     bitflip = {};
+    taint_request = {};
+    taint_response = {};
     counter_analysis = 1;
     counter_results = 0;
 
@@ -213,14 +219,61 @@ void  progress_recorder::on_bitflip_stop(STOP const  attribute)
 }
 
 
+void  progress_recorder::on_taint_request_start(branching_node const* const  node_ptr, START const  attribute)
+{
+    if (!is_started())
+        return;
+
+    taint_request.start_type = attribute;
+    on_analysis_start(ANALYSIS::TAINT_REQUEST, taint_request, node_ptr);
+}
+
+
+void  progress_recorder::on_taint_request_stop(STOP const  attribute)
+{
+    if (!is_started())
+        return;
+    if (taint_request.start_type == START::NONE)
+        return;
+    ASSUMPTION(analysis == ANALYSIS::TAINT_REQUEST);
+
+    taint_request.stop_type = attribute;
+    taint_request.save();
+    on_analysis_stop();
+}
+
+
+void  progress_recorder::on_taint_response_start(branching_node const* const  node_ptr, START const  attribute)
+{
+    if (!is_started())
+        return;
+
+    taint_response.start_type = attribute;
+    on_analysis_start(ANALYSIS::TAINT_RESPONSE, taint_response, node_ptr);
+}
+
+
+void  progress_recorder::on_taint_response_stop(STOP const  attribute)
+{
+    if (!is_started())
+        return;
+    if (taint_response.start_type == START::NONE)
+        return;
+    ASSUMPTION(analysis == ANALYSIS::TAINT_RESPONSE);
+
+    taint_response.stop_type = attribute;
+    taint_response.save();
+    on_analysis_stop();
+}
+
+
+
 void  progress_recorder::on_analysis_start(ANALYSIS const  analysis_, analysis_common_info&  info, branching_node const* const  node_ptr)
 {
     if (!is_started())
         return;
 
     flush_post_data();
-
-    ASSUMPTION(node_ptr != nullptr);
 
     analysis = analysis_;
     ++counter_analysis;
@@ -248,6 +301,8 @@ void  progress_recorder::on_analysis_stop()
     bitshare = {};
     local_search = {};
     bitflip = {};
+    taint_request = {};
+    taint_response = {};
 }
 
 
@@ -359,7 +414,7 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
 
 std::string const&  progress_recorder::analysis_name(ANALYSIS const a)
 {
-    static std::string const  names[] { "NONE","BITSHARE","LOCAL_SEARCH","BITFLIP" };
+    static std::string const  names[] { "NONE","BITSHARE","LOCAL_SEARCH","BITFLIP","TAINT_REQ","TAINT_RES" };
     ASSUMPTION((int)a < sizeof(names)/sizeof(names[0]));
     return names[(int)a];
 }
@@ -387,7 +442,7 @@ void  progress_recorder::analysis_common_info::save() const
             ostr << ",\n";
     }
 
-    ostr << "\"node_guid\": " << node->guid() << ",\n";
+    ostr << "\"node_guid\": " << (node == nullptr ? 0U : node->guid()) << ",\n";
 
     ostr << "\"start_attribute\": ";
     switch (start_type)
@@ -423,6 +478,40 @@ void  progress_recorder::local_search_progress_info::save_info(std::ostream&  os
 
 void  progress_recorder::bitflip_progress_info::save_info(std::ostream&  ostr) const
 {
+}
+
+
+void  progress_recorder::taint_request_progress_info::save_info(std::ostream&  ostr) const
+{
+}
+
+
+void  progress_recorder::taint_response_progress_info::save_info(std::ostream&  ostr) const
+{
+    std::vector<branching_node const*>  nodes;
+    for (branching_node const*  n = node; n != nullptr; n = n->get_predecessor())
+        nodes.push_back(n);
+    std::reverse(nodes.begin(), nodes.end());
+
+    ostr << "\"sensitive_bits\": [\n";
+    for (natural_32_bit  i = 0U, end = (natural_32_bit)nodes.size(); i < end; ++i)
+    {
+        branching_node const* const  n = nodes.at(i);
+        ostr << '[';
+        bool first = true;
+        std::vector<natural_32_bit>  indices(n->get_sensitive_stdin_bits().begin(), n->get_sensitive_stdin_bits().end());
+        std::sort(indices.begin(), indices.end());
+        for (natural_32_bit idx : indices)
+        {
+            if (!first) ostr << ',';
+            ostr << idx;
+            first = false;
+        }
+        ostr << ']';
+        if (i + 1 < end) ostr << ',';
+        ostr << '\n';
+    }
+    ostr << "]";
 }
 
 

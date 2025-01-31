@@ -45,6 +45,12 @@ struct  progress_recorder
     void  on_bitflip_start(branching_node const*  node_ptr, START attribute);
     void  on_bitflip_stop(STOP  attribute);
 
+    void  on_taint_request_start(branching_node const*  node_ptr, START attribute);
+    void  on_taint_request_stop(STOP  attribute);
+
+    void  on_taint_response_start(branching_node const*  node_ptr, START attribute);
+    void  on_taint_response_stop(STOP  attribute);
+
     void  on_input_generated();
     void  on_trace_mapped_to_tree(branching_node const*  leaf_);
     void  on_execution_results_available();
@@ -66,6 +72,8 @@ private:
         BITSHARE        = 1,
         LOCAL_SEARCH    = 2,
         BITFLIP         = 3,
+        TAINT_REQUEST   = 4,
+        TAINT_RESPONSE  = 5,
     };
 
     struct  analysis_common_info
@@ -92,6 +100,16 @@ private:
     };
 
     struct  bitflip_progress_info : public analysis_common_info
+    {
+        void  save_info(std::ostream&  ostr) const override;
+    };
+
+    struct  taint_request_progress_info : public analysis_common_info
+    {
+        void  save_info(std::ostream&  ostr) const override;
+    };
+
+    struct  taint_response_progress_info : public analysis_common_info
     {
         void  save_info(std::ostream&  ostr) const override;
     };
@@ -147,6 +165,8 @@ private:
     bitshare_progress_info  bitshare;
     local_search_progress_info  local_search;
     bitflip_progress_info  bitflip;
+    taint_request_progress_info  taint_request;
+    taint_response_progress_info  taint_response;
     natural_32_bit  counter_analysis;
     natural_32_bit  counter_results;
 

@@ -1267,6 +1267,41 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 }
             if (input_flow_thread.get_node() != nullptr)
                 collect_iid_pivots_from_sensitivity_results();
+
+            // In the block below we only send data to the progress recorder. 
+            {
+                switch (state)
+                {
+                    case BITSHARE:
+                        recorder().on_bitshare_stop(progress_recorder::STOP::INTERRUPTED);
+                        break;
+                    case LOCAL_SEARCH:
+                        recorder().on_local_search_stop(progress_recorder::STOP::INTERRUPTED);
+                        break;
+                    case BITFLIP:
+                        recorder().on_bitflip_stop(progress_recorder::STOP::INTERRUPTED);
+                        break;
+                    default: { UNREACHABLE(); break; }
+                }
+
+                recorder().on_taint_response_start(input_flow_thread.get_node(), progress_recorder::START::REGULAR);
+                recorder().on_taint_response_stop(progress_recorder::STOP::INSTANT);
+
+                switch (state)
+                {
+                    case BITSHARE:
+                        recorder().on_bitshare_start(bitshare.get_node(), progress_recorder::START::RESUMED);
+                        break;
+                    case LOCAL_SEARCH:
+                        recorder().on_local_search_start(local_search.get_node(), progress_recorder::START::RESUMED);
+                        break;
+                    case BITFLIP:
+                        recorder().on_bitflip_start(bitflip.get_node(), progress_recorder::START::RESUMED);
+                        break;
+                    default: { UNREACHABLE(); break; }
+                }
+            }
+
             if (state == BITFLIP && !coverage_control.is_analysis_interrupted())
             {
                 recorder().on_bitflip_stop(progress_recorder::STOP::REGULAR);
@@ -2050,6 +2085,10 @@ bool  fuzzer::try_start_input_flow_analysis(branching_node*  winner)
             break;
     }
     input_flow_thread.start(winner, num_driver_executions, num_remaining_seconds());
+
+    recorder().on_taint_request_start(winner, progress_recorder::START::REGULAR);
+    recorder().on_taint_request_stop(progress_recorder::STOP::INSTANT);
+
     return true;
 }
 
