@@ -223,8 +223,7 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  analysis_, analysis_c
     ASSUMPTION(node_ptr != nullptr);
 
     analysis = analysis_;
-    if (counter_results != 0)
-        ++counter_analysis;
+    ++counter_analysis;
     counter_results = 0;
 
     num_bytes = 0;
