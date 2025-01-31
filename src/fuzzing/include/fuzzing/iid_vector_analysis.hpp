@@ -266,8 +266,7 @@ private:
 
     equation_matrix matrix;
     loop_ending_to_bodies dependencies_by_loops;
-    loop_ending_to_bodies dependencies_by_loading;
-    std::map< location_id, loading_loops_props > new_dependencies_by_loading;
+    std::map< location_id, loading_loops_props > dependencies_by_loading;
 
     iid_node_generations_stats stats;
 };
