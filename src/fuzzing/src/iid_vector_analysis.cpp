@@ -40,7 +40,7 @@ bool path_node_props::get_desired_direction() const
 
     INVARIANT( can_go_left || can_go_right );
 
-    if ( can_go_left && can_go_right ) {
+    if ( can_go_left && can_go_right && iid_dependencies::random_direction_in_path ) {
         return rand() % 2 == 0;
     }
 
@@ -205,6 +205,19 @@ equation equation::add_to_positive( int value ) const
         } else {
             new_values.push_back( values[ i ] );
         }
+    }
+
+    return { new_values, best_value };
+}
+
+// ------------------------------------------------------------------------------------------------
+equation fuzzing::equation::add_to_values( const equation& other ) const
+{
+    INVARIANT( values.size() == other.values.size() );
+
+    std::vector< int > new_values;
+    for ( int i = 0; i < values.size(); ++i ) {
+        new_values.push_back( values[ i ] + other.values[ i ] );
     }
 
     return { new_values, best_value };
@@ -457,19 +470,19 @@ std::optional< equation > equation_matrix::get_new_leaf_counts_from_vectors( con
             double counts = std::abs( row.best_value ) / std::abs( vector.best_value );
             int rounded_counts = static_cast< int >( std::round( counts ) );
 
-            if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 && !generate_more_data ) {
+            if ( std::abs( counts - double( rounded_counts ) ) > 1e-8 && !generate_more_data ) {
                 continue;
             }
 
-            if ( generate_more_data ) {
-                rounded_counts++;
-            }
-
             equation new_path = vector * rounded_counts + row;
+
             if ( !is_equal_sign ) {
-                int limit = std::max( new_path.get_biggest_value() / 4, 1 );
-                new_path = new_path.add_to_positive( 1 + rand() % limit );
-                // new_path = new_path.add_to_positive( 1 + limit );
+                new_path = new_path.add_to_values( vector );
+                if ( generate_more_data ) {
+                    double best_value = new_path.best_value;
+                    new_path = new_path * ( 1 + iid_dependencies::percentage_to_add_to_path );
+                    new_path.best_value = best_value;
+                }
             }
 
             if ( !new_path.is_any_negative() ) {
@@ -563,6 +576,7 @@ possible_path iid_node_dependence_props::generate_probabilities()
     }
 
     bool generate_more_data = stats.state == generation_state::STATE_GENERATION_MORE ||
+                              stats.state == generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ||
                               stats.state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
     std::optional< equation > new_leaf_counts = submatrix.get_new_leaf_counts_from_vectors(
         *best_vectors, stats.generated_after_covered, generate_more_data );
@@ -598,7 +612,7 @@ bool iid_node_dependence_props::should_generate() const
 }
 
 // ------------------------------------------------------------------------------------------------
-bool iid_node_dependence_props::needs_data_from_other_node( int max_failed_generations_in_row ) const
+bool iid_node_dependence_props::too_much_failed_in_row( int max_failed_generations_in_row ) const
 {
     if ( stats.state != generation_state::STATE_NOT_COVERED ) {
         return false;
@@ -619,6 +633,42 @@ void iid_node_dependence_props::set_as_generating_for_other_node( int minimal_ma
     stats.state = generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE;
     stats.generated_for_other_node_max = minimal_max_generation_for_other_node;
     stats.generated_for_other_node = 0;
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::iid_node_dependence_props::set_as_generating_artificial_data( int minimal_max_generation_artificial_data )
+{
+    INVARIANT( stats.state == generation_state::STATE_NOT_COVERED );
+
+    stats.state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+    stats.generate_artificial_data_max = minimal_max_generation_artificial_data;
+    stats.generate_artificial_data = 0;
+}
+
+// ------------------------------------------------------------------------------------------------
+failed_generation_method fuzzing::iid_node_dependence_props::get_method_for_failed_generation( bool is_first )
+{
+    failed_generation_method new_method;
+
+    if ( is_first ) {
+        new_method = failed_generation_method::METHOD_GENERATE_ARTIFICIAL_DATA;
+    } else {
+        switch ( stats.last_failed_method ) {
+            case failed_generation_method::METHOD_GENERATE_ARTIFICIAL_DATA:
+                new_method = failed_generation_method::METHOD_GENERATE_FROM_OTHER_NODE;
+                break;
+            case failed_generation_method::METHOD_GENERATE_FROM_OTHER_NODE:
+                new_method = failed_generation_method::METHOD_GENERATE_ARTIFICIAL_DATA;
+                break;
+        }
+    }
+
+    if ( new_method == failed_generation_method::METHOD_GENERATE_ARTIFICIAL_DATA ) {
+        set_as_generating_artificial_data( iid_dependencies::minimal_max_generation_artificial_data );
+    }
+
+    stats.last_failed_method = new_method;
+    return new_method;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -930,7 +980,11 @@ void iid_node_dependence_props::compute_path_counts_loops( nodes_to_counts& path
             continue;
         }
 
-        compute_path_counts_for_nested_loops( path_counts, child_loop_counts, loop_head, non_loop_child_max_count );
+        compute_path_counts_for_nested_loops( path_counts,
+                                              child_loop_counts,
+                                              loop_head,
+                                              non_loop_child_max_count,
+                                              iid_dependencies::random_nested_loops );
     }
 }
 
@@ -1055,8 +1109,6 @@ std::vector< equation > iid_node_dependence_props::compute_best_vectors( const s
                                             return a.first.get_vector_size() < b.first.get_vector_size();
                                         } );
             best_vectors.push_back( it->first );
-            // std::cout << "Chosen vector  : " << it->first << std::endl;
-            // std::cout << "Original vector: " << sorted_vectors[ i ].first << std::endl;
         } else {
             best_vectors.push_back( sorted_vectors[ i ].first );
         }
@@ -1291,33 +1343,6 @@ void iid_node_dependence_props::compute_dependencies_by_loading( branching_node*
             }
         }
     }
-
-
-    {
-        return;
-        for ( const auto& [ loop_head_id, body ] : loop_to_props ) {
-            auto loading_props = loading_loops.at( loop_head_id );
-            natural_32_bit loaded_bits = loading_props.max - loading_props.min;
-            double per_loop = double( loaded_bits ) / double( loading_props.loop_count );
-
-            std::cout << "------------------------------" << std::endl;
-            std::cout << "Loop with id: " << loop_head_id.id << std::endl;
-            std::cout << "Loaded " << loaded_bits << " bits" << std::endl;
-            std::cout << "Min: " << loading_props.min << ", Max: " << loading_props.max << std::endl;
-            std::cout << "Loop count: " << loading_props.loop_count << ", bits per loop: " << per_loop
-                      << std::endl;
-
-            for ( const auto& [ id, props ] : body ) {
-                std::cout << "Body ID: " << id.id << std::endl;
-                std::cout << "Min: " << props.min << ", Max: " << props.max << std::endl;
-                std::cout << "Sensitive stdin bit counts: ";
-                for ( const auto& count : props.sensitive_stdin_bit_counts ) {
-                    std::cout << count << " ";
-                }
-                std::cout << std::endl;
-            }
-        }
-    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1426,9 +1451,9 @@ void iid_dependencies::remove_node_dependence( location_id id )
         iid_node_generations_stats& stats = it->second.get_generations_stats();
         stats.state = generation_state::STATE_COVERED;
 
-        if ( generate_more_data_after_coverage && !it->second.is_equal_branching_predicate() ) {
+        if ( iid_dependencies::generate_more_data_after_coverage && !it->second.is_equal_branching_predicate() ) {
             stats.state = generation_state::STATE_GENERATION_MORE;
-            int max_generation_after_covered = std::max( minimal_max_generation_after_covered,
+            int max_generation_after_covered = std::max( iid_dependencies::minimal_max_generation_after_covered,
                                                          stats.successful_generations / 2 );
             stats.generated_after_covered_max = max_generation_after_covered;
         }
@@ -1461,26 +1486,18 @@ std::optional< location_id > iid_dependencies::get_next_iid_node()
         iid_node_dependence_props& props = it->second;
 
         if ( previous_needs_more_data ) {
-            props.set_as_generating_for_other_node( minimal_max_generation_for_other_node );
+            props.set_as_generating_for_other_node( iid_dependencies::minimal_max_generation_for_other_node );
             previous_needs_more_data = false;
         }
 
-        if ( props.needs_data_from_other_node( max_failed_generations_in_row ) ) {
+        if ( props.too_much_failed_in_row( iid_dependencies::max_failed_generations_in_row ) ) {
             props.get_generations_stats().failed_generations_in_row = 0;
+            bool is_first = std::next( it ) == id_to_equation_map.rend();
 
-            if ( std::next( it ) == id_to_equation_map.rend() ) {
-                props.get_generations_stats().state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
-                props.get_generations_stats().generate_artificial_data_max = 5;
-            } else {
-                if ( props.get_generations_stats().failed_state ==
-                     generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ) {
-                    props.get_generations_stats().state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
-                    props.get_generations_stats().generate_artificial_data_max = 5;
-                    props.get_generations_stats().failed_state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
-                } else {
-                    previous_needs_more_data = true;
-                    props.get_generations_stats().failed_state = generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE;
-                }
+            failed_generation_method method = props.get_method_for_failed_generation( is_first );
+
+            if ( method == failed_generation_method::METHOD_GENERATE_FROM_OTHER_NODE ) {
+                previous_needs_more_data = true;
             }
         }
     }

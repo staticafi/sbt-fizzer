@@ -109,12 +109,14 @@ struct equation {
     bool operator==( const equation& other ) const = default;
 
     equation add_to_positive( int value ) const;
+    equation add_to_values( const equation& other ) const;
     int get_vector_size() const;
     int get_one_way_branching_count() const;
     int get_biggest_value() const;
     bool is_any_negative() const;
     bool same_values() const;
     bool is_linear_dependent( const equation& other ) const;
+
 
     friend std::ostream& operator<<( std::ostream& os, const equation& eq )
     {
@@ -194,11 +196,13 @@ private:
 
 enum generation_state {
     STATE_NOT_COVERED,
+    STATE_GENERATING_ARTIFICIAL_DATA,
     STATE_GENERATION_MORE,
     STATE_COVERED,
-    STATE_GENERATION_DATA_FOR_NEXT_NODE,
-    STATE_GENERATING_ARTIFICIAL_DATA
+    STATE_GENERATION_DATA_FOR_NEXT_NODE
 };
+
+enum failed_generation_method { METHOD_GENERATE_FROM_OTHER_NODE, METHOD_GENERATE_ARTIFICIAL_DATA };
 
 struct iid_node_generations_stats {
     int generation_starts = 0;
@@ -218,7 +222,7 @@ struct iid_node_generations_stats {
 
     generation_state state = generation_state::STATE_NOT_COVERED;
 
-    generation_state failed_state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+    failed_generation_method last_failed_method = METHOD_GENERATE_ARTIFICIAL_DATA;
 };
 
 struct iid_node_dependence_props {
@@ -227,8 +231,10 @@ struct iid_node_dependence_props {
     iid_node_generations_stats& get_generations_stats() { return stats; }
 
     bool should_generate() const;
-    bool needs_data_from_other_node( int max_failed_generations_in_row ) const;
+    bool too_much_failed_in_row( int max_failed_generations_in_row ) const;
     void set_as_generating_for_other_node( int minimal_max_generation_for_other_node );
+    void set_as_generating_artificial_data( int minimal_max_generation_artificial_data );
+    failed_generation_method get_method_for_failed_generation( bool is_first );
     bool is_equal_branching_predicate() const;
 
     void print_dependencies() const;
@@ -297,11 +303,16 @@ private:
     std::map< location_id, iid_node_dependence_props > id_to_equation_map;
     std::set< location_id > non_iid_nodes;
 
-    // Settings
-    bool generate_more_data_after_coverage = true;
-    int minimal_max_generation_after_covered = 10;
-    int max_failed_generations_in_row = 3;
-    int minimal_max_generation_for_other_node = 10;
+public:
+    // Configurations
+    inline static bool random_nested_loops = false;
+    inline static bool random_direction_in_path = true;
+    inline static bool generate_more_data_after_coverage = true;
+    inline static int minimal_max_generation_after_covered = 10;
+    inline static int max_failed_generations_in_row = 2;
+    inline static int minimal_max_generation_for_other_node = 10;
+    inline static int minimal_max_generation_artificial_data = 5;
+    inline static float percentage_to_add_to_path = 0.4;
 };
 
 std::vector< node_direction > get_path( branching_node* node );
