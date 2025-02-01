@@ -175,7 +175,8 @@ struct equation_matrix {
     std::map< equation, int > compute_vectors_with_hits();
     std::vector< equation >& get_matrix();
     std::optional< equation > get_new_leaf_counts_from_vectors( const std::vector< equation >& vector,
-                                                                int generated_after_covered );
+                                                                int generated_after_covered,
+                                                                bool generate_more_data );
     int get_desired_vector_direction() const;
     float get_biggest_branching_value() const;
 
@@ -191,7 +192,13 @@ private:
     std::set< node_direction > nodes;
 };
 
-enum generation_state { NOT_COVERED, GENERATION_MORE, COVERED, GENERATION_DATA_FOR_NEXT_NODE };
+enum generation_state {
+    STATE_NOT_COVERED,
+    STATE_GENERATION_MORE,
+    STATE_COVERED,
+    STATE_GENERATION_DATA_FOR_NEXT_NODE,
+    STATE_GENERATING_ARTIFICIAL_DATA
+};
 
 struct iid_node_generations_stats {
     int generation_starts = 0;
@@ -206,7 +213,12 @@ struct iid_node_generations_stats {
     int generated_for_other_node = 0;
     int generated_for_other_node_max = 0;
 
-    generation_state state = generation_state::NOT_COVERED;
+    int generate_artificial_data = 0;
+    int generate_artificial_data_max = 0;
+
+    generation_state state = generation_state::STATE_NOT_COVERED;
+
+    generation_state failed_state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
 };
 
 struct iid_node_dependence_props {
@@ -220,10 +232,12 @@ struct iid_node_dependence_props {
     bool is_equal_branching_predicate() const;
 
     void print_dependencies() const;
-    void print_stats() const;
+    void print_stats( bool only_state = false ) const;
 
 
 private:
+    void generate_vectors_if_not_enough_data( std::vector< equation >& best_vectors, equation_matrix& submatrix );
+    std::optional< std::vector< equation > > get_best_vectors( equation_matrix& submatrix, int number_of_vectors );
     possible_path return_empty_path();
     possible_path return_path( const possible_path& path );
     void compute_path_counts_for_nested_loops( nodes_to_counts& path_counts,

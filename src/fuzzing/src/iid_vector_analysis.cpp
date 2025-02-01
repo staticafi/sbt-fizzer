@@ -21,7 +21,6 @@ inline void fuzzing::mean_counter< T >::add( T value )
     count++;
 }
 
-
 //                                        node_counts
 // ------------------------------------------------------------------------------------------------
 int node_counts::get_max_count() const { return std::max( left_count, right_count ); }
@@ -39,6 +38,8 @@ bool path_node_props::get_desired_direction() const
     bool can_go_left = taken_counts.left_count < computed_counts.left_count;
     bool can_go_right = taken_counts.right_count < computed_counts.right_count;
 
+    INVARIANT( can_go_left || can_go_right );
+
     if ( can_go_left && can_go_right ) {
         return rand() % 2 == 0;
     }
@@ -51,7 +52,7 @@ bool path_node_props::get_desired_direction() const
         return true;
     }
 
-    throw std::runtime_error( "Error: get_desired_direction() called without any possible direction" );
+    assert( false );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -441,7 +442,8 @@ float equation_matrix::get_biggest_branching_value() const
 
 // ------------------------------------------------------------------------------------------------
 std::optional< equation > equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< equation >& vectors,
-                                                                             int generation_count_after_covered )
+                                                                             int generation_count_after_covered,
+                                                                             bool generate_more_data )
 {
     INVARIANT( !vectors.empty() );
     INVARIANT( vectors[ 0 ].values.size() == nodes.size() );
@@ -455,8 +457,12 @@ std::optional< equation > equation_matrix::get_new_leaf_counts_from_vectors( con
             double counts = std::abs( row.best_value ) / std::abs( vector.best_value );
             int rounded_counts = static_cast< int >( std::round( counts ) );
 
-            if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 ) {
+            if ( std::abs( counts - double( rounded_counts ) ) > 1e-6 && !generate_more_data ) {
                 continue;
+            }
+
+            if ( generate_more_data ) {
+                rounded_counts++;
             }
 
             equation new_path = vector * rounded_counts + row;
@@ -539,28 +545,28 @@ possible_path iid_node_dependence_props::generate_probabilities()
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
 
     {
-        // print_stats();
+        // print_stats( true );
         // print_dependencies();
         // matrix.print_matrix();
         // submatrix.print_matrix();
     }
 
-    std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
-    if ( vectors.empty() ) {
-        return return_empty_path();
+    std::optional< std::vector< equation > > best_vectors = get_best_vectors( submatrix, 1 );
+
+    if ( !best_vectors.has_value() ) {
+        if ( stats.state != generation_state::STATE_GENERATING_ARTIFICIAL_DATA ) {
+            return return_empty_path();
+        }
+
+        best_vectors = std::vector< equation >();
+        generate_vectors_if_not_enough_data( *best_vectors, submatrix );
     }
 
-    int desired_vector_direction = submatrix.get_desired_vector_direction();
-    float biggest_branching_value = submatrix.get_biggest_branching_value();
-    std::vector< equation > best_vectors =
-        compute_best_vectors( vectors, 1, false, desired_vector_direction, biggest_branching_value );
+    bool generate_more_data = stats.state == generation_state::STATE_GENERATION_MORE ||
+                              stats.state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+    std::optional< equation > new_leaf_counts = submatrix.get_new_leaf_counts_from_vectors(
+        *best_vectors, stats.generated_after_covered, generate_more_data );
 
-    if ( best_vectors.empty() ) {
-        return return_empty_path();
-    }
-
-    std::optional< equation > new_leaf_counts =
-        submatrix.get_new_leaf_counts_from_vectors( best_vectors, stats.generated_after_covered );
     if ( !new_leaf_counts.has_value() ) {
         return return_empty_path();
     }
@@ -588,14 +594,13 @@ void iid_node_dependence_props::process_node( branching_node* end_node )
 // ------------------------------------------------------------------------------------------------
 bool iid_node_dependence_props::should_generate() const
 {
-    return stats.state == generation_state::NOT_COVERED || stats.state == generation_state::GENERATION_MORE ||
-           stats.state == generation_state::GENERATION_DATA_FOR_NEXT_NODE;
+    return stats.state != generation_state::STATE_COVERED;
 }
 
 // ------------------------------------------------------------------------------------------------
 bool iid_node_dependence_props::needs_data_from_other_node( int max_failed_generations_in_row ) const
 {
-    if ( stats.state != generation_state::NOT_COVERED ) {
+    if ( stats.state != generation_state::STATE_NOT_COVERED ) {
         return false;
     }
 
@@ -609,9 +614,9 @@ bool iid_node_dependence_props::needs_data_from_other_node( int max_failed_gener
 // ------------------------------------------------------------------------------------------------
 void iid_node_dependence_props::set_as_generating_for_other_node( int minimal_max_generation_for_other_node )
 {
-    INVARIANT( stats.state == generation_state::COVERED );
+    INVARIANT( stats.state == generation_state::STATE_COVERED );
 
-    stats.state = generation_state::GENERATION_DATA_FOR_NEXT_NODE;
+    stats.state = generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE;
     stats.generated_for_other_node_max = minimal_max_generation_for_other_node;
     stats.generated_for_other_node = 0;
 }
@@ -647,27 +652,95 @@ void iid_node_dependence_props::print_dependencies() const
 }
 
 // ------------------------------------------------------------------------------------------------
-void iid_node_dependence_props::print_stats() const
+void iid_node_dependence_props::print_stats( bool only_state ) const
 {
     switch ( stats.state ) {
-        case generation_state::NOT_COVERED:
-            std::cout << "Status: NOT_COVERED" << std::endl;
-            std::cout << "Failed generations/Total generations: " << stats.failed_generations << "/"
-                      << stats.generation_starts << std::endl;
-            std::cout << "Failed generations in row: " << stats.failed_generations_in_row << std::endl;
+        case generation_state::STATE_NOT_COVERED:
+            std::cout << "Status: STATE_NOT_COVERED" << std::endl;
+            if ( !only_state ) {
+                std::cout << "Failed generations/Total generations: " << stats.failed_generations << "/"
+                          << stats.generation_starts << std::endl;
+                std::cout << "Failed generations in row: " << stats.failed_generations_in_row << std::endl;
+            }
             break;
-        case generation_state::GENERATION_MORE:
-            std::cout << "Status GENERATION_MORE" << std::endl;
-            std::cout << "Generated after covered: " << stats.generated_after_covered << "/"
-                      << stats.generated_after_covered_max << std::endl;
+        case generation_state::STATE_GENERATION_MORE:
+            std::cout << "Status STATE_GENERATION_MORE" << std::endl;
+            if ( !only_state ) {
+                std::cout << "Generated after covered: " << stats.generated_after_covered << "/"
+                          << stats.generated_after_covered_max << std::endl;
+            }
             break;
-        case generation_state::COVERED: std::cout << "COVERED" << std::endl; break;
-        case generation_state::GENERATION_DATA_FOR_NEXT_NODE:
-            std::cout << "Status: GENERATION_DATA_FOR_NEXT_NODE" << std::endl;
-            std::cout << "Generated for other node: " << stats.generated_for_other_node << "/"
-                      << stats.generated_for_other_node_max << std::endl;
+        case generation_state::STATE_COVERED: std::cout << "STATE_COVERED" << std::endl; break;
+        case generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE: {
+            std::cout << "Status: STATE_GENERATION_DATA_FOR_NEXT_NODE" << std::endl;
+            if ( !only_state )
+                std::cout << "Generated for other node: " << stats.generated_for_other_node << "/"
+                          << stats.generated_for_other_node_max << std::endl;
+        } break;
+        case generation_state::STATE_GENERATING_ARTIFICIAL_DATA:
+            std::cout << "Status: STATE_GENERATING_ARTIFICIAL_DATA" << std::endl;
+            if ( !only_state ) {
+                std::cout << "Generated artificial data: " << stats.generate_artificial_data << "/"
+                          << stats.generate_artificial_data_max << std::endl;
+            }
             break;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::iid_node_dependence_props::generate_vectors_if_not_enough_data( std::vector< equation >& best_vectors,
+                                                                              equation_matrix& submatrix )
+{
+    best_vectors = std::vector< equation >();
+    int desired_direction = submatrix.get_desired_vector_direction();
+    std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
+
+    auto add_to_best_vectors = [ & ]( std::vector< int > values ) {
+        if ( desired_direction == 0 ) {
+            best_vectors.emplace_back( values, 1 );
+            best_vectors.emplace_back( values, -1 );
+        } else {
+            best_vectors.emplace_back( values, desired_direction );
+        }
+    };
+
+    if ( vectors.empty() ) {
+        std::vector< int > values( submatrix.get_dimensions().second, 1 );
+        add_to_best_vectors( values );
+    } else {
+        for ( auto& [ vector, hits ] : vectors ) {
+            equation modified_vector = vector;
+
+            for ( auto& value : modified_vector.values ) {
+                if ( value != 0 ) {
+                    value = 1;
+                }
+            }
+
+            add_to_best_vectors( modified_vector.values );
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+std::optional< std::vector< equation > >
+fuzzing::iid_node_dependence_props::get_best_vectors( equation_matrix& submatrix, int number_of_vectors )
+{
+    std::map< equation, int > vectors = submatrix.compute_vectors_with_hits();
+    if ( vectors.empty() ) {
+        return std::nullopt;
+    }
+
+    int desired_vector_direction = submatrix.get_desired_vector_direction();
+    float biggest_branching_value = submatrix.get_biggest_branching_value();
+    std::vector< equation > best_vectors =
+        compute_best_vectors( vectors, number_of_vectors, false, desired_vector_direction, biggest_branching_value );
+
+    if ( best_vectors.empty() ) {
+        return std::nullopt;
+    }
+
+    return best_vectors;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -684,19 +757,29 @@ possible_path iid_node_dependence_props::return_path( const possible_path& path 
     stats.failed_generations_in_row = 0;
     stats.successful_generations++;
 
-    if ( stats.state == generation_state::GENERATION_MORE ) {
+    if ( stats.state == generation_state::STATE_GENERATION_MORE ) {
         stats.generated_after_covered++;
 
         if ( stats.generated_after_covered > stats.generated_after_covered_max ) {
-            stats.state = generation_state::COVERED;
+            stats.state = generation_state::STATE_COVERED;
         }
     }
 
-    if ( stats.state == generation_state::GENERATION_DATA_FOR_NEXT_NODE ) {
+    if ( stats.state == generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ) {
         stats.generated_for_other_node++;
 
         if ( stats.generated_for_other_node > stats.generated_for_other_node_max ) {
-            stats.state = generation_state::COVERED;
+            stats.state = generation_state::STATE_COVERED;
+            stats.generated_for_other_node = 0;
+        }
+    }
+
+    if ( stats.state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA ) {
+        stats.generate_artificial_data++;
+
+        if ( stats.generate_artificial_data > stats.generate_artificial_data_max ) {
+            stats.state = generation_state::STATE_NOT_COVERED;
+            stats.generate_artificial_data = 0;
         }
     }
 
@@ -813,7 +896,6 @@ void iid_node_dependence_props::compute_path_counts_loading( nodes_to_counts& pa
             }
 
             int minimal_count = compute_loop_count_loading( path_counts, body.node_id, loop_heads, props );
-            // std::cout << "Minimal count: " << minimal_count << ", for ID: " << body.node_id.id << std::endl;
             loop_count = std::max( loop_count, minimal_count );
         }
 
@@ -1342,10 +1424,10 @@ void iid_dependencies::remove_node_dependence( location_id id )
     auto it = id_to_equation_map.find( id );
     if ( it != id_to_equation_map.end() ) {
         iid_node_generations_stats& stats = it->second.get_generations_stats();
-        stats.state = generation_state::COVERED;
+        stats.state = generation_state::STATE_COVERED;
 
         if ( generate_more_data_after_coverage && !it->second.is_equal_branching_predicate() ) {
-            stats.state = generation_state::GENERATION_MORE;
+            stats.state = generation_state::STATE_GENERATION_MORE;
             int max_generation_after_covered = std::max( minimal_max_generation_after_covered,
                                                          stats.successful_generations / 2 );
             stats.generated_after_covered_max = max_generation_after_covered;
@@ -1384,8 +1466,22 @@ std::optional< location_id > iid_dependencies::get_next_iid_node()
         }
 
         if ( props.needs_data_from_other_node( max_failed_generations_in_row ) ) {
-            previous_needs_more_data = true;
             props.get_generations_stats().failed_generations_in_row = 0;
+
+            if ( std::next( it ) == id_to_equation_map.rend() ) {
+                props.get_generations_stats().state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+                props.get_generations_stats().generate_artificial_data_max = 5;
+            } else {
+                if ( props.get_generations_stats().failed_state ==
+                     generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ) {
+                    props.get_generations_stats().state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+                    props.get_generations_stats().generate_artificial_data_max = 5;
+                    props.get_generations_stats().failed_state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
+                } else {
+                    previous_needs_more_data = true;
+                    props.get_generations_stats().failed_state = generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE;
+                }
+            }
         }
     }
 
