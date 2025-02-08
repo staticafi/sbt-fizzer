@@ -102,10 +102,10 @@ bool path_node_props::get_preferred_direction_loop_head() const
     auto is_depleted = []( int computed, int taken ) { return computed == taken; };
 
     if ( !loop_head_end_direction ) {
-        INVARIANT( computed_counts.left_count == 1 );
+        // INVARIANT( computed_counts.left_count == 1 );
         return !is_depleted( computed_counts.right_count, taken_counts.right_count );
     } else {
-        INVARIANT( computed_counts.right_count == 1 );
+        // INVARIANT( computed_counts.right_count == 1 );
         return is_depleted( computed_counts.left_count, taken_counts.left_count );
     }
 }
@@ -300,7 +300,184 @@ auto node_direction::operator<=>( node_direction const& other ) const
     return branching_direction <=> other.branching_direction;
 }
 
-//                                     equation_matrix
+//                                    loading_loop_properties
+// ------------------------------------------------------------------------------------------------
+bool fuzzing::loading_loop_properties::is_same( const std::unordered_set< location_id >& other_ids ) const
+{
+    return get_all_ids() == other_ids;
+}
+
+// ------------------------------------------------------------------------------------------------
+std::unordered_set< location_id > fuzzing::loading_loop_properties::get_all_ids() const
+{
+    std::unordered_set< location_id > all_ids;
+
+    for ( const auto& [ head, props ] : heads ) {
+        all_ids.insert( head.node_id );
+    }
+
+    for ( const auto& body : bodies ) {
+        all_ids.insert( body.node_id );
+    }
+
+    return all_ids;
+}
+
+// ------------------------------------------------------------------------------------------------
+std::unordered_set< location_id > fuzzing::loading_loop_properties::get_loop_head_ids() const
+{
+    std::unordered_set< location_id > loop_head_ids;
+
+    for ( const auto& [ head, props ] : heads ) {
+        loop_head_ids.insert( head.node_id );
+    }
+
+    return loop_head_ids;
+}
+
+// ------------------------------------------------------------------------------------------------
+std::unordered_set< location_id > fuzzing::loading_loop_properties::get_body_ids() const
+{
+    std::unordered_set< location_id > body_ids;
+
+    for ( const auto& body : bodies ) {
+        body_ids.insert( body.node_id );
+    }
+
+    return body_ids;
+}
+
+// ------------------------------------------------------------------------------------------------
+location_id fuzzing::loading_loop_properties::get_smallest_loop_head_id() const
+{
+    location_id smallest_id = heads.begin()->first.node_id;
+
+    for ( const auto& [ head, props ] : heads ) {
+        if ( head.node_id < smallest_id ) {
+            smallest_id = head.node_id;
+        }
+    }
+
+    return smallest_id;
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::loading_loop_properties::set_chosen_loop_head()
+{
+    for ( const auto& [ head, props ] : heads ) {
+        if ( !chosen_loop_head.has_value() ) {
+            chosen_loop_head = head;
+        }
+
+        if ( props.count > heads.at( *chosen_loop_head ).count ) {
+            chosen_loop_head = head;
+        }
+    }
+}
+
+//                                     dependencies_by_loops_t
+// ------------------------------------------------------------------------------------------------
+loading_loop_properties& fuzzing::dependencies_by_loops_t::get_props( const std::unordered_set< location_id >& ids,
+                                                                      location_id loop_head_id )
+{
+    for ( loading_loop_properties& loop : loops ) {
+        for ( const auto& [ head, props ] : loop.heads ) {
+            if ( head.node_id == loop_head_id ) {
+                return loop;
+            }
+        }
+
+        if ( loop.is_same( ids ) ) {
+            return loop;
+        }
+    }
+
+    loops.emplace_back();
+    return loops.back();
+}
+
+// ------------------------------------------------------------------------------------------------
+void fuzzing::dependencies_by_loops_t::merge_properties()
+{
+    for ( auto it = loops.begin(); it != loops.end(); it++ ) {
+        std::set< location_id > head_ids;
+        for ( const auto& [ head, props ] : it->heads ) {
+            head_ids.insert( head.node_id );
+        }
+
+        for ( auto body_it = it->bodies.begin(); body_it != it->bodies.end(); ) {
+            if ( head_ids.contains( body_it->node_id ) ) {
+                body_it = it->bodies.erase( body_it );
+            } else {
+                ++body_it;
+            }
+        }
+    }
+
+    for ( auto it_1 = loops.begin(); it_1 != loops.end(); it_1++ ) {
+        for ( auto it_2 = loops.begin(); it_2 != loops.end(); ) {
+            if ( it_1 == it_2 ) {
+                ++it_2;
+                continue;
+            }
+
+            if ( it_1->is_same( it_2->get_all_ids() ) ) {
+                for ( const auto& [ head, props ] : it_2->heads ) {
+                    it_1->heads[ head ].count += props.count;
+                }
+
+                it_1->bodies.insert( it_2->bodies.begin(), it_2->bodies.end() );
+                it_2 = loops.erase( it_2 );
+
+                it_1 = loops.begin();
+                it_2 = loops.begin();
+            } else {
+                ++it_2;
+            }
+        }
+    }
+
+    for ( auto it = loops.begin(); it != loops.end(); it++ ) {
+        std::set< location_id > head_ids;
+        for ( const auto& [ head, props ] : it->heads ) {
+            head_ids.insert( head.node_id );
+        }
+
+        for ( auto body_it = it->bodies.begin(); body_it != it->bodies.end(); ) {
+            if ( head_ids.contains( body_it->node_id ) ) {
+                body_it = it->bodies.erase( body_it );
+            } else {
+                ++body_it;
+            }
+        }
+    }
+
+
+    // Not sure if deleting loops with only loop heads is a good idea
+    for ( auto it = loops.begin(); it != loops.end(); ) {
+        if ( it->bodies.empty() ) {
+            it = loops.erase( it );
+        } else {
+            ++it;
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+loading_loop_properties& fuzzing::dependencies_by_loops_t::get_props_by_loop_head_id( location_id loop_head_id )
+{
+    for ( loading_loop_properties& loop : loops ) {
+        for ( const auto& [ head, props ] : loop.heads ) {
+            if ( head.node_id == loop_head_id ) {
+                return loop;
+            }
+        }
+    }
+
+    throw std::runtime_error( "Loop head not found" );
+}
+
+//                                       equation_matrix
 // ------------------------------------------------------------------------------------------------
 equation_matrix equation_matrix::get_submatrix( std::set< node_direction > const& subset, bool unique ) const
 {
@@ -551,10 +728,13 @@ void equation_matrix::recompute_matrix()
 // ------------------------------------------------------------------------------------------------
 possible_path iid_node_dependence_props::generate_probabilities()
 {
-    TMPROF_BLOCK();
-
-    stats.generation_starts++;
     std::set< node_direction > all_leafs = get_leaf_subsets();
+    if ( all_leafs.empty() || dependencies_by_loops.loops.empty() ) {
+        return {};
+    }
+
+    TMPROF_BLOCK();
+    stats.generation_starts++;
     equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
 
     {
@@ -682,9 +862,15 @@ void iid_node_dependence_props::print_dependencies() const
 {
     std::cout << "# Dependencies:" << std::endl;
     std::cout << "## Dependencies by loops:" << std::endl;
-    for ( const auto& [ loop_head, props ] : dependencies_by_loops ) {
-        for ( const auto& body : props.bodies ) {
-            std::cout << "- " << "`(" << body << ") → " << loop_head.id << "`" << std::endl;
+    for ( const auto& loop : dependencies_by_loops.loops ) {
+        std::cout << "Loop heads:" << std::endl;
+        for ( const auto& [ head, head_props ] : loop.heads ) {
+            std::cout << "- " << head << " (" << head_props.count << ")" << std::endl;
+        }
+
+        std::cout << "Loop bodies:" << std::endl;
+        for ( const auto& body : loop.bodies ) {
+            std::cout << "- " << body << std::endl;
         }
     }
 
@@ -845,11 +1031,6 @@ void iid_node_dependence_props::compute_path_counts_for_nested_loops( nodes_to_c
 {
     INVARIANT( !child_loop_counts.empty() );
 
-    int previous_count = 1;
-    if ( dependencies_by_loops.at( loop_head_id ).previous_counts.size() > 0 ) {
-        previous_count = dependencies_by_loops.at( loop_head_id ).previous_counts.back().get_max_count();
-    }
-
     int max_child_count =
         std::max_element( child_loop_counts.begin(), child_loop_counts.end(), []( const auto& a, const auto& b ) {
             return a.second < b.second;
@@ -880,19 +1061,27 @@ void iid_node_dependence_props::compute_path_counts_for_nested_loops( nodes_to_c
                                      *possible_counts.rbegin();
 
     for ( auto& [ node_id, count ] : child_loop_counts ) {
-        auto& [ left_count, right_count ] = path_counts[ node_id ];
+        loading_loop_properties& props = dependencies_by_loops.get_props_by_loop_head_id( node_id );
 
-        if ( dependencies_by_loops.at( node_id ).end_direction ) {
-            left_count = count / highest_count;
-        } else {
-            right_count = count / highest_count;
+        for ( auto& [ head, _ ] : props.heads ) {
+            auto& [ left_count, right_count ] = path_counts[ head.node_id ];
+
+            if ( head.branching_direction ) {
+                left_count = count / highest_count;
+            } else {
+                right_count = count / highest_count;
+            }
         }
     }
 
-    if ( dependencies_by_loops.at( loop_head_id ).end_direction ) {
-        path_counts[ loop_head_id ] = { highest_count, 1 };
-    } else {
-        path_counts[ loop_head_id ] = { 1, highest_count };
+
+    loading_loop_properties& props = dependencies_by_loops.get_props_by_loop_head_id( loop_head_id );
+    for ( auto& [ head, _ ] : props.heads ) {
+        if ( head.branching_direction ) {
+            path_counts[ head.node_id ] = { highest_count, 1 };
+        } else {
+            path_counts[ head.node_id ] = { 1, highest_count };
+        }
     }
 }
 
@@ -909,10 +1098,10 @@ int fuzzing::iid_node_dependence_props::compute_loop_count_loading( nodes_to_cou
 
     bool is_loop_head = true;
     if ( !loop_heads.contains( id ) ) {
-        for ( const auto& [ head_id, props ] : dependencies_by_loops ) {
-            for ( const auto& body : props.bodies ) {
+        for ( const auto& loop : dependencies_by_loops.loops ) {
+            for ( const auto& body : loop.bodies ) {
                 if ( body.node_id == id ) {
-                    id = head_id;
+                    id = ( *loop.chosen_loop_head ).node_id;
                     is_loop_head = false;
                 }
             }
@@ -962,7 +1151,7 @@ void iid_node_dependence_props::compute_path_counts_loops( nodes_to_counts& path
                                                            const equation& path,
                                                            const std::set< location_id >& loop_heads )
 {
-    for ( const auto& [ loop_head, props ] : std::ranges::views::reverse( dependencies_by_loops ) ) {
+    for ( const auto& props : std::ranges::views::reverse( dependencies_by_loops.loops ) ) {
         std::map< location_id, int > child_loop_counts;
         int non_loop_child_max_count = 1;
 
@@ -982,7 +1171,7 @@ void iid_node_dependence_props::compute_path_counts_loops( nodes_to_counts& path
 
         compute_path_counts_for_nested_loops( path_counts,
                                               child_loop_counts,
-                                              loop_head,
+                                              ( *props.chosen_loop_head ).node_id,
                                               non_loop_child_max_count,
                                               iid_dependencies::random_nested_loops );
     }
@@ -1008,10 +1197,14 @@ nodes_to_counts iid_node_dependence_props::compute_path_counts( const equation& 
         }
     }
 
-    for ( const auto& [ loop_head, props ] : std::ranges::views::reverse( dependencies_by_loops ) ) {
+    for ( auto& loop : dependencies_by_loops.loops ) {
+        loop.set_chosen_loop_head();
+    }
+
+    for ( const auto& loop_props : std::ranges::views::reverse( dependencies_by_loops.loops ) ) {
         int loop_count = 0;
 
-        for ( const auto& body : props.bodies ) {
+        for ( const auto& body : loop_props.bodies ) {
             auto& [ left_count, right_count ] = path_counts[ body.node_id ];
 
             if ( loop_heads.contains( body.node_id ) ) {
@@ -1021,29 +1214,42 @@ nodes_to_counts iid_node_dependence_props::compute_path_counts( const equation& 
             }
         }
 
-        if ( props.end_direction ) {
-            path_counts[ loop_head ] = { loop_count, 1 };
-        } else {
-            path_counts[ loop_head ] = { 1, loop_count };
+        for ( const auto& [ head, _ ] : loop_props.heads ) {
+            if ( head == ( *loop_props.chosen_loop_head ) ) {
+                if ( head.branching_direction ) {
+                    path_counts[ head.node_id ] = { loop_count, 1 };
+                } else {
+                    path_counts[ head.node_id ] = { 1, loop_count };
+                }
+            } else {
+                if ( head.branching_direction ) {
+                    path_counts[ head.node_id ] = { loop_count, 0 };
+                    // path_counts[ head.node_id ] = { loop_count + 1, 0 };
+                } else {
+                    path_counts[ head.node_id ] = { 0, loop_count };
+                    // path_counts[ head.node_id ] = { 0, loop_count + 1 };
+                }
+            }
         }
     }
 
     compute_path_counts_loops( path_counts, path, loop_heads );
     compute_path_counts_loading( path_counts, path, loop_heads );
 
-    for ( auto& [ loop_head, props ] : dependencies_by_loops ) {
-        auto it = path_counts.find( loop_head );
-        if ( it != path_counts.end() ) {
-            props.previous_counts.push_back( it->second );
-        }
-    }
+    // for ( auto& [ loop_head, props ] : dependencies_by_loops ) {
+    //     auto it = path_counts.find( loop_head );
+    //     if ( it != path_counts.end() ) {
+    //         props.previous_counts.push_back( it->second );
+    //     }
+    // }
 
-    for ( auto& [ loop_head, props ] : dependencies_by_loading ) {
-        auto it = path_counts.find( loop_head );
-        if ( it != path_counts.end() ) {
-            props.previous_counts.push_back( it->second );
-        }
-    }
+    // for ( auto& [ loop_head, props ] : dependencies_by_loading ) {
+    //     auto it = path_counts.find( loop_head );
+    //     if ( it != path_counts.end() ) {
+    //         props.previous_counts.push_back( it->second );
+    //     }
+    // }
+
     return path_counts;
 }
 
@@ -1171,10 +1377,12 @@ std::vector< equation > iid_node_dependence_props::get_random_vector( const std:
 std::set< node_direction > iid_node_dependence_props::get_leaf_subsets()
 {
     std::set< node_direction > all_leafs;
-    for ( const auto& [ _, props ] : dependencies_by_loops ) {
-        for ( const auto& body : props.bodies ) {
+    auto loop_heads = get_loop_heads( false );
+
+    for ( const auto& loop : dependencies_by_loops.loops ) {
+        for ( const auto& body : loop.bodies ) {
             location_id body_id = body.node_id;
-            if ( !dependencies_by_loops.contains( body_id ) ) {
+            if ( !loop_heads.contains( body_id ) ) {
                 all_leafs.insert( body );
             }
         }
@@ -1355,18 +1563,39 @@ void iid_node_dependence_props::compute_dependencies_by_loops( const loop_head_t
         }
 
         bool loop_head_end_direction = loop_heads_ending.at( loop_head );
+        node_direction loop_head_direction = { loop_head, loop_head_end_direction };
+
+        std::unordered_set< location_id > all_ids = loop_bodies;
+        all_ids.insert( loop_head );
+
+        loading_loop_properties& props = dependencies_by_loops.get_props( all_ids, loop_head );
+
+        props.heads[ loop_head_direction ].count++;
+        auto it = props.bodies.find( loop_head_direction );
 
         for ( const auto& body : loop_bodies ) {
             for ( bool direction : { true, false } ) {
                 node_direction node_id_direction = { body, direction };
 
+                for ( const auto& [ head, _ ] : props.heads ) {
+                    if ( head.node_id == body ) {
+                        continue;
+                    }
+                }
+
                 if ( matrix.contains( node_id_direction ) ) {
-                    dependencies_by_loops[ loop_head ].bodies.insert( node_id_direction );
-                    dependencies_by_loops[ loop_head ].end_direction = loop_head_end_direction;
+                    props.bodies.insert( node_id_direction );
                 }
             }
         }
     }
+
+    dependencies_by_loops.merge_properties();
+    std::sort( dependencies_by_loops.loops.begin(),
+               dependencies_by_loops.loops.end(),
+               []( const auto& a, const auto& b ) {
+                   return a.get_smallest_loop_head_id() < b.get_smallest_loop_head_id();
+               } );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1381,10 +1610,13 @@ possible_path iid_node_dependence_props::generate_path_from_node_counts( const n
         bool loop_head_end_direction = false;
         bool is_loop_head = false;
 
-        auto it_loops = dependencies_by_loops.find( id );
-        if ( it_loops != dependencies_by_loops.end() ) {
-            is_loop_head = true;
-            loop_head_end_direction = it_loops->second.end_direction;
+        for ( const auto& loop : dependencies_by_loops.loops ) {
+            for ( const auto& [ head, _ ] : loop.heads ) {
+                if ( head.node_id == id ) {
+                    is_loop_head = true;
+                    loop_head_end_direction = head.branching_direction;
+                }
+            }
         }
 
         auto it_loading = dependencies_by_loading.find( id );
@@ -1404,8 +1636,10 @@ possible_path iid_node_dependence_props::generate_path_from_node_counts( const n
 std::set< location_id > iid_node_dependence_props::get_loop_heads( bool include_loading_loops )
 {
     std::set< location_id > loop_heads;
-    for ( const auto& [ loop_head, _ ] : dependencies_by_loops ) {
-        loop_heads.insert( loop_head );
+    for ( const auto& props : dependencies_by_loops.loops ) {
+        for ( const auto& [ head, _ ] : props.heads ) {
+            loop_heads.insert( head.node_id );
+        }
     }
 
     if ( include_loading_loops ) {
@@ -1440,6 +1674,7 @@ void iid_dependencies::process_node_dependence( branching_node* node )
         return;
 
     iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id() ];
+    // std::cout << "Processing node with id:" << node->get_location_id().id << std::endl;
     props.process_node( node );
 }
 

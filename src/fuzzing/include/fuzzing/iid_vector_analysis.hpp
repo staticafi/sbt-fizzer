@@ -161,6 +161,31 @@ struct loading_loops_props : loop_dependencies_props {
     std::map< location_id, loading_body_props > bit_values;
 };
 
+struct loading_loop_head_properties {
+    int count;
+};
+
+struct loading_loop_properties {
+    std::map< node_direction, loading_loop_head_properties > heads;
+
+    std::optional< node_direction > chosen_loop_head;
+    std::set< node_direction > bodies;
+
+    bool is_same( const std::unordered_set< location_id >& other_ids ) const;
+    std::unordered_set< location_id > get_all_ids() const;
+    std::unordered_set< location_id > get_loop_head_ids() const;
+    std::unordered_set< location_id > get_body_ids() const;
+    location_id get_smallest_loop_head_id() const;
+    void set_chosen_loop_head();
+};
+
+struct dependencies_by_loops_t {
+    std::vector< loading_loop_properties > loops;
+
+    loading_loop_properties& get_props( const std::unordered_set< location_id >& ids, location_id loop_head_id );
+    void merge_properties();
+    loading_loop_properties& get_props_by_loop_head_id( location_id loop_head_id );
+};
 
 using loop_head_to_loaded_bits_props = std::unordered_map< location_id, loaded_bits_props >;
 using loop_ending_to_bodies = std::map< location_id, loop_dependencies_props >;
@@ -285,7 +310,7 @@ private:
     std::set< location_id > get_loop_heads( bool include_loading_loops = true );
 
     equation_matrix matrix;
-    loop_ending_to_bodies dependencies_by_loops;
+    dependencies_by_loops_t dependencies_by_loops;
     std::map< location_id, loading_loops_props > dependencies_by_loading;
 
     iid_node_generations_stats stats;
