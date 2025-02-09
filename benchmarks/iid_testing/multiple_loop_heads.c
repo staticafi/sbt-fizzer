@@ -24,17 +24,15 @@ int main()
         while ( true ) {
             if ( s[ i ] == '\0' ) // ID: 5
                 break;
-            if ( s[ i ] > 'K' ) // ID: 6
+            if ( s[ i ] > 'R' ) // ID: 6
                 break;
-            if ( s[ i ] == 'X' ) // ID: 7
+            if ( s[ i ] == 'F' ) // ID: 7
                 break;
-            if ( s[ i ] > 'C' && s[ i ] < "G" ) // ID: 8
-                break;
-            if ( s[ i ] == 'A' ) // ID: 9
+            if ( s[ i ] == 'A' ) // ID: 8
                 ++k;
             ++i;
         }
-        if ( k == 10 ) // ID: 10
+        if ( k == 10 ) // ID: 9
             return 1;
         return 0;
     }
