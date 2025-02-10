@@ -1310,8 +1310,6 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
 
             if (state == BITFLIP && !coverage_control.is_analysis_interrupted())
             {
-                recorder().on_bitflip_stop(progress_recorder::STOP::REGULAR);
-
                 do_cleanup();
                 select_next_state();
             }
@@ -1948,6 +1946,9 @@ void  fuzzer::select_next_state()
             winner = nullptr;
         }
     }
+
+    if (state == BITFLIP)
+        recorder().on_bitflip_stop(progress_recorder::STOP::REGULAR);
 
     if (winner == nullptr)
     {
