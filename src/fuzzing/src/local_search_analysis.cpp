@@ -250,6 +250,8 @@ void  local_search_analysis::stop_with_failure()
     state = READY;
 
     ++statistics.stop_calls_failed;
+
+    recorder().on_local_search_stop(progress_recorder::STOP::FAILED);
 }
 
 

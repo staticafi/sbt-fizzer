@@ -26,7 +26,8 @@ struct  progress_recorder
         INSTANT     = 0,
         EARLY       = 1,
         REGULAR     = 2,
-        INTERRUPTED = 3
+        INTERRUPTED = 3,
+        FAILED      = 4
     };
 
     static progress_recorder& instance();

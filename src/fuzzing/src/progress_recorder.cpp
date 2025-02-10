@@ -458,6 +458,7 @@ void  progress_recorder::analysis_common_info::save() const
         case STOP::EARLY: ostr << "\"EARLY\""; break;
         case STOP::REGULAR: ostr << "\"REGULAR\""; break;
         case STOP::INTERRUPTED: ostr << "\"INTERRUPTED\""; break;
+        case STOP::FAILED: ostr << "\"FAILED\""; break;
         default: UNREACHABLE(); break;
     }
     ostr << ",\n\"num_coverage_failure_resets\": " << get_num_coverage_failure_resets() << '\n';
