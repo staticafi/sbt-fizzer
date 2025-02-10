@@ -1273,13 +1273,16 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 switch (state)
                 {
                     case BITSHARE:
-                        recorder().on_bitshare_stop(progress_recorder::STOP::INTERRUPTED);
+                        if (bitshare.is_busy())
+                            recorder().on_bitshare_stop(progress_recorder::STOP::INTERRUPTED);
                         break;
                     case LOCAL_SEARCH:
-                        recorder().on_local_search_stop(progress_recorder::STOP::INTERRUPTED);
+                        if (local_search.is_busy())
+                            recorder().on_local_search_stop(progress_recorder::STOP::INTERRUPTED);
                         break;
                     case BITFLIP:
-                        recorder().on_bitflip_stop(progress_recorder::STOP::INTERRUPTED);
+                        if (bitflip.is_busy())
+                            recorder().on_bitflip_stop(progress_recorder::STOP::INTERRUPTED);
                         break;
                     default: { UNREACHABLE(); break; }
                 }
@@ -1290,13 +1293,16 @@ bool  fuzzer::generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termin
                 switch (state)
                 {
                     case BITSHARE:
-                        recorder().on_bitshare_start(bitshare.get_node(), progress_recorder::START::RESUMED);
+                        if (bitshare.is_busy())
+                            recorder().on_bitshare_start(bitshare.get_node(), progress_recorder::START::RESUMED);
                         break;
                     case LOCAL_SEARCH:
-                        recorder().on_local_search_start(local_search.get_node(), progress_recorder::START::RESUMED);
+                        if (local_search.is_busy())
+                            recorder().on_local_search_start(local_search.get_node(), progress_recorder::START::RESUMED);
                         break;
                     case BITFLIP:
-                        recorder().on_bitflip_start(bitflip.get_node(), progress_recorder::START::RESUMED);
+                        if (bitflip.is_busy())
+                            recorder().on_bitflip_start(bitflip.get_node(), progress_recorder::START::RESUMED);
                         break;
                     default: { UNREACHABLE(); break; }
                 }
@@ -2086,8 +2092,45 @@ bool  fuzzer::try_start_input_flow_analysis(branching_node*  winner)
     }
     input_flow_thread.start(winner, num_driver_executions, num_remaining_seconds());
 
-    recorder().on_taint_request_start(winner, progress_recorder::START::REGULAR);
-    recorder().on_taint_request_stop(progress_recorder::STOP::INSTANT);
+    // In the block below we only send data to the progress recorder. 
+    {
+        switch (state)
+        {
+            case BITSHARE:
+                if (bitshare.is_busy())
+                    recorder().on_bitshare_stop(progress_recorder::STOP::INTERRUPTED);
+                break;
+            case LOCAL_SEARCH:
+                if (local_search.is_busy())
+                    recorder().on_local_search_stop(progress_recorder::STOP::INTERRUPTED);
+                break;
+            case BITFLIP:
+                if (bitflip.is_busy())
+                    recorder().on_bitflip_stop(progress_recorder::STOP::INTERRUPTED);
+                break;
+            default: break;
+        }
+
+        recorder().on_taint_request_start(winner, progress_recorder::START::REGULAR);
+        recorder().on_taint_request_stop(progress_recorder::STOP::INSTANT);
+
+        switch (state)
+        {
+            case BITSHARE:
+                if (bitshare.is_busy())
+                    recorder().on_bitshare_start(bitshare.get_node(), progress_recorder::START::RESUMED);
+                break;
+            case LOCAL_SEARCH:
+                if (local_search.is_busy())
+                    recorder().on_local_search_start(local_search.get_node(), progress_recorder::START::RESUMED);
+                break;
+            case BITFLIP:
+                if (bitflip.is_busy())
+                    recorder().on_bitflip_start(bitflip.get_node(), progress_recorder::START::RESUMED);
+                break;
+            default: break;
+        }
+    }
 
     return true;
 }
