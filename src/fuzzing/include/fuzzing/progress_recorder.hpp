@@ -115,7 +115,7 @@ private:
         void  save_info(std::ostream&  ostr) const override;
     };
 
-    struct  post_analysis_data
+    struct  strategy_data
     {
         enum struct STRATEGY
         {
@@ -128,7 +128,7 @@ private:
             MONTE_CARLO_BACKWARD    = 6
         };
 
-        post_analysis_data();
+        strategy_data();
 
         void  on_strategy_changed(STRATEGY strategy_);
         void  on_node_closed(branching_node const*  node);
@@ -174,7 +174,7 @@ private:
     natural_32_bit  num_bytes;
     branching_node const*  leaf;
 
-    post_analysis_data  post_data;
+    strategy_data  strategy;
 };
 
 

@@ -62,7 +62,7 @@ progress_recorder::progress_recorder()
     , num_bytes{ 0 }
     , leaf{ nullptr }
 
-    , post_data{}
+    , strategy{}
 {}
 
 
@@ -101,7 +101,7 @@ void  progress_recorder::start(std::filesystem::path const&  path_to_client_, st
     num_bytes = 0;
     leaf = nullptr;
 
-    post_data.clear();
+    strategy.clear();
 }
 
 
@@ -143,7 +143,7 @@ void  progress_recorder::stop()
     num_bytes = 0;
     leaf = nullptr;
 
-    post_data.clear();
+    strategy.clear();
 }
 
 
@@ -154,6 +154,7 @@ void  progress_recorder::on_bitshare_start(branching_node const* const  node_ptr
 
     bitshare.start_type = attribute;
     on_analysis_start(ANALYSIS::BITSHARE, bitshare, node_ptr);
+    flush_post_data();
 }
 
 
@@ -168,6 +169,8 @@ void  progress_recorder::on_bitshare_stop(STOP const  attribute)
     bitshare.stop_type = attribute;
     bitshare.save();
     on_analysis_stop();
+    if (attribute != STOP::INTERRUPTED)
+        strategy.clear();
 }
 
 
@@ -178,6 +181,7 @@ void  progress_recorder::on_local_search_start(branching_node const* const  node
 
     local_search.start_type = attribute;
     on_analysis_start(ANALYSIS::LOCAL_SEARCH, local_search, node_ptr);
+    flush_post_data();
 }
 
 
@@ -192,6 +196,8 @@ void  progress_recorder::on_local_search_stop(STOP const  attribute)
     local_search.stop_type = attribute;
     local_search.save();
     on_analysis_stop();
+    if (attribute != STOP::INTERRUPTED)
+        strategy.clear();
 }
 
 
@@ -273,8 +279,6 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  analysis_, analysis_c
     if (!is_started())
         return;
 
-    flush_post_data();
-
     analysis = analysis_;
     ++counter_analysis;
     counter_results = 0;
@@ -288,7 +292,7 @@ void  progress_recorder::on_analysis_start(ANALYSIS const  analysis_, analysis_c
     if (!std::filesystem::is_directory(info.analysis_dir))
         throw std::runtime_error("Cannot create directory: " + info.analysis_dir.string());
 
-    post_data.set_output_dir(info.analysis_dir);
+    strategy.set_output_dir(info.analysis_dir);
 }
 
 
@@ -363,8 +367,8 @@ std::unique_ptr<std::ofstream>  progress_recorder::save_default_execution_result
     if (!ostr_ptr->is_open())
         throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
 
-    if (post_data.output_dir.empty())
-        post_data.output_dir = record_dir;
+    if (strategy.output_dir.empty())
+        strategy.output_dir = record_dir;
 
     std::ofstream&  ostr{ *ostr_ptr }; 
 
@@ -520,7 +524,7 @@ void  progress_recorder::on_strategy_turn_primary_loop_head()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_LOOP_HEAD);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_LOOP_HEAD);
 }
 
 
@@ -528,7 +532,7 @@ void  progress_recorder::on_strategy_turn_primary_sensitive()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_SENSITIVE);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_SENSITIVE);
 }
 
 
@@ -536,7 +540,7 @@ void  progress_recorder::on_strategy_turn_primary_untouched()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_UNTOUCHED);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_UNTOUCHED);
 }
 
 
@@ -544,7 +548,7 @@ void  progress_recorder::on_strategy_turn_primary_iid_twins()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::PRIMARY_IID_TWINS);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_IID_TWINS);
 }
 
 
@@ -552,7 +556,7 @@ void  progress_recorder::on_strategy_turn_monte_carlo()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::MONTE_CARLO);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::MONTE_CARLO);
 }
 
 
@@ -560,7 +564,7 @@ void  progress_recorder::on_strategy_turn_monte_carlo_backward()
 {
     if (!is_started())
         return;
-    post_data.on_strategy_changed(post_analysis_data::STRATEGY::MONTE_CARLO_BACKWARD);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::MONTE_CARLO_BACKWARD);
 }
 
 
@@ -568,7 +572,7 @@ void  progress_recorder::on_post_node_closed(branching_node const* const  node)
 {
     if (!is_started())
         return;
-    post_data.on_node_closed(node);
+    strategy.on_node_closed(node);
 }
 
 
@@ -576,38 +580,37 @@ void  progress_recorder::flush_post_data()
 {
     if (!is_started())
         return;
-    if (!post_data.empty() && std::filesystem::is_directory(post_data.output_dir))
-        post_data.save();
-    post_data.clear();
+    if (!strategy.empty() && std::filesystem::is_directory(strategy.output_dir))
+        strategy.save();
 }
 
 
-progress_recorder::post_analysis_data::post_analysis_data()
+progress_recorder::strategy_data::strategy_data()
     : output_dir{}
     , strategy{ STRATEGY::NONE }
     , closed_node_guids{}
 {}
 
 
-void  progress_recorder::post_analysis_data::on_strategy_changed(STRATEGY const  strategy_)
+void  progress_recorder::strategy_data::on_strategy_changed(STRATEGY const  strategy_)
 {
    strategy = strategy_; 
 }
 
 
-void  progress_recorder::post_analysis_data::on_node_closed(branching_node const* const  node)
+void  progress_recorder::strategy_data::on_node_closed(branching_node const* const  node)
 {
    closed_node_guids.insert(node->guid()); 
 }
 
 
-void  progress_recorder::post_analysis_data::set_output_dir(std::filesystem::path const&  dir)
+void  progress_recorder::strategy_data::set_output_dir(std::filesystem::path const&  dir)
 {
     output_dir = dir;
 }
 
 
-void  progress_recorder::post_analysis_data::clear()
+void  progress_recorder::strategy_data::clear()
 {
     output_dir.clear();
     strategy = STRATEGY::NONE;
@@ -615,17 +618,17 @@ void  progress_recorder::post_analysis_data::clear()
 }
 
 
-bool  progress_recorder::post_analysis_data::empty() const
+bool  progress_recorder::strategy_data::empty() const
 {
     return strategy == STRATEGY::NONE && closed_node_guids.empty();
 }
 
 
-void  progress_recorder::post_analysis_data::save() const
+void  progress_recorder::strategy_data::save() const
 {
     TMPROF_BLOCK();
 
-    std::filesystem::path const  record_pathname = output_dir / "post.json";
+    std::filesystem::path const  record_pathname = output_dir / "strategy.json";
     std::ofstream  ostr{ record_pathname.c_str(), std::ios::binary };
     if (!ostr.is_open())
         throw std::runtime_error("Cannot open file for writing: " + record_pathname.string());
