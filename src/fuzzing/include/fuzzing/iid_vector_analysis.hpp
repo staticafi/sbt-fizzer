@@ -93,6 +93,11 @@ struct dependent_loop_properties {
     std::optional< node_direction > chosen_loop_head;
     std::set< node_direction > bodies;
 
+    bool is_loading_loop;
+    std::set< node_direction > bit_dependent_nodes;
+    mean_counter< float > average_bits_per_loop;
+    std::map< location_id::id_type, loading_body_props > bit_values_per_node;
+
     bool is_same( const std::set< location_id::id_type >& other_ids ) const;
     std::set< location_id::id_type > get_all_ids() const;
     std::set< location_id::id_type > get_loop_head_ids() const;
@@ -113,7 +118,6 @@ struct dependencies_by_loops_t {
 struct iid_vector_analysis_statistics_per_node {
     iid_node_generations_stats generation_stats;
     dependencies_by_loops_t dependencies_by_loops;
-    std::map< location_id::id_type, loading_loops_props > dependencies_by_loading;
 };
 
 struct iid_vector_analysis_statistics {
@@ -271,10 +275,6 @@ struct iid_node_dependence_props {
     iid_node_generations_stats& get_generations_stats() { return stats; }
     const iid_node_generations_stats& get_generations_stats() const { return stats; }
     const dependencies_by_loops_t& get_dependencies_by_loops() const { return dependencies_by_loops; }
-    const std::map< location_id::id_type, loading_loops_props >& get_dependencies_by_loading() const
-    {
-        return dependencies_by_loading;
-    }
 
     bool should_generate() const;
     bool too_much_failed_in_row( int max_failed_generations_in_row ) const;
@@ -298,11 +298,12 @@ private:
                                                location_id::id_type loop_head_id,
                                                int minimum_count,
                                                bool use_random = false );
-    int compute_loop_count_loading( nodes_to_counts& path_counts,
+    int compute_loop_count_loading_new( nodes_to_counts& path_counts,
                                     location_id::id_type id,
                                     const std::set< location_id::id_type >& loop_heads,
-                                    const loading_loops_props& props );
-    void compute_path_counts_loading( nodes_to_counts& path_counts,
+                                    const dependent_loop_properties & props,
+                                    float loaded_bits_per_loop );
+    void compute_path_counts_loading_new( nodes_to_counts& path_counts,
                                       const equation& path,
                                       const std::set< location_id::id_type >& loop_heads );
     void compute_path_counts_loops( nodes_to_counts& path_counts,
@@ -323,7 +324,7 @@ private:
     void compute_loading_loops( branching_node* end_node,
                                 const loop_head_to_bodies_t& loop_heads_to_bodies,
                                 loop_head_to_loaded_bits_props& loading_loops );
-    void compute_dependencies_by_loading( branching_node* end_node,
+    void compute_dependencies_by_loading_new( branching_node* end_node,
                                           const loop_head_to_bodies_t& loop_heads_to_bodies,
                                           const loop_endings& loop_heads_ending );
     void compute_dependencies_by_loops( const loop_head_to_bodies_t& loop_heads_to_bodies,
@@ -333,7 +334,6 @@ private:
 
     equation_matrix matrix;
     dependencies_by_loops_t dependencies_by_loops;
-    std::map< location_id::id_type, loading_loops_props > dependencies_by_loading;
 
     iid_node_generations_stats stats;
 };
