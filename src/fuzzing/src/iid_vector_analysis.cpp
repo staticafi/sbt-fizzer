@@ -764,8 +764,8 @@ generated_path iid_node_dependence_props::generate_probabilities()
 
     nodes_to_counts node_counts = compute_node_counts( new_subset_counts.value(), computation_subset );
     generated_path path = generate_path_from_node_counts( node_counts );
- 
-    std::cout << "Generated path: " << std::endl << path << std::endl;
+
+    // std::cout << "Generated path: " << std::endl << path << std::endl;
 
     return return_path( path );
 }
@@ -1197,9 +1197,8 @@ void iid_node_dependence_props::compute_node_counts_for_loading_loops( nodes_to_
             continue;
         }
 
-        int loop_count = 0;
+        int loop_count = 1;
         std::map< location_id::id_type, int > child_loop_counts;
-        std::map< location_id::id_type, float > loading_loops_count_bits;
 
         float loaded_bits_per_loop = 0.0f;
 
@@ -1208,9 +1207,10 @@ void iid_node_dependence_props::compute_node_counts_for_loading_loops( nodes_to_
                 continue;
             }
 
+
             const loop_properties& body_props = loop_to_properties.get_props_by_loop_head_id( body.node_id );
             if ( body_props.is_loading_loop ) {
-                loaded_bits_per_loop += body_props.loaded_bits_per_loop.mean;
+                // loaded_bits_per_loop += body_props.loaded_bits_per_loop.mean;
             }
         }
 
@@ -1222,6 +1222,15 @@ void iid_node_dependence_props::compute_node_counts_for_loading_loops( nodes_to_
             int minimal_count = compute_loading_loop_interation(
                 path_counts, body.node_id, loop_heads, loop_props, loaded_bits_per_loop );
             loop_count = std::max( loop_count, minimal_count );
+        }
+
+        for ( const auto& body : loop_props.bodies ) {
+            if ( loop_heads.contains( body.node_id ) ) {
+                const auto& inner_loop_props = loop_to_properties.get_props_by_loop_head_id( body.node_id );
+                if ( inner_loop_props.is_loading_loop ) {
+                    loop_count = 1;
+                }
+            } 
         }
 
         for ( const auto& body : loop_props.bodies ) {
@@ -1337,6 +1346,7 @@ nodes_to_counts iid_node_dependence_props::compute_node_counts( const equation& 
     }
 
     compute_node_counts_for_loops( path_counts, path, loop_heads );
+    loop_heads = get_loop_heads( true );
     compute_node_counts_for_loading_loops( path_counts, path, loop_heads );
 
     return path_counts;
@@ -1540,7 +1550,8 @@ iid_node_dependence_props::get_loop_heads_ending( branching_node* end_node,
 // ------------------------------------------------------------------------------------------------
 void fuzzing::iid_node_dependence_props::compute_loading_loops( branching_node* end_node,
                                                                 const loop_head_to_bodies_t& loop_heads_to_bodies,
-                                                                loop_head_to_loaded_bits_counter& loading_loops )
+                                                                loop_head_to_loaded_bits_counter& loading_loops,
+                                                                const loop_endings& loop_heads_ending )
 {
     for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
         loading_loops[ loop_head.id ] = { std::numeric_limits< natural_32_bit >::max(),
@@ -1548,6 +1559,8 @@ void fuzzing::iid_node_dependence_props::compute_loading_loops( branching_node* 
     }
 
     branching_node* node = end_node;
+    branching_node* prev_node = nullptr;
+
     while ( node != nullptr ) {
         for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
             if ( loop_head.id == node->get_location_id().id ) {
@@ -1560,7 +1573,26 @@ void fuzzing::iid_node_dependence_props::compute_loading_loops( branching_node* 
             }
         }
 
-        node = node->predecessor;
+        // Remove one loop count for branching that ends the loop
+        prev_node = node->predecessor;
+        if ( prev_node != nullptr ) {
+            bool node_direction = prev_node->successor( true ).pointer == node;
+
+            for ( const auto& [ loop_head, loop_bodies ] : loop_heads_to_bodies ) {
+                auto it = loop_heads_ending.find( loop_head.id );
+                if ( it == loop_heads_ending.end() ) {
+                    continue;
+                }
+
+                if ( loop_head.id == prev_node->get_location_id().id && it->second == node_direction ) {
+                    auto& props = loading_loops[ loop_head.id ];
+                    props.loop_count--;
+
+                }
+            }
+        }
+
+        node = prev_node;
     }
 
     // Remove all loops that did not load any data inside
@@ -1571,12 +1603,6 @@ void fuzzing::iid_node_dependence_props::compute_loading_loops( branching_node* 
             ++it;
         }
     }
-
-    // Remove one loop count for branching that ends the loop
-    for ( auto& [ id, props ] : loading_loops ) {
-        if ( props.loop_count != 0 )
-            props.loop_count--;
-    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1585,7 +1611,7 @@ void iid_node_dependence_props::compute_dependencies_by_loading( branching_node*
                                                                  const loop_endings& loop_heads_ending )
 {
     loop_head_to_loaded_bits_counter loading_loops;
-    compute_loading_loops( end_node, loop_heads_to_bodies, loading_loops );
+    compute_loading_loops( end_node, loop_heads_to_bodies, loading_loops, loop_heads_ending );
 
     branching_node* node = end_node;
 

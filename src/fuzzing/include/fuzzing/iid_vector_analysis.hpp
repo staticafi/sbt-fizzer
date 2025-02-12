@@ -316,7 +316,8 @@ private:
     loop_endings get_loop_heads_ending( branching_node* end_node, loop_head_to_bodies_t& loop_heads_to_bodies );
     void compute_loading_loops( branching_node* end_node,
                                 const loop_head_to_bodies_t& loop_heads_to_bodies,
-                                loop_head_to_loaded_bits_counter& loading_loops );
+                                loop_head_to_loaded_bits_counter& loading_loops,
+                                const loop_endings& loop_heads_ending );
     void compute_dependencies_by_loading( branching_node* end_node,
                                           const loop_head_to_bodies_t& loop_heads_to_bodies,
                                           const loop_endings& loop_heads_ending );
