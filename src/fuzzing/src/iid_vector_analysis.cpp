@@ -306,15 +306,15 @@ auto node_direction::operator<=>( node_direction const& other ) const
 
 //                                    dependent_loop_properties
 // ------------------------------------------------------------------------------------------------
-bool fuzzing::dependent_loop_properties::is_same( const std::unordered_set< location_id::id_type >& other_ids ) const
+bool fuzzing::dependent_loop_properties::is_same( const std::set< location_id::id_type >& other_ids ) const
 {
     return get_all_ids() == other_ids;
 }
 
 // ------------------------------------------------------------------------------------------------
-std::unordered_set< location_id::id_type > fuzzing::dependent_loop_properties::get_all_ids() const
+std::set< location_id::id_type > fuzzing::dependent_loop_properties::get_all_ids() const
 {
-    std::unordered_set< location_id::id_type > all_ids;
+    std::set< location_id::id_type > all_ids;
 
     for ( const auto& [ head, props ] : heads ) {
         all_ids.insert( head.node_id );
@@ -328,9 +328,9 @@ std::unordered_set< location_id::id_type > fuzzing::dependent_loop_properties::g
 }
 
 // ------------------------------------------------------------------------------------------------
-std::unordered_set< location_id::id_type > fuzzing::dependent_loop_properties::get_loop_head_ids() const
+std::set< location_id::id_type > fuzzing::dependent_loop_properties::get_loop_head_ids() const
 {
-    std::unordered_set< location_id::id_type > loop_head_ids;
+    std::set< location_id::id_type > loop_head_ids;
 
     for ( const auto& [ head, props ] : heads ) {
         loop_head_ids.insert( head.node_id );
@@ -340,9 +340,9 @@ std::unordered_set< location_id::id_type > fuzzing::dependent_loop_properties::g
 }
 
 // ------------------------------------------------------------------------------------------------
-std::unordered_set< location_id::id_type > fuzzing::dependent_loop_properties::get_body_ids() const
+std::set< location_id::id_type > fuzzing::dependent_loop_properties::get_body_ids() const
 {
-    std::unordered_set< location_id::id_type > body_ids;
+    std::set< location_id::id_type > body_ids;
 
     for ( const auto& body : bodies ) {
         body_ids.insert( body.node_id );
@@ -381,9 +381,8 @@ void fuzzing::dependent_loop_properties::set_chosen_loop_head()
 
 //                                     dependencies_by_loops_t
 // ------------------------------------------------------------------------------------------------
-dependent_loop_properties&
-fuzzing::dependencies_by_loops_t::get_props( const std::unordered_set< location_id::id_type >& ids,
-                                             location_id::id_type loop_head_id )
+dependent_loop_properties& fuzzing::dependencies_by_loops_t::get_props( const std::set< location_id::id_type >& ids,
+                                                                        location_id::id_type loop_head_id )
 {
     for ( dependent_loop_properties& loop : loops ) {
         for ( const auto& [ head, props ] : loop.heads ) {
@@ -405,7 +404,7 @@ fuzzing::dependencies_by_loops_t::get_props( const std::unordered_set< location_
 void fuzzing::dependencies_by_loops_t::merge_properties()
 {
     for ( auto it = loops.begin(); it != loops.end(); it++ ) {
-        std::unordered_set< location_id::id_type > head_ids = it->get_loop_head_ids();
+        std::set< location_id::id_type > head_ids = it->get_loop_head_ids();
 
         for ( auto body_it = it->bodies.begin(); body_it != it->bodies.end(); ) {
             if ( head_ids.contains( body_it->node_id ) ) {
@@ -439,7 +438,7 @@ void fuzzing::dependencies_by_loops_t::merge_properties()
     }
 
     for ( auto it = loops.begin(); it != loops.end(); it++ ) {
-        std::unordered_set< location_id::id_type > head_ids = it->get_loop_head_ids();
+        std::set< location_id::id_type > head_ids = it->get_loop_head_ids();
 
         for ( auto body_it = it->bodies.begin(); body_it != it->bodies.end(); ) {
             if ( head_ids.contains( body_it->node_id ) ) {
@@ -516,8 +515,10 @@ void equation_matrix::process_node( branching_node* end_node )
     std::vector< node_direction > path = get_path( end_node );
     bool new_node = false;
     for ( const node_direction& nav : path ) {
-        auto [ it, inserted ] = nodes.insert( nav );
-        new_node |= inserted;
+        for ( bool direction : { true, false } ) {
+            auto [ it, inserted ] = nodes.insert( { nav.node_id, direction } );
+            new_node |= inserted;
+        }
     }
 
     if ( new_node ) {
@@ -628,12 +629,15 @@ float equation_matrix::get_biggest_branching_value() const
 }
 
 // ------------------------------------------------------------------------------------------------
-std::optional< equation > equation_matrix::get_new_leaf_counts_from_vectors( const std::vector< equation >& vectors,
-                                                                             int generation_count_after_covered,
-                                                                             bool generate_more_data )
+std::optional< equation >
+equation_matrix::get_new_subset_counts_from_vectors( const std::vector< equation >& vectors,
+                                                     int generation_count_after_covered,
+                                                     const iid_node_generations_stats& stats )
 {
     INVARIANT( !vectors.empty() );
     INVARIANT( vectors[ 0 ].values.size() == nodes.size() );
+
+    bool generate_more_data = should_generate_more_data( stats.state );
 
     std::vector< equation > paths;
 
@@ -654,7 +658,15 @@ std::optional< equation > equation_matrix::get_new_leaf_counts_from_vectors( con
                 new_path = new_path.add_to_values( vector );
                 if ( generate_more_data ) {
                     double best_value = new_path.best_value;
-                    new_path = new_path * ( 1 + iid_dependencies::percentage_to_add_to_path );
+                    float procents_to_add = 1 + iid_dependencies::percentage_to_add_to_path;
+
+                    if ( stats.state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA ) {
+                        // new_path = new_path.add_to_positive( stats.generate_artificial_data_count );
+                        // new_path = new_path + vector * stats.generate_artificial_data_count;
+                        procents_to_add += stats.generate_artificial_data_count / 3.0;
+                    }
+
+                    new_path = new_path * procents_to_add;
                     new_path.best_value = best_value;
                 }
             }
@@ -725,16 +737,16 @@ void equation_matrix::recompute_matrix()
 // ------------------------------------------------------------------------------------------------
 possible_path iid_node_dependence_props::generate_probabilities()
 {
-    print_dependencies();
+    stats.method_calls++;
 
-    std::set< node_direction > all_leafs = get_leaf_subsets();
-    if ( all_leafs.empty() || dependencies_by_loops.loops.empty() ) {
+    std::set< node_direction > computation_subset = get_node_subsets_for_computation();
+    if ( computation_subset.empty() || dependencies_by_loops.loops.empty() ) {
         return {};
     }
 
     TMPROF_BLOCK();
     stats.generation_starts++;
-    equation_matrix submatrix = matrix.get_submatrix( all_leafs, true );
+    equation_matrix submatrix = matrix.get_submatrix( computation_subset, true );
 
     {
         // print_stats( true );
@@ -754,17 +766,14 @@ possible_path iid_node_dependence_props::generate_probabilities()
         generate_vectors_if_not_enough_data( *best_vectors, submatrix );
     }
 
-    bool generate_more_data = stats.state == generation_state::STATE_GENERATION_MORE ||
-                              stats.state == generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ||
-                              stats.state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
-    std::optional< equation > new_leaf_counts = submatrix.get_new_leaf_counts_from_vectors(
-        *best_vectors, stats.generated_after_covered, generate_more_data );
+    std::optional< equation > new_subset_counts =
+        submatrix.get_new_subset_counts_from_vectors( *best_vectors, stats.generated_after_covered, stats );
 
-    if ( !new_leaf_counts.has_value() ) {
+    if ( !new_subset_counts.has_value() ) {
         return return_empty_path();
     }
 
-    nodes_to_counts node_counts = compute_path_counts( new_leaf_counts.value(), all_leafs );
+    nodes_to_counts node_counts = compute_path_counts( new_subset_counts.value(), computation_subset );
     possible_path path = generate_path_from_node_counts( node_counts );
 
     // std::cout << "Generated path: " << std::endl << path << std::endl;
@@ -812,6 +821,7 @@ void iid_node_dependence_props::set_as_generating_for_other_node( int minimal_ma
     stats.state = generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE;
     stats.generated_for_other_node_max = minimal_max_generation_for_other_node;
     stats.generated_for_other_node = 0;
+    stats.generated_for_other_node_count++;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -822,6 +832,7 @@ void fuzzing::iid_node_dependence_props::set_as_generating_artificial_data( int 
     stats.state = generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
     stats.generate_artificial_data_max = minimal_max_generation_artificial_data;
     stats.generate_artificial_data = 0;
+    stats.generate_artificial_data_count++;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -829,7 +840,9 @@ failed_generation_method fuzzing::iid_node_dependence_props::get_method_for_fail
 {
     failed_generation_method new_method;
 
-    if ( is_first ) {
+    if ( !iid_dependencies::create_artificial_data ) {
+        return failed_generation_method::METHOD_GENERATE_FROM_OTHER_NODE;
+    } else if ( is_first ) {
         new_method = failed_generation_method::METHOD_GENERATE_ARTIFICIAL_DATA;
     } else {
         switch ( stats.last_failed_method ) {
@@ -857,31 +870,69 @@ bool iid_node_dependence_props::is_equal_branching_predicate() const
 }
 
 // ------------------------------------------------------------------------------------------------
-void iid_node_dependence_props::print_dependencies() const
+void fuzzing::iid_node_dependence_props::combine_props( const iid_node_dependence_props& other )
 {
-    std::cout << "# Dependencies:" << std::endl;
-    std::cout << "## Dependencies by loops:" << std::endl;
-    for ( const auto& loop : dependencies_by_loops.loops ) {
-        std::cout << "Loop heads:" << std::endl;
-        for ( const auto& [ head, head_props ] : loop.heads ) {
-            std::cout << "- " << head << " (" << head_props.count << ")" << std::endl;
-        }
+    std::vector< dependent_loop_properties > loops_to_add;
 
-        std::cout << "Loop bodies:" << std::endl;
-        for ( const auto& body : loop.bodies ) {
-            std::cout << "- " << body << std::endl;
+    for ( const auto& other_loop : other.dependencies_by_loops.loops ) {
+        for ( const auto& loop : dependencies_by_loops.loops ) {
+            std::set< location_id::id_type > other_ids = other_loop.get_loop_head_ids();
+            std::set< location_id::id_type > ids = loop.get_loop_head_ids();
+
+            std::set< location_id::id_type > intersection;
+
+            std::set_intersection( other_ids.begin(),
+                                   other_ids.end(),
+                                   ids.begin(),
+                                   ids.end(),
+                                   std::inserter( intersection, intersection.begin() ) );
+
+            if ( !intersection.empty() ) {
+                loops_to_add.push_back( other_loop );
+            }
         }
     }
 
-    std::cout << "## Dependencies by loading:" << std::endl;
-    for ( const auto& [ loop_head, props ] : dependencies_by_loading ) {
-        std::cout << "Loop ID: " << loop_head << std::endl;
-        std::cout << "Loaded bits per loop: " << props.average_bits_per_loop.mean << std::endl;
-        for ( const auto& body : props.bodies ) {
-            const auto& bit_props = props.bit_values.at( body.node_id );
-            std::cout << "- " << "`(" << body << ") → " << loop_head << "`"
-                      << ", Bits: " << bit_props.average_bit_size.mean
-                      << ", offset: " << bit_props.minimal_bit_offset << std::endl;
+    for ( const auto& loop : loops_to_add ) {
+        dependencies_by_loops.loops.push_back( loop );
+    }
+
+    dependencies_by_loops.merge_properties();
+}
+
+// ------------------------------------------------------------------------------------------------
+void iid_node_dependence_props::print_dependencies() const
+{
+    bool print_dependencies_by_loops = true;
+    bool print_dependencies_by_loading = false;
+
+    std::cout << "# Dependencies:" << std::endl;
+    if ( print_dependencies_by_loops ) {
+        std::cout << "## Dependencies by loops:" << std::endl;
+        for ( const auto& loop : dependencies_by_loops.loops ) {
+            std::cout << "Loop heads:" << std::endl;
+            for ( const auto& [ head, head_props ] : loop.heads ) {
+                std::cout << "- " << head << " (" << head_props.count << ")" << std::endl;
+            }
+
+            std::cout << "Loop bodies:" << std::endl;
+            for ( const auto& body : loop.bodies ) {
+                std::cout << "- " << body << std::endl;
+            }
+        }
+    }
+
+    if ( print_dependencies_by_loading ) {
+        std::cout << "## Dependencies by loading:" << std::endl;
+        for ( const auto& [ loop_head, props ] : dependencies_by_loading ) {
+            std::cout << "Loop ID: " << loop_head << std::endl;
+            std::cout << "Loaded bits per loop: " << props.average_bits_per_loop.mean << std::endl;
+            for ( const auto& body : props.bodies ) {
+                const auto& bit_props = props.bit_values.at( body.node_id );
+                std::cout << "- " << "`(" << body << ") → " << loop_head << "`"
+                          << ", Bits: " << bit_props.average_bit_size.mean
+                          << ", offset: " << bit_props.minimal_bit_offset << std::endl;
+            }
         }
     }
 }
@@ -1176,11 +1227,12 @@ void iid_node_dependence_props::compute_path_counts_loops( nodes_to_counts& path
 
 // ------------------------------------------------------------------------------------------------
 nodes_to_counts iid_node_dependence_props::compute_path_counts( const equation& path,
-                                                                std::set< node_direction > const& all_leafs )
+                                                                std::set< node_direction > const& computation_subset )
 {
     nodes_to_counts path_counts;
 
-    std::vector< node_direction > leafs = std::vector< node_direction >( all_leafs.begin(), all_leafs.end() );
+    std::vector< node_direction > leafs = std::vector< node_direction >( computation_subset.begin(),
+                                                                         computation_subset.end() );
     INVARIANT( leafs.size() == path.values.size() );
 
     std::set< location_id::id_type > loop_heads = get_loop_heads( false );
@@ -1347,9 +1399,9 @@ std::vector< equation > iid_node_dependence_props::get_random_vector( const std:
 }
 
 // ------------------------------------------------------------------------------------------------
-std::set< node_direction > iid_node_dependence_props::get_leaf_subsets()
+std::set< node_direction > iid_node_dependence_props::get_node_subsets_for_computation()
 {
-    std::set< node_direction > all_leafs;
+    std::set< node_direction > computation_subset;
     auto loop_heads = get_loop_heads( false );
 
     for ( const auto& loop : dependencies_by_loops.loops ) {
@@ -1360,16 +1412,16 @@ std::set< node_direction > iid_node_dependence_props::get_leaf_subsets()
         for ( const auto& body : loop.bodies ) {
             location_id::id_type body_id = body.node_id;
             if ( !loop_heads.contains( body_id ) ) {
-                all_leafs.insert( body );
+                computation_subset.insert( body );
             }
         }
 
         for ( const auto& [ head, _ ] : loop.heads ) {
-            all_leafs.insert( { head.node_id, !head.branching_direction } );
+            computation_subset.insert( { head.node_id, !head.branching_direction } );
         }
     }
 
-    return all_leafs;
+    return computation_subset;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1563,7 +1615,7 @@ void iid_node_dependence_props::compute_dependencies_by_loops( const loop_head_t
         bool loop_head_end_direction = loop_heads_ending.at( loop_head_id );
         node_direction loop_head_direction = { loop_head_id, loop_head_end_direction };
 
-        std::unordered_set< location_id::id_type > all_ids;
+        std::set< location_id::id_type > all_ids;
         all_ids.insert( loop_head_id );
         for ( const auto& loop_body_id : loop_bodies ) {
             all_ids.insert( loop_body_id.id );
@@ -1674,7 +1726,7 @@ void iid_dependencies::update_non_iid_nodes( sensitivity_analysis& sensitivity )
     for ( branching_node* node : sensitivity.get_changed_nodes() ) {
         if ( node->is_did_branching() ) {
             location_id::id_type location_id = node->get_location_id().id;
-            if ( non_iid_nodes.insert( location_id ).second ) {
+            if ( ignored_nodes.insert( location_id ).second ) {
                 id_to_equation_map.erase( location_id );
             }
         }
@@ -1686,7 +1738,7 @@ void iid_dependencies::process_node_dependence( branching_node* node )
 {
     TMPROF_BLOCK();
 
-    if ( non_iid_nodes.contains( node->get_location_id().id ) )
+    if ( ignored_nodes.contains( node->get_location_id().id ) )
         return;
 
     iid_node_dependence_props& props = id_to_equation_map[ node->get_location_id().id ];
@@ -1700,6 +1752,12 @@ void iid_dependencies::remove_node_dependence( location_id::id_type id )
     if ( it != id_to_equation_map.end() ) {
         iid_node_generations_stats& stats = it->second.get_generations_stats();
         stats.state = generation_state::STATE_COVERED;
+        ignored_nodes.insert( id );
+
+        if ( it != id_to_equation_map.end() ) {
+            auto next_it = std::next( it );
+            next_it->second.combine_props( it->second );
+        }
 
         if ( iid_dependencies::generate_more_data_after_coverage && !it->second.is_equal_branching_predicate() ) {
             stats.state = generation_state::STATE_GENERATION_MORE;
@@ -1763,6 +1821,26 @@ std::optional< location_id::id_type > iid_dependencies::get_next_iid_node()
     return best_id;
 }
 
+
+// ------------------------------------------------------------------------------------------------
+iid_vector_analysis_statistics fuzzing::iid_dependencies::get_stats() const
+{
+    iid_vector_analysis_statistics stats;
+    
+    iid_vector_analysis_statistics_per_node node_stats;
+    for ( const auto& [ id, props ] : id_to_equation_map ) {
+        node_stats.generation_stats = props.get_generations_stats();
+        node_stats.dependencies_by_loops = props.get_dependencies_by_loops();
+        node_stats.dependencies_by_loading = props.get_dependencies_by_loading();
+
+        stats.iid_nodes_stats[ id ] = node_stats;
+    }
+
+    stats.ignored_nodes = std::vector< location_id::id_type >( ignored_nodes.begin(), ignored_nodes.end() );
+
+    return stats;
+}
+
 //                               non member functions
 // ------------------------------------------------------------------------------------------------
 std::vector< node_direction > get_path( branching_node* node )
@@ -1781,6 +1859,13 @@ std::vector< node_direction > get_path( branching_node* node )
     }
 
     return result;
+}
+
+bool should_generate_more_data( const generation_state& state )
+{
+    return state == generation_state::STATE_GENERATION_MORE ||
+           state == generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE ||
+           state == generation_state::STATE_GENERATING_ARTIFICIAL_DATA;
 }
 
 } // namespace fuzzing
