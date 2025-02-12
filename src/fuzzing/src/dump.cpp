@@ -244,6 +244,128 @@ void  log_analysis_outcomes(analysis_outcomes const&  results)
 }
 
 
+void save_iid_vector_analysis( std::ostream& ostr, analysis_outcomes const& result )
+{
+    bool print_dependencies = true;
+
+    std::string const shift = "    ";
+    auto indent = [ & ]( int level ) -> std::string {
+        std::string result;
+        for ( int i = 0; i < level; ++i ) {
+            result += shift;
+        }
+        return result;
+    };
+
+
+    ostr << "{\n";
+    ostr << indent( 1 ) << "\"Analyzed node\": {\n";
+
+    for ( auto it = result.iid_vector_analysis_statistics.iid_nodes_stats.begin();
+          it != result.iid_vector_analysis_statistics.iid_nodes_stats.end();
+          ++it ) {
+        ostr << indent( 2 ) << std::dec << "\"" << it->first << "\"" << ": {\n";
+
+        ostr << indent( 3 ) << "\"Generation state\": \"";
+        switch ( it->second.generation_stats.state ) {
+            case generation_state::STATE_NOT_COVERED: ostr << "STATE_NOT_COVERED"; break;
+            case generation_state::STATE_GENERATING_ARTIFICIAL_DATA:
+                ostr << "STATE_GENERATING_ARTIFICIAL_DATA";
+                break;
+            case generation_state::STATE_GENERATION_MORE: ostr << "STATE_GENERATION_MORE"; break;
+            case generation_state::STATE_COVERED: ostr << "STATE_COVERED"; break;
+            case generation_state::STATE_GENERATION_DATA_FOR_NEXT_NODE:
+                ostr << "STATE_GENERATION_DATA_FOR_NEXT_NODE";
+                break;
+            default: ostr << "UNKNOWN"; break;
+        }
+        ostr << "\",\n";
+
+        ostr << indent( 3 ) << "\"Method calls\": " << it->second.generation_stats.method_calls << ",\n";
+        ostr << indent( 3 ) << "\"Generation starts\": " << it->second.generation_stats.generation_starts << ",\n";
+        ostr << indent( 3 )
+             << "\"Successful generations\": " << it->second.generation_stats.successful_generations << ",\n";
+        ostr << indent( 3 ) << "\"Failed generations\": " << it->second.generation_stats.failed_generations
+             << ",\n";
+        ostr << indent( 3 )
+             << "\"Artificial generations\": " << it->second.generation_stats.generate_artificial_data_count
+             << ",\n";
+        ostr << indent( 3 )
+             << "\"For other node generations\": " << it->second.generation_stats.generated_for_other_node_count
+             << ( print_dependencies ? "," : "" ) << "\n";
+
+        if ( print_dependencies ) {
+            ostr << indent( 3 ) << "\"Dependencies\": [\n";
+            for ( auto loop_it = it->second.loop_to_properties.loops.begin();
+                  loop_it != it->second.loop_to_properties.loops.end();
+                  ++loop_it ) {
+
+                ostr << indent( 4 ) << "{\n";
+                ostr << indent( 5 ) << "\"Loop heads\": [\n";
+                for ( auto head_it = loop_it->heads.begin(); head_it != loop_it->heads.end(); ++head_it ) {
+                    ostr << indent( 6 ) << std::dec << "\"" << head_it->first << "\""
+                         << ( std::next( head_it ) != loop_it->heads.end() ? "," : "" ) << '\n';
+                }
+                ostr << indent( 5 ) << "],\n";
+
+                ostr << indent( 5 ) << "\"Loop bodies\": [\n";
+                for ( auto body_it = loop_it->bodies.begin(); body_it != loop_it->bodies.end(); ++body_it ) {
+                    ostr << indent( 6 ) << std::dec << "\"" << *body_it << "\""
+                         << ( std::next( body_it ) != loop_it->bodies.end() ? "," : "" ) << '\n';
+                }
+                ostr << indent( 5 ) << "],\n";
+
+                ostr << indent( 5 )
+                     << "\"Is loading loop\": " << ( loop_it->is_loading_loop ? "true," : "false" ) << "\n";
+
+                if ( !loop_it->is_loading_loop ) {
+                    ostr << indent( 4 ) << "}"
+                         << ( std::next( loop_it ) != it->second.loop_to_properties.loops.end() ? "," : "" )
+                         << '\n';
+                    continue;
+                }
+
+                ostr << indent( 5 ) << "\"Loaded bits per loop\": " << loop_it->loaded_bits_per_loop.mean << ",\n";
+                ostr << indent( 5 ) << "\"Dependent nodes\": [\n";
+                for ( auto body_it = loop_it->bits_read_by_node.begin();
+                      body_it != loop_it->bits_read_by_node.end();
+                      ++body_it ) {
+                    ostr << indent( 6 ) << "{\n";
+                    ostr << indent( 7 ) << "\"Node\": " << std::dec << body_it->first << ",\n";
+                    ostr << indent( 7 ) << "\"Bits read\": " << body_it->second.average_bits_read.mean << ",\n";
+                    ostr << indent( 7 ) << "\"Minimal bit offset\": " << body_it->second.minimal_bit_offset
+                         << '\n';
+                    ostr << indent( 6 ) << "}"
+                         << ( std::next( body_it ) != loop_it->bits_read_by_node.end() ? "," : "" ) << '\n';
+                }
+                ostr << indent( 5 ) << "]\n";
+
+                ostr << indent( 4 ) << "}"
+                     << ( std::next( loop_it ) != it->second.loop_to_properties.loops.end() ? "," : "" ) << '\n';
+            }
+
+            ostr << indent( 3 ) << "]\n";
+        }
+
+        ostr << indent( 2 ) << "}"
+             << ( std::next( it ) != result.iid_vector_analysis_statistics.iid_nodes_stats.end() ? "," : "" )
+             << '\n';
+    }
+
+    ostr << indent( 1 ) << "},\n";
+
+    ostr << indent( 1 ) << "\"Ignored nodes\": [\n";
+    for ( std::size_t i = 0, n = result.iid_vector_analysis_statistics.ignored_node_ids.size(); i < n; ++i ) {
+        ostr << indent( 2 ) << std::dec << result.iid_vector_analysis_statistics.ignored_node_ids.at( i );
+        if ( i + 1 < n )
+            ostr << ',';
+        ostr << '\n';
+    }
+    ostr << indent( 1 ) << "]\n";
+
+    ostr << "}";
+}
+
 void  save_analysis_outcomes(
         std::filesystem::path const&  output_dir,
         std::string const&  benchmark,
@@ -253,6 +375,12 @@ void  save_analysis_outcomes(
     std::filesystem::path const  test_file_path = output_dir / (benchmark + "_outcomes.json");
     std::ofstream  ostr(test_file_path.c_str(), std::ios::binary);
     print_analysis_outcomes(ostr, results);
+    
+    if ( true ) {
+        std::filesystem::path const iid_vector_analysis_path = output_dir / (benchmark + "_iid_vector_analysis.json");
+        std::ofstream iid_ostr( iid_vector_analysis_path.c_str(), std::ios::binary );
+        save_iid_vector_analysis( iid_ostr, results );
+    }
 }
 
 

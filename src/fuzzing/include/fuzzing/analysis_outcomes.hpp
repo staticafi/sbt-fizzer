@@ -44,6 +44,7 @@ struct analysis_outcomes
     bitshare_analysis::performance_statistics   bitshare_statistics{};
     fuzzer::performance_statistics  fuzzer_statistics{};
     std::unordered_map<std::string, output_statistics>  output_statistics{};
+    iid_vector_analysis_statistics  iid_vector_analysis_statistics{};
 };
 
 

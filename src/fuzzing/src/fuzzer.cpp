@@ -635,7 +635,7 @@ void  fuzzer::compute_histogram_of_false_direction_probabilities(
 }
 
 branching_node* fuzzer::select_start_node_for_monte_carlo_search_with_vector(
-    const possible_path& path,
+    const generated_path& path,
     std::vector< branching_node* > const& loop_boundaries,
     branching_node* fallback_node )
 {
@@ -733,7 +733,7 @@ branching_node*  fuzzer::monte_carlo_search(
         histogram_of_false_direction_probabilities const&  histogram,
         probability_generators_for_locations const&  generators,
         probability_generator_random_uniform&  location_miss_generator,
-        possible_path&  path
+        generated_path&  path
         )
 {
     TMPROF_BLOCK();
@@ -796,7 +796,7 @@ fuzzing::fuzzer::monte_carlo_step_with_path( branching_node* const pivot,
                                              histogram_of_false_direction_probabilities const& histogram,
                                              probability_generators_for_locations const& generators,
                                              probability_generator_random_uniform& location_miss_generator,
-                                             possible_path& path )
+                                             generated_path& path )
 {
     INVARIANT( pivot != nullptr && !pivot->is_closed() );
 
@@ -825,9 +825,10 @@ fuzzing::fuzzer::monte_carlo_step_with_path( branching_node* const pivot,
 
     location_id::id_type pivot_id = pivot->get_location_id().id;
     if ( path.contains( pivot_id ) ) {
-        path_node_props& props = path.get_props( pivot_id );
+        node_props_in_path& props = path.get_props( pivot_id );
         if ( props.can_take_next_direction() ) {
             desired_direction = props.get_desired_direction();
+            // std::cout << "Desired direction: " << desired_direction << ", for node id:" << pivot_id << std::endl;
         }
     }
 
@@ -835,7 +836,7 @@ fuzzing::fuzzer::monte_carlo_step_with_path( branching_node* const pivot,
                                           ( desired_direction == true && can_go_right );
 
     if ( path.contains( pivot_id ) && can_go_desired_direction ) {
-        path_node_props& props = path.get_props( pivot_id );
+        node_props_in_path& props = path.get_props( pivot_id );
         if ( props.can_take_next_direction() ) {
             props.go_direction( desired_direction );
         }
@@ -846,7 +847,6 @@ fuzzing::fuzzer::monte_carlo_step_with_path( branching_node* const pivot,
     else if ( !pivot->is_open_branching() )
         successor = can_go_left ? left : right;
 
-    // std::cout << path << std::endl;
     return successor;
 }
 
@@ -1394,7 +1394,7 @@ void  fuzzer::do_cleanup()
                     update_close_flags_from(node);
                     break;
                 }
-            iid_dependences.update_non_iid_nodes(sensitivity);
+            iid_dependences.update_ignored_nodes(sensitivity);
             collect_iid_pivots_from_sensitivity_results();
             break;
         case BITSHARE:
@@ -1429,7 +1429,7 @@ void  fuzzer::do_cleanup()
     for (auto  it = iid_pivots.begin(); it != iid_pivots.end(); )
         if (covered_branchings.contains(it->first))
         {
-            iid_dependences.remove_node_dependence(it->first);
+            iid_dependences.remove_node_dependence(it->first.id);
             it = iid_pivots.erase(it);
         }
         else
@@ -1687,12 +1687,12 @@ branching_node*  fuzzer::select_iid_coverage_target()
     histogram_of_hit_counts_per_direction::hit_counts_map  hit_counts;
     it_pivot->second.histogram_ptr->merge(hit_counts);
 
-    possible_path path;
-    std::optional< location_id > iid_location = iid_dependences.get_next_iid_node();
+    generated_path path;
+    std::optional< location_id::id_type > iid_location = iid_dependences.get_next_iid_node();
 
     if ( use_vector_analysis && iid_location.has_value() ) {
         iid_node_dependence_props& node_props = iid_dependences.get_props( *iid_location );
-        // std::cout << "Computing probabilities for location " << ( *iid_location ).id << std::endl;
+        // std::cout << "Computing probabilities for location " << ( *iid_location ) << std::endl;
         path = node_props.generate_probabilities();
 
         for ( const auto& path_props : path.get_path() ) {

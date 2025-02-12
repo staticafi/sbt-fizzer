@@ -126,6 +126,7 @@ analysis_outcomes  run(
     results.minimization_statistics = f.get_minimization_statistics();
     results.bitshare_statistics = f.get_bitshare_statistics();
     results.fuzzer_statistics = f.get_fuzzer_statistics();
+    results.iid_vector_analysis_statistics = f.get_iid_vector_analysis_statistics();
 
     return  results;
 }

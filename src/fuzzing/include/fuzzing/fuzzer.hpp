@@ -84,6 +84,7 @@ struct  fuzzer final
     minimization_analysis::performance_statistics const&  get_minimization_statistics() const { return minimization.get_statistics(); }
     bitshare_analysis::performance_statistics const&  get_bitshare_statistics() const { return bitshare.get_statistics(); }
     performance_statistics const&  get_fuzzer_statistics() const { return statistics; }
+    iid_vector_analysis_statistics get_iid_vector_analysis_statistics() const { return iid_dependences.get_stats(); }
 
 private:
 
@@ -257,7 +258,7 @@ private:
             );
 
     static branching_node*  select_start_node_for_monte_carlo_search_with_vector(
-            possible_path const&  path,
+            generated_path const&  path,
             std::vector<branching_node*> const&  loop_boundaries,
             branching_node*  fallback_node
             );
@@ -282,7 +283,7 @@ private:
             histogram_of_false_direction_probabilities const&  histogram,
             probability_generators_for_locations const&  generators,
             probability_generator_random_uniform&  location_miss_generator,
-            possible_path&  path
+            generated_path&  path
             );
     static std::pair<branching_node*, bool>  monte_carlo_backward_search(
             branching_node* const  start_node,
@@ -302,7 +303,7 @@ private:
             histogram_of_false_direction_probabilities const&  histogram,
             probability_generators_for_locations const&  generators,
             probability_generator_random_uniform&  location_miss_generator,
-            possible_path&  path
+            generated_path&  path
             );
 
     bool  generate_next_input(vecb&  stdin_bits, TERMINATION_REASON&  termination_reason);
