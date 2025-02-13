@@ -3,6 +3,7 @@
 
 #   include <fuzzing/execution_trace.hpp>
 #   include <fuzzing/branching_node.hpp>
+#   include <utility/random.hpp>
 #   include <unordered_set>
 
 namespace  fuzzing {
@@ -55,7 +56,7 @@ private:
     stdin_bit_index  probed_bit_start_index;
     stdin_bit_index  probed_bit_end_index;
     std::unordered_set<stdin_bits_and_types const*>  processed_inputs;
-    natural_32_bit  current_leaf_index;
+    random_generator_for_natural_32_bit  rnd_generator;
 
     performance_statistics  statistics;
 };

@@ -17,7 +17,7 @@ bitflip_analysis::bitflip_analysis()
     , probed_bit_start_index{ 0U }
     , probed_bit_end_index{ 0U }
     , processed_inputs{ nullptr }
-    , current_leaf_index{ 0U }
+    , rnd_generator{}
     , statistics{}
 {}
 
@@ -42,8 +42,7 @@ void  bitflip_analysis::start(std::unordered_set<branching_node*> const&  leaf_b
 
     node_ptr = nullptr;
     bits_and_types = nullptr;
-    current_leaf_index = (current_leaf_index + 1U) % leaf_branchings.size();
-    auto const  it_end = std::next(leaf_branchings.begin(), current_leaf_index);
+    auto const  it_end = std::next(leaf_branchings.begin(), get_random_natural_32_bit_in_range(0UL, leaf_branchings.size() - 1UL, rnd_generator));
     auto  it = it_end;
     do
     {
