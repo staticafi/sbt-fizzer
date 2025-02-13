@@ -242,8 +242,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_others(nat
             if (!loop_heads_others.empty())
             {
                 best_node = *loop_heads_others.begin();
-                ++statistics->strategy_primary_loop_head;
-                recorder().on_strategy_turn_primary_loop_head();
+                ++statistics->strategy_loop_head_others;
+                recorder().on_strategy_turn_loop_head_others();
             }
             return best_node;
         },
@@ -252,8 +252,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_others(nat
             if (best_node != nullptr)
             {
                 ++untouched_counts.at(best_node->get_location_id().id);
-                ++statistics->strategy_primary_untouched;
-                recorder().on_strategy_turn_primary_sensitive();
+                ++statistics->strategy_untouched;
+                recorder().on_strategy_turn_untouched();
             }
             return best_node;
         }
@@ -277,8 +277,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_others(nat
             if (!loop_heads_others.empty())
                 return get_best_others(max_input_width);
         }
-        ++statistics->strategy_primary_iid_twins;
-        recorder().on_strategy_turn_primary_iid_twins();
+        ++statistics->strategy_iid_twins_others;
+        recorder().on_strategy_turn_iid_twins_others();
         return it->second.first;
     }
 
@@ -296,8 +296,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_sensitive(
             if (!loop_heads_sensitive.empty())
             {
                 best_node = *loop_heads_sensitive.begin();
-                ++statistics->strategy_primary_loop_head;
-                recorder().on_strategy_turn_primary_loop_head();
+                ++statistics->strategy_loop_head_sensitive;
+                recorder().on_strategy_turn_loop_head_sensitive();
             }
             return best_node;
         },
@@ -306,8 +306,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_sensitive(
             if (best_node != nullptr)
             {
                 ++sensitive_counts.at(best_node->get_location_id().id);
-                ++statistics->strategy_primary_sensitive;
-                recorder().on_strategy_turn_primary_sensitive();
+                ++statistics->strategy_sensitive;
+                recorder().on_strategy_turn_sensitive();
             }
             return best_node;
         }
@@ -331,8 +331,8 @@ branching_node*  fuzzer::primary_coverage_target_branchings::get_best_sensitive(
             if (!loop_heads_sensitive.empty())
                 return get_best_sensitive(max_input_width);
         }
-        ++statistics->strategy_primary_iid_twins;
-        recorder().on_strategy_turn_primary_iid_twins();
+        ++statistics->strategy_iid_twins_sensitive;
+        recorder().on_strategy_turn_iid_twins_sensitive();
         return it->second.first;
     }
 
@@ -1170,7 +1170,7 @@ void  fuzzer::terminate()
 {
     stop_all_analyzes();
 
-    recorder().flush_post_data();
+    recorder().flush_strategy_data();
 
     while (!leaf_branchings.empty())
         remove_leaf_branching_node(*leaf_branchings.begin());

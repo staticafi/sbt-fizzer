@@ -154,7 +154,8 @@ void  progress_recorder::on_bitshare_start(branching_node const* const  node_ptr
 
     bitshare.start_type = attribute;
     on_analysis_start(ANALYSIS::BITSHARE, bitshare, node_ptr);
-    flush_post_data();
+    if (attribute != START::RESUMED)
+        flush_strategy_data();
 }
 
 
@@ -169,8 +170,6 @@ void  progress_recorder::on_bitshare_stop(STOP const  attribute)
     bitshare.stop_type = attribute;
     bitshare.save();
     on_analysis_stop();
-    if (attribute != STOP::INTERRUPTED)
-        strategy.clear();
 }
 
 
@@ -181,7 +180,8 @@ void  progress_recorder::on_local_search_start(branching_node const* const  node
 
     local_search.start_type = attribute;
     on_analysis_start(ANALYSIS::LOCAL_SEARCH, local_search, node_ptr);
-    flush_post_data();
+    if (attribute != START::RESUMED)
+        flush_strategy_data();
 }
 
 
@@ -196,8 +196,6 @@ void  progress_recorder::on_local_search_stop(STOP const  attribute)
     local_search.stop_type = attribute;
     local_search.save();
     on_analysis_stop();
-    if (attribute != STOP::INTERRUPTED)
-        strategy.clear();
 }
 
 
@@ -232,6 +230,8 @@ void  progress_recorder::on_taint_request_start(branching_node const* const  nod
 
     taint_request.start_type = attribute;
     on_analysis_start(ANALYSIS::TAINT_REQUEST, taint_request, node_ptr);
+    if (attribute != START::RESUMED)
+        flush_strategy_data();
 }
 
 
@@ -520,35 +520,51 @@ void  progress_recorder::taint_response_progress_info::save_info(std::ostream&  
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_loop_head()
+void  progress_recorder::on_strategy_turn_loop_head_sensitive()
 {
     if (!is_started())
         return;
-    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_LOOP_HEAD);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::LOOP_HEAD_SENSITIVE);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_sensitive()
+void  progress_recorder::on_strategy_turn_loop_head_others()
 {
     if (!is_started())
         return;
-    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_SENSITIVE);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::LOOP_HEAD_OTHERS);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_untouched()
+void  progress_recorder::on_strategy_turn_sensitive()
 {
     if (!is_started())
         return;
-    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_UNTOUCHED);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::SENSITIVE);
 }
 
 
-void  progress_recorder::on_strategy_turn_primary_iid_twins()
+void  progress_recorder::on_strategy_turn_untouched()
 {
     if (!is_started())
         return;
-    strategy.on_strategy_changed(strategy_data::STRATEGY::PRIMARY_IID_TWINS);
+    strategy.on_strategy_changed(strategy_data::STRATEGY::UNTOUCHED);
+}
+
+
+void  progress_recorder::on_strategy_turn_iid_twins_sensitive()
+{
+    if (!is_started())
+        return;
+    strategy.on_strategy_changed(strategy_data::STRATEGY::IID_TWINS_SENSITIVE);
+}
+
+
+void  progress_recorder::on_strategy_turn_iid_twins_others()
+{
+    if (!is_started())
+        return;
+    strategy.on_strategy_changed(strategy_data::STRATEGY::IID_TWINS_OTHERS);
 }
 
 
@@ -576,7 +592,7 @@ void  progress_recorder::on_post_node_closed(branching_node const* const  node)
 }
 
 
-void  progress_recorder::flush_post_data()
+void  progress_recorder::flush_strategy_data()
 {
     if (!is_started())
         return;
@@ -638,10 +654,12 @@ void  progress_recorder::strategy_data::save() const
     switch (strategy)
     {
         case STRATEGY::NONE: ostr << "NONE"; break;
-        case STRATEGY::PRIMARY_LOOP_HEAD: ostr << "PRIMARY_LOOP_HEAD"; break;
-        case STRATEGY::PRIMARY_SENSITIVE: ostr << "PRIMARY_SENSITIVE"; break;
-        case STRATEGY::PRIMARY_UNTOUCHED: ostr << "PRIMARY_UNTOUCHED"; break;
-        case STRATEGY::PRIMARY_IID_TWINS: ostr << "PRIMARY_IID_TWINS"; break;
+        case STRATEGY::LOOP_HEAD_SENSITIVE: ostr << "LOOP_HEAD_SENSITIVE"; break;
+        case STRATEGY::LOOP_HEAD_OTHERS: ostr << "LOOP_HEAD_OTHERS"; break;
+        case STRATEGY::SENSITIVE: ostr << "SENSITIVE"; break;
+        case STRATEGY::UNTOUCHED: ostr << "UNTOUCHED"; break;
+        case STRATEGY::IID_TWINS_SENSITIVE: ostr << "IID_TWINS_SENSITIVE"; break;
+        case STRATEGY::IID_TWINS_OTHERS: ostr << "IID_TWINS_OTHERS"; break;
         case STRATEGY::MONTE_CARLO: ostr << "MONTE_CARLO"; break;
         case STRATEGY::MONTE_CARLO_BACKWARD: ostr << "MONTE_CARLO_BACKWARD"; break;
         default: UNREACHABLE(); break;

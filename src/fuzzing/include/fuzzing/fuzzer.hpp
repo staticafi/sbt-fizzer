@@ -46,10 +46,12 @@ struct  fuzzer final
         std::size_t  traces_to_crash{ 0 };
         std::size_t  traces_to_boundary_violation{ 0 };
         std::size_t  traces_to_medium_overflow{ 0 };
-        std::size_t  strategy_primary_loop_head{ 0 };
-        std::size_t  strategy_primary_sensitive{ 0 };
-        std::size_t  strategy_primary_untouched{ 0 };
-        std::size_t  strategy_primary_iid_twins{ 0 };
+        std::size_t  strategy_loop_head_sensitive{ 0 };
+        std::size_t  strategy_loop_head_others{ 0 };
+        std::size_t  strategy_sensitive{ 0 };
+        std::size_t  strategy_untouched{ 0 };
+        std::size_t  strategy_iid_twins_sensitive{ 0 };
+        std::size_t  strategy_iid_twins_others{ 0 };
         std::size_t  strategy_monte_carlo{ 0 };
         std::size_t  coverage_failure_resets{ 0 };
     };

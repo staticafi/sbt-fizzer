@@ -56,14 +56,16 @@ struct  progress_recorder
     void  on_trace_mapped_to_tree(branching_node const*  leaf_);
     void  on_execution_results_available();
 
-    void  on_strategy_turn_primary_loop_head();
-    void  on_strategy_turn_primary_sensitive();
-    void  on_strategy_turn_primary_untouched();
-    void  on_strategy_turn_primary_iid_twins();
+    void  on_strategy_turn_loop_head_sensitive();
+    void  on_strategy_turn_loop_head_others();
+    void  on_strategy_turn_sensitive();
+    void  on_strategy_turn_untouched();
+    void  on_strategy_turn_iid_twins_sensitive();
+    void  on_strategy_turn_iid_twins_others();
     void  on_strategy_turn_monte_carlo();
     void  on_strategy_turn_monte_carlo_backward();
     void  on_post_node_closed(branching_node const*  node);
-    void  flush_post_data();
+    void  flush_strategy_data();
 
 private:
 
@@ -120,12 +122,14 @@ private:
         enum struct STRATEGY
         {
             NONE                    = 0,
-            PRIMARY_LOOP_HEAD       = 1,
-            PRIMARY_SENSITIVE       = 2,
-            PRIMARY_UNTOUCHED       = 3,
-            PRIMARY_IID_TWINS       = 4,
-            MONTE_CARLO             = 5,
-            MONTE_CARLO_BACKWARD    = 6
+            LOOP_HEAD_SENSITIVE     = 1,
+            LOOP_HEAD_OTHERS        = 2,
+            SENSITIVE               = 3,
+            UNTOUCHED               = 4,
+            IID_TWINS_SENSITIVE     = 5,
+            IID_TWINS_OTHERS        = 6,
+            MONTE_CARLO             = 7,
+            MONTE_CARLO_BACKWARD    = 8
         };
 
         strategy_data();
